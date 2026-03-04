@@ -1,16 +1,18 @@
 import { initializeApp } from 'firebase/app'
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
 import { getFirestore, collection, doc, setDoc, serverTimestamp } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey:            process.env.VITE_FIREBASE_API_KEY,
-  authDomain:        process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             process.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyAuIJ4rON_RWKADbYjV7AfaX4MZoUMfcJo",
+  authDomain: "attendance-108ba.firebaseapp.com",
+  projectId: "attendance-108ba",
+  storageBucket: "attendance-108ba.firebasestorage.app",
+  messagingSenderId: "583226584419",
+  appId: "1:583226584419:web:875278b298151a52ef7756",
 }
 
 const app = initializeApp(firebaseConfig)
+const auth = getAuth(app)
 const db = getFirestore(app)
 
 const employees = [
@@ -27,9 +29,12 @@ const employees = [
 const orgId = 'techcorp'
 
 async function seed() {
+  console.log('🔐 Signing in...')
+  await signInWithEmailAndPassword(auth, 'demo@hrflow.com', 'demo123')
+  console.log('✅ Signed in')
+
   console.log('🌱 Seeding Firestore...')
 
-  // Create organisation
   await setDoc(doc(db, 'organisations', orgId), {
     name: 'TechCorp India',
     slug: 'techcorp',
@@ -37,9 +42,8 @@ async function seed() {
     logo: null,
     createdAt: serverTimestamp(),
   })
-  console.log('✓ Created organisation: TechCorp India')
+  console.log('✓ Created organisation')
 
-  // Create shifts
   await setDoc(doc(db, 'organisations', orgId, 'shifts', 'day'), {
     name: 'Day Shift',
     type: 'Day',
@@ -59,7 +63,6 @@ async function seed() {
   })
   console.log('✓ Created 2 shifts')
 
-  // Create employees
   for (const emp of employees) {
     await setDoc(doc(db, 'organisations', orgId, 'employees', emp.empCode), {
       ...emp,
