@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
@@ -29,7 +29,25 @@ export function useAuth() {
     return result.user
   }
 
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider()
+    const result = await signInWithPopup(auth, provider)
+    const firebaseUser = result.user
+    const userRef = doc(db, 'users', firebaseUser.uid)
+    const userDoc = await getDoc(userRef)
+    if (!userDoc.exists()) {
+      const { setDoc } = await import('firebase/firestore')
+      await setDoc(userRef, {
+        email: firebaseUser.email,
+        name: firebaseUser.displayName,
+        orgId: 'techcorp',
+        role: 'employee',
+      })
+    }
+    return firebaseUser
+  }
+
   const logout = () => signOut(auth)
 
-  return { user, loading, login, logout }
+  return { user, loading, login, loginWithGoogle, logout }
 }
