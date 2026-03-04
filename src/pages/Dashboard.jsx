@@ -56,16 +56,16 @@ export default function Dashboard() {
 
           {/* Right: User */}
           <div className="flex items-center gap-3">
-            <div 
+            <div
               className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
               style={{ backgroundColor: getAvatarColor(user?.uid) }}
             >
               {getInitials(user?.name)}
             </div>
             <span className="font-medium text-gray-700 hidden sm:block">{user?.name || 'User'}</span>
-            <button 
+            <button
               onClick={logout}
-              className="text-sm text-gray-500 hover:text-gray-700 ml-2"
+              className="text-sm text-gray-500 hover:text-red-500 hover:font-bold ml-2 transition-all"
             >
               Logout
             </button>
@@ -81,11 +81,10 @@ export default function Dashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === tab.id
+                className={`px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeTab === tab.id
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 {tab.label}
                 {tab.badge && (

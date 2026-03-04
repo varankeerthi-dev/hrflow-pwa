@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
-import { collection, getDocs, addDoc, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
@@ -33,6 +33,7 @@ export default function SettingsTab() {
   })
   const [orgSettings, setOrgSettings] = useState({ name: '', slug: '', color: '#6366f1' })
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -75,9 +76,18 @@ export default function SettingsTab() {
   }
 
   const handleSaveOrg = async () => {
+    if (!user?.orgId) return
     setSaving(true)
-    await updateDoc(doc(db, 'organisations', user.orgId), orgSettings)
-    setSaving(false)
+    try {
+      // Use setDoc+merge so it works even if the doc doesn't fully exist yet
+      await setDoc(doc(db, 'organisations', user.orgId), orgSettings, { merge: true })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      console.error('Org save failed:', err)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -86,25 +96,22 @@ export default function SettingsTab() {
       <div className="flex gap-2 mb-4 flex-wrap">
         <button
           onClick={() => setActiveSubTab('organization')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeSubTab === 'organization' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'organization' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
         >
           🏢 Organization
         </button>
         <button
           onClick={() => setActiveSubTab('employee')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeSubTab === 'employee' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'employee' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
         >
           👤 Employees
         </button>
         <button
           onClick={() => setActiveSubTab('shift')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeSubTab === 'shift' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'shift' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
         >
           🕐 Shifts
         </button>
@@ -156,9 +163,12 @@ export default function SettingsTab() {
               <button
                 onClick={handleSaveOrg}
                 disabled={saving}
-                className="bg-indigo-500 text-white px-6 py-2 rounded-lg hover:bg-indigo-600 disabled:opacity-50"
+                className={`px-6 py-2 rounded-lg font-medium transition-all disabled:opacity-50 ${saved
+                    ? 'bg-green-500 text-white'
+                    : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                  }`}
               >
-                {saving ? 'Saving...' : 'Save Organization'}
+                {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save Organisation'}
               </button>
             </div>
           </div>
@@ -170,7 +180,7 @@ export default function SettingsTab() {
         <div className="flex-1 overflow-auto">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-800">Employees</h3>
-            <button 
+            <button
               onClick={() => setShowAddEmployee(true)}
               className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600"
             >
@@ -198,7 +208,7 @@ export default function SettingsTab() {
                   <tr key={emp.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div 
+                        <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
                           style={{ backgroundColor: getAvatarColor(emp.id) }}
                         >
@@ -211,7 +221,7 @@ export default function SettingsTab() {
                     <td className="px-4 py-3 text-gray-600">{emp.department}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {editingEmp === emp.id ? (
-                        <select 
+                        <select
                           value={editForm.shiftId || ''}
                           onChange={e => setEditForm(f => ({ ...f, shiftId: e.target.value }))}
                           className="border rounded px-2 py-1 text-sm"
@@ -223,8 +233,8 @@ export default function SettingsTab() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {editingEmp === emp.id ? (
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={editForm.workHours || ''}
                           onChange={e => setEditForm(f => ({ ...f, workHours: parseInt(e.target.value) }))}
                           className="border rounded px-2 py-1 text-sm w-16"
@@ -233,8 +243,8 @@ export default function SettingsTab() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {editingEmp === emp.id ? (
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={editForm.site || ''}
                           onChange={e => setEditForm(f => ({ ...f, site: e.target.value }))}
                           className="border rounded px-2 py-1 text-sm"
@@ -248,7 +258,7 @@ export default function SettingsTab() {
                           <button onClick={() => setEditingEmp(null)} className="text-gray-500 hover:bg-gray-100 px-2 py-1 rounded text-sm">Cancel</button>
                         </div>
                       ) : (
-                        <button 
+                        <button
                           onClick={() => { setEditingEmp(emp.id); setEditForm(emp); }}
                           className="text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded text-sm font-medium"
                         >
@@ -269,7 +279,7 @@ export default function SettingsTab() {
         <div className="flex-1 overflow-auto">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-800">Shifts</h3>
-            <button 
+            <button
               onClick={() => setShowAddShift(true)}
               className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600"
             >
@@ -282,8 +292,8 @@ export default function SettingsTab() {
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {shifts.map(shift => (
-                <div 
-                  key={shift.id} 
+                <div
+                  key={shift.id}
                   className={`rounded-xl shadow p-4 ${shift.type === 'Overnight' ? 'bg-purple-50 border border-purple-200' : 'bg-blue-50 border border-blue-200'}`}
                 >
                   <div className="flex justify-between items-start mb-3">
@@ -307,14 +317,14 @@ export default function SettingsTab() {
           {/* Add Shift Modal */}
           <Modal isOpen={showAddShift} onClose={() => setShowAddShift(false)} title="Add New Shift">
             <div className="space-y-3">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Shift Name"
                 value={newShift.name}
                 onChange={e => setNewShift(s => ({ ...s, name: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2"
               />
-              <select 
+              <select
                 value={newShift.type}
                 onChange={e => setNewShift(s => ({ ...s, type: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2"
@@ -325,8 +335,8 @@ export default function SettingsTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-500">Start Time</label>
-                  <input 
-                    type="time" 
+                  <input
+                    type="time"
                     value={newShift.startTime}
                     onChange={e => setNewShift(s => ({ ...s, startTime: e.target.value }))}
                     className="w-full border rounded-lg px-3 py-2"
@@ -334,16 +344,16 @@ export default function SettingsTab() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-500">End Time</label>
-                  <input 
-                    type="time" 
+                  <input
+                    type="time"
                     value={newShift.endTime}
                     onChange={e => setNewShift(s => ({ ...s, endTime: e.target.value }))}
                     className="w-full border rounded-lg px-3 py-2"
                   />
                 </div>
               </div>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 placeholder="Work Hours"
                 value={newShift.workHours}
                 onChange={e => setNewShift(s => ({ ...s, workHours: parseInt(e.target.value) }))}
@@ -359,28 +369,28 @@ export default function SettingsTab() {
           {/* Add Employee Modal */}
           <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add New Employee">
             <div className="space-y-3">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Full Name"
                 value={newEmployee.name}
                 onChange={e => setNewEmployee(s => ({ ...s, name: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2"
               />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Employee Code (e.g. TC001)"
                 value={newEmployee.empCode}
                 onChange={e => setNewEmployee(s => ({ ...s, empCode: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2"
               />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Department"
                 value={newEmployee.department}
                 onChange={e => setNewEmployee(s => ({ ...s, department: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2"
               />
-              <select 
+              <select
                 value={newEmployee.shiftId}
                 onChange={e => setNewEmployee(s => ({ ...s, shiftId: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2"
@@ -389,30 +399,30 @@ export default function SettingsTab() {
                 {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               <div className="grid grid-cols-2 gap-3">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   placeholder="Work Hours"
                   value={newEmployee.workHours}
                   onChange={e => setNewEmployee(s => ({ ...s, workHours: parseInt(e.target.value) }))}
                   className="w-full border rounded-lg px-3 py-2"
                 />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Site"
                   value={newEmployee.site}
                   onChange={e => setNewEmployee(s => ({ ...s, site: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 placeholder="Monthly Salary"
                 value={newEmployee.monthlySalary}
                 onChange={e => setNewEmployee(s => ({ ...s, monthlySalary: parseInt(e.target.value) }))}
                 className="w-full border rounded-lg px-3 py-2"
               />
-              <input 
-                type="date" 
+              <input
+                type="date"
                 placeholder="Join Date"
                 value={newEmployee.joinedDate}
                 onChange={e => setNewEmployee(s => ({ ...s, joinedDate: e.target.value }))}
