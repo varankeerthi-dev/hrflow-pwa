@@ -76,7 +76,7 @@ export default function SalarySlabSettings() {
   if (empLoading || slabLoading) return <div className="py-10 text-center"><Spinner /></div>
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-roboto">
       <div className="flex justify-between items-center no-print">
         <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Salary Configuration</h3>
         <div className="flex gap-2">

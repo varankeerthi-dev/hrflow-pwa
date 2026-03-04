@@ -37,35 +37,45 @@ export default function SalarySlipTab() {
   const slipRef = useRef(null)
 
   const handleGenerate = async () => {
+    console.log('handleGenerate: starting', { selectedEmp, selectedMonth })
     if (!selectedEmp || !selectedMonth) return
     setLoading(true)
     try {
       // Check if already saved
       const slipId = `${selectedEmp}_${selectedMonth}`
+      console.log('handleGenerate: checking for saved slip', slipId)
       const savedSlipSnap = await getDoc(doc(db, 'organisations', user.orgId, 'salarySlips', slipId))
       if (savedSlipSnap.exists()) {
+        console.log('handleGenerate: saved slip found')
         setSlipData(savedSlipSnap.data())
         setLoading(false)
         return
       }
 
       const emp = employees.find(e => e.id === selectedEmp)
-      if (!emp) return
+      console.log('handleGenerate: emp found', emp?.name)
+      if (!emp) {
+        console.error('handleGenerate: employee not found in employees list')
+        setLoading(false)
+        return
+      }
       
       // Get attendance
       const startDate = `${selectedMonth}-01`
       const [year, month] = selectedMonth.split('-')
       const endDay = new Date(year, month, 0).getDate()
       const endDate = `${selectedMonth}-${endDay}`
+      console.log('handleGenerate: dates', { startDate, endDate, endDay })
       
       const attQ = query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp), where('date', '>=', startDate), where('date', '<=', endDate))
       const attSnap = await getDocs(attQ)
       const attData = attSnap.docs.map(d => d.data())
+      console.log('handleGenerate: attendance data fetched', attData.length, 'records')
       
       // Determine applicable slab
-      // Slab that is effectiveFrom <= selectedMonth
       const applicableIncrements = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))
       const activeSlab = applicableIncrements[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
+      console.log('handleGenerate: active slab', activeSlab)
       
       const totalSalary = Number(activeSlab.totalSalary) || 0
       const minDailyHours = Number(emp.minDailyHours) || 8
@@ -75,7 +85,6 @@ export default function SalarySlipTab() {
       let paidDays = 0
       let lopDays = 0
       let autoOTHours = 0
-      let usedPermHours = 0
       
       const grid = []
       for (let i = 1; i <= endDay; i++) {
@@ -99,7 +108,7 @@ export default function SalarySlipTab() {
         } else if (isSunday) {
            type = 'Sunday'
         } else {
-           type = 'Absent' // if no record and not sunday, assume absent
+           type = 'Absent'
         }
         
         // Compute LOP
@@ -108,6 +117,7 @@ export default function SalarySlipTab() {
         
         grid.push({ date: i, type, dStr })
       }
+      console.log('handleGenerate: grid built', { paidDays, lopDays, autoOTHours })
       
       // Apply Continuous Leave Rule for Sundays
       if (continuousLeaveRule) {
@@ -115,12 +125,10 @@ export default function SalarySlipTab() {
           if (day.type === 'Sunday' || day.type === 'Sunday Holiday') {
             let leftAbsent = false
             let rightAbsent = false
-            // look left
             for (let i = idx - 1; i >= 0; i--) {
               if (grid[i].type === 'Absent') { leftAbsent = true; break; }
               if (grid[i].type === 'Working') break;
             }
-            // look right
             for (let i = idx + 1; i < grid.length; i++) {
               if (grid[i].type === 'Absent') { rightAbsent = true; break; }
               if (grid[i].type === 'Working') break;
@@ -165,7 +173,7 @@ export default function SalarySlipTab() {
       
       const netPay = Math.max(0, grossEarnings - totalDeductions)
       
-      setSlipData({
+      const finalData = {
         employee: emp,
         month: selectedMonth,
         slab: activeSlab,
@@ -183,10 +191,13 @@ export default function SalarySlipTab() {
         advanceDeduction: pendingAdvances,
         totalDeductions,
         netPay
-      })
+      }
+      console.log('handleGenerate: success, finalData set', finalData)
+      setSlipData(finalData)
       
     } catch (err) {
-      console.error(err)
+      console.error('handleGenerate: CRITICAL ERROR', err)
+      alert('Error generating slip: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -250,7 +261,7 @@ export default function SalarySlipTab() {
   }
 
   return (
-    <div className="h-full flex flex-col font-inter space-y-6">
+    <div className="h-full flex flex-col font-roboto space-y-6">
       <div className="bg-white p-5 rounded-2xl border shadow-sm flex flex-wrap gap-4 items-end no-print">
         <div className="flex-1 min-w-[200px]">
           <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Select Employee</label>
@@ -285,7 +296,7 @@ export default function SalarySlipTab() {
             </div>
 
             {/* SLIP RENDER TARGET */}
-            <div ref={slipRef} className="p-10 bg-white" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <div ref={slipRef} className="p-10 bg-white" style={{ fontFamily: 'Roboto, sans-serif' }}>
               <div className="border-b-2 border-gray-800 pb-4 mb-6 flex justify-between items-end">
                 <div>
                   <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">{user?.orgName || 'COMPANY NAME'}</h1>

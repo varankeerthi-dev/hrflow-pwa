@@ -234,7 +234,7 @@ export default function SettingsTab() {
   }
 
   return (
-    <div className="h-full flex flex-col text-[11px] font-inter">
+    <div className="h-full flex flex-col text-[11px] font-roboto">
       <style>{`
         @media print {
           body * { visibility: hidden; }
