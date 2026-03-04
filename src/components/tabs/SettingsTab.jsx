@@ -7,6 +7,8 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
+import SalarySlabSettings from './SalarySlabSettings'
+
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
 }
@@ -34,7 +36,7 @@ export default function SettingsTab() {
   
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [newEmployee, setNewEmployee] = useState({
-    name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', bankAccount: '', photoURL: ''
+    name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
   })
   const [newRole, setNewRole] = useState({ name: '', permissions: {} })
   const [orgSettings, setOrgSettings] = useState({
@@ -69,6 +71,12 @@ export default function SettingsTab() {
         { id: 'Correction', label: 'Attendance Correction' },
         { id: 'Approvals', label: 'OT & Leave Approvals' },
         { id: 'Summary', label: 'Reports & Summary' }
+      ]
+    },
+    {
+      title: 'Payroll & Salary',
+      modules: [
+        { id: 'SalarySlip', label: 'Salary Slips & Payroll' }
       ]
     },
     {
@@ -172,7 +180,7 @@ export default function SettingsTab() {
     await logChange('EMPLOYEE_CREATE', 'new', { name: newEmployee.name })
     setShowAddEmployee(false)
     setNewEmployee({
-      name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', bankAccount: '', photoURL: ''
+      name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
     })
     setSaving(false)
   }
@@ -240,13 +248,13 @@ export default function SettingsTab() {
       `}</style>
 
       <div className="flex gap-1.5 mb-4 flex-wrap no-print">
-        {['organization', 'employee', 'shift', 'roles'].map(tab => (
+        {['organization', 'employee', 'shift', 'roles', 'salary'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveSubTab(tab)}
             className={`px-3 py-1.5 rounded-xl font-black transition-all uppercase tracking-tighter border ${activeSubTab === tab ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-gray-400 hover:bg-gray-50 border-gray-100'}`}
           >
-            {tab === 'organization' ? 'Org Details' : tab === 'employee' ? 'Employees' : tab === 'shift' ? 'Shifts' : 'Roles & Rights'}
+            {tab === 'organization' ? 'Org Details' : tab === 'employee' ? 'Employees' : tab === 'shift' ? 'Shifts' : tab === 'roles' ? 'Roles & Rights' : 'Salary Slab'}
           </button>
         ))}
       </div>
@@ -490,6 +498,10 @@ export default function SettingsTab() {
             ))}
           </div>
         )}
+
+        {activeSubTab === 'salary' && (
+          <SalarySlabSettings />
+        )}
       </div>
 
       {/* COMPREHENSIVE EMPLOYEE EDITOR MODAL */}
@@ -517,11 +529,13 @@ export default function SettingsTab() {
                 { label: 'Site Location', key: 'site' },
                 { label: 'Bank Account', key: 'bankAccount' },
                 { label: 'Joined Date', key: 'joinedDate', type: 'date' },
-                { label: 'Blood Group', key: 'bloodGroup' }
+                { label: 'Blood Group', key: 'bloodGroup' },
+                { label: 'Perm. Hrs/Month', key: 'permissionHours', type: 'number', placeholder: 'e.g. 2' },
+                { label: 'Min Daily Hrs', key: 'minDailyHours', type: 'number', placeholder: 'e.g. 8' }
               ].map(f => (
                 <div key={f.key}>
                   <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
-                  <input type={f.type || 'text'} value={editForm[f.key] || ''} onChange={e => setEditForm(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none bg-white shadow-sm" />
+                  <input type={f.type || 'text'} placeholder={f.placeholder} value={editForm[f.key] || ''} onChange={e => setEditForm(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none bg-white shadow-sm" />
                 </div>
               ))}
               <div>

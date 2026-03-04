@@ -9,6 +9,7 @@ import ApprovalsTab from '../components/tabs/ApprovalsTab'
 import SummaryTab from '../components/tabs/SummaryTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
+import SalarySlipTab from '../components/tabs/SalarySlipTab'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
 class ErrorBoundary extends Component {
@@ -156,6 +157,7 @@ export default function Dashboard() {
     { id: 'correction', label: 'Correction', icon: '✏️', module: 'Correction' },
     { id: 'approvals', label: 'Approvals', icon: '✅', badge: 'OT', module: 'Approvals' },
     { id: 'summary', label: 'Summary', icon: '📊', module: 'Summary' },
+    { id: 'salary-slip', label: 'Salary Slip', icon: '💰', module: 'SalarySlip' },
     { id: 'portal', label: 'Self Service', icon: '👤', module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: '⚙️', module: 'Settings' },
   ], [])
@@ -173,6 +175,7 @@ export default function Dashboard() {
       case 'correction': return <CorrectionTab />
       case 'approvals': return <ApprovalsTab />
       case 'summary': return <SummaryTab />
+      case 'salary-slip': return <SalarySlipTab />
       case 'portal': return <EmployeePortalTab />
       case 'settings': return <SettingsTab />
       default: return <EmployeePortalTab />
