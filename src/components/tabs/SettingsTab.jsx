@@ -34,6 +34,7 @@ export default function SettingsTab() {
   const [orgSettings, setOrgSettings] = useState({ name: '', slug: '', color: '#6366f1' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [orgError, setOrgError] = useState('')
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -76,15 +77,28 @@ export default function SettingsTab() {
   }
 
   const handleSaveOrg = async () => {
-    if (!user?.orgId) return
+    if (!user?.orgId) { setOrgError('No organisation ID found. Please re-login.'); return }
     setSaving(true)
+    setOrgError('')
+    // Only write the user-editable fields — not adminUids, code, timestamps etc.
+    const payload = {
+      name: orgSettings.name || '',
+      slug: orgSettings.slug || '',
+      color: orgSettings.color || '#6366f1',
+    }
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Save timed out. Check your Firestore security rules allow writes to the organisations collection.')), 10000)
+    )
     try {
-      // Use setDoc+merge so it works even if the doc doesn't fully exist yet
-      await setDoc(doc(db, 'organisations', user.orgId), orgSettings, { merge: true })
+      await Promise.race([
+        setDoc(doc(db, 'organisations', user.orgId), payload, { merge: true }),
+        timeout,
+      ])
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       console.error('Org save failed:', err)
+      setOrgError(err.message || 'Save failed. Check Firestore rules.')
     } finally {
       setSaving(false)
     }
@@ -164,12 +178,17 @@ export default function SettingsTab() {
                 onClick={handleSaveOrg}
                 disabled={saving}
                 className={`px-6 py-2 rounded-lg font-medium transition-all disabled:opacity-50 ${saved
-                    ? 'bg-green-500 text-white'
-                    : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-indigo-500 text-white hover:bg-indigo-600'
                   }`}
               >
                 {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save Organisation'}
               </button>
+              {orgError && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm mt-2">
+                  ⚠️ {orgError}
+                </div>
+              )}
             </div>
           </div>
         </div>
