@@ -574,138 +574,166 @@ export default function SettingsTab() {
       </Modal>
 
       {/* FULL EMPLOYEE CREATE FORM */}
-      <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="New Employee">
-        <div className="flex flex-col h-[85vh] max-w-2xl mx-auto font-inter">
-          {/* Header / Photo */}
-          <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0 flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center relative overflow-hidden bg-indigo-50 shadow-inner group shrink-0">
-              {newEmployee.photoURL
-                ? <img src={newEmployee.photoURL} className="w-full h-full object-cover" alt="photo" />
-                : <span className="text-[9px] text-indigo-300 font-black uppercase select-none text-center">📸<br />Photo</span>
-              }
-              <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
-                const url = await handleFileUpload(e.target.files[0], `employees/new_${Date.now()}/profile`)
-                if (url) setNewEmployee(s => ({ ...s, photoURL: url }))
-              }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <input
-                type="text"
-                placeholder="Employee Full Name"
-                value={newEmployee.name}
-                onChange={e => setNewEmployee(s => ({ ...s, name: e.target.value }))}
-                className="w-full text-[18px] font-black text-gray-800 bg-transparent border-none focus:ring-0 outline-none placeholder-gray-200 uppercase tracking-tight"
-              />
-              <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mt-0.5">New Personnel Master File</p>
-            </div>
-            <div className="flex flex-col gap-1 items-end shrink-0">
-              {['Active', 'Inactive'].map(s => (
-                <button key={s} type="button" onClick={() => setNewEmployee(e => ({ ...e, status: s }))}
-                  className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border transition-all ${newEmployee.status === s ? (s === 'Active' ? 'bg-green-100 text-green-600 border-green-200' : 'bg-red-100 text-red-500 border-red-200') : 'bg-white text-gray-200 border-gray-100'}`}>
-                  {s}
-                </button>
-              ))}
+      <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add New Employee">
+        <div className="flex flex-col h-[85vh] max-w-2xl mx-auto font-inter bg-white">
+          {/* Header */}
+          <div className="px-8 pt-8 pb-6 border-b border-gray-50 shrink-0">
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center relative overflow-hidden bg-gray-50 shrink-0 group">
+                {newEmployee.photoURL
+                  ? <img src={newEmployee.photoURL} className="w-full h-full object-cover" alt="photo" />
+                  : <div className="text-center">
+                      <span className="text-xl">👤</span>
+                      <p className="text-[8px] text-gray-400 font-bold uppercase mt-1">Photo</p>
+                    </div>
+                }
+                <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
+                  const url = await handleFileUpload(e.target.files[0], `employees/new_${Date.now()}/profile`)
+                  if (url) setNewEmployee(s => ({ ...s, photoURL: url }))
+                }} />
+              </div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="FULL NAME"
+                  value={newEmployee.name}
+                  onChange={e => setNewEmployee(s => ({ ...s, name: e.target.value }))}
+                  className="w-full text-2xl font-black text-gray-800 bg-transparent border-none focus:ring-0 outline-none placeholder-gray-200 uppercase tracking-tight"
+                />
+                <div className="flex items-center gap-4 mt-2">
+                  <span className="text-[10px] text-indigo-600 font-black uppercase tracking-[0.2em]">New Employee Profile</span>
+                  <div className="flex gap-1">
+                    {['Active', 'Inactive'].map(s => (
+                      <button key={s} type="button" onClick={() => setNewEmployee(e => ({ ...e, status: s }))}
+                        className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${newEmployee.status === s ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Scrollable Form Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-7">
-            {/* Identity & Role */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Identity & Role</span>
+          {/* Form Body - All fields visible in a clean grid */}
+          <div className="flex-1 overflow-y-auto px-8 py-8 space-y-10">
+            
+            {/* 01. Employment Identity */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">01. Employment Identity</span>
+                <div className="h-px bg-gray-100 flex-1" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+                {[
+                  { label: 'Employee ID', key: 'empCode', placeholder: 'TC-001' },
+                  { label: 'Department', key: 'department', placeholder: 'Engineering' },
+                  { label: 'Site Location', key: 'site', placeholder: 'Main Office' },
+                  { label: 'Joining Date', key: 'joinedDate', type: 'date' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{f.label}</label>
+                    <input 
+                      type={f.type || 'text'} 
+                      placeholder={f.placeholder}
+                      value={newEmployee[f.key]} 
+                      onChange={e => setNewEmployee(s => ({ ...s, [f.key]: e.target.value }))} 
+                      className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all" 
+                    />
+                  </div>
+                ))}
                 <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Employee ID</label>
-                  <input type="text" placeholder="EMP-001" value={newEmployee.empCode} onChange={e => setNewEmployee(s => ({ ...s, empCode: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none font-mono" />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Department</label>
-                  <input type="text" placeholder="Operations" value={newEmployee.department} onChange={e => setNewEmployee(s => ({ ...s, department: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Site Location</label>
-                  <input type="text" placeholder="Chennai HQ" value={newEmployee.site} onChange={e => setNewEmployee(s => ({ ...s, site: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Employment Type</label>
-                  <select value={newEmployee.employmentType} onChange={e => setNewEmployee(s => ({ ...s, employmentType: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Employment Type</label>
+                  <select 
+                    value={newEmployee.employmentType} 
+                    onChange={e => setNewEmployee(s => ({ ...s, employmentType: e.target.value }))} 
+                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                  >
                     {['Full-time', 'Part-time', 'Contract', 'Intern'].map(t => <option key={t}>{t}</option>)}
                   </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Joining Date</label>
-                  <input type="date" value={newEmployee.joinedDate} onChange={e => setNewEmployee(s => ({ ...s, joinedDate: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none" />
                 </div>
               </div>
             </div>
 
-            {/* Work & Schedule */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-1.5 h-4 bg-purple-500 rounded-full" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Work & Schedule</span>
+            {/* 02. Shift & Work Schedule */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">02. Work & Schedule</span>
+                <div className="h-px bg-gray-100 flex-1" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                 <div className="col-span-2">
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Assigned Shift</label>
-                  <select value={newEmployee.shiftId} onChange={e => setNewEmployee(s => ({ ...s, shiftId: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-purple-400 outline-none">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Assigned Shift</label>
+                  <select 
+                    value={newEmployee.shiftId} 
+                    onChange={e => setNewEmployee(s => ({ ...s, shiftId: e.target.value }))} 
+                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                  >
                     <option value="">Select shift...</option>
                     {shifts.map(s => <option key={s.id} value={s.id}>{s.name} ({s.isFlexible ? 'Flexible' : `${s.startTime}–${s.endTime}`})</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Hours/Day</label>
-                  <input type="number" step="0.5" value={newEmployee.workHours} onChange={e => setNewEmployee(s => ({ ...s, workHours: Number(e.target.value) }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-purple-400 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Min Day Hrs</label>
-                  <input type="number" step="0.5" value={newEmployee.minDailyHours} onChange={e => setNewEmployee(s => ({ ...s, minDailyHours: Number(e.target.value) }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-purple-400 outline-none" />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Permission Allowance (Hrs/Month)</label>
-                  <input type="number" step="0.5" value={newEmployee.permissionHours} onChange={e => setNewEmployee(s => ({ ...s, permissionHours: Number(e.target.value) }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-purple-400 outline-none" />
-                </div>
-              </div>
-            </div>
-
-            {/* Payroll */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-1.5 h-4 bg-green-500 rounded-full" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Payroll & Banking</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Monthly Salary (₹)</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 font-bold">₹</span>
-                    <input type="number" placeholder="0" value={newEmployee.monthlySalary} onChange={e => setNewEmployee(s => ({ ...s, monthlySalary: Number(e.target.value) }))} className="w-full h-[38px] border border-gray-200 rounded-xl pl-7 pr-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-green-400 outline-none" />
+                {[
+                  { label: 'Work Hours/Day', key: 'workHours', type: 'number' },
+                  { label: 'Min Daily Hours', key: 'minDailyHours', type: 'number' },
+                  { label: 'Monthly Permission (Hrs)', key: 'permissionHours', type: 'number' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{f.label}</label>
+                    <input 
+                      type="number" 
+                      step="0.5" 
+                      value={newEmployee[f.key]} 
+                      onChange={e => setNewEmployee(s => ({ ...s, [f.key]: Number(e.target.value) }))} 
+                      className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
+                    />
                   </div>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Bank Account Details</label>
-                  <input type="text" placeholder="Account no. / IFSC" value={newEmployee.bankAccount} onChange={e => setNewEmployee(s => ({ ...s, bankAccount: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-green-400 outline-none font-mono" />
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Personal Details */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-1.5 h-4 bg-orange-400 rounded-full" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Personal Details</span>
+            {/* 03. Payroll & Personal */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">03. Payroll & Personal</span>
+                <div className="h-px bg-gray-100 flex-1" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                 <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">DOB</label>
-                  <input type="date" value={newEmployee.dob} onChange={e => setNewEmployee(s => ({ ...s, dob: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-orange-300 outline-none" />
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Monthly Salary (₹)</label>
+                  <input 
+                    type="number" 
+                    value={newEmployee.monthlySalary} 
+                    onChange={e => setNewEmployee(s => ({ ...s, monthlySalary: Number(e.target.value) }))} 
+                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-indigo-600 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
+                  />
                 </div>
                 <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Blood Group</label>
-                  <select value={newEmployee.bloodGroup} onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-orange-300 outline-none">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Bank Account Info</label>
+                  <input 
+                    type="text" 
+                    placeholder="ACC: XXXX / IFSC: XXXX"
+                    value={newEmployee.bankAccount} 
+                    onChange={e => setNewEmployee(s => ({ ...s, bankAccount: e.target.value }))} 
+                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-[10px] font-bold text-gray-500 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Date of Birth</label>
+                  <input 
+                    type="date" 
+                    value={newEmployee.dob} 
+                    onChange={e => setNewEmployee(s => ({ ...s, dob: e.target.value }))} 
+                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Blood Group</label>
+                  <select 
+                    value={newEmployee.bloodGroup} 
+                    onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))} 
+                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                  >
                     <option value="">Select...</option>
                     {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg}>{bg}</option>)}
                   </select>
@@ -714,11 +742,22 @@ export default function SettingsTab() {
             </div>
           </div>
 
-          {/* Footer Actions */}
-          <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex gap-3 bg-white">
-            <button type="button" onClick={() => setShowAddEmployee(false)} className="flex-1 h-[42px] border-2 border-gray-100 rounded-xl font-black text-gray-400 uppercase tracking-widest text-[10px] hover:border-gray-200 transition-all">Cancel</button>
-            <button type="button" onClick={handleAddEmployee} disabled={saving || !newEmployee.name} className="flex-[2] h-[42px] bg-indigo-600 text-white font-black rounded-xl shadow-lg shadow-indigo-500/20 uppercase tracking-widest text-[11px] hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-              {saving ? 'Creating...' : '✓ Create Employee'}
+          {/* Action Footer */}
+          <div className="px-8 py-6 border-t border-gray-50 shrink-0 flex gap-4 bg-white">
+            <button 
+              type="button" 
+              onClick={() => setShowAddEmployee(false)} 
+              className="px-6 h-[48px] rounded-xl font-black text-gray-400 uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              onClick={handleAddEmployee} 
+              disabled={saving || !newEmployee.name} 
+              className="flex-1 h-[48px] bg-indigo-600 text-white font-black rounded-xl shadow-xl shadow-indigo-100 uppercase tracking-[0.2em] text-[11px] hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            >
+              {saving ? 'Processing...' : 'Complete Registration'}
             </button>
           </div>
         </div>

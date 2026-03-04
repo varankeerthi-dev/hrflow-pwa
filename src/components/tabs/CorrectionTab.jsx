@@ -156,7 +156,7 @@ export default function CorrectionTab() {
   }
 
   return (
-    <div className="flex flex-col h-full gap-3 font-inter overflow-hidden">
+    <div className="flex flex-col h-full gap-4 font-inter overflow-hidden">
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -168,151 +168,164 @@ export default function CorrectionTab() {
         }
       `}</style>
 
-      {/* ── TOP: Daily Summary Logs ── */}
-      <div className="flex-1 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-0 print-area">
-        <div className="px-4 py-2.5 flex justify-between items-center bg-white border-b border-gray-50 no-print shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-            <h3 className="text-[12px] font-bold text-gray-800 uppercase tracking-tight">Daily Summary Logs</h3>
+      {/* ── TOP SECTION: Date Selector + Results Table ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 min-h-0">
+        
+        {/* Date Selector (Top Left) */}
+        <div className="lg:col-span-1 no-print">
+          <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 h-full flex flex-col gap-4">
+            <div className="flex items-center gap-2 text-indigo-500">
+              <Calendar size={18} />
+              <span className="text-[11px] font-black uppercase tracking-wider">Date Filter</span>
+            </div>
+            
+            <div className="flex items-center bg-gray-50 rounded-xl p-1.5 border border-gray-200">
+              <button onClick={() => handleDateChange(-1)} className="p-2 hover:bg-white rounded-lg text-gray-500 transition-all border border-transparent hover:border-gray-100 shadow-sm"><ChevronLeft size={16} /></button>
+              <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full bg-transparent border-none outline-none px-3 text-sm font-bold text-indigo-600 text-center" />
+              <button onClick={() => handleDateChange(1)} className="p-2 hover:bg-white rounded-lg text-gray-500 transition-all border border-transparent hover:border-gray-100 shadow-sm"><ChevronRight size={16} /></button>
+            </div>
+
+            <button onClick={handleRefresh} className="h-[42px] w-full bg-indigo-600 text-white font-bold rounded-xl text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase tracking-widest">
+              <Search size={14} /> View Day
+            </button>
+            
+            <button onClick={() => window.print()} className="h-[38px] w-full bg-emerald-500 text-white font-bold rounded-xl text-[11px] flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-50">
+              <Printer size={14} />
+            </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto">
-          {attLoading ? (
-            <div className="flex justify-center py-10"><Spinner /></div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="h-[36px] bg-[#f9fafb] sticky top-0">
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Employee Name</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">In</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Out</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">OT</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f1f5f9]">
-                {results.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-10 text-gray-300 italic text-[12px]">No records found for this date</td></tr>
-                ) : results.map((row, i) => (
-                  <tr key={i} className="h-[40px] hover:bg-[#f8fafc] transition-colors">
-                    <td className="px-4 text-[11px] font-medium text-gray-400">{row.date}</td>
-                    <td className="px-4 text-[12px] font-bold text-gray-700 uppercase tracking-tight">{row.name}</td>
-                    <td className="px-4 text-center text-[11px] font-semibold text-gray-600">{formatTimeTo12Hour(row.in)}</td>
-                    <td className="px-4 text-center text-[11px] font-semibold text-gray-600">{formatTimeTo12Hour(row.out)}</td>
-                    <td className="px-4 text-center text-[11px] font-bold text-indigo-600 font-mono">{row.ot}</td>
-                    <td className="px-4 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${row.status === 'PRESENT' ? 'bg-green-100 text-green-600'
-                          : row.status === 'ABSENT' ? 'bg-red-100 text-red-500'
-                            : 'bg-gray-100 text-gray-400'}`}>
-                        {row.status}
-                      </span>
-                    </td>
+        {/* Daily Summary Logs (Top Right) */}
+        <div className="lg:col-span-3 bg-white rounded-[16px] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[350px] print-area">
+          <div className="px-5 py-4 flex justify-between items-center bg-white border-b border-gray-50 no-print shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <FileText size={16} className="text-indigo-600" />
+              </div>
+              <h3 className="text-[13px] font-black text-gray-800 uppercase tracking-tight">Results</h3>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto">
+            {attLoading ? (
+              <div className="flex justify-center py-20"><Spinner /></div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="h-[40px] bg-[#f9fafb] sticky top-0 border-b border-gray-100">
+                    <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+                    <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">In</th>
+                    <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Out</th>
+                    <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">OT</th>
+                    <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Site</th>
+                    <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody className="divide-y divide-[#f1f5f9]">
+                  {results.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-20 text-gray-300 italic text-[13px] font-medium">No records found for this date</td></tr>
+                  ) : results.map((row, i) => (
+                    <tr key={i} className="h-[48px] hover:bg-[#f8fafc] transition-colors group">
+                      <td className="px-5 text-[11px] font-bold text-gray-400">{row.date}</td>
+                      <td className="px-5 text-[12px] font-black text-gray-700 uppercase tracking-tight">{row.name}</td>
+                      <td className="px-5 text-center text-[11px] font-bold text-gray-600">{formatTimeTo12Hour(row.in)}</td>
+                      <td className="px-5 text-center text-[11px] font-bold text-gray-600">{formatTimeTo12Hour(row.out)}</td>
+                      <td className="px-5 text-center text-[11px] font-black text-indigo-600 font-mono">{row.ot}</td>
+                      <td className="px-5 text-[11px] font-bold text-gray-500 uppercase">{row.site}</td>
+                      <td className="px-5 text-center">
+                        <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${row.status === 'PRESENT' ? 'bg-green-100 text-green-600'
+                            : row.status === 'ABSENT' ? 'bg-red-100 text-red-500'
+                              : 'bg-gray-100 text-gray-400'}`}>
+                          {row.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ── BOTTOM: Date selector + Adjustment Manager ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 no-print shrink-0">
-
-        {/* Date Selector */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-gray-400">
-              <Calendar size={15} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Date Selection</span>
+      {/* ── BOTTOM SECTION: Adjustment Manager (Full Width) ── */}
+      <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 no-print">
+        <div className="flex flex-col gap-5">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                <Search size={16} className="text-orange-600" />
+              </div>
+              <h3 className="text-[13px] font-black text-indigo-600 uppercase tracking-tight">Edit Attendance Record</h3>
             </div>
-            <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-              <button onClick={() => handleDateChange(-1)} className="p-1.5 hover:bg-white rounded-md text-gray-500 transition-all"><ChevronLeft size={15} /></button>
-              <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full bg-transparent border-none outline-none px-2 text-sm font-semibold text-gray-700" />
-              <button onClick={() => handleDateChange(1)} className="p-1.5 hover:bg-white rounded-md text-gray-500 transition-all"><ChevronRight size={15} /></button>
+            <div className="bg-gray-100 p-1.5 rounded-xl flex gap-1">
+              <button onClick={() => setEditMode('single')} className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest ${editMode === 'single' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Single Employee</button>
+              <button onClick={() => setEditMode('multiple')} className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest ${editMode === 'multiple' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Multiple Employees</button>
             </div>
-            <button onClick={handleRefresh} className="h-[36px] w-full bg-indigo-600 text-white font-semibold rounded-[8px] text-[12px] flex items-center justify-center gap-2 shadow-sm hover:bg-indigo-700 transition-all">
-              <Search size={13} /> Refresh Logs
-            </button>
-            <button onClick={() => window.print()} className="h-[32px] w-full bg-gray-100 text-gray-600 font-semibold rounded-[8px] text-[11px] flex items-center justify-center gap-2 hover:bg-gray-200 transition-all no-print">
-              <Printer size={12} /> Print / Export
-            </button>
           </div>
-        </div>
 
-        {/* Adjustment Manager */}
-        <div className="lg:col-span-3">
-          <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100 h-full flex flex-col gap-3 min-h-[400px]">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2 text-gray-400">
-                <FileText size={15} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Adjustment Manager</span>
-              </div>
-              <div className="bg-gray-100 p-1 rounded-lg flex">
-                <button onClick={() => setEditMode('single')} className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all uppercase ${editMode === 'single' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Single</button>
-                <button onClick={() => setEditMode('multiple')} className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all uppercase ${editMode === 'multiple' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>Bulk Range</button>
-              </div>
+          {/* Filter Row */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+            <div className="md:col-span-4">
+              <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Employee</label>
+              <select value={editForm.employeeId} onChange={e => setEditForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-[12px] font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-white shadow-sm">
+                <option value="">Choose employee...</option>
+                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+              </select>
             </div>
-
-            {/* Filter Row */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Employee</label>
-                <select value={editForm.employeeId} onChange={e => setEditForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-lg px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50/50">
-                  <option value="">Choose employee...</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">From Date</label>
-                <input type="date" value={editForm.fromDate} onChange={e => setEditForm(p => ({ ...p, fromDate: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-lg px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50/50" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">To Date</label>
-                <input type="date" value={editForm.toDate} onChange={e => setEditForm(p => ({ ...p, toDate: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-lg px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50/50" />
-              </div>
-              <button onClick={handleShowDetails} disabled={!editForm.employeeId || detailLoading} className="h-[38px] w-full bg-indigo-600 text-white font-bold rounded-[8px] text-[11px] shadow-sm hover:bg-indigo-700 transition-all uppercase tracking-widest disabled:opacity-50">
-                {detailLoading ? 'Loading...' : 'Show Details'}
+            <div className="md:col-span-3">
+              <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">From Date</label>
+              <input type="date" value={editForm.fromDate} onChange={e => setEditForm(p => ({ ...p, fromDate: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-[12px] font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-white shadow-sm" />
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">To Date</label>
+              <input type="date" value={editForm.toDate} onChange={e => setEditForm(p => ({ ...p, toDate: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-[12px] font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-white shadow-sm" />
+            </div>
+            <div className="md:col-span-2">
+              <button onClick={handleShowDetails} disabled={!editForm.employeeId || detailLoading} className="h-[42px] w-full bg-indigo-600 text-white font-black rounded-xl text-[11px] shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase tracking-widest disabled:opacity-50 flex items-center justify-center gap-2">
+                {detailLoading ? '...' : <><Search size={14} /> Show Details</>}
               </button>
             </div>
+          </div>
 
-            {/* Editable Detail Table */}
-            {detailRows !== null && (
-              <div className="flex-1 overflow-auto rounded-xl border border-gray-100">
-                {detailRows.length === 0 ? (
-                  <div className="text-center py-8 text-gray-300 italic text-[13px] font-medium">No Record Found</div>
-                ) : (
-                  <>
+          {/* Editable Detail Table */}
+          {detailRows !== null && (
+            <div className="mt-2 overflow-hidden rounded-2xl border border-gray-100 shadow-inner bg-gray-50/30">
+              {detailRows.length === 0 ? (
+                <div className="text-center py-12 text-gray-300 italic text-[14px] font-bold">No Records Found In This Range</div>
+              ) : (
+                <>
+                  <div className="max-h-[400px] overflow-auto">
                     <table className="w-full text-left border-collapse text-[11px]">
                       <thead>
-                        <tr className="h-[34px] bg-gray-50 border-b border-gray-100">
-                          <th className="px-3 text-[10px] font-bold text-gray-400 uppercase">Date</th>
-                          <th className="px-3 text-[10px] font-bold text-gray-400 uppercase">Name</th>
-                          <th className="px-3 text-[10px] font-bold text-gray-400 uppercase text-center">In Time</th>
-                          <th className="px-3 text-[10px] font-bold text-gray-400 uppercase text-center">Out Time</th>
-                          <th className="px-3 text-[10px] font-bold text-gray-400 uppercase text-center">OT (auto)</th>
-                          <th className="px-3 text-[10px] font-bold text-gray-400 uppercase">Site / Remarks</th>
-                          <th className="px-3 text-[10px] font-bold text-gray-400 uppercase text-center">Status</th>
+                        <tr className="h-[40px] bg-white border-b border-gray-100 sticky top-0">
+                          <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                          <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+                          <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">In Time</th>
+                          <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Out Time</th>
+                          <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">OT (auto)</th>
+                          <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Site / Remarks</th>
+                          <th className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-gray-50 bg-white/50">
                         {detailRows.map(row => (
-                          <tr key={row.date} className={`h-[40px] hover:bg-gray-50 ${!row.hasRecord ? 'opacity-60' : ''}`}>
-                            <td className="px-3 font-medium text-gray-500">{displayDate(row.date)}</td>
-                            <td className="px-3 font-bold text-gray-700 uppercase text-[10px]">{row.name}</td>
+                          <tr key={row.date} className={`h-[52px] hover:bg-white transition-colors ${!row.hasRecord ? 'opacity-60 bg-gray-50/50' : ''}`}>
+                            <td className="px-5 font-bold text-gray-400">{displayDate(row.date)}</td>
+                            <td className="px-5 font-black text-gray-700 uppercase text-[11px] tracking-tight">{row.name}</td>
 
                             {/* In Time */}
-                            <td className="px-3 text-center">
-                              <div className="flex items-center justify-center gap-1 relative">
+                            <td className="px-5 text-center">
+                              <div className="flex items-center justify-center gap-2 relative">
                                 <button
                                   disabled={row.isAbsent}
                                   onClick={() => setActiveTimePicker({ date: row.date, field: 'inTime', value: row.inTime })}
-                                  className="text-[11px] font-bold text-gray-700 disabled:opacity-30 hover:text-indigo-600"
+                                  className="text-[12px] font-black text-gray-700 disabled:opacity-30 hover:text-indigo-600 flex items-center gap-1.5"
                                 >
-                                  {row.inTime ? formatTimeTo12Hour(row.inTime) : <span className="text-gray-300">—</span>}
+                                  {row.inTime ? formatTimeTo12Hour(row.inTime) : <span className="text-gray-300">--:--</span>}
+                                  <Clock size={12} className="text-gray-300" />
                                 </button>
-                                <Clock size={11} className="text-gray-300" />
                                 {activeTimePicker?.date === row.date && activeTimePicker?.field === 'inTime' && (
                                   <TimePicker
                                     value={activeTimePicker.value}
@@ -324,16 +337,16 @@ export default function CorrectionTab() {
                             </td>
 
                             {/* Out Time */}
-                            <td className="px-3 text-center">
-                              <div className="flex items-center justify-center gap-1 relative">
+                            <td className="px-5 text-center">
+                              <div className="flex items-center justify-center gap-2 relative">
                                 <button
                                   disabled={row.isAbsent}
                                   onClick={() => setActiveTimePicker({ date: row.date, field: 'outTime', value: row.outTime })}
-                                  className="text-[11px] font-bold text-gray-700 disabled:opacity-30 hover:text-indigo-600"
+                                  className="text-[12px] font-black text-gray-700 disabled:opacity-30 hover:text-indigo-600 flex items-center gap-1.5"
                                 >
-                                  {row.outTime ? formatTimeTo12Hour(row.outTime) : <span className="text-gray-300">—</span>}
+                                  {row.outTime ? formatTimeTo12Hour(row.outTime) : <span className="text-gray-300">--:--</span>}
+                                  <Clock size={12} className="text-gray-300" />
                                 </button>
-                                <Clock size={11} className="text-gray-300" />
                                 {activeTimePicker?.date === row.date && activeTimePicker?.field === 'outTime' && (
                                   <TimePicker
                                     value={activeTimePicker.value}
@@ -345,25 +358,25 @@ export default function CorrectionTab() {
                             </td>
 
                             {/* OT */}
-                            <td className="px-3 text-center font-mono font-bold text-indigo-600 text-[11px]">{row.otHours}</td>
+                            <td className="px-5 text-center font-mono font-black text-indigo-600 text-[12px]">{row.otHours}</td>
 
                             {/* Site */}
-                            <td className="px-3">
+                            <td className="px-5">
                               <input
                                 type="text"
                                 value={row.site}
                                 onChange={e => updateDetailRow(row.date, 'site', e.target.value)}
-                                className="border-none bg-transparent p-0 text-[11px] focus:ring-0 text-gray-500 w-full placeholder-gray-200"
-                                placeholder="..."
+                                className="border-b border-transparent hover:border-gray-200 focus:border-indigo-500 bg-transparent p-1 text-[11px] font-bold focus:ring-0 text-gray-600 w-full placeholder-gray-200 transition-all"
+                                placeholder="Enter site..."
                               />
                             </td>
 
                             {/* Status */}
-                            <td className="px-3 text-center">
+                            <td className="px-5 text-center">
                               <select
                                 value={row.status}
                                 onChange={e => updateDetailRow(row.date, 'status', e.target.value)}
-                                className="text-[10px] font-bold border border-gray-200 rounded-lg px-1.5 py-0.5 bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                className="text-[10px] font-black border border-gray-200 rounded-lg px-2 py-1 bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none uppercase"
                               >
                                 <option value="Present">Present</option>
                                 <option value="Absent">Absent</option>
@@ -373,23 +386,23 @@ export default function CorrectionTab() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
 
-                    {/* Re-submit */}
-                    <div className="flex items-center justify-end px-4 py-2 border-t border-gray-100 gap-3">
-                      {resubmitDone && <span className="text-[11px] text-green-600 font-bold uppercase tracking-widest">✓ Records Updated</span>}
-                      <button
-                        onClick={handleResubmit}
-                        disabled={resubmitting}
-                        className="h-[34px] px-6 bg-indigo-600 text-white font-bold rounded-lg text-[11px] shadow-sm uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 transition-all"
-                      >
-                        {resubmitting ? 'Saving...' : 'Re-Submit'}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+                  {/* Re-submit */}
+                  <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100 gap-4 bg-white">
+                    {resubmitDone && <span className="text-[11px] text-green-600 font-black uppercase tracking-widest animate-pulse">✓ Records Updated Successfully</span>}
+                    <button
+                      onClick={handleResubmit}
+                      disabled={resubmitting}
+                      className="h-[40px] px-8 bg-indigo-600 text-white font-black rounded-xl text-[11px] shadow-lg shadow-indigo-100 uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 transition-all"
+                    >
+                      {resubmitting ? 'Processing...' : 'Save All Changes'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
