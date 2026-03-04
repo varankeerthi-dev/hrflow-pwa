@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy } from 'firebase/firestore'
-import { Megaphone, Award, Lightbulb, MessageSquare, Plus, Send } from 'lucide-react'
+import { Megaphone, Award, Lightbulb, MessageSquare, Plus, Send, MoreHorizontal } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
@@ -16,10 +16,10 @@ export default function EngagementTab() {
   const [form, setForm] = useState({ title: '', content: '', type: 'announcements' })
 
   const subs = [
-    { id: 'announcements', label: 'Announcements', icon: <Megaphone size={14} />, color: 'blue' },
-    { id: 'recognize', label: 'Recognize', icon: <Award size={14} />, color: 'amber' },
-    { id: 'idea', label: 'Idea Box', icon: <Lightbulb size={14} />, color: 'purple' },
-    { id: 'issues', label: 'Issues', icon: <MessageSquare size={14} />, color: 'red' }
+    { id: 'announcements', label: 'Announcements', icon: <Megaphone size={16} />, color: 'blue' },
+    { id: 'recognize', label: 'Recognize', icon: <Award size={16} />, color: 'amber' },
+    { id: 'idea', label: 'Idea Box', icon: <Lightbulb size={16} />, color: 'purple' },
+    { id: 'issues', label: 'Issues', icon: <MessageSquare size={16} />, color: 'red' }
   ]
 
   const fetchPosts = async () => {
@@ -66,86 +66,87 @@ export default function EngagementTab() {
   const filteredPosts = posts.filter(p => p.type === activeSub)
 
   return (
-    <div className="space-y-6 font-inter">
-      <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200 w-fit">
-        {subs.map(s => (
-          <button
-            key={s.id}
-            onClick={() => setActiveSub(s.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeSub === s.id ? 'bg-white shadow-sm text-gray-900 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            {s.icon} {s.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex justify-between items-center">
-        <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">
-          {subs.find(s => s.id === activeSub).label} Feed
-        </h3>
+    <div className="space-y-8 font-inter">
+      {/* Sub Nav Header Card */}
+      <div className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100 flex justify-between items-center">
+        <div className="flex bg-gray-100 p-1 rounded-lg">
+          {subs.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setActiveSub(s.id)}
+              className={`flex items-center gap-2 px-5 py-2 rounded-md text-[13px] font-bold transition-all ${activeSub === s.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              {s.icon} {s.label}
+            </button>
+          ))}
+        </div>
         <button 
           onClick={() => setShowAddModal(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 shadow-sm hover:bg-indigo-700"
+          className="h-[40px] px-6 bg-indigo-600 text-white font-bold rounded-lg text-[13px] flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest"
         >
-          <Plus size={14} /> New Post
+          <Plus size={16} strokeWidth={3} /> Create Post
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {loading ? (
           <div className="col-span-full py-20 text-center"><Spinner /></div>
         ) : filteredPosts.length === 0 ? (
-          <div className="col-span-full py-20 text-center text-gray-300 font-black uppercase tracking-widest opacity-20 text-2xl italic">Nothing here yet</div>
+          <div className="col-span-full py-20 text-center text-gray-300 font-medium uppercase tracking-tighter text-2xl opacity-40 italic">Quiet in here... Start a conversation</div>
         ) : filteredPosts.map(post => (
-          <div key={post.id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col h-full group">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-indigo-600 text-xs shadow-inner">
+          <div key={post.id} className="bg-white p-8 rounded-[12px] shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col h-full group relative">
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center font-black text-indigo-600 text-sm shadow-inner border border-gray-100">
                   {post.author?.[0]}
                 </div>
                 <div>
-                  <p className="text-[11px] font-black text-gray-900 uppercase tracking-tight">{post.author}</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase">{post.createdAt?.toDate?.().toLocaleDateString()}</p>
+                  <p className="text-[13px] font-bold text-gray-900 uppercase tracking-tight">{post.author}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{post.createdAt?.toDate?.().toLocaleDateString()}</p>
                 </div>
               </div>
+              <button className="text-gray-300 hover:text-gray-600 transition-colors"><MoreHorizontal size={18} /></button>
             </div>
             
-            {post.title && <h4 className="font-bold text-gray-800 mb-2 uppercase tracking-tight text-sm">{post.title}</h4>}
-            <p className="text-xs text-gray-600 leading-relaxed flex-1">"{post.content}"</p>
+            {post.title && <h4 className="font-bold text-gray-800 mb-3 uppercase tracking-tight text-sm leading-tight border-l-4 border-indigo-500 pl-3">{post.title}</h4>}
+            <p className="text-[14px] text-gray-600 leading-relaxed flex-1">"{post.content}"</p>
             
-            <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
-               <button className="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:underline">Support</button>
-               <button className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600">Reply</button>
+            <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center">
+               <div className="flex gap-4">
+                 <button className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.15em] hover:underline">Support</button>
+                 <button className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] hover:text-gray-600">Reply</button>
+               </div>
+               <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded">ID: {post.id.slice(-4)}</span>
             </div>
           </div>
         ))}
       </div>
 
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title={`Create ${subs.find(s => s.id === activeSub).label}`}>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-w-md mx-auto">
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title={`Broadcast ${subs.find(s => s.id === activeSub).label}`}>
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-w-md mx-auto font-inter">
           {activeSub !== 'issues' && (
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Heading</label>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Subject Heading</label>
               <input 
                 type="text" 
                 value={form.title}
                 onChange={e => setForm({...form, title: e.target.value})}
-                className="w-full border rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
-                placeholder="Title..."
+                className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50"
+                placeholder="Brief subject..."
               />
             </div>
           )}
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Message Content</label>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Body Content</label>
             <textarea 
               value={form.content}
               onChange={e => setForm({...form, content: e.target.value})}
-              className="w-full border rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 h-32"
-              placeholder="Write something..."
+              className="w-full border border-gray-200 rounded-lg p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50 h-[120px] transition-all"
+              placeholder="What's on your mind?"
             />
           </div>
-          <button type="submit" className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl hover:bg-indigo-700 transition-all text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-            <Send size={14} /> Post to Feed
+          <button type="submit" className="w-full h-[44px] bg-indigo-600 text-white font-black py-3 rounded-lg shadow-xl hover:bg-indigo-700 transition-all text-[12px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+            <Send size={16} /> Deploy Post
           </button>
         </form>
       </Modal>

@@ -198,25 +198,43 @@ export default function AttendanceTab() {
                     <td className="px-[16px]">
                       <div className="flex gap-1 justify-center">
                         <input type="date" value={row.inDate || ''} disabled={row.isAbsent || row.status === 'SunHoliday'} onChange={e => updateRow(row.employeeId, 'inDate', e.target.value)} className="w-[110px] border-none bg-transparent p-0 text-[12px] font-medium text-gray-600 focus:ring-0 disabled:opacity-20" />
-                        <button 
-                          disabled={row.isAbsent || row.status === 'SunHoliday'} 
-                          onClick={() => setActiveTimePicker({ empId: row.employeeId, field: 'inTime', value: row.inTime })}
-                          className="w-[80px] border-none bg-transparent p-0 text-[12px] font-bold text-gray-800 focus:ring-0 disabled:opacity-20 text-left hover:text-indigo-600"
-                        >
-                          {formatTimeTo12Hour(row.inTime)}
-                        </button>
+                        <div className="relative">
+                          <button 
+                            disabled={row.isAbsent || row.status === 'SunHoliday'} 
+                            onClick={() => setActiveTimePicker({ empId: row.employeeId, field: 'inTime', value: row.inTime })}
+                            className="w-[80px] border-none bg-transparent p-0 text-[12px] font-bold text-gray-800 focus:ring-0 disabled:opacity-20 text-left hover:text-indigo-600"
+                          >
+                            {formatTimeTo12Hour(row.inTime)}
+                          </button>
+                          {activeTimePicker?.empId === row.employeeId && activeTimePicker?.field === 'inTime' && (
+                            <TimePicker 
+                              value={activeTimePicker.value}
+                              onChange={(val) => updateRow(activeTimePicker.empId, activeTimePicker.field, val)}
+                              onClose={() => setActiveTimePicker(null)}
+                            />
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-[16px]">
                       <div className="flex gap-1 justify-center">
                         <input type="date" value={row.outDate || ''} disabled={row.isAbsent || row.status === 'SunHoliday'} onChange={e => updateRow(row.employeeId, 'outDate', e.target.value)} className="w-[110px] border-none bg-transparent p-0 text-[12px] font-medium text-gray-600 focus:ring-0 disabled:opacity-20" />
-                        <button 
-                          disabled={row.isAbsent || row.status === 'SunHoliday'} 
-                          onClick={() => setActiveTimePicker({ empId: row.employeeId, field: 'outTime', value: row.outTime })}
-                          className="w-[80px] border-none bg-transparent p-0 text-[12px] font-bold text-gray-800 focus:ring-0 disabled:opacity-20 text-left hover:text-indigo-600"
-                        >
-                          {formatTimeTo12Hour(row.outTime)}
-                        </button>
+                        <div className="relative">
+                          <button 
+                            disabled={row.isAbsent || row.status === 'SunHoliday'} 
+                            onClick={() => setActiveTimePicker({ empId: row.employeeId, field: 'outTime', value: row.outTime })}
+                            className="w-[80px] border-none bg-transparent p-0 text-[12px] font-bold text-gray-800 focus:ring-0 disabled:opacity-20 text-left hover:text-indigo-600"
+                          >
+                            {formatTimeTo12Hour(row.outTime)}
+                          </button>
+                          {activeTimePicker?.empId === row.employeeId && activeTimePicker?.field === 'outTime' && (
+                            <TimePicker 
+                              value={activeTimePicker.value}
+                              onChange={(val) => updateRow(activeTimePicker.empId, activeTimePicker.field, val)}
+                              onClose={() => setActiveTimePicker(null)}
+                            />
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-[16px] text-center font-mono font-bold text-indigo-600 text-[13px]">{row.otHours || '00:00'}</td>
@@ -309,15 +327,6 @@ export default function AttendanceTab() {
           <button onClick={handleCopySubmit} className="h-[40px] w-full bg-indigo-600 text-white font-bold rounded-[8px] text-[12px] shadow-lg uppercase tracking-widest hover:bg-indigo-700 transition-all">Copy to Selection</button>
         </div>
       </Modal>
-
-      {/* Time Picker Modal */}
-      {activeTimePicker && (
-        <TimePicker 
-          value={activeTimePicker.value}
-          onChange={(val) => updateRow(activeTimePicker.empId, activeTimePicker.field, val)}
-          onClose={() => setActiveTimePicker(null)}
-        />
-      )}
     </div>
   )
 }

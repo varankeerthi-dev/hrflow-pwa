@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, updateDoc, doc } from 'firebase/firestore'
-import { LayoutDashboard, FileText, CheckCircle, PlusCircle, PieChart, Search, Trash2 } from 'lucide-react'
+import { LayoutDashboard, FileText, CheckCircle, PlusCircle, PieChart, Search, Trash2, Calendar, Clock } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
@@ -73,131 +73,144 @@ export default function LeaveTab() {
   }
 
   const subNav = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
-    { id: 'request', label: 'Request Leave', icon: <FileText size={14} /> },
-    { id: 'approve', label: 'Approve Leave', icon: <CheckCircle size={14} /> },
-    { id: 'reports', label: 'Reports', icon: <PieChart size={14} /> }
+    { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard size={16} /> },
+    { id: 'request', label: 'All Requests', icon: <FileText size={16} /> },
+    { id: 'approve', label: 'Approvals', icon: <CheckCircle size={16} /> },
+    { id: 'reports', label: 'Analysis', icon: <PieChart size={16} /> }
   ]
 
   return (
-    <div className="space-y-6 font-inter text-xs">
-      <div className="flex bg-white p-1 rounded-xl border border-gray-200 w-fit shadow-sm">
-        {subNav.map(s => (
-          <button
-            key={s.id}
-            onClick={() => setActiveSub(s.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${activeSub === s.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            {s.icon} {s.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex justify-between items-center">
-        <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Leave Management</h3>
-        <button onClick={() => setShowAddModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm hover:bg-indigo-700">
-          <PlusCircle size={14} /> Apply Leave
+    <div className="space-y-8 font-inter">
+      {/* SaaS Sub-Nav Header */}
+      <div className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100 flex justify-between items-center">
+        <div className="flex bg-gray-100 p-1 rounded-lg">
+          {subNav.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setActiveSub(s.id)}
+              className={`flex items-center gap-2 px-5 py-2 rounded-md text-[13px] font-bold transition-all ${activeSub === s.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              {s.icon} {s.label}
+            </button>
+          ))}
+        </div>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="h-[40px] px-6 bg-indigo-600 text-white font-bold rounded-lg text-[13px] flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest"
+        >
+          <PlusCircle size={16} strokeWidth={3} /> New Application
         </button>
       </div>
 
       {activeSub === 'dashboard' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
-            { label: 'Pending', count: leaves.filter(l => l.status === 'Pending').length, color: 'amber' },
-            { label: 'Approved', count: leaves.filter(l => l.status === 'Approved').length, color: 'green' },
-            { label: 'Rejected', count: leaves.filter(l => l.status === 'Rejected').length, color: 'red' },
-            { label: 'Total Requests', count: leaves.length, color: 'indigo' }
+            { label: 'Active Queue', count: leaves.filter(l => l.status === 'Pending').length, color: 'amber' },
+            { label: 'Authorized', count: leaves.filter(l => l.status === 'Approved').length, color: 'green' },
+            { label: 'Declined', count: leaves.filter(l => l.status === 'Rejected').length, color: 'red' },
+            { label: 'Volume Total', count: leaves.length, color: 'indigo' }
           ].map(stat => (
-            <div key={stat.label} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
-              <p className={`text-2xl font-black text-${stat.color}-600 tracking-tighter`}>{stat.count}</p>
+            <div key={stat.label} className="bg-white p-8 rounded-[12px] border border-gray-100 shadow-sm flex flex-col items-center text-center">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">{stat.label}</p>
+              <p className={`text-4xl font-black text-${stat.color}-600 tracking-tighter`}>{stat.count}</p>
             </div>
           ))}
         </div>
       )}
 
       {(activeSub === 'request' || activeSub === 'approve') && (
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                {['Employee', 'Leave Type', 'Period', 'Status', 'Actions'].map(h => (
-                  <th key={h} className="px-6 py-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr><td colSpan={5} className="text-center py-10"><Spinner /></td></tr>
-              ) : leaves.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-10 text-gray-400 italic">No leave records found</td></tr>
-              ) : leaves.map(leave => (
-                <tr key={leave.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900 uppercase tracking-tighter">{leave.employeeName}</div>
-                    <div className="text-[9px] text-gray-400 font-medium line-clamp-1">"{leave.reason}"</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-indigo-100">{leave.type}</span>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-gray-600 tracking-tight">
-                    {leave.startDate} {leave.endDate && `→ ${leave.endDate}`}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${leave.status === 'Approved' ? 'text-green-600' : leave.status === 'Rejected' ? 'text-red-600' : 'text-amber-600'}`}>
-                      {leave.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      {leave.status === 'Pending' && activeSub === 'approve' ? (
-                        <>
-                          <button onClick={() => handleStatus(leave.id, 'Approved')} className="bg-green-100 text-green-700 px-2 py-1 rounded font-black hover:bg-green-600 hover:text-white transition-all uppercase text-[9px]">Approve</button>
-                          <button onClick={() => handleStatus(leave.id, 'Rejected')} className="bg-red-100 text-red-700 px-2 py-1 rounded font-black hover:bg-red-600 hover:text-white transition-all uppercase text-[9px]">Reject</button>
-                        </>
-                      ) : (
-                        <span className="text-[9px] font-bold text-gray-300 italic uppercase">Closed</span>
-                      )}
-                    </div>
-                  </td>
+        <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="h-[42px] bg-[#f9fafb]">
+                  <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Applicant</th>
+                  <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Classification</th>
+                  <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Period</th>
+                  <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Flow Status</th>
+                  <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#f1f5f9]">
+                {loading ? (
+                  <tr><td colSpan={5} className="text-center py-12"><Spinner /></td></tr>
+                ) : leaves.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">No leave activity found</td></tr>
+                ) : leaves.map(leave => (
+                  <tr key={leave.id} className="h-[60px] hover:bg-[#f8fafc] transition-colors group">
+                    <td className="px-[16px]">
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-bold text-gray-700 uppercase tracking-tight">{leave.employeeName}</span>
+                        <span className="text-[10px] text-gray-400 font-medium line-clamp-1 italic">"{leave.reason}"</span>
+                      </div>
+                    </td>
+                    <td className="px-[16px]">
+                      <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">{leave.type}</span>
+                    </td>
+                    <td className="px-[16px]">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Calendar size={12} className="text-gray-300" />
+                        <span className="text-[12px] font-bold">{leave.startDate}</span>
+                        <span className="text-gray-300">→</span>
+                        <span className="text-[12px] font-bold">{leave.endDate || 'Single Day'}</span>
+                      </div>
+                    </td>
+                    <td className="px-[16px] text-center">
+                      <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${leave.status === 'Approved' ? 'text-green-600' : leave.status === 'Rejected' ? 'text-red-600' : 'text-amber-500'}`}>
+                        {leave.status}
+                      </span>
+                    </td>
+                    <td className="px-[16px]">
+                      <div className="flex justify-end gap-2">
+                        {leave.status === 'Pending' && activeSub === 'approve' ? (
+                          <>
+                            <button onClick={() => handleStatus(leave.id, 'Approved')} className="h-[32px] px-4 bg-green-50 text-green-700 rounded-md font-bold hover:bg-green-600 hover:text-white transition-all uppercase text-[10px] tracking-widest">Authorize</button>
+                            <button onClick={() => handleStatus(leave.id, 'Rejected')} className="h-[32px] px-4 bg-red-50 text-red-700 rounded-md font-bold hover:bg-red-600 hover:text-white transition-all uppercase text-[10px] tracking-widest">Decline</button>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-gray-300 text-[10px] font-bold uppercase tracking-widest px-2 italic"><Clock size={12} /> Record Archived</div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="New Leave Application">
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-w-md mx-auto">
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="New Resource Absence Request">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-w-md mx-auto font-inter">
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Employee</label>
-            <select value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} className="w-full border rounded-xl px-4 py-2.5 font-bold outline-none bg-gray-50 focus:ring-2 focus:ring-indigo-500">
-              <option value="">Select Employee...</option>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Resource Selection</label>
+            <select value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+              <option value="">Choose employee...</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Leave Category</label>
-            <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full border rounded-xl px-4 py-2.5 font-bold outline-none bg-gray-50">
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Leave Classification</label>
+            <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none">
               {leaveTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Start Date</label>
-              <input type="date" value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})} className="w-full border rounded-xl px-4 py-2 font-bold outline-none bg-gray-50" />
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Commencement</label>
+              <input type="date" value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50" />
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">End Date</label>
-              <input type="date" value={form.endDate} onChange={e => setForm({...form, endDate: e.target.value})} className="w-full border rounded-xl px-4 py-2 font-bold outline-none bg-gray-50" />
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Conclusion</label>
+              <input type="date" value={form.endDate} onChange={e => setForm({...form, endDate: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50" />
             </div>
           </div>
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Reason for Leave</label>
-            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} className="w-full border rounded-xl px-4 py-3 font-medium outline-none bg-gray-50 h-24" placeholder="Briefly explain..." />
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Formal Justification</label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} className="w-full border border-gray-200 rounded-lg p-4 text-sm font-medium outline-none bg-gray-50 focus:ring-2 focus:ring-indigo-500 h-[100px] transition-all" placeholder="Provide detailed context for this request..." />
           </div>
-          <button type="submit" className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl hover:bg-indigo-700 transition-all uppercase tracking-widest">
-            Send Application
+          <button type="submit" className="w-full h-[44px] bg-indigo-600 text-white font-black py-3 rounded-lg shadow-xl hover:bg-indigo-700 transition-all uppercase tracking-[0.2em] text-[12px]">
+            Dispatch Request
           </button>
         </form>
       </Modal>
