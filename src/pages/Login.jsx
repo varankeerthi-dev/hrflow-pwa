@@ -1,21 +1,164 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, formatAuthError } from '../hooks/useAuth'
 
+// Google SVG logo
+const GoogleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 48 48">
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+  </svg>
+)
+
+// ─── Organisation Join Modal ──────────────────────────────────────────────────
+function OrgJoinModal({ onJoin }) {
+  const [orgCode, setOrgCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleJoin = async (e) => {
+    e.preventDefault()
+    if (!orgCode.trim()) { setError('Please enter an organisation code.'); return }
+    setLoading(true)
+    try {
+      await onJoin(orgCode.trim())
+    } catch (err) {
+      setError(err.message)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 mx-4">
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-3">
+            <span className="text-white text-2xl">🏢</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-800">Join an Organisation</h2>
+          <p className="text-sm text-gray-500 text-center mt-1">
+            Enter your organisation code to get started. Ask your admin if you don't have one.
+          </p>
+        </div>
+        <form onSubmit={handleJoin} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">{error}</div>
+          )}
+          <input
+            value={orgCode}
+            onChange={(e) => setOrgCode(e.target.value)}
+            placeholder="Organisation code (e.g. techcorp)"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50"
+          >
+            {loading ? 'Joining…' : 'Join Organisation'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── Account Link Modal (Google + Email password merge) ──────────────────────
+function LinkAccountModal({ email, googleCredential, onLink, onCancel }) {
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleLink = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      await onLink(email, password, googleCredential)
+    } catch (err) {
+      setError(formatAuthError(err))
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 mx-4">
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-3">
+            <span className="text-white text-2xl">🔗</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-800">Link Your Accounts</h2>
+          <p className="text-sm text-gray-500 text-center mt-1">
+            <strong>{email}</strong> is already registered with email & password. Enter your password to link it with Google.
+          </p>
+        </div>
+        <form onSubmit={handleLink} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">{error}</div>
+          )}
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Your password"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+            required
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50"
+          >
+            {loading ? 'Linking…' : 'Link & Sign In'}
+          </button>
+          <button type="button" onClick={onCancel} className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            Cancel
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Login Page ──────────────────────────────────────────────────────────
 export default function Login() {
-  const { login, loginWithGoogle, user } = useAuth()
+  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation } = useAuth()
   const navigate = useNavigate()
+
+  const [tab, setTab] = useState('signin')   // 'signin' | 'signup'
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // Sign-in fields
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+
+  // Sign-up fields
+  const [name, setName] = useState('')
+  const [regEmail, setRegEmail] = useState('')
+  const [regPassword, setRegPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [orgCode, setOrgCode] = useState('')
+
+  // Account-link modal state
+  const [linkData, setLinkData] = useState(null) // { email, googleCredential }
+
+  // If user is logged in but has no org → show org join modal
+  if (user && !user.orgId) {
+    return <OrgJoinModal onJoin={async (code) => { await joinOrganisation(code); navigate('/') }} />
+  }
 
   if (user) {
     navigate('/')
     return null
   }
 
-  const handleSubmit = async (e) => {
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleSignIn = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -23,7 +166,22 @@ export default function Login() {
       await login(email, password)
       navigate('/')
     } catch (err) {
-      setError(err.message)
+      setError(formatAuthError(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRegister = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (regPassword !== confirmPassword) { setError('Passwords do not match.'); return }
+    setLoading(true)
+    try {
+      await register(name, regEmail, regPassword, orgCode)
+      navigate('/')
+    } catch (err) {
+      setError(formatAuthError(err))
     } finally {
       setLoading(false)
     }
@@ -34,93 +192,202 @@ export default function Login() {
     setLoading(true)
     try {
       await loginWithGoogle()
-      navigate('/')
+      // onAuthStateChanged will update user — if no orgId, OrgJoinModal will show
     } catch (err) {
-      setError(err.message)
+      if (err.message === 'LINK_REQUIRED') {
+        setLinkData({ email: err.email, googleCredential: err.googleCredential })
+      } else {
+        setError(formatAuthError(err))
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md p-8">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-4">
-            <span className="text-white text-2xl font-bold">H</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">HRFlow</h1>
-          <p className="text-gray-500">Sign in to your account</p>
-        </div>
+  const handleLink = async (email, password, googleCredential) => {
+    await linkGoogleToEmail(email, password, googleCredential)
+    setLinkData(null)
+    navigate('/')
+  }
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+  // ── Shared Google & divider block ─────────────────────────────────────────
+  const googleBlock = (
+    <>
+      <div className="flex items-center my-5">
+        <div className="flex-1 border-t border-gray-200" />
+        <span className="px-3 text-sm text-gray-400">or</span>
+        <div className="flex-1 border-t border-gray-200" />
+      </div>
+      <button
+        type="button"
+        onClick={handleGoogle}
+        disabled={loading}
+        className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 rounded-lg transition-all disabled:opacity-50"
+      >
+        <GoogleIcon />
+        Continue with Google
+      </button>
+    </>
+  )
+
+  return (
+    <>
+      {/* Account link modal */}
+      {linkData && (
+        <LinkAccountModal
+          email={linkData.email}
+          googleCredential={linkData.googleCredential}
+          onLink={handleLink}
+          onCancel={() => setLinkData(null)}
+        />
+      )}
+
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-full max-w-md p-8">
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-4">
+              <span className="text-white text-2xl font-bold">H</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800">HRFlow</h1>
+            <p className="text-gray-500 text-sm">Multi-organisation HR & Attendance Platform</p>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
+            <button
+              onClick={() => { setTab('signin'); setError('') }}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${tab === 'signin' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => { setTab('signup'); setError('') }}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${tab === 'signup' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Create Account
+            </button>
+          </div>
+
+          {/* Error Banner */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
               {error}
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
+          {/* ── Sign In Tab ── */}
+          {tab === 'signin' && (
+            <>
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-3 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Signing in…' : 'Sign In'}
+                </button>
+              </form>
+              {googleBlock}
+            </>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-3 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        {/* Divider */}
-        <div className="flex items-center my-4">
-          <div className="flex-1 border-t border-gray-200" />
-          <span className="px-3 text-sm text-gray-400">or</span>
-          <div className="flex-1 border-t border-gray-200" />
+          {/* ── Create Account Tab ── */}
+          {tab === 'signup' && (
+            <>
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="John Smith"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="At least 6 characters"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Organisation Code <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={orgCode}
+                    onChange={(e) => setOrgCode(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="e.g. techcorp"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Ask your admin for the code. Leave blank to join later.</p>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-3 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Creating account…' : 'Create Account'}
+                </button>
+              </form>
+              {googleBlock}
+            </>
+          )}
         </div>
-
-        {/* Google Sign-In */}
-        <button
-          onClick={handleGoogle}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 rounded-lg transition-all disabled:opacity-50"
-        >
-          <svg width="20" height="20" viewBox="0 0 48 48">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-          </svg>
-          Sign in with Google
-        </button>
-
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Multi-organisation HR Attendance & Salary Platform
-        </p>
       </div>
-    </div>
+    </>
   )
 }
