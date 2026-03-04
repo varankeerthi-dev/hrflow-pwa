@@ -16,7 +16,14 @@ import {
   Menu,
   PanelLeft,
   LayoutDashboard,
-  Building2
+  Building2,
+  Gift,
+  Gavel,
+  Users,
+  Handshake,
+  FileText,
+  Mail,
+  MoreHorizontal
 } from 'lucide-react'
 import AttendanceTab from '../components/tabs/AttendanceTab'
 import CorrectionTab from '../components/tabs/CorrectionTab'
@@ -25,6 +32,12 @@ import SummaryTab from '../components/tabs/SummaryTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SalarySlipTab from '../components/tabs/SalarySlipTab'
+import AdvanceExpenseTab from '../components/tabs/AdvanceExpenseTab'
+import BirthdayTab from '../components/tabs/BirthdayTab'
+import FineTab from '../components/tabs/FineTab'
+import EngagementTab from '../components/tabs/EngagementTab'
+import LeaveTab from '../components/tabs/LeaveTab'
+import HRLettersTab from '../components/tabs/HRLettersTab'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
 class ErrorBoundary extends Component {
@@ -43,7 +56,7 @@ class ErrorBoundary extends Component {
       return (
         <div className="p-8 text-center bg-red-50 border border-red-100 rounded-3xl m-4">
           <div className="text-4xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-red-800 mb-2 uppercase tracking-tight">Component Failure</h2>
+          <h2 className="text-xl font-bold text-red-800 mb-2 uppercase tracking-tight font-inter">Component Failure</h2>
           <p className="text-red-600 text-[10px] font-black uppercase mb-6">{this.state.error?.message || 'Unexpected Rendering Error'}</p>
           <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-8 py-2 rounded-xl font-black shadow-lg uppercase text-[10px]">Reload Application</button>
         </div>
@@ -170,16 +183,26 @@ export default function Dashboard() {
   const allTabs = useMemo(() => [
     { id: 'attendance', label: 'Attendance', icon: <Calendar size={16} />, module: 'Attendance' },
     { id: 'correction', label: 'Correction', icon: <PencilLine size={16} />, module: 'Correction' },
+    { id: 'leave', label: 'Leave', icon: <Mail size={16} />, module: 'Leave' },
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={16} />, badge: 'OT', module: 'Approvals' },
+    { id: 'letters', label: 'HR Letters', icon: <FileText size={16} />, module: 'HRLetters' },
     { id: 'summary', label: 'Summary', icon: <BarChart3 size={16} />, module: 'Summary' },
+    
     { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={16} />, module: 'SalarySlip' },
+    { id: 'advance', label: 'Advance/Expense', icon: <Wallet size={16} />, module: 'AdvanceExpense' },
+    { id: 'fines', label: 'Fine Tab', icon: <Gavel size={16} />, module: 'Fine' },
+    
+    { id: 'engage', label: 'Engage', icon: <Handshake size={16} />, module: 'Engagement' },
+    { id: 'birthdays', label: 'Birthdays', icon: <Gift size={16} />, module: 'Birthday' },
+    
     { id: 'portal', label: 'Self Service', icon: <User size={16} />, module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: <Settings size={16} />, module: 'Settings' },
   ], [])
 
   const sections = useMemo(() => [
-    { title: 'HRMS', modules: ['Attendance', 'Correction', 'Approvals', 'Summary'] },
-    { title: 'Payroll', modules: ['SalarySlip'] },
+    { title: 'HRMS', modules: ['Attendance', 'Correction', 'Leave', 'Approvals', 'HRLetters', 'Summary'] },
+    { title: 'Payroll', modules: ['SalarySlip', 'AdvanceExpense', 'Fine'] },
+    { title: 'Engage', modules: ['Engagement', 'Birthday'] },
     { title: 'System', modules: ['EmployeePortal', 'Settings'] }
   ], []);
 
@@ -194,9 +217,15 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'attendance': return <AttendanceTab />
       case 'correction': return <CorrectionTab />
+      case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />
+      case 'letters': return <HRLettersTab />
       case 'summary': return <SummaryTab />
       case 'salary-slip': return <SalarySlipTab />
+      case 'advance': return <AdvanceExpenseTab />
+      case 'fines': return <FineTab />
+      case 'engage': return <EngagementTab />
+      case 'birthdays': return <BirthdayTab />
       case 'portal': return <EmployeePortalTab />
       case 'settings': return <SettingsTab />
       default: return <EmployeePortalTab />
@@ -232,20 +261,20 @@ export default function Dashboard() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Modern Minimal Sidebar */}
         <aside className={`${isCollapsed ? 'w-[64px]' : 'w-[240px]'} bg-[#fafafa] border-r border-[#e5e7eb] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out p-[14px]`}>
-          <nav className="flex-1 space-y-[16px] overflow-y-auto">
+          <nav className="flex-1 space-y-[16px] overflow-y-auto pr-1">
             {sections.map(section => {
               const sectionTabs = tabs.filter(t => section.modules.includes(t.module));
               if (sectionTabs.length === 0) return null;
               return (
                 <div key={section.title} className="flex flex-col gap-[4px]">
-                  {!isCollapsed && <p className="text-[12px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-[12px] mb-[6px] mt-[18px] first:mt-0">{section.title}</p>}
+                  {!isCollapsed && <p className="text-[12px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-[12px] mb-[6px] mt-[18px] first:mt-0 font-inter">{section.title}</p>}
                   <div className="space-y-[4px]">
                     {sectionTabs.map(tab => (
                       <button 
                         key={tab.id} 
                         onClick={() => setActiveTab(tab.id)} 
                         title={isCollapsed ? tab.label : ''}
-                        className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-[10px] px-[12px]'} h-[36px] rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer ${activeTab === tab.id ? 'bg-[#e5e7eb] text-[#374151] font-semibold' : 'text-[#374151] hover:bg-[#f3f4f6]'}`}
+                        className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-[10px] px-[12px]'} h-[36px] rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer font-inter ${activeTab === tab.id ? 'bg-[#e5e7eb] text-[#374151] font-semibold' : 'text-[#374151] hover:bg-[#f3f4f6]'}`}
                       >
                         <span className={`transition-colors ${activeTab === tab.id ? 'text-gray-900' : 'text-[#6b7280]'}`}>{tab.icon}</span>
                         {!isCollapsed && <span className="flex-1 text-left truncate">{tab.label}</span>}
@@ -259,7 +288,7 @@ export default function Dashboard() {
           </nav>
           
           {!isCollapsed && (
-            <div className="pt-4 border-t border-[#e5e7eb] mt-4">
+            <div className="pt-4 border-t border-[#e5e7eb] mt-4 font-inter">
               <div className="px-3 py-3 bg-white rounded-xl border border-gray-100 flex items-center gap-3 shadow-sm">
                 <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-900 text-[10px] font-bold">PRO</div>
                 <div className="min-w-0"><p className="text-[11px] font-bold text-gray-800 truncate uppercase tracking-tight">Enterprise</p><p className="text-[9px] text-gray-400 font-medium uppercase tracking-tighter">Verified Plan</p></div>
@@ -279,7 +308,7 @@ export default function Dashboard() {
             </div>
           </nav>
 
-          <main className="flex-1 overflow-auto p-4 md:p-10">
+          <main className="flex-1 overflow-auto p-4 md:p-10 bg-[#f9fafb]/30">
             <div className="max-w-7xl mx-auto h-full flex flex-col">
               <div className="mb-8 flex items-center justify-between">
                 <div>

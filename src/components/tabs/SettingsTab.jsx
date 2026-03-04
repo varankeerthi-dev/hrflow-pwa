@@ -4,6 +4,7 @@ import { useEmployees } from '../../hooks/useEmployees'
 import { db, storage } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
@@ -40,7 +41,9 @@ export default function SettingsTab() {
   })
   const [newRole, setNewRole] = useState({ name: '', permissions: {} })
   const [orgSettings, setOrgSettings] = useState({
-    name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: '', code: '', shiftStrategy: 'Day', logoURL: ''
+    name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: '', code: '', shiftStrategy: 'Day', logoURL: '',
+    advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
+    holidays: []
   })
   
   const [saving, setSaving] = useState(false)
@@ -62,6 +65,8 @@ export default function SettingsTab() {
     { label: 'Blood Group', key: 'bloodGroup' }
   ]
 
+  const modules = ['Attendance', 'Correction', 'Approvals', 'Summary', 'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday', 'Leave', 'HRLetters', 'Settings', 'Employees', 'Roles', 'Shifts', 'EmployeePortal']
+
   // Role Groups & Rights
   const roleGroups = [
     {
@@ -70,13 +75,24 @@ export default function SettingsTab() {
         { id: 'Attendance', label: 'Attendance Entry' },
         { id: 'Correction', label: 'Attendance Correction' },
         { id: 'Approvals', label: 'OT & Leave Approvals' },
-        { id: 'Summary', label: 'Reports & Summary' }
+        { id: 'Summary', label: 'Reports & Summary' },
+        { id: 'Leave', label: 'Leave Management' }
       ]
     },
     {
       title: 'Payroll & Salary',
       modules: [
-        { id: 'SalarySlip', label: 'Salary Slips & Payroll' }
+        { id: 'SalarySlip', label: 'Salary Slips & Payroll' },
+        { id: 'AdvanceExpense', label: 'Advances & Expenses' },
+        { id: 'Fine', label: 'Penalties & Fines' }
+      ]
+    },
+    {
+      title: 'Engagement & HR',
+      modules: [
+        { id: 'Engagement', label: 'Company Engagement' },
+        { id: 'Birthday', label: 'Birthday Calendar' },
+        { id: 'HRLetters', label: 'HR Letters & Docs' }
       ]
     },
     {
@@ -111,7 +127,13 @@ export default function SettingsTab() {
         
         const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
         if (orgSnap.exists()) {
-          setOrgSettings(prev => ({ ...prev, ...orgSnap.data() }))
+          const data = orgSnap.data()
+          setOrgSettings(prev => ({ 
+            ...prev, 
+            ...data, 
+            advanceCategories: data.advanceCategories || prev.advanceCategories,
+            holidays: data.holidays || prev.holidays
+          }))
         }
       } catch (err) {
         console.error('Fetch error:', err)
@@ -205,7 +227,6 @@ export default function SettingsTab() {
         permissions[module].full = !isCurrentlyFull
       } else {
         permissions[module][right] = !permissions[module][right]
-        // Update 'full' flag based on others
         permissions[module].full = permissionRights.every(pr => permissions[module][pr])
       }
       
@@ -229,9 +250,7 @@ export default function SettingsTab() {
     }
   }
 
-  const handlePrintRoster = () => {
-    window.print()
-  }
+  const handlePrintRoster = () => { window.print() }
 
   return (
     <div className="h-full flex flex-col text-[11px] font-roboto">
@@ -248,13 +267,21 @@ export default function SettingsTab() {
       `}</style>
 
       <div className="flex gap-1.5 mb-4 flex-wrap no-print">
-        {['organization', 'employee', 'shift', 'roles', 'salary'].map(tab => (
+        {[
+          {id: 'organization', label: 'Org Details'},
+          {id: 'employee', label: 'Employees'},
+          {id: 'shift', label: 'Shifts'},
+          {id: 'roles', label: 'Roles & Rights'},
+          {id: 'salary', label: 'Salary Slab'},
+          {id: 'advance_cat', label: 'Advance Cats'},
+          {id: 'holidays', label: 'Holidays'}
+        ].map(tab => (
           <button
-            key={tab}
-            onClick={() => setActiveSubTab(tab)}
-            className={`px-3 py-1.5 rounded-xl font-black transition-all uppercase tracking-tighter border ${activeSubTab === tab ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-gray-400 hover:bg-gray-50 border-gray-100'}`}
+            key={tab.id}
+            onClick={() => setActiveSubTab(tab.id)}
+            className={`px-3 py-1.5 rounded-xl font-black transition-all uppercase tracking-tighter border ${activeSubTab === tab.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-gray-400 hover:bg-gray-50 border-gray-100'}`}
           >
-            {tab === 'organization' ? 'Org Details' : tab === 'employee' ? 'Employees' : tab === 'shift' ? 'Shifts' : tab === 'roles' ? 'Roles & Rights' : 'Salary Slab'}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -265,23 +292,17 @@ export default function SettingsTab() {
             <div className="bg-white rounded-2xl border p-5 space-y-4 shadow-sm">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Org Information</h3>
               <div className="flex flex-col items-center mb-4">
-                <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden bg-gray-50 group">
+                <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden bg-gray-50 group shadow-inner">
                   {orgSettings.logoURL ? (
                     <img src={orgSettings.logoURL} className="w-full h-full object-contain" alt="Logo" />
                   ) : (
                     <span className="text-[10px] text-gray-400 font-bold uppercase">Logo</span>
                   )}
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="absolute inset-0 opacity-0 cursor-pointer" 
-                    onChange={async (e) => {
-                      const url = await handleFileUpload(e.target.files[0], `orgs/${user.orgId}/logo`)
-                      if (url) setOrgSettings(s => ({ ...s, logoURL: url }))
-                    }} 
-                  />
+                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
+                    const url = await handleFileUpload(e.target.files[0], `orgs/${user.orgId}/logo`)
+                    if (url) setOrgSettings(s => ({ ...s, logoURL: url }))
+                  }} />
                 </div>
-                <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase">Click to upload (Square preferred)</p>
               </div>
               <div className="space-y-3">
                 {[
@@ -312,7 +333,7 @@ export default function SettingsTab() {
                   </div>
                 ))}
                 <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Invite Code (Share to Join)</label>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Invite Code</label>
                   <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 font-mono font-bold text-indigo-600 text-center select-all">{orgSettings.code}</div>
                 </div>
               </div>
@@ -323,6 +344,52 @@ export default function SettingsTab() {
           </div>
         )}
 
+        {activeSubTab === 'advance_cat' && (
+          <div className="max-w-md bg-white rounded-2xl border p-6 shadow-sm no-print">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-black text-gray-800 uppercase">Advance Categories</h3>
+              <Plus size={16} className="text-indigo-600 cursor-pointer" onClick={() => {
+                const name = prompt('New Category Name:')
+                if (name) setOrgSettings(s => ({...s, advanceCategories: [...s.advanceCategories, name]}))
+              }} />
+            </div>
+            <div className="space-y-2">
+              {orgSettings.advanceCategories.map((cat, i) => (
+                <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl group">
+                  <span className="font-bold text-gray-700">{cat}</span>
+                  <Trash2 size={14} className="text-gray-300 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={() => setOrgSettings(s => ({...s, advanceCategories: s.advanceCategories.filter((_, idx) => idx !== i)}))} />
+                </div>
+              ))}
+            </div>
+            <button onClick={handleSaveOrg} className="w-full mt-6 bg-indigo-600 text-white font-black py-2.5 rounded-xl uppercase shadow-lg">Save Categories</button>
+          </div>
+        )}
+
+        {activeSubTab === 'holidays' && (
+          <div className="max-w-2xl bg-white rounded-2xl border p-6 shadow-sm no-print">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-black text-gray-800 uppercase">Annual Holidays</h3>
+              <button onClick={() => {
+                const name = prompt('Holiday Name:')
+                const date = prompt('Date (YYYY-MM-DD):')
+                if(name && date) setOrgSettings(s => ({...s, holidays: [...s.holidays, {name, date}]}))
+              }} className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest">+ Add Holiday</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {orgSettings.holidays.map((h, i) => (
+                <div key={i} className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm relative group">
+                  <div>
+                    <p className="font-black text-gray-800 uppercase tracking-tight">{h.name}</p>
+                    <p className="text-[10px] font-bold text-indigo-500 font-mono mt-1">{h.date}</p>
+                  </div>
+                  <Trash2 size={14} className="text-red-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={() => setOrgSettings(s => ({...s, holidays: s.holidays.filter((_, idx) => idx !== i)}))} />
+                </div>
+              ))}
+            </div>
+            <button onClick={handleSaveOrg} className="w-full mt-8 bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase shadow-xl tracking-widest">Update Holiday List</button>
+          </div>
+        )}
+
         {activeSubTab === 'employee' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center no-print">
@@ -330,17 +397,11 @@ export default function SettingsTab() {
                 <h3 className="text-sm font-black text-gray-800 uppercase">Employee Roster</h3>
                 <div className="flex gap-1">
                   {allColumns.map(col => (
-                    <button 
-                      key={col.key} 
-                      onClick={() => setVisibleColumns(prev => prev.includes(col.key) ? prev.filter(k => k !== col.key) : [...prev, col.key])}
-                      className={`px-2 py-1 rounded text-[8px] font-black uppercase border transition-all ${visibleColumns.includes(col.key) ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-100 text-gray-300'}`}
-                    >
-                      {col.label}
-                    </button>
+                    <button key={col.key} onClick={() => setVisibleColumns(prev => prev.includes(col.key) ? prev.filter(k => k !== col.key) : [...prev, col.key])} className={`px-2 py-1 rounded text-[8px] font-black uppercase border transition-all ${visibleColumns.includes(col.key) ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-100 text-gray-300'}`}>{col.label}</button>
                   ))}
                 </div>
               </div>
-              <button onClick={() => setShowAddEmployee(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 font-black text-[10px] shadow-lg">+ ADD NEW</button>
+              <button onClick={() => setShowAddEmployee(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-[10px] shadow-lg">+ ADD NEW</button>
             </div>
             <div className="bg-white rounded-2xl border shadow-sm overflow-hidden print-section">
               <table className="w-full text-left">
@@ -378,9 +439,7 @@ export default function SettingsTab() {
                       {visibleColumns.includes('site') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.site || '-'}</td>}
                       {visibleColumns.includes('bankAccount') && <td className="px-4 py-2.5 font-mono text-gray-400 text-[10px]">{emp.bankAccount || '-'}</td>}
                       {visibleColumns.includes('status') && (
-                        <td className="px-4 py-2.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${emp.status === 'Active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{emp.status}</span>
-                        </td>
+                        <td className="px-4 py-2.5"><span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${emp.status === 'Active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{emp.status}</span></td>
                       )}
                       {visibleColumns.includes('joinedDate') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.joinedDate || '-'}</td>}
                       {visibleColumns.includes('bloodGroup') && <td className="px-4 py-2.5 text-gray-400 text-[10px] font-black">{emp.bloodGroup || '-'}</td>}
@@ -400,7 +459,7 @@ export default function SettingsTab() {
           <div className="space-y-4 no-print">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black text-gray-800 uppercase">Shift Management</h3>
-              <button onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 font-black text-[10px] shadow-lg">CREATE SHIFT</button>
+              <button onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-[10px] shadow-lg">CREATE SHIFT</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {shifts.map(s => (
@@ -423,70 +482,32 @@ export default function SettingsTab() {
         {activeSubTab === 'roles' && (
           <div className="space-y-6 no-print max-w-5xl">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">System Roles & Access Control</h3>
-              <button onClick={() => setShowAddRole(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 font-black text-[10px] shadow-lg">+ CREATE NEW ROLE</button>
+              <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Access Control</h3>
+              <button onClick={() => setShowAddRole(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-[10px] shadow-lg">+ CREATE NEW ROLE</button>
             </div>
-
             {roles.map(role => (
               <div key={role.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-10">
                 <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black">{role.name[0].toUpperCase()}</div>
-                    <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">{role.name} Permissions</h4>
-                  </div>
-                  <button onClick={async () => { if(confirm('Delete this role?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="text-red-400 hover:text-red-600 font-bold text-[9px] uppercase tracking-tighter">Remove Role</button>
+                  <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">{role.name} Permissions</h4>
+                  <button onClick={async () => { if(confirm('Delete role?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="text-red-400 hover:text-red-600 font-bold text-[9px] uppercase tracking-tighter">Remove Role</button>
                 </div>
-
                 <div className="p-0">
                   <table className="w-full text-left text-[10px] permissions-table">
-                    <thead>
-                      <tr>
-                        <th className="px-6 py-3 w-1/4">Particulars</th>
-                        <th className="px-4 py-3 text-center">Full</th>
-                        {permissionRights.map(r => (
-                          <th key={r} className="px-4 py-3 text-center capitalize">{r}</th>
-                        ))}
-                        <th className="px-4 py-3 text-center">Assign Owner</th>
-                        <th className="px-4 py-3 text-center">Others</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th className="px-6 py-3 w-1/4">Particulars</th><th className="px-4 py-3 text-center">Full</th>{permissionRights.map(r => (<th key={r} className="px-4 py-3 text-center capitalize">{r}</th>))}<th className="px-4 py-3 text-center">Assign Owner</th><th className="px-4 py-3 text-center">Others</th></tr></thead>
                     <tbody>
                       {roleGroups.map(group => (
                         <tr key={group.title}>
-                          <td colSpan={permissionRights.length + 4} className="bg-gray-50/50 px-6 py-2">
-                            <h5 className="group-header">{group.title}</h5>
+                          <td colSpan={permissionRights.length + 4} className="bg-gray-50/50 px-6 py-2"><h5 className="group-header">{group.title}</h5>
                             <table className="w-full">
-                              <tbody>
-                                {group.modules.map(mod => (
-                                  <tr key={mod.id} className="hover:bg-indigo-50/30 transition-colors">
-                                    <td className="py-3 w-1/4 font-semibold text-gray-600">{mod.label}</td>
-                                    <td className="py-3 text-center w-[8%]">
-                                      <input 
-                                        type="checkbox" 
-                                        checked={role.permissions?.[mod.id]?.full || false} 
-                                        onChange={() => togglePermission(role.id, mod.id, 'full')}
-                                        className="w-4 h-4 rounded text-indigo-600 cursor-pointer border-gray-300"
-                                      />
-                                    </td>
-                                    {permissionRights.map(right => (
-                                      <td key={right} className="py-3 text-center w-[8%]">
-                                        <input 
-                                          type="checkbox" 
-                                          checked={role.permissions?.[mod.id]?.[right] || false} 
-                                          onChange={() => togglePermission(role.id, mod.id, right)}
-                                          className="w-4 h-4 rounded text-indigo-600 cursor-pointer border-gray-300"
-                                        />
-                                      </td>
-                                    ))}
-                                    <td className="py-3 text-center w-[10%]">
-                                      <input type="checkbox" className="w-4 h-4 rounded border-gray-200" disabled />
-                                    </td>
-                                    <td className="py-3 text-center text-indigo-500 font-bold text-[9px] cursor-pointer hover:underline">
-                                      More Permissions
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
+                              <tbody>{group.modules.map(mod => (
+                                <tr key={mod.id} className="hover:bg-indigo-50/30 transition-colors">
+                                  <td className="py-3 w-1/4 font-semibold text-gray-600">{mod.label}</td>
+                                  <td className="py-3 text-center w-[8%]"><input type="checkbox" checked={role.permissions?.[mod.id]?.full || false} onChange={() => togglePermission(role.id, mod.id, 'full')} className="w-4 h-4 rounded text-indigo-600 cursor-pointer border-gray-300" /></td>
+                                  {permissionRights.map(right => (<td key={right} className="py-3 text-center w-[8%]"><input type="checkbox" checked={role.permissions?.[mod.id]?.[right] || false} onChange={() => togglePermission(role.id, mod.id, right)} className="w-4 h-4 rounded text-indigo-600 cursor-pointer border-gray-300" /></td>))}
+                                  <td className="py-3 text-center w-[10%]"><input type="checkbox" className="w-4 h-4 rounded border-gray-200" disabled /></td>
+                                  <td className="py-3 text-center text-indigo-500 font-bold text-[9px] cursor-pointer hover:underline">More</td>
+                                </tr>
+                              ))}</tbody>
                             </table>
                           </td>
                         </tr>
@@ -499,16 +520,14 @@ export default function SettingsTab() {
           </div>
         )}
 
-        {activeSubTab === 'salary' && (
-          <SalarySlabSettings />
-        )}
+        {activeSubTab === 'salary' && <SalarySlabSettings />}
       </div>
 
       {/* COMPREHENSIVE EMPLOYEE EDITOR MODAL */}
       <Modal isOpen={!!editingEmp} onClose={() => setEditingEmp(null)} title="EMPLOYEE MASTER DATA">
         <div className="p-6 max-w-2xl mx-auto h-[80vh] flex flex-col">
           <div className="flex-1 overflow-y-auto pr-2 space-y-6">
-            <div className="flex items-center gap-6 bg-gray-50 p-6 rounded-3xl border border-gray-100">
+            <div className="flex items-center gap-6 bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-sm">
               <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center relative overflow-hidden bg-white shadow-inner group">
                 {editForm.photoURL ? <img src={editForm.photoURL} className="w-full h-full object-cover" /> : <span className="text-[10px] text-indigo-300 font-black uppercase">Upload</span>}
                 <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
@@ -517,11 +536,10 @@ export default function SettingsTab() {
                 }} />
               </div>
               <div className="flex-1">
-                <input type="text" value={editForm.name || ''} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} className="text-xl font-black uppercase tracking-tight text-gray-800 bg-transparent border-none focus:ring-0 w-full p-0" placeholder="EMPLOYEE FULL NAME" />
+                <input type="text" value={editForm.name || ''} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} className="text-xl font-black uppercase tracking-tight text-gray-800 bg-transparent border-none focus:ring-0 w-full p-0" />
                 <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Personnel Master File</p>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               {[
                 { label: 'Employee ID', key: 'empCode' },
@@ -529,66 +547,33 @@ export default function SettingsTab() {
                 { label: 'Site Location', key: 'site' },
                 { label: 'Bank Account', key: 'bankAccount' },
                 { label: 'Joined Date', key: 'joinedDate', type: 'date' },
+                { label: 'Date of Birth', key: 'dob', type: 'date' },
                 { label: 'Blood Group', key: 'bloodGroup' },
-                { label: 'Perm. Hrs/Month', key: 'permissionHours', type: 'number', placeholder: 'e.g. 2' },
-                { label: 'Min Daily Hrs', key: 'minDailyHours', type: 'number', placeholder: 'e.g. 8' }
+                { label: 'Perm. Hrs/Month', key: 'permissionHours', type: 'number' },
+                { label: 'Min Daily Hrs', key: 'minDailyHours', type: 'number' }
               ].map(f => (
                 <div key={f.key}>
                   <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
-                  <input type={f.type || 'text'} placeholder={f.placeholder} value={editForm[f.key] || ''} onChange={e => setEditForm(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none bg-white shadow-sm" />
+                  <input type={f.type || 'text'} value={editForm[f.key] || ''} onChange={e => setEditForm(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none bg-white shadow-sm" />
                 </div>
               ))}
               <div>
-                <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Shift Assignment</label>
+                <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Shift</label>
                 <select value={editForm.shiftId || ''} onChange={e => setEditForm(s => ({ ...s, shiftId: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-bold bg-white">
                   <option value="">Select Shift...</option>
                   {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Work Status</label>
-                <div className="flex bg-gray-100 p-1 rounded-xl">
-                  <button onClick={() => setEditForm(s => ({ ...s, status: 'Active' }))} className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${editForm.status === 'Active' ? 'bg-white shadow text-green-600' : 'text-gray-400'}`}>ACTIVE</button>
-                  <button onClick={() => setEditForm(s => ({ ...s, status: 'Inactive' }))} className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${editForm.status === 'Inactive' ? 'bg-white shadow text-red-600' : 'text-gray-400'}`}>INACTIVE</button>
-                </div>
-              </div>
             </div>
           </div>
           <div className="mt-6 pt-4 border-t flex gap-3">
-            <button onClick={() => setEditingEmp(null)} className="flex-1 py-3 border-2 rounded-2xl font-black text-gray-400 uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all">Cancel</button>
-            <button onClick={handleSaveEmployee} disabled={saving} className="flex-2 bg-indigo-600 text-white py-3 rounded-2xl font-black shadow-xl uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all">{saving ? 'SYNCHING...' : 'SAVE MASTER DATA'}</button>
+            <button onClick={() => setEditingEmp(null)} className="flex-1 py-3 border-2 rounded-2xl font-black text-gray-400 uppercase tracking-widest text-[10px]">Cancel</button>
+            <button onClick={handleSaveEmployee} disabled={saving} className="flex-2 bg-indigo-600 text-white py-3 rounded-2xl font-black shadow-xl uppercase text-[10px]">{saving ? 'SYNCHING...' : 'SAVE MASTER DATA'}</button>
           </div>
         </div>
       </Modal>
 
-      {/* SHIFT EDITOR MODAL */}
-      <Modal isOpen={showAddShift} onClose={() => setShowAddShift(false)} title={editingShift ? 'EDIT SHIFT' : 'NEW SHIFT'}>
-        <div className="p-6 space-y-4 max-w-sm mx-auto">
-          <div>
-            <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Shift Label</label>
-            <input type="text" value={newShift.name} onChange={e => setNewShift(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-xl px-4 py-2.5 text-xs font-black bg-gray-50 focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="e.g. MORNING" />
-          </div>
-          <div className="flex items-center justify-between bg-purple-50 p-3 rounded-xl border border-purple-100">
-            <span className="text-[10px] font-black text-purple-700 uppercase">Flexible Timing?</span>
-            <input type="checkbox" checked={newShift.isFlexible} onChange={e => setNewShift(s => ({ ...s, isFlexible: e.target.checked }))} className="w-5 h-5 rounded text-purple-600 focus:ring-purple-500" />
-          </div>
-          {!newShift.isFlexible && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[9px] font-black text-gray-400 uppercase mb-1 text-center">Start Time</label>
-                <input type="time" value={newShift.startTime} onChange={e => setNewShift(s => ({ ...s, startTime: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-black bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-[9px] font-black text-gray-400 uppercase mb-1 text-center">End Time</label>
-                <input type="time" value={newShift.endTime} onChange={e => setNewShift(s => ({ ...s, endTime: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-black bg-gray-50" />
-              </div>
-            </div>
-          )}
-          <button onClick={handleAddShift} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl hover:bg-indigo-700 transition-all uppercase tracking-widest text-[10px] mt-2">{editingShift ? 'UPDATE SHIFT' : 'INITIALIZE SHIFT'}</button>
-        </div>
-      </Modal>
-
-      {/* NEW EMPLOYEE MODAL */}
+      {/* QUICK REGISTER */}
       <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="QUICK REGISTER">
         <div className="p-6 space-y-4 max-w-sm mx-auto">
           {['name', 'empCode', 'department'].map(f => (
@@ -597,14 +582,26 @@ export default function SettingsTab() {
               <input type="text" value={newEmployee[f]} onChange={e => setNewEmployee(s => ({ ...s, [f]: e.target.value }))} className="w-full border rounded-xl px-4 py-2.5 text-xs font-black bg-gray-50 focus:ring-1 focus:ring-indigo-500 outline-none" />
             </div>
           ))}
-          <button onClick={handleAddEmployee} disabled={saving} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl hover:bg-indigo-700 transition-all uppercase tracking-widest text-[10px]">REGISTER & OPEN FILE</button>
+          <button onClick={handleAddEmployee} disabled={saving} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl uppercase text-[10px]">REGISTER EMPLOYEE</button>
+        </div>
+      </Modal>
+
+      {/* SHIFT & ROLE MODALS (SIMILAR STYLE) */}
+      <Modal isOpen={showAddShift} onClose={() => setShowAddShift(false)} title={editingShift ? 'EDIT SHIFT' : 'NEW SHIFT'}>
+        <div className="p-6 space-y-4 max-w-sm mx-auto">
+          <input type="text" placeholder="Shift Name" value={newShift.name} onChange={e => setNewShift(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-xl px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
+          <div className="flex items-center justify-between bg-purple-50 p-3 rounded-xl border border-purple-100">
+            <span className="text-[10px] font-black text-purple-700 uppercase">Flexible?</span>
+            <input type="checkbox" checked={newShift.isFlexible} onChange={e => setNewShift(s => ({ ...s, isFlexible: e.target.checked }))} className="w-5 h-5 rounded text-purple-600" />
+          </div>
+          <button onClick={handleAddShift} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px]">SAVE SHIFT</button>
         </div>
       </Modal>
 
       <Modal isOpen={showAddRole} onClose={() => setShowAddRole(false)} title="INITIALIZE ROLE">
         <div className="p-6 space-y-4 max-w-sm mx-auto">
-          <input type="text" value={newRole.name} onChange={e => setNewRole(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-2xl px-4 py-3 text-xs font-black bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500 uppercase tracking-widest" placeholder="ROLE NAME (e.g. MANAGER)" />
-          <button onClick={handleAddRole} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl hover:bg-indigo-700 uppercase tracking-widest text-[10px]">CREATE AUTHORIZATION</button>
+          <input type="text" value={newRole.name} onChange={e => setNewRole(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-2xl px-4 py-3 text-xs font-black bg-gray-50 outline-none" placeholder="ROLE NAME" />
+          <button onClick={handleAddRole} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px]">CREATE ROLE</button>
         </div>
       </Modal>
     </div>
