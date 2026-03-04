@@ -29,9 +29,19 @@ export default function SettingsTab() {
   const [showAddEmployee, setShowAddEmployee] = useState(false)
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9 })
   const [newEmployee, setNewEmployee] = useState({
-    name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: ''
+    name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: ''
   })
-  const [orgSettings, setOrgSettings] = useState({ name: '', slug: '', color: '#6366f1' })
+  const [orgSettings, setOrgSettings] = useState({
+    name: '',
+    slug: '',
+    color: '#6366f1',
+    shiftStrategy: 'Day',
+    shifts: {
+      shift1: { startTime: '09:00', endTime: '18:00' },
+      shift2: { startTime: '14:00', endTime: '23:00' },
+      shift3: { startTime: '22:00', endTime: '07:00' }
+    }
+  })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [orgError, setOrgError] = useState('')
@@ -44,7 +54,8 @@ export default function SettingsTab() {
     })
     getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
       if (snap.exists()) {
-        setOrgSettings(snap.data())
+        const data = snap.data()
+        setOrgSettings(prev => ({ ...prev, ...data }))
       }
     })
   }, [user?.orgId])
@@ -71,7 +82,7 @@ export default function SettingsTab() {
     await addEmployee(newEmployee)
     setShowAddEmployee(false)
     setNewEmployee({
-      name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: ''
+      name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: ''
     })
     setSaving(false)
   }
@@ -80,20 +91,15 @@ export default function SettingsTab() {
     if (!user?.orgId) { setOrgError('No organisation ID found. Please re-login.'); return }
     setSaving(true)
     setOrgError('')
-    // Only write the user-editable fields — not adminUids, code, timestamps etc.
     const payload = {
       name: orgSettings.name || '',
       slug: orgSettings.slug || '',
       color: orgSettings.color || '#6366f1',
+      shiftStrategy: orgSettings.shiftStrategy || 'Day',
+      shifts: orgSettings.shifts || null
     }
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Save timed out. Check your Firestore security rules allow writes to the organisations collection.')), 10000)
-    )
     try {
-      await Promise.race([
-        setDoc(doc(db, 'organisations', user.orgId), payload, { merge: true }),
-        timeout,
-      ])
+      await setDoc(doc(db, 'organisations', user.orgId), payload, { merge: true })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
@@ -110,353 +116,252 @@ export default function SettingsTab() {
       <div className="flex gap-2 mb-4 flex-wrap">
         <button
           onClick={() => setActiveSubTab('organization')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'organization' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'organization' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
         >
           🏢 Organization
         </button>
         <button
           onClick={() => setActiveSubTab('employee')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'employee' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'employee' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
         >
           👤 Employees
         </button>
         <button
           onClick={() => setActiveSubTab('shift')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'shift' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeSubTab === 'shift' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
         >
           🕐 Shifts
         </button>
       </div>
 
-      {/* Organization Settings */}
-      {activeSubTab === 'organization' && (
-        <div className="flex-1 overflow-auto">
-          <div className="bg-white rounded-xl shadow p-6 max-w-lg">
-            <h3 className="text-lg font-semibold mb-4">Organization Settings</h3>
+      <div className="flex-1 overflow-auto">
+        {/* Organization Settings */}
+        {activeSubTab === 'organization' && (
+          <div className="bg-white rounded-xl shadow p-6 max-w-lg space-y-6">
+            <h3 className="text-lg font-semibold text-gray-800">Organization Settings</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Organization Name</label>
                 <input
                   type="text"
                   value={orgSettings.name || ''}
                   onChange={e => setOrgSettings(s => ({ ...s, name: e.target.value }))}
-                  className="w-full border rounded-lg px-4 py-2"
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                   placeholder="TechCorp India"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Slug</label>
                 <input
                   type="text"
                   value={orgSettings.slug || ''}
                   onChange={e => setOrgSettings(s => ({ ...s, slug: e.target.value }))}
-                  className="w-full border rounded-lg px-4 py-2"
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                   placeholder="techcorp"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Brand Color</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={orgSettings.color || '#6366f1'}
-                    onChange={e => setOrgSettings(s => ({ ...s, color: e.target.value }))}
-                    className="w-12 h-10 rounded cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={orgSettings.color || '#6366f1'}
-                    onChange={e => setOrgSettings(s => ({ ...s, color: e.target.value }))}
-                    className="border rounded-lg px-4 py-2 w-32 font-mono"
-                  />
-                </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Shift Strategy</label>
+              <div className="flex bg-gray-100 p-1 rounded-xl mb-4">
+                <button
+                  onClick={() => setOrgSettings(s => ({ ...s, shiftStrategy: 'Day' }))}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${orgSettings.shiftStrategy === 'Day' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}
+                >
+                  Day Shift
+                </button>
+                <button
+                  onClick={() => setOrgSettings(s => ({ ...s, shiftStrategy: 'Overnight' }))}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${orgSettings.shiftStrategy === 'Overnight' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}
+                >
+                  Overnight Shift
+                </button>
               </div>
-              <button
-                onClick={handleSaveOrg}
-                disabled={saving}
-                className={`px-6 py-2 rounded-lg font-medium transition-all disabled:opacity-50 ${saved
-                  ? 'bg-green-500 text-white'
-                  : 'bg-indigo-500 text-white hover:bg-indigo-600'
-                  }`}
-              >
-                {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save Organisation'}
-              </button>
-              {orgError && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm mt-2">
-                  ⚠️ {orgError}
+
+              {orgSettings.shiftStrategy === 'Day' ? (
+                <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-indigo-400 uppercase">In Time</label>
+                    <input
+                      type="time"
+                      value={orgSettings.shifts?.shift1?.startTime || '09:00'}
+                      onChange={e => setOrgSettings(s => ({ ...s, shifts: { ...s.shifts, shift1: { ...s.shifts?.shift1, startTime: e.target.value } } }))}
+                      className="w-full border-none bg-transparent font-mono text-lg focus:ring-0"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-indigo-400 uppercase">Out Time</label>
+                    <input
+                      type="time"
+                      value={orgSettings.shifts?.shift1?.endTime || '18:00'}
+                      onChange={e => setOrgSettings(s => ({ ...s, shifts: { ...s.shifts, shift1: { ...s.shifts?.shift1, endTime: e.target.value } } }))}
+                      className="w-full border-none bg-transparent font-mono text-lg focus:ring-0"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(num => (
+                    <div key={num} className="bg-purple-50 p-3 rounded-xl border border-purple-100 grid grid-cols-3 gap-2 items-center">
+                      <span className="text-[10px] font-bold text-purple-400 uppercase">Shift {num}</span>
+                      <input
+                        type="time"
+                        value={orgSettings.shifts?.[`shift${num}`]?.startTime || '00:00'}
+                        onChange={e => setOrgSettings(s => ({ ...s, shifts: { ...s.shifts, [`shift${num}`]: { ...s.shifts?.[`shift${num}`], startTime: e.target.value } } }))}
+                        className="border rounded px-2 py-1 text-xs font-mono"
+                      />
+                      <input
+                        type="time"
+                        value={orgSettings.shifts?.[`shift${num}`]?.endTime || '00:00'}
+                        onChange={e => setOrgSettings(s => ({ ...s, shifts: { ...s.shifts, [`shift${num}`]: { ...s.shifts?.[`shift${num}`], endTime: e.target.value } } }))}
+                        className="border rounded px-2 py-1 text-xs font-mono"
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Employee Settings */}
-      {activeSubTab === 'employee' && (
-        <div className="flex-1 overflow-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Employees</h3>
             <button
-              onClick={() => setShowAddEmployee(true)}
-              className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600"
+              onClick={handleSaveOrg}
+              disabled={saving}
+              className={`w-full py-3 rounded-xl font-bold transition-all shadow-md disabled:opacity-50 ${saved ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
             >
-              + Add Employee
+              {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save Changes'}
             </button>
+            {orgError && <div className="text-red-500 text-xs font-bold text-center mt-2">⚠️ {orgError}</div>}
           </div>
+        )}
 
-          <div className="bg-white rounded-xl shadow">
-            <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  {['Employee', 'Emp ID', 'Department', 'Shift', 'Work Hrs', 'Site', 'Actions'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-widest">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {empLoading ? (
-                  <tr><td colSpan={7} className="text-center py-8"><Spinner /></td></tr>
-                ) : employees.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-gray-400">No employees. Click "Add Employee" to create one.</td></tr>
-                ) : employees.map(emp => (
-                  <tr key={emp.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                          style={{ backgroundColor: getAvatarColor(emp.id) }}
-                        >
-                          {getInitials(emp.name)}
+        {/* Employee Settings */}
+        {activeSubTab === 'employee' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-800">Employees</h3>
+              <button
+                onClick={() => setShowAddEmployee(true)}
+                className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 font-bold text-sm shadow-md"
+              >
+                + Add Employee
+              </button>
+            </div>
+
+            <div className="bg-white rounded-xl shadow overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    {['Employee', 'Emp ID', 'Department', 'Shift', 'Work Hrs', 'Site', 'Actions'].map(h => (
+                      <th key={h} className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {empLoading ? (
+                    <tr><td colSpan={7} className="text-center py-20"><Spinner /></td></tr>
+                  ) : employees.map(emp => (
+                    <tr key={emp.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: getAvatarColor(emp.id) }}>{getInitials(emp.name)}</div>
+                          <span className="font-semibold text-gray-700">{emp.name}</span>
                         </div>
-                        <span className="font-medium text-gray-800">{emp.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm text-gray-600">{emp.empCode}</td>
-                    <td className="px-4 py-3 text-gray-600">{emp.department}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {editingEmp === emp.id ? (
-                        <select
-                          value={editForm.shiftId || ''}
-                          onChange={e => setEditForm(f => ({ ...f, shiftId: e.target.value }))}
-                          className="border rounded px-2 py-1 text-sm"
-                        >
-                          <option value="">Select shift</option>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-gray-500">{emp.empCode}</td>
+                      <td className="px-4 py-3 text-gray-600">{emp.department}</td>
+                      <td className="px-4 py-3 text-gray-600">{editingEmp === emp.id ? (
+                        <select value={editForm.shiftId || ''} onChange={e => setEditForm(f => ({ ...f, shiftId: e.target.value }))} className="border rounded px-2 py-1 text-xs">
                           {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
-                      ) : emp.shift?.name || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {editingEmp === emp.id ? (
-                        <input
-                          type="number"
-                          value={editForm.workHours || ''}
-                          onChange={e => setEditForm(f => ({ ...f, workHours: parseInt(e.target.value) }))}
-                          className="border rounded px-2 py-1 text-sm w-16"
-                        />
-                      ) : emp.workHours || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {editingEmp === emp.id ? (
-                        <input
-                          type="text"
-                          value={editForm.site || ''}
-                          onChange={e => setEditForm(f => ({ ...f, site: e.target.value }))}
-                          className="border rounded px-2 py-1 text-sm"
-                        />
-                      ) : emp.site || '-'}
-                    </td>
-                    <td className="px-4 py-3">
-                      {editingEmp === emp.id ? (
-                        <div className="flex gap-2">
-                          <button onClick={handleSaveEmployee} className="text-green-600 hover:bg-green-50 px-2 py-1 rounded text-sm font-medium">Save</button>
-                          <button onClick={() => setEditingEmp(null)} className="text-gray-500 hover:bg-gray-100 px-2 py-1 rounded text-sm">Cancel</button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => { setEditingEmp(emp.id); setEditForm(emp); }}
-                          className="text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded text-sm font-medium"
-                        >
-                          Edit
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      ) : emp.shift?.name || '-'}</td>
+                      <td className="px-4 py-3 text-gray-600">{emp.workHours}h</td>
+                      <td className="px-4 py-3 text-gray-600">{emp.site}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => { setEditingEmp(emp.id); setEditForm(emp); }} className="text-indigo-600 font-bold hover:underline">Edit</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Shift Settings */}
-      {activeSubTab === 'shift' && (
-        <div className="flex-1 overflow-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Shifts</h3>
-            <button
-              onClick={() => setShowAddShift(true)}
-              className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600"
-            >
-              + Add Shift
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-8"><Spinner /></div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {shifts.map(shift => (
-                <div
-                  key={shift.id}
-                  className={`rounded-xl shadow p-4 ${shift.type === 'Overnight' ? 'bg-purple-50 border border-purple-200' : 'bg-blue-50 border border-blue-200'}`}
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-semibold text-gray-800">{shift.name}</h4>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${shift.type === 'Overnight' ? 'bg-purple-200 text-purple-700' : 'bg-blue-200 text-blue-700'}`}>
-                        {shift.type}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <div>Start: <span className="font-mono">{shift.startTime}</span></div>
-                    <div>End: <span className="font-mono">{shift.endTime}</span></div>
-                    <div>Work Hours: <span className="font-medium">{shift.workHours}h</span></div>
-                  </div>
+        {/* Shift Settings */}
+        {activeSubTab === 'shift' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-800">Shifts</h3>
+              <button onClick={() => setShowAddShift(true)} className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 font-bold text-sm shadow-md">+ Add Shift</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {shifts.map(s => (
+                <div key={s.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <h4 className="font-bold text-gray-800">{s.name}</h4>
+                  <div className="text-xs text-gray-400 mt-1">{s.type} • {s.startTime} - {s.endTime}</div>
                 </div>
               ))}
             </div>
-          )}
+          </div>
+        )}
+      </div>
 
-          {/* Add Shift Modal */}
-          <Modal isOpen={showAddShift} onClose={() => setShowAddShift(false)} title="Add New Shift">
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Shift Name"
-                value={newShift.name}
-                onChange={e => setNewShift(s => ({ ...s, name: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
-              <select
-                value={newShift.type}
-                onChange={e => setNewShift(s => ({ ...s, type: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              >
-                <option value="Day">Day</option>
-                <option value="Overnight">Overnight</option>
-              </select>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500">Start Time</label>
-                  <input
-                    type="time"
-                    value={newShift.startTime}
-                    onChange={e => setNewShift(s => ({ ...s, startTime: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">End Time</label>
-                  <input
-                    type="time"
-                    value={newShift.endTime}
-                    onChange={e => setNewShift(s => ({ ...s, endTime: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2"
-                  />
-                </div>
-              </div>
-              <input
-                type="number"
-                placeholder="Work Hours"
-                value={newShift.workHours}
-                onChange={e => setNewShift(s => ({ ...s, workHours: parseInt(e.target.value) }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
-            </div>
-            <div className="flex justify-end gap-3 mt-4">
-              <button onClick={() => setShowAddShift(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-              <button onClick={handleAddShift} className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">Add</button>
-            </div>
-          </Modal>
-
-          {/* Add Employee Modal */}
-          <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add New Employee">
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={newEmployee.name}
-                onChange={e => setNewEmployee(s => ({ ...s, name: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
-              <input
-                type="text"
-                placeholder="Employee Code (e.g. TC001)"
-                value={newEmployee.empCode}
-                onChange={e => setNewEmployee(s => ({ ...s, empCode: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
-              <input
-                type="text"
-                placeholder="Department"
-                value={newEmployee.department}
-                onChange={e => setNewEmployee(s => ({ ...s, department: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
-              <select
-                value={newEmployee.shiftId}
-                onChange={e => setNewEmployee(s => ({ ...s, shiftId: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              >
-                <option value="">Select Shift</option>
-                {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="number"
-                  placeholder="Work Hours"
-                  value={newEmployee.workHours}
-                  onChange={e => setNewEmployee(s => ({ ...s, workHours: parseInt(e.target.value) }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-                <input
-                  type="text"
-                  placeholder="Site"
-                  value={newEmployee.site}
-                  onChange={e => setNewEmployee(s => ({ ...s, site: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-              <input
-                type="number"
-                placeholder="Monthly Salary"
-                value={newEmployee.monthlySalary}
-                onChange={e => setNewEmployee(s => ({ ...s, monthlySalary: parseInt(e.target.value) }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
-              <input
-                type="date"
-                placeholder="Join Date"
-                value={newEmployee.joinedDate}
-                onChange={e => setNewEmployee(s => ({ ...s, joinedDate: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
-            </div>
-            <div className="flex justify-end gap-3 mt-4">
-              <button onClick={() => setShowAddEmployee(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-              <button onClick={handleAddEmployee} disabled={saving} className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:opacity-50">
-                {saving ? 'Adding...' : 'Add Employee'}
-              </button>
-            </div>
-          </Modal>
+      {/* Modals placed globally */}
+      <Modal isOpen={showAddShift} onClose={() => setShowAddShift(false)} title="Add New Shift">
+        <div className="space-y-3 p-4">
+          <input type="text" placeholder="Shift Name" value={newShift.name} onChange={e => setNewShift(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-lg px-4 py-2" />
+          <select value={newShift.type} onChange={e => setNewShift(s => ({ ...s, type: e.target.value }))} className="w-full border rounded-lg px-4 py-2">
+            <option value="Day">Day</option>
+            <option value="Overnight">Overnight</option>
+          </select>
+          <div className="grid grid-cols-2 gap-4">
+            <input type="time" value={newShift.startTime} onChange={e => setNewShift(s => ({ ...s, startTime: e.target.value }))} className="w-full border rounded-lg px-4 py-2" />
+            <input type="time" value={newShift.endTime} onChange={e => setNewShift(s => ({ ...s, endTime: e.target.value }))} className="w-full border rounded-lg px-4 py-2" />
+          </div>
+          <button onClick={handleAddShift} className="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg shadow-md hover:bg-indigo-700">Create Shift</button>
         </div>
-      )}
+      </Modal>
+
+      <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add New Employee">
+        <div className="p-4 space-y-4 max-w-lg mx-auto">
+          {[
+            { label: 'Full Name', key: 'name', type: 'text', placeholder: 'e.g. John Doe' },
+            { label: 'Emp ID', key: 'empCode', type: 'text', placeholder: 'e.g. TC001' },
+            { label: 'Department', key: 'department', type: 'text', placeholder: 'e.g. Operations' },
+            { label: 'Site', key: 'site', type: 'text', placeholder: 'e.g. Main Office' }
+          ].map(f => (
+            <div key={f.key} className="flex items-center gap-4">
+              <label className="w-1/3 text-[10px] font-bold text-gray-400 text-right uppercase tracking-tighter">{f.label}</label>
+              <input type={f.type} placeholder={f.placeholder} value={newEmployee[f.key]} onChange={e => setNewEmployee(s => ({ ...s, [f.key]: e.target.value }))} className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+          ))}
+
+          <div className="flex items-center gap-4">
+            <label className="w-1/3 text-[10px] font-bold text-gray-400 text-right uppercase tracking-tighter">Blood Group</label>
+            <select value={newEmployee.bloodGroup} onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))} className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm">
+              <option value="">Select...</option>
+              {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label className="w-1/3 text-[10px] font-bold text-gray-400 text-right uppercase tracking-tighter">Join Date</label>
+            <input type="date" value={newEmployee.joinedDate} onChange={e => setNewEmployee(s => ({ ...s, joinedDate: e.target.value }))} className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm" />
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label className="w-1/3 text-[10px] font-bold text-gray-400 text-right uppercase tracking-tighter">Document</label>
+            <div className="flex-1">
+              <input type="file" className="hidden" id="doc-upload" />
+              <label htmlFor="doc-upload" className="w-full border-2 border-dashed border-gray-100 rounded-lg px-4 py-2 text-[10px] font-bold text-gray-400 flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50">📁 Upload ID / Addhaar</label>
+            </div>
+          </div>
+
+          <button onClick={handleAddEmployee} disabled={saving} className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 mt-4">
+            {saving ? 'Processing...' : 'Register Employee'}
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }

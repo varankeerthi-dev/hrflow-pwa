@@ -57,11 +57,32 @@ export default function CorrectionTab() {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          body { background: white !important; }
+          .print-container { 
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            border: none;
+            box-shadow: none;
+          }
+          table { width: 100% !important; border-collapse: collapse; }
+          th, td { border: 1px solid #eee !important; padding: 8px !important; }
+          .lg\\:col-span-3 { width: 100% !important; grid-column: span 1 / span 1 !important; }
+        }
+      `}</style>
+
       {/* Top Section: Split Screen */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
         {/* Left Side: Date Navigator */}
-        <div className="lg:col-span-1 space-y-4">
+        <div className="lg:col-span-1 space-y-4 no-print">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center gap-2 mb-4 text-indigo-600 font-bold">
               <span className="text-xl">📅</span>
@@ -110,9 +131,9 @@ export default function CorrectionTab() {
         </div>
 
         {/* Right Side: Results Table */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 print-container">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-5 flex justify-between items-center bg-white border-b border-gray-50">
+            <div className="p-5 flex justify-between items-center bg-white border-b border-gray-50 no-print">
               <div className="flex items-center gap-2 text-indigo-600 font-bold">
                 <span className="text-xl">📊</span>
                 <span>Results</span>
@@ -169,7 +190,7 @@ export default function CorrectionTab() {
       </div>
 
       {/* Bottom Section: Edit Attendance Record */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 no-print">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2 text-indigo-600 font-bold">
             <span className="text-xl">✏️</span>

@@ -31,16 +31,24 @@ export default function AttendanceTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const { fetchByDate, upsertAttendance, loading: attLoading } = useAttendance(user?.orgId)
-  
+
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
   const [rows, setRows] = useState([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [orgData, setOrgData] = useState(null)
 
   const isSunday = new Date(selectedDate).getDay() === 0
+  const isDayShift = orgData?.shiftStrategy === 'Day'
 
   useEffect(() => {
     if (!user?.orgId || !selectedDate) return
+
+    // Fetch org settings for shift strategy
+    getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
+      if (snap.exists()) setOrgData(snap.data())
+    })
+
     fetchByDate(selectedDate).then(records => {
       if (records.length > 0) {
         setRows(records)
@@ -74,6 +82,12 @@ export default function AttendanceTab() {
     setRows(prev => prev.map(r => {
       if (r.employeeId !== empId) return r
       const updated = { ...r, [field]: value }
+
+      // Auto-date Out Date if Day Shift
+      if (field === 'inDate' && isDayShift) {
+        updated.outDate = value
+      }
+
       if (['inTime', 'outTime', 'inDate', 'outDate'].includes(field)) {
         updated.otHours = calcOT(updated.inTime, updated.outTime, updated.inDate, updated.outDate, r.workHours || 9)
       }
@@ -81,8 +95,12 @@ export default function AttendanceTab() {
     }))
   }
 
-  const markAbsent = (empId) => {
-    setRows(prev => prev.map(r => r.employeeId === empId ? { ...r, isAbsent: true, inTime: '', outTime: '', inDate: '', outDate: '' } : r))
+  const toggleAbsent = (empId) => {
+    setRows(prev => prev.map(r =>
+      r.employeeId === empId
+        ? { ...r, isAbsent: !r.isAbsent, inTime: !r.isAbsent ? '' : r.inTime, outTime: !r.isAbsent ? '' : r.outTime }
+        : r
+    ))
   }
 
   const removeRow = (empId) => {
@@ -115,21 +133,21 @@ export default function AttendanceTab() {
       <div className="flex justify-between items-center mb-4">
         {/* Date Navigator */}
         <div className="flex items-center gap-2 bg-white rounded-full px-4 py-2 shadow-md">
-          <button 
+          <button
             onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600"
           >
             ←
           </button>
-          <input 
-            type="date" 
+          <input
+            type="date"
             value={selectedDate}
             onChange={e => setSelectedDate(e.target.value)}
             className="font-mono font-black text-gray-800 bg-transparent border-none outline-none"
           />
           <span className="text-sm font-medium text-gray-600">{formatDate(selectedDate)}</span>
           {isSunday && <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">SUN</span>}
-          <button 
+          <button
             onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600"
           >
@@ -138,7 +156,7 @@ export default function AttendanceTab() {
         </div>
 
         {/* Generate Button */}
-        <button 
+        <button
           onClick={handleGenerate}
           className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
         >
@@ -155,20 +173,20 @@ export default function AttendanceTab() {
             </div>
           ))}
         </div>
-        
+
         {empLoading ? (
           <div className="flex items-center justify-center py-12"><Spinner /></div>
         ) : rows.length === 0 ? (
           <div className="text-center py-12 text-gray-400">Click "Generate All Active" to create attendance rows</div>
         ) : (
           rows.map((row, idx) => (
-            <div 
-              key={row.employeeId} 
+            <div
+              key={row.employeeId}
               className={`grid grid-cols-8 gap-px bg-gray-200 ${row.isAbsent ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}
             >
               {/* Employee */}
               <div className="flex items-center gap-2 px-3 py-2">
-                <div 
+                <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
                   style={{ backgroundColor: getAvatarColor(row.employeeId) }}
                 >
@@ -183,8 +201,8 @@ export default function AttendanceTab() {
 
               {/* In Date */}
               <div className="px-2 py-2">
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={row.inDate || ''}
                   disabled={row.isAbsent}
                   onChange={e => updateRow(row.employeeId, 'inDate', e.target.value)}
@@ -194,8 +212,8 @@ export default function AttendanceTab() {
 
               {/* In Time */}
               <div className="px-2 py-2">
-                <input 
-                  type="time" 
+                <input
+                  type="time"
                   value={row.inTime || ''}
                   disabled={row.isAbsent}
                   onChange={e => updateRow(row.employeeId, 'inTime', e.target.value)}
@@ -205,8 +223,8 @@ export default function AttendanceTab() {
 
               {/* Out Date */}
               <div className="px-2 py-2">
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={row.outDate || ''}
                   disabled={row.isAbsent}
                   onChange={e => updateRow(row.employeeId, 'outDate', e.target.value)}
@@ -216,8 +234,8 @@ export default function AttendanceTab() {
 
               {/* Out Time */}
               <div className="px-2 py-2">
-                <input 
-                  type="time" 
+                <input
+                  type="time"
                   value={row.outTime || ''}
                   disabled={row.isAbsent}
                   onChange={e => updateRow(row.employeeId, 'outTime', e.target.value)}
@@ -227,8 +245,8 @@ export default function AttendanceTab() {
 
               {/* OT */}
               <div className="px-2 py-2">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={row.otHours || '00:00'}
                   onChange={e => updateRow(row.employeeId, 'otHours', e.target.value)}
                   className={`w-full bg-transparent border-none text-sm font-mono ${row.otHours && row.otHours !== '00:00' ? 'text-amber-600 font-bold' : ''}`}
@@ -237,8 +255,8 @@ export default function AttendanceTab() {
 
               {/* Remarks */}
               <div className="px-2 py-2">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={row.remarks || ''}
                   onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
                   className="w-full bg-transparent border-none text-sm"
@@ -246,29 +264,36 @@ export default function AttendanceTab() {
               </div>
 
               {/* Actions */}
-              <div className="px-2 py-2 flex items-center gap-1">
-                {!row.isAbsent && (
-                  <button onClick={() => markAbsent(row.employeeId)} className="text-xs border border-red-300 text-red-600 px-2 py-1 rounded hover:bg-red-50">
-                    Mark Absent
-                  </button>
-                )}
+              <div className="px-2 py-2 flex items-center flex-wrap gap-1">
+                <button
+                  onClick={() => toggleAbsent(row.employeeId)}
+                  className={`text-[10px] font-bold border px-2 py-1 rounded transition-all ${row.isAbsent
+                      ? 'bg-red-500 text-white border-red-500'
+                      : 'border-red-300 text-red-500 hover:bg-red-50'
+                    }`}
+                >
+                  {row.isAbsent ? 'ABSENT' : 'Mark Absent'}
+                </button>
+
                 {isSunday && (
                   <>
-                    <button 
+                    <button
                       onClick={() => toggleSundayFlag(row.employeeId, 'sundayWorked')}
-                      className={`text-xs border px-2 py-1 rounded ${row.sundayWorked ? 'bg-green-500 text-white border-green-500' : 'border-green-300 text-green-600 hover:bg-green-50'}`}
+                      disabled={row.isAbsent}
+                      className={`text-[10px] font-bold border px-2 py-1 rounded transition-all disabled:opacity-30 ${row.sundayWorked ? 'bg-green-500 text-white border-green-500' : 'border-green-300 text-green-600 hover:bg-green-50'}`}
                     >
                       Sun Worked
                     </button>
-                    <button 
+                    <button
                       onClick={() => toggleSundayFlag(row.employeeId, 'sundayHoliday')}
-                      className={`text-xs border px-2 py-1 rounded ${row.sundayHoliday ? 'bg-blue-500 text-white border-blue-500' : 'border-blue-300 text-blue-600 hover:bg-blue-50'}`}
+                      disabled={row.isAbsent}
+                      className={`text-[10px] font-bold border px-2 py-1 rounded transition-all disabled:opacity-30 ${row.sundayHoliday ? 'bg-blue-500 text-white border-blue-500' : 'border-blue-300 text-blue-600 hover:bg-blue-50'}`}
                     >
                       Sun Holiday
                     </button>
                   </>
                 )}
-                <button onClick={() => removeRow(row.employeeId)} className="text-gray-400 hover:text-gray-600 ml-1">✕</button>
+                <button onClick={() => removeRow(row.employeeId)} className="text-gray-400 hover:text-gray-600 ml-auto">✕</button>
               </div>
             </div>
           ))
@@ -291,7 +316,7 @@ export default function AttendanceTab() {
             <span className="text-sm text-gray-600">OT: {otCount}</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {saved && (
             <span className="text-green-600 flex items-center gap-1 text-sm font-medium">
@@ -299,7 +324,7 @@ export default function AttendanceTab() {
               Saved
             </span>
           )}
-          <button 
+          <button
             onClick={handleSubmit}
             disabled={saving || rows.length === 0}
             className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 flex items-center gap-2"
