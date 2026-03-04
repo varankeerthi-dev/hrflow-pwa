@@ -60,7 +60,35 @@ export default function SettingsTab() {
     { label: 'Blood Group', key: 'bloodGroup' }
   ]
 
-  const modules = ['Attendance', 'Correction', 'Approvals', 'Summary', 'Settings', 'Employees', 'Roles', 'Shifts', 'EmployeePortal']
+  // Role Groups & Rights
+  const roleGroups = [
+    {
+      title: 'Time & Attendance',
+      modules: [
+        { id: 'Attendance', label: 'Attendance Entry' },
+        { id: 'Correction', label: 'Attendance Correction' },
+        { id: 'Approvals', label: 'OT & Leave Approvals' },
+        { id: 'Summary', label: 'Reports & Summary' }
+      ]
+    },
+    {
+      title: 'Workforce Management',
+      modules: [
+        { id: 'Employees', label: 'Employee Roster' },
+        { id: 'Shifts', label: 'Shift Schedules' },
+        { id: 'Roles', label: 'User Roles & Rights' }
+      ]
+    },
+    {
+      title: 'Self Service & Others',
+      modules: [
+        { id: 'EmployeePortal', label: 'Individual Employee Portal' },
+        { id: 'Settings', label: 'Global Organisation Settings' }
+      ]
+    }
+  ]
+
+  const permissionRights = ['view', 'create', 'edit', 'delete', 'approve']
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -162,7 +190,16 @@ export default function SettingsTab() {
       if (r.id !== roleId) return r
       const permissions = { ...r.permissions }
       if (!permissions[module]) permissions[module] = {}
-      permissions[module][right] = !permissions[module][right]
+      
+      if (right === 'full') {
+        const isCurrentlyFull = permissionRights.every(pr => permissions[module][pr])
+        permissionRights.forEach(pr => permissions[module][pr] = !isCurrentlyFull)
+        permissions[module].full = !isCurrentlyFull
+      } else {
+        permissions[module][right] = !permissions[module][right]
+        // Update 'full' flag based on others
+        permissions[module].full = permissionRights.every(pr => permissions[module][pr])
+      }
       
       updateDoc(doc(db, 'organisations', user.orgId, 'roles', roleId), { permissions })
       return { ...r, permissions }
@@ -197,6 +234,9 @@ export default function SettingsTab() {
           .print-section { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
         }
+        .permissions-table th { color: #475569; font-weight: 700; background: #f8fafc; }
+        .permissions-table td { border-bottom: 1px solid #f1f5f9; }
+        .group-header { color: #1e293b; font-weight: 800; font-size: 13px; margin-top: 24px; margin-bottom: 12px; }
       `}</style>
 
       <div className="flex gap-1.5 mb-4 flex-wrap no-print">
@@ -373,44 +413,81 @@ export default function SettingsTab() {
         )}
 
         {activeSubTab === 'roles' && (
-          <div className="space-y-6 no-print">
+          <div className="space-y-6 no-print max-w-5xl">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-black text-gray-800 uppercase">Access Control</h3>
-              <button onClick={() => setShowAddRole(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 font-black text-[10px] shadow-lg">CREATE ROLE</button>
+              <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">System Roles & Access Control</h3>
+              <button onClick={() => setShowAddRole(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 font-black text-[10px] shadow-lg">+ CREATE NEW ROLE</button>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
-              {roles.map(role => (
-                <div key={role.id} className="bg-white rounded-2xl border shadow-sm p-5">
-                  <div className="flex justify-between items-center mb-5">
-                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest">{role.name} Rights</h4>
-                    <button onClick={async () => { if(confirm('Delete role?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="text-red-400 hover:text-red-600 font-bold uppercase text-[9px] tracking-tighter">REMOVE ROLE</button>
+            {roles.map(role => (
+              <div key={role.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-10">
+                <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black">{role.name[0].toUpperCase()}</div>
+                    <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">{role.name} Permissions</h4>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-[9px] border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="py-2 text-gray-400 font-black uppercase">Module</th>
-                          {['View', 'Create', 'Edit', 'Delete', 'Full'].map(r => <th key={r} className="py-2 text-center text-gray-400 font-black uppercase">{r}</th>)}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {modules.map(mod => (
-                          <tr key={mod} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
-                            <td className="py-2.5 font-black text-gray-700 uppercase tracking-tighter">{mod}</td>
-                            {['view', 'create', 'edit', 'delete', 'full'].map(right => (
-                              <td key={right} className="py-2.5 text-center">
-                                <input type="checkbox" checked={role.permissions?.[mod]?.[right] || false} onChange={() => togglePermission(role.id, mod, right)} className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <button onClick={async () => { if(confirm('Delete this role?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="text-red-400 hover:text-red-600 font-bold text-[9px] uppercase tracking-tighter">Remove Role</button>
                 </div>
-              ))}
-            </div>
+
+                <div className="p-0">
+                  <table className="w-full text-left text-[10px] permissions-table">
+                    <thead>
+                      <tr>
+                        <th className="px-6 py-3 w-1/4">Particulars</th>
+                        <th className="px-4 py-3 text-center">Full</th>
+                        {permissionRights.map(r => (
+                          <th key={r} className="px-4 py-3 text-center capitalize">{r}</th>
+                        ))}
+                        <th className="px-4 py-3 text-center">Assign Owner</th>
+                        <th className="px-4 py-3 text-center">Others</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roleGroups.map(group => (
+                        <tr key={group.title}>
+                          <td colSpan={permissionRights.length + 4} className="bg-gray-50/50 px-6 py-2">
+                            <h5 className="group-header">{group.title}</h5>
+                            <table className="w-full">
+                              <tbody>
+                                {group.modules.map(mod => (
+                                  <tr key={mod.id} className="hover:bg-indigo-50/30 transition-colors">
+                                    <td className="py-3 w-1/4 font-semibold text-gray-600">{mod.label}</td>
+                                    <td className="py-3 text-center w-[8%]">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={role.permissions?.[mod.id]?.full || false} 
+                                        onChange={() => togglePermission(role.id, mod.id, 'full')}
+                                        className="w-4 h-4 rounded text-indigo-600 cursor-pointer border-gray-300"
+                                      />
+                                    </td>
+                                    {permissionRights.map(right => (
+                                      <td key={right} className="py-3 text-center w-[8%]">
+                                        <input 
+                                          type="checkbox" 
+                                          checked={role.permissions?.[mod.id]?.[right] || false} 
+                                          onChange={() => togglePermission(role.id, mod.id, right)}
+                                          className="w-4 h-4 rounded text-indigo-600 cursor-pointer border-gray-300"
+                                        />
+                                      </td>
+                                    ))}
+                                    <td className="py-3 text-center w-[10%]">
+                                      <input type="checkbox" className="w-4 h-4 rounded border-gray-200" disabled />
+                                    </td>
+                                    <td className="py-3 text-center text-indigo-500 font-bold text-[9px] cursor-pointer hover:underline">
+                                      More Permissions
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -497,7 +574,7 @@ export default function SettingsTab() {
         </div>
       </Modal>
 
-      {/* NEW EMPLOYEE MODAL (Simplified, Master data via Edit) */}
+      {/* NEW EMPLOYEE MODAL */}
       <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="QUICK REGISTER">
         <div className="p-6 space-y-4 max-w-sm mx-auto">
           {['name', 'empCode', 'department'].map(f => (
