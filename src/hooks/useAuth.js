@@ -192,15 +192,19 @@ export function useAuth() {
       adminUids: [firebaseUser.uid],
       createdAt: new Date().toISOString(),
     }
-    await setDoc(doc(db, 'organisations', code), orgData)
 
-    // Update user doc — set orgId (first org) or keep existing if admin creating 2nd
+    // ⚠️ IMPORTANT ORDER: Update the user to admin+orgId FIRST so that
+    // Firestore rules (isAdmin() && getUserOrgId() == orgId) pass when
+    // we then write the org document.
     const updatedFields = {
       orgId: currentUser?.orgId || code,  // keep existing primary org if already set
       role: 'admin',
     }
     await setDoc(doc(db, 'users', firebaseUser.uid), updatedFields, { merge: true })
     setUser((prev) => ({ ...prev, ...updatedFields }))
+
+    // NOW create the org doc — rules pass because user is now admin with matching orgId
+    await setDoc(doc(db, 'organisations', code), orgData)
 
     return code  // return the join code so admin can share it
   }
