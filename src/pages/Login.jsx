@@ -12,54 +12,108 @@ const GoogleIcon = () => (
   </svg>
 )
 
-// ─── Organisation Join Modal ──────────────────────────────────────────────────
-function OrgJoinModal({ onJoin }) {
+// ─── Organisation Setup Modal (Create or Join) ────────────────────────────────
+function OrgSetupModal({ user, onJoin, onCreate, onNavigate }) {
+  const [modalTab, setModalTab] = useState('join')
   const [orgCode, setOrgCode] = useState('')
+  const [orgName, setOrgName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [createdCode, setCreatedCode] = useState(null)
+
+  const isAdmin = user?.role === 'admin'
+  const hasOrg = !!user?.orgId
 
   const handleJoin = async (e) => {
     e.preventDefault()
     if (!orgCode.trim()) { setError('Please enter an organisation code.'); return }
-    setLoading(true)
+    setLoading(true); setError('')
     try {
       await onJoin(orgCode.trim())
+      onNavigate()
     } catch (err) {
-      setError(err.message)
-      setLoading(false)
+      setError(err.message); setLoading(false)
+    }
+  }
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!orgName.trim()) { setError('Please enter an organisation name.'); return }
+    setLoading(true); setError('')
+    try {
+      const code = await onCreate(orgName.trim())
+      setCreatedCode(code); setLoading(false)
+    } catch (err) {
+      setError(err.message); setLoading(false)
     }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 mx-4">
-        <div className="flex flex-col items-center mb-6">
+        <div className="flex flex-col items-center mb-5">
           <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-3">
             <span className="text-white text-2xl">🏢</span>
           </div>
-          <h2 className="text-xl font-bold text-gray-800">Join an Organisation</h2>
+          <h2 className="text-xl font-bold text-gray-800">Set Up Your Organisation</h2>
           <p className="text-sm text-gray-500 text-center mt-1">
-            Enter your organisation code to get started. Ask your admin if you don't have one.
+            {hasOrg && isAdmin
+              ? 'As an admin you can create an additional organisation.'
+              : 'Create a new organisation or join an existing one.'}
           </p>
         </div>
-        <form onSubmit={handleJoin} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">{error}</div>
-          )}
-          <input
-            value={orgCode}
-            onChange={(e) => setOrgCode(e.target.value)}
-            placeholder="Organisation code (e.g. techcorp)"
-            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50"
-          >
-            {loading ? 'Joining…' : 'Join Organisation'}
-          </button>
-        </form>
+
+        {/* Tabs — hidden if admin already in org (can only create) */}
+        {!(hasOrg && isAdmin) && (
+          <div className="flex bg-gray-100 rounded-xl p-1 mb-5">
+            <button onClick={() => { setModalTab('join'); setError('') }}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${modalTab === 'join' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}>
+              Join
+            </button>
+            <button onClick={() => { setModalTab('create'); setError('') }}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${modalTab === 'create' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}>
+              Create
+            </button>
+          </div>
+        )}
+
+        {error && <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm mb-4">{error}</div>}
+
+        {createdCode ? (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="text-sm text-green-700 font-medium mb-2">Organisation created! 🎉</p>
+              <p className="text-xs text-gray-500 mb-1">Share this code with your team:</p>
+              <div className="bg-white border border-gray-200 rounded-lg px-4 py-2 font-mono text-indigo-700 font-bold tracking-wide text-sm select-all">{createdCode}</div>
+            </div>
+            <button onClick={onNavigate}
+              className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all">
+              Continue to Dashboard
+            </button>
+          </div>
+        ) : (modalTab === 'join' && !(hasOrg && isAdmin)) ? (
+          <form onSubmit={handleJoin} className="space-y-4">
+            <input value={orgCode} onChange={(e) => setOrgCode(e.target.value)}
+              placeholder="Organisation code (e.g. techcorp-xyz)"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm" />
+            <p className="text-xs text-gray-400">Ask your admin for the organisation code.</p>
+            <button type="submit" disabled={loading}
+              className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50">
+              {loading ? 'Joining…' : 'Join Organisation'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleCreate} className="space-y-4">
+            <input value={orgName} onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Organisation name (e.g. TechCorp)"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm" />
+            <p className="text-xs text-gray-400">A unique join code will be generated for your team.</p>
+            <button type="submit" disabled={loading}
+              className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50">
+              {loading ? 'Creating…' : 'Create Organisation'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )
@@ -125,7 +179,7 @@ function LinkAccountModal({ email, googleCredential, onLink, onCancel }) {
 
 // ─── Main Login Page ──────────────────────────────────────────────────────────
 export default function Login() {
-  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation } = useAuth()
+  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation } = useAuth()
   const navigate = useNavigate()
 
   const [tab, setTab] = useState('signin')   // 'signin' | 'signup'
@@ -146,9 +200,16 @@ export default function Login() {
   // Account-link modal state
   const [linkData, setLinkData] = useState(null) // { email, googleCredential }
 
-  // If user is logged in but has no org → show org join modal
+  // If user is logged in but has no org → show org setup modal
   if (user && !user.orgId) {
-    return <OrgJoinModal onJoin={async (code) => { await joinOrganisation(code); navigate('/') }} />
+    return (
+      <OrgSetupModal
+        user={user}
+        onJoin={joinOrganisation}
+        onCreate={createOrganisation}
+        onNavigate={() => navigate('/')}
+      />
+    )
   }
 
   if (user) {

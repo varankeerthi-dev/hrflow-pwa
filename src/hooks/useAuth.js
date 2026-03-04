@@ -8,13 +8,12 @@ import {
   signInWithPopup,
   fetchSignInMethodsForEmail,
   linkWithCredential,
-  EmailAuthProvider,
   updateProfile,
 } from 'firebase/auth'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
-// Convert Firebase error codes to human-readable messages
+// ── Human-readable error messages ─────────────────────────────────────────────
 export function formatAuthError(err) {
   const code = err?.code || ''
   switch (code) {
@@ -32,7 +31,7 @@ export function formatAuthError(err) {
     case 'auth/invalid-email':
       return 'Please enter a valid email address.'
     case 'auth/popup-closed-by-user':
-      return 'Google sign-in was closed before completing. Please try again.'
+      return 'Google sign-in was closed. Please try again.'
     case 'auth/popup-blocked':
       return 'Popup was blocked by your browser. Please allow popups for this site.'
     case 'auth/too-many-requests':
@@ -44,6 +43,13 @@ export function formatAuthError(err) {
   }
 }
 
+// ── Helper: read Firestore user doc ──────────────────────────────────────────
+async function readUserDoc(uid) {
+  const snap = await getDoc(doc(db, 'users', uid))
+  return snap.exists() ? { uid, ...snap.data() } : null
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
 export function useAuth() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -51,12 +57,18 @@ export function useAuth() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
-        if (userDoc.exists()) {
-          setUser({ uid: firebaseUser.uid, ...userDoc.data() })
+        const userData = await readUserDoc(firebaseUser.uid)
+        if (userData) {
+          setUser(userData)
         } else {
-          // New user — will be prompted to join an org
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, name: firebaseUser.displayName, orgId: null, role: 'employee' })
+          // Doc not yet written (race on first register/google login) — keep minimal state
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || '',
+            orgId: null,
+            role: 'employee',
+          })
         }
       } else {
         setUser(null)
@@ -66,57 +78,71 @@ export function useAuth() {
     return unsubscribe
   }, [])
 
-  // Email/password sign-in
+  // ── Email/password sign-in ─────────────────────────────────────────────────
   const login = async (email, password) => {
     const result = await signInWithEmailAndPassword(auth, email, password)
+    // Re-read doc to ensure latest state (avoids stale cache)
+    const userData = await readUserDoc(result.user.uid)
+    if (userData) setUser(userData)
     return result.user
   }
 
-  // Register new user with email, password, and optional org code
-  const register = async (name, email, password, orgId = 'general') => {
+  // ── Register new user ──────────────────────────────────────────────────────
+  // orgId may come from Create Account form (blank = null, prompts org join modal)
+  const register = async (name, email, password, orgId) => {
     const result = await createUserWithEmailAndPassword(auth, email, password)
     const firebaseUser = result.user
-    // Set display name
     await updateProfile(firebaseUser, { displayName: name })
-    // Write Firestore user doc
-    await setDoc(doc(db, 'users', firebaseUser.uid), {
+
+    const resolvedOrgId = orgId?.trim() || null
+
+    // If org code supplied, validate it exists in Firestore
+    if (resolvedOrgId) {
+      const orgSnap = await queryOrgByCode(resolvedOrgId)
+      if (!orgSnap) throw new Error('Organisation code not found. Please check and try again.')
+    }
+
+    const userDoc = {
       email,
       name,
-      orgId: orgId.trim() || 'general',
+      orgId: resolvedOrgId,
       role: 'employee',
       createdAt: new Date().toISOString(),
-    })
+    }
+    await setDoc(doc(db, 'users', firebaseUser.uid), userDoc)
+    // Manually set state to avoid race with onAuthStateChanged
+    setUser({ uid: firebaseUser.uid, ...userDoc })
     return firebaseUser
   }
 
-  // Google sign-in — auto-links if same email exists with email/password
+  // ── Google sign-in (with account linking if same email) ───────────────────
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider()
     try {
       const result = await signInWithPopup(auth, provider)
       const firebaseUser = result.user
-      // Ensure user doc exists in Firestore
-      const userRef = doc(db, 'users', firebaseUser.uid)
-      const userDoc = await getDoc(userRef)
-      if (!userDoc.exists()) {
-        // New Google user — leave orgId null so the app prompts org joining
-        await setDoc(userRef, {
+
+      let userData = await readUserDoc(firebaseUser.uid)
+      if (!userData) {
+        // New Google user — write minimal doc, prompt org join
+        const newDoc = {
           email: firebaseUser.email,
-          name: firebaseUser.displayName,
+          name: firebaseUser.displayName || '',
           orgId: null,
           role: 'employee',
           createdAt: new Date().toISOString(),
-        })
+        }
+        await setDoc(doc(db, 'users', firebaseUser.uid), newDoc)
+        userData = { uid: firebaseUser.uid, ...newDoc }
       }
+      setUser(userData)
       return firebaseUser
     } catch (err) {
-      // Account exists with different credential (email/password) — link them
       if (err.code === 'auth/account-exists-with-different-credential') {
         const email = err.customData?.email
         if (email) {
           const methods = await fetchSignInMethodsForEmail(auth, email)
           if (methods.includes('password')) {
-            // Return special signal so Login UI can prompt for password to link
             const linkError = new Error('LINK_REQUIRED')
             linkError.email = email
             linkError.googleCredential = GoogleAuthProvider.credentialFromError(err)
@@ -128,21 +154,71 @@ export function useAuth() {
     }
   }
 
-  // Link Google credential to existing email/password account
+  // ── Link Google credential to existing email/password account ─────────────
   const linkGoogleToEmail = async (email, password, googleCredential) => {
     const result = await signInWithEmailAndPassword(auth, email, password)
     await linkWithCredential(result.user, googleCredential)
+    const userData = await readUserDoc(result.user.uid)
+    if (userData) setUser(userData)
     return result.user
   }
 
-  // Update a user's orgId after joining an organisation
-  const joinOrganisation = async (orgId) => {
-    if (!auth.currentUser) return
-    await setDoc(doc(db, 'users', auth.currentUser.uid), { orgId: orgId.trim() }, { merge: true })
-    setUser((prev) => ({ ...prev, orgId: orgId.trim() }))
+  // ── Query organisation by code ─────────────────────────────────────────────
+  const queryOrgByCode = async (code) => {
+    const q = query(collection(db, 'organisations'), where('code', '==', code.trim()))
+    const snap = await getDocs(q)
+    return snap.empty ? null : snap.docs[0]
+  }
+
+  // ── Create a new organisation (sets user as admin) ────────────────────────
+  const createOrganisation = async (orgName) => {
+    const firebaseUser = auth.currentUser
+    if (!firebaseUser) throw new Error('Not authenticated.')
+
+    const currentUser = await readUserDoc(firebaseUser.uid)
+
+    // If user already belongs to an org AND is not an admin → block
+    if (currentUser?.orgId && currentUser?.role !== 'admin') {
+      throw new Error('You are already part of an organisation. Only admins can create additional organisations.')
+    }
+
+    // Generate unique org code from name
+    const slug = orgName.trim().toLowerCase().replace(/\s+/g, '-')
+    const code = `${slug}-${Date.now().toString(36)}`
+
+    const orgData = {
+      name: orgName.trim(),
+      code,
+      adminUids: [firebaseUser.uid],
+      createdAt: new Date().toISOString(),
+    }
+    await setDoc(doc(db, 'organisations', code), orgData)
+
+    // Update user doc — set orgId (first org) or keep existing if admin creating 2nd
+    const updatedFields = {
+      orgId: currentUser?.orgId || code,  // keep existing primary org if already set
+      role: 'admin',
+    }
+    await setDoc(doc(db, 'users', firebaseUser.uid), updatedFields, { merge: true })
+    setUser((prev) => ({ ...prev, ...updatedFields }))
+
+    return code  // return the join code so admin can share it
+  }
+
+  // ── Join an existing organisation by code ─────────────────────────────────
+  const joinOrganisation = async (code) => {
+    const firebaseUser = auth.currentUser
+    if (!firebaseUser) throw new Error('Not authenticated.')
+
+    const orgDoc = await queryOrgByCode(code)
+    if (!orgDoc) throw new Error('Organisation not found. Please check the code and try again.')
+
+    const updates = { orgId: code.trim(), role: 'employee' }
+    await setDoc(doc(db, 'users', firebaseUser.uid), updates, { merge: true })
+    setUser((prev) => ({ ...prev, ...updates }))
   }
 
   const logout = () => signOut(auth)
 
-  return { user, loading, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, logout }
+  return { user, loading, login, register, loginWithGoogle, linkGoogleToEmail, createOrganisation, joinOrganisation, logout }
 }
