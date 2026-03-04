@@ -54,11 +54,11 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 text-center bg-red-50 border border-red-100 rounded-3xl m-4">
+        <div className="p-8 text-center bg-red-50 border border-red-100 rounded-xl m-4">
           <div className="text-4xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold text-red-800 mb-2 uppercase tracking-tight font-inter">Component Failure</h2>
           <p className="text-red-600 text-[10px] font-black uppercase mb-6">{this.state.error?.message || 'Unexpected Rendering Error'}</p>
-          <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-8 py-2 rounded-xl font-black shadow-lg uppercase text-[10px]">Reload Application</button>
+          <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg uppercase text-[10px]">Reload Application</button>
         </div>
       )
     }
@@ -107,50 +107,50 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mb-4 shadow-xl">
+          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mb-4 shadow-xl">
             <span className="text-white text-3xl">🏢</span>
           </div>
-          <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight font-inter">Organization Setup</h2>
+          <h2 className="text-xl font-bold text-gray-800 uppercase tracking-tight font-inter">Organization Setup</h2>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-2 font-inter">
             {hasOrg && isAdmin ? 'Create New Division' : 'Join a Team or Create Your Own'}
           </p>
         </div>
 
         {!(hasOrg && isAdmin) && (
-          <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
+          <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
             <button onClick={() => { setModalTab('join'); setError('') }}
-              className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all font-inter ${modalTab === 'join' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400'}`}>
+              className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all font-inter ${modalTab === 'join' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
               Join Team
             </button>
             <button onClick={() => { setModalTab('create'); setError('') }}
-              className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all font-inter ${modalTab === 'create' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400'}`}>
+              className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all font-inter ${modalTab === 'create' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
               Create Org
             </button>
           </div>
         )}
 
-        {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-xl text-[10px] font-bold mb-4 uppercase text-center font-inter">{error}</div>}
+        {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-lg text-[10px] font-bold mb-4 uppercase text-center font-inter">{error}</div>}
 
         {createdCode ? (
           <div className="space-y-4 font-inter">
-            <div className="bg-green-50 border border-green-100 rounded-2xl p-5 text-center">
-              <p className="text-[10px] text-green-700 font-black uppercase tracking-widest mb-3">Organization Online! 🎉</p>
-              <div className="bg-white border border-green-200 rounded-xl px-4 py-3 font-mono text-indigo-700 font-black tracking-widest text-lg select-all shadow-inner">{createdCode}</div>
+            <div className="bg-green-50 border border-green-100 rounded-xl p-5 text-center">
+              <p className="text-[10px] text-green-700 font-bold uppercase tracking-widest mb-3">Organization Online! 🎉</p>
+              <div className="bg-white border border-green-200 rounded-lg px-4 py-3 font-mono font-bold tracking-widest text-lg select-all shadow-inner">{createdCode}</div>
               <p className="text-[9px] text-gray-400 font-bold uppercase mt-3 tracking-tighter italic">Share this code with your employees</p>
             </div>
-            <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Get Started</button>
+            <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg shadow-xl uppercase text-[10px] tracking-widest">Get Started</button>
           </div>
         ) : modalTab === 'join' ? (
           <form onSubmit={handleJoin} className="space-y-4 font-inter">
-            <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-black uppercase tracking-widest bg-gray-50 shadow-inner" />
-            <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Verifying...' : 'Join Organization'}</button>
+            <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold uppercase tracking-widest bg-gray-50" />
+            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Verifying...' : 'Join Organization'}</button>
           </form>
         ) : (
           <form onSubmit={handleCreate} className="space-y-4 font-inter">
-            <input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="BUSINESS NAME" className="w-full border border-gray-200 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-black uppercase tracking-widest bg-gray-50 shadow-inner" />
-            <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Creating...' : 'Initialize Org'}</button>
+            <input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="BUSINESS NAME" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold uppercase tracking-widest bg-gray-50" />
+            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Creating...' : 'Initialize Org'}</button>
           </form>
         )}
       </div>
@@ -267,7 +267,7 @@ export default function Dashboard() {
               if (sectionTabs.length === 0) return null;
               return (
                 <div key={section.title} className="flex flex-col gap-[4px]">
-                  {!isCollapsed && <p className="text-[12px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-[12px] mb-[6px] mt-[18px] first:mt-0 font-inter">{section.title}</p>}
+                  {!isCollapsed && <p className="text-[11px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-[12px] mb-[6px] mt-[18px] first:mt-0 font-inter">{section.title}</p>}
                   <div className="space-y-[4px]">
                     {sectionTabs.map(tab => (
                       <button 
@@ -302,13 +302,13 @@ export default function Dashboard() {
             <div className="flex px-2 h-14">
               {tabs.map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-5 h-full flex items-center text-[11px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
-                  <span className="mr-2">{tab.icon}</span> {tab.label}
+                  <span className="mr-2 text-[#6b7280]">{tab.icon}</span> {tab.label}
                 </button>
               ))}
             </div>
           </nav>
 
-          <main className="flex-1 overflow-auto p-4 md:p-10 bg-[#f9fafb]/30">
+          <main className="flex-1 overflow-auto p-8 bg-[#f9fafb]/30">
             <div className="max-w-7xl mx-auto h-full flex flex-col">
               <div className="mb-8 flex items-center justify-between">
                 <div>

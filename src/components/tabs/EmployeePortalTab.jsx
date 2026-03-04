@@ -5,6 +5,7 @@ import { db } from '../../lib/firebase'
 import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 
 export default function EmployeePortalTab() {
   const { user } = useAuth()

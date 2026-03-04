@@ -6,6 +6,9 @@ import { db } from '../../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { formatTimeTo12Hour } from '../../lib/salaryUtils'
+import TimePicker from '../ui/TimePicker'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -47,6 +50,8 @@ export default function AttendanceTab() {
   const [showCopyModal, setShowCopyModal] = useState(false)
   const [copyConfig, setCopyConfig] = useState({ inTime: false, outTime: true })
   const [selectedEmps, setSelectedEmps] = useState([])
+
+  const [activeTimePicker, setActiveTimePicker] = useState(null) // { empId, field, value }
 
   const activeEmployees = useMemo(() => employees.filter(e => e.status === 'Active'), [employees])
   const isSunday = new Date(selectedDate).getDay() === 0
@@ -147,100 +152,172 @@ export default function AttendanceTab() {
   }
 
   return (
-    <div className="flex flex-col h-full text-xs">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-3 bg-white rounded-2xl px-4 py-2 shadow-sm border border-gray-100">
-          <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="text-gray-400 hover:text-indigo-600 transition-colors text-lg">←</button>
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="font-black bg-transparent border-none outline-none text-base text-gray-800" />
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-tighter">{formatDate(selectedDate)}</span>
-          {isSunday && <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">SUNDAY</span>}
-          <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="text-gray-400 hover:text-indigo-600 transition-colors text-lg">→</button>
+    <div className="flex flex-col h-full gap-6 font-inter">
+      {/* Header Card */}
+      <div className="bg-white p-6 rounded-[12px] shadow-sm flex justify-between items-center border border-gray-100/50">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
+            <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px]" />
+            <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-1">{formatDate(selectedDate)}</span>
+            {isSunday && <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest flex items-center gap-1">Sunday Routine</span>}
+          </div>
         </div>
-        <button onClick={handleGenerate} className="bg-indigo-600 text-white font-black px-4 py-2 rounded-xl text-[10px] shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest">Generate Active</button>
+        <button onClick={handleGenerate} className="h-[40px] px-[16px] bg-indigo-600 text-white font-semibold rounded-[8px] text-[13px] shadow-sm hover:bg-indigo-700 transition-all uppercase tracking-widest">Generate Active</button>
       </div>
 
-      <div className="flex-1 overflow-auto bg-white rounded-2xl border-2 border-gray-100/80 shadow-xl overflow-hidden">
-        <div className="grid grid-cols-[1.2fr_1fr_0.8fr_1fr_0.8fr_0.6fr_1.2fr_2fr] gap-px bg-gray-200/80 sticky top-0 z-10 border-b-2 border-gray-200">
-          {['Employee Name', 'In Date', 'In Time', 'Out Date', 'Out Time', 'OT', 'Remarks', 'Status Multi-Toggle'].map(h => (
-            <div key={h} className="bg-gray-50 px-3 py-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center flex items-center justify-center border-r last:border-r-0 border-gray-200/80">{h}</div>
-          ))}
+      {/* Main Table Card */}
+      <div className="flex-1 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="h-[42px] bg-[#f9fafb]">
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider w-[20%]">Employee</th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">In Time</th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Out Time</th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">OT</th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Remarks</th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">Status Toggle</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f1f5f9]">
+              {empLoading ? (
+                <tr><td colSpan={6} className="text-center py-12"><Spinner /></td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">Ready to generate attendance</td></tr>
+              ) : (
+                rows.map((row, idx) => (
+                  <tr key={row.employeeId} className={`h-[48px] transition-colors hover:bg-[#f8fafc] ${row.isAbsent ? 'bg-red-50/20' : ''}`}>
+                    <td className="px-[16px] flex items-center gap-3 h-[48px]">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-sm" style={{ backgroundColor: getAvatarColor(row.employeeId) }}>{getInitials(row.name)}</div>
+                      <span className="font-semibold text-gray-700 text-[13px] truncate">{row.name}</span>
+                    </td>
+                    <td className="px-[16px]">
+                      <div className="flex gap-1 justify-center">
+                        <input type="date" value={row.inDate || ''} disabled={row.isAbsent || row.status === 'SunHoliday'} onChange={e => updateRow(row.employeeId, 'inDate', e.target.value)} className="w-[110px] border-none bg-transparent p-0 text-[12px] font-medium text-gray-600 focus:ring-0 disabled:opacity-20" />
+                        <button 
+                          disabled={row.isAbsent || row.status === 'SunHoliday'} 
+                          onClick={() => setActiveTimePicker({ empId: row.employeeId, field: 'inTime', value: row.inTime })}
+                          className="w-[80px] border-none bg-transparent p-0 text-[12px] font-bold text-gray-800 focus:ring-0 disabled:opacity-20 text-left hover:text-indigo-600"
+                        >
+                          {formatTimeTo12Hour(row.inTime)}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-[16px]">
+                      <div className="flex gap-1 justify-center">
+                        <input type="date" value={row.outDate || ''} disabled={row.isAbsent || row.status === 'SunHoliday'} onChange={e => updateRow(row.employeeId, 'outDate', e.target.value)} className="w-[110px] border-none bg-transparent p-0 text-[12px] font-medium text-gray-600 focus:ring-0 disabled:opacity-20" />
+                        <button 
+                          disabled={row.isAbsent || row.status === 'SunHoliday'} 
+                          onClick={() => setActiveTimePicker({ empId: row.employeeId, field: 'outTime', value: row.outTime })}
+                          className="w-[80px] border-none bg-transparent p-0 text-[12px] font-bold text-gray-800 focus:ring-0 disabled:opacity-20 text-left hover:text-indigo-600"
+                        >
+                          {formatTimeTo12Hour(row.outTime)}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-[16px] text-center font-mono font-bold text-indigo-600 text-[13px]">{row.otHours || '00:00'}</td>
+                    <td className="px-[16px]">
+                      <input type="text" value={row.remarks || ''} onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)} className="w-full border-none bg-transparent p-0 text-[12px] focus:ring-0 text-gray-500 placeholder-gray-300" placeholder="..." />
+                    </td>
+                    <td className="px-[16px]">
+                      <div className="flex items-center gap-1 justify-end">
+                        {[
+                          { id: 'Present', label: 'Present', short: 'P', color: 'green' },
+                          { id: 'Absent', label: 'Absent', short: 'A', color: 'red' },
+                          ...(isSunday ? [
+                            { id: 'SunWorked', label: 'Worked', short: 'W', color: 'amber' },
+                            { id: 'SunHoliday', label: 'Holiday', short: 'H', color: 'indigo' }
+                          ] : [])
+                        ].map(st => (
+                          <button 
+                            key={st.id}
+                            onClick={() => handleStatusChange(row.employeeId, st.id)}
+                            title={st.label}
+                            className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all uppercase tracking-tighter ${row.status === st.id ? `bg-${st.color}-600 text-white border-${st.color}-600 shadow-sm scale-105` : 'bg-white text-gray-300 border-gray-100 hover:bg-gray-50'}`}
+                          >
+                            {st.short}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-
-        {empLoading ? (
-          <div className="flex items-center justify-center py-12"><Spinner /></div>
-        ) : rows.length === 0 ? (
-          <div className="text-center py-20 text-gray-300 font-black uppercase tracking-tighter italic text-xl opacity-20">No Attendance Rows</div>
-        ) : (
-          rows.map((row, idx) => (
-            <div key={row.employeeId} className={`grid grid-cols-[1.2fr_1fr_0.8fr_1fr_0.8fr_0.6fr_1.2fr_2fr] gap-px bg-gray-200/80 border-b border-gray-200/80 ${row.isAbsent ? 'bg-red-50/50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-              <div className="px-3 py-2 flex items-center gap-2 border-r border-gray-200/80 min-w-0">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[9px] font-black shrink-0 shadow-sm" style={{ backgroundColor: getAvatarColor(row.employeeId) }}>{getInitials(row.name)}</div>
-                <span className="font-black text-gray-800 truncate uppercase tracking-tighter text-[11px]">{row.name}</span>
-              </div>
-              <div className="px-1 py-1 border-r border-gray-200/80 flex items-center"><input type="date" value={row.inDate || ''} disabled={row.isAbsent || row.status === 'SunHoliday'} onChange={e => updateRow(row.employeeId, 'inDate', e.target.value)} className="w-full bg-transparent border-none p-1 focus:ring-0 text-xs font-bold text-center disabled:opacity-20" /></div>
-              <div className="px-1 py-1 border-r border-gray-200/80 flex items-center"><input type="time" value={row.inTime || ''} disabled={row.isAbsent || row.status === 'SunHoliday'} onChange={e => updateRow(row.employeeId, 'inTime', e.target.value)} className="w-full bg-transparent border-none p-1 focus:ring-0 text-xs font-black text-center disabled:opacity-20" /></div>
-              <div className="px-1 py-1 border-r border-gray-200/80 flex items-center"><input type="date" value={row.outDate || ''} disabled={row.isAbsent || row.status === 'SunHoliday'} onChange={e => updateRow(row.employeeId, 'outDate', e.target.value)} className="w-full bg-transparent border-none p-1 focus:ring-0 text-xs font-bold text-center disabled:opacity-20" /></div>
-              <div className="px-1 py-1 border-r border-gray-200/80 flex items-center"><input type="time" value={row.outTime || ''} disabled={row.isAbsent || row.status === 'SunHoliday'} onChange={e => updateRow(row.employeeId, 'outTime', e.target.value)} className="w-full bg-transparent border-none p-1 focus:ring-0 text-xs font-black text-center disabled:opacity-20" /></div>
-              <div className="px-1 py-1 border-r border-gray-200/80 flex items-center justify-center font-mono font-black text-indigo-600 text-sm">{row.otHours || '00:00'}</div>
-              <div className="px-1 py-1 border-r border-gray-200/80 flex items-center"><input type="text" value={row.remarks || ''} onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)} className="w-full bg-transparent border-none p-1 focus:ring-0 text-[10px] font-medium" placeholder="..." /></div>
-              <div className="px-2 py-1 flex items-center gap-1 justify-center">
-                <button onClick={() => handleStatusChange(row.employeeId, 'Present')} className={`px-2 py-1 rounded-lg text-[9px] font-black border transition-all uppercase ${row.status === 'Present' ? 'bg-green-500 text-white border-green-500 shadow-md scale-105' : 'bg-white text-gray-300 border-gray-100 hover:bg-gray-50'}`}>Present</button>
-                <button onClick={() => handleStatusChange(row.employeeId, 'Absent')} className={`px-2 py-1 rounded-lg text-[9px] font-black border transition-all uppercase ${row.status === 'Absent' ? 'bg-red-500 text-white border-red-500 shadow-md scale-105' : 'bg-white text-gray-300 border-gray-100 hover:bg-gray-50'}`}>Absent</button>
-                {isSunday && (
-                  <>
-                    <button onClick={() => handleStatusChange(row.employeeId, 'SunWorked')} className={`px-2 py-1 rounded-lg text-[9px] font-black border transition-all uppercase ${row.status === 'SunWorked' ? 'bg-amber-500 text-white border-amber-500 shadow-md scale-105' : 'bg-white text-gray-300 border-gray-100 hover:bg-gray-50'}`}>Sun Worked</button>
-                    <button onClick={() => handleStatusChange(row.employeeId, 'SunHoliday')} className={`px-2 py-1 rounded-lg text-[9px] font-black border transition-all uppercase ${row.status === 'SunHoliday' ? 'bg-indigo-500 text-white border-indigo-500 shadow-md scale-105' : 'bg-white text-gray-300 border-gray-100 hover:bg-gray-50'}`}>Sun Holiday</button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))
-        )}
       </div>
 
-      <div className="mt-4 bg-white rounded-2xl border-2 border-gray-100 p-3 flex justify-between items-center shadow-lg shrink-0">
-        <div className="flex gap-6 px-4 font-black">
-          <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-sm"></span><span className="text-gray-600 uppercase tracking-widest text-[10px]">Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday).length}</span></div>
-          <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></span><span className="text-gray-600 uppercase tracking-widest text-[10px]">Absent: {rows.filter(r => r.isAbsent).length}</span></div>
+      {/* Bottom Footer Card */}
+      <div className="bg-white p-4 rounded-[12px] border border-gray-100 shadow-sm flex justify-between items-center">
+        <div className="flex gap-8 px-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-sm"></div>
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday).length}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></div>
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Absent: {rows.filter(r => r.isAbsent).length}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {saved && <span className="text-green-600 text-[10px] font-black uppercase tracking-widest animate-bounce">✓ Data Saved</span>}
-          <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="bg-indigo-600 text-white font-black px-8 py-2.5 rounded-xl text-[11px] shadow-xl hover:bg-indigo-700 transition-all uppercase tracking-widest disabled:opacity-50">{saving ? 'Processing...' : 'Submit Records'}</button>
+        <div className="flex items-center gap-4">
+          {saved && <div className="flex items-center gap-1.5 text-green-600 text-[11px] font-bold uppercase tracking-widest animate-pulse"><Check size={14} strokeWidth={3} /> Changes Synced</div>}
+          <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-[40px] px-[24px] bg-indigo-600 text-white font-bold rounded-[8px] text-[13px] shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest disabled:opacity-50">
+            {saving ? 'Processing...' : 'Submit Records'}
+          </button>
         </div>
       </div>
 
-      <Modal isOpen={showWarning} onClose={() => setShowWarning(false)} title="Conflict Warning">
+      {/* Warning Modal */}
+      <Modal isOpen={showWarning} onClose={() => setShowWarning(false)} title="Conflict Detected">
         <div className="p-6 text-center">
-          <div className="text-5xl mb-4">⚠️</div>
-          <h3 className="text-lg font-black text-gray-800 mb-2 uppercase">Records Exist</h3>
-          <p className="text-xs text-gray-500 mb-6 font-bold leading-relaxed">Some employees already have attendance for this date. Overwriting will replace existing logs. Proceed?</p>
+          <div className="text-4xl mb-4">⚠️</div>
+          <h3 className="text-lg font-bold text-gray-800 mb-2 uppercase tracking-tight">Records Already Exist</h3>
+          <p className="text-[13px] text-gray-500 mb-8 leading-relaxed">Some employees already have attendance data for this specific date. Overwriting will replace their current logs. Do you wish to continue?</p>
           <div className="flex gap-3">
-            <button onClick={() => setShowWarning(false)} className="flex-1 border-2 border-gray-100 py-3 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">Cancel</button>
-            <button onClick={() => { setShowWarning(false); handleSubmit(); }} className="flex-1 bg-indigo-600 text-white py-3 rounded-2xl text-[10px] font-black shadow-xl uppercase tracking-widest">Overwrite</button>
+            <button onClick={() => setShowWarning(false)} className="flex-1 h-[40px] border border-gray-200 rounded-[8px] text-[12px] font-bold text-gray-400 uppercase tracking-widest hover:bg-gray-50 transition-all">Abort</button>
+            <button onClick={() => { setShowWarning(false); handleSubmit(); }} className="flex-1 h-[40px] bg-indigo-600 text-white rounded-[8px] text-[12px] font-bold shadow-xl uppercase tracking-widest hover:bg-indigo-700 transition-all">Overwrite</button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={showCopyModal} onClose={() => setShowCopyModal(false)} title="COPY TIME VALUES">
-        <div className="p-2 w-64 max-h-[70vh] flex flex-col">
-          <div className="flex gap-3 mb-2 bg-indigo-50/50 p-2 rounded-xl border border-indigo-100">
-             <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={copyConfig.inTime} onChange={e => setCopyConfig(c => ({...c, inTime: e.target.checked}))} className="rounded text-indigo-600" /><span className="text-[10px] font-black text-indigo-700">IN TIME</span></label>
-             <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={copyConfig.outTime} onChange={e => setCopyConfig(c => ({...c, outTime: e.target.checked}))} className="rounded text-indigo-600" /><span className="text-[10px] font-black text-indigo-700">OUT TIME</span></label>
+      {/* Copy Modal */}
+      <Modal isOpen={showCopyModal} onClose={() => setShowCopyModal(false)} title="Propagation Tool">
+        <div className="p-2 w-72 max-h-[70vh] flex flex-col">
+          <div className="flex gap-3 mb-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+             <label className="flex items-center gap-2 cursor-pointer flex-1"><input type="checkbox" checked={copyConfig.inTime} onChange={e => setCopyConfig(c => ({...c, inTime: e.target.checked}))} className="w-4 h-4 rounded text-indigo-600" /><span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">In Time</span></label>
+             <label className="flex items-center gap-2 cursor-pointer flex-1"><input type="checkbox" checked={copyConfig.outTime} onChange={e => setCopyConfig(c => ({...c, outTime: e.target.checked}))} className="w-4 h-4 rounded text-indigo-600" /><span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Out Time</span></label>
           </div>
-          <div className="flex-1 overflow-y-auto border border-gray-100 rounded-xl mb-3 bg-gray-50/30">
+          <div className="flex-1 overflow-y-auto border border-gray-100 rounded-xl mb-4 bg-gray-50/30">
+            <div className="p-2 border-b border-gray-100 bg-white/50 sticky top-0 z-10">
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2">Selection Roster</p>
+            </div>
             {activeEmployees.map(emp => (
-              <label key={emp.id} className="flex items-center gap-3 px-3 py-1.5 hover:bg-white cursor-pointer border-b border-gray-100 last:border-0 transition-colors">
+              <label key={emp.id} className="flex items-center gap-3 px-4 py-2 hover:bg-white cursor-pointer border-b border-gray-100 last:border-0 transition-colors group">
                 <input type="checkbox" checked={selectedEmps.includes(emp.id)} onChange={e => {
                   if (e.target.checked) setSelectedEmps(p => [...p, emp.id])
                   else setSelectedEmps(p => p.filter(id => id !== emp.id))
-                }} className="rounded text-indigo-600 w-3.5 h-3.5" />
-                <span className="text-[10px] font-black text-gray-600 uppercase truncate">{emp.name}</span>
+                }} className="w-4 h-4 rounded text-indigo-600" />
+                <span className="text-[12px] font-semibold text-gray-600 uppercase truncate group-hover:text-gray-900 transition-colors">{emp.name}</span>
               </label>
             ))}
           </div>
-          <button onClick={handleCopySubmit} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-[10px] shadow-lg uppercase tracking-widest">Copy to Selection</button>
+          <button onClick={handleCopySubmit} className="h-[40px] w-full bg-indigo-600 text-white font-bold rounded-[8px] text-[12px] shadow-lg uppercase tracking-widest hover:bg-indigo-700 transition-all">Copy to Selection</button>
         </div>
       </Modal>
+
+      {/* Time Picker Modal */}
+      {activeTimePicker && (
+        <TimePicker 
+          value={activeTimePicker.value}
+          onChange={(val) => updateRow(activeTimePicker.empId, activeTimePicker.field, val)}
+          onClose={() => setActiveTimePicker(null)}
+        />
+      )}
     </div>
   )
 }
