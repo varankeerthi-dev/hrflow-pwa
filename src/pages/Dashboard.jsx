@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Component } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import AttendanceTab from '../components/tabs/AttendanceTab'
@@ -6,6 +6,35 @@ import CorrectionTab from '../components/tabs/CorrectionTab'
 import ApprovalsTab from '../components/tabs/ApprovalsTab'
 import SummaryTab from '../components/tabs/SummaryTab'
 import SettingsTab from '../components/tabs/SettingsTab'
+
+// ─── Simple Error Boundary ───────────────────────────────────────────────────
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center bg-red-50 border border-red-100 rounded-3xl m-4">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold text-red-800 mb-2">Tab Crashed</h2>
+          <p className="text-red-600 text-sm mb-6">{this.state.error?.message || 'Failed to load content.'}</p>
+          <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg">
+            Reload App
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -48,7 +77,7 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 mx-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
         <div className="flex flex-col items-center mb-5">
           <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-3">
             <span className="text-white text-2xl">🏢</span>
@@ -86,9 +115,8 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
         ) : (modalTab === 'join' && !(hasOrg && isAdmin)) ? (
           <form onSubmit={handleJoin} className="space-y-4">
             <input value={orgCode} onChange={e => setOrgCode(e.target.value)}
-              placeholder="Organisation code (e.g. techcorp-xyz)"
+              placeholder="Organisation code"
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-            <p className="text-xs text-gray-400">Ask your admin for the organisation code.</p>
             <button type="submit" disabled={loading}
               className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg transition-all disabled:opacity-50">
               {loading ? 'Joining…' : 'Join Organisation'}
@@ -97,9 +125,8 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
         ) : (
           <form onSubmit={handleCreate} className="space-y-4">
             <input value={orgName} onChange={e => setOrgName(e.target.value)}
-              placeholder="Organisation name (e.g. TechCorp)"
+              placeholder="Organisation name"
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-            <p className="text-xs text-gray-400">A unique join code will be auto-generated.</p>
             <button type="submit" disabled={loading}
               className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg transition-all disabled:opacity-50">
               {loading ? 'Creating…' : 'Create Organisation'}
@@ -115,7 +142,6 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
 export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation } = useAuth()
   const [activeTab, setActiveTab] = useState('attendance')
-  const [hasError, setHasError] = useState(false)
 
   const tabs = useMemo(() => [
     { id: 'attendance', label: 'Attendance', icon: '📅' },
@@ -125,41 +151,19 @@ export default function Dashboard() {
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ], [])
 
-  const renderTab = () => {
-    try {
-      switch (activeTab) {
-        case 'attendance': return <AttendanceTab />
-        case 'correction': return <CorrectionTab />
-        case 'approvals': return <ApprovalsTab />
-        case 'summary': return <SummaryTab />
-        case 'settings': return <SettingsTab />
-        default: return <AttendanceTab />
-      }
-    } catch (err) {
-      console.error('Error rendering tab:', err)
-      setHasError(true)
-      return <div className="p-8 text-center text-red-500">Failed to load content. Please try refreshing.</div>
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'attendance': return <AttendanceTab />
+      case 'correction': return <CorrectionTab />
+      case 'approvals': return <ApprovalsTab />
+      case 'summary': return <SummaryTab />
+      case 'settings': return <SettingsTab />
+      default: return <AttendanceTab />
     }
-  }
-
-  if (hasError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="text-center bg-white p-8 rounded-2xl shadow-xl border border-red-100 max-w-sm">
-          <div className="text-4xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Something went wrong</h2>
-          <p className="text-gray-500 text-sm mb-6">The application encountered an error while rendering this page.</p>
-          <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-bold py-2 rounded-xl shadow-lg">
-            Reload Page
-          </button>
-        </div>
-      </div>
-    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-
       {/* Show org setup modal if user has no org yet */}
       {user && !user.orgId && (
         <OrgSetupModal
@@ -181,7 +185,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex flex-col items-end mr-2">
+            <div className="hidden sm:flex flex-col items-end mr-2 text-right">
               <span className="text-sm font-bold text-gray-800 leading-tight">{user?.name || 'User'}</span>
               <span className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">{user?.role || 'Employee'}</span>
             </div>
@@ -204,7 +208,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left Sidebar - Desktop */}
         <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col shrink-0">
           <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
@@ -245,10 +249,9 @@ export default function Dashboard() {
         </aside>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          
+        <div className="flex-1 flex flex-col min-w-0 bg-gray-50/50">
           {/* Top Nav - Mobile */}
-          <nav className="md:hidden sticky top-16 z-30 bg-white border-b border-gray-200 overflow-x-auto flex items-center shrink-0">
+          <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-200 overflow-x-auto flex items-center shrink-0">
             <div className="flex px-2 h-12">
               {tabs.map(tab => (
                 <button
@@ -265,7 +268,7 @@ export default function Dashboard() {
             </div>
           </nav>
 
-          <main className="flex-1 overflow-auto bg-gray-50/50 p-4 md:p-6 lg:p-8">
+          <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
               <div className="mb-6 flex items-center justify-between">
                 <div>
@@ -276,7 +279,9 @@ export default function Dashboard() {
 
               <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden min-h-[600px]">
                 <div className="h-full p-4 md:p-6">
-                  {renderTab()}
+                  <ErrorBoundary key={activeTab}>
+                    {renderTabContent()}
+                  </ErrorBoundary>
                 </div>
               </div>
             </div>
