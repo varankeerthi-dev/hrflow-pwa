@@ -3,6 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { db } from '../lib/firebase'
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
+import { 
+  Calendar, 
+  PencilLine, 
+  CheckCircle2, 
+  BarChart3, 
+  Wallet, 
+  User, 
+  Settings,
+  LogOut,
+  ChevronRight,
+  Menu,
+  PanelLeft,
+  LayoutDashboard,
+  Building2
+} from 'lucide-react'
 import AttendanceTab from '../components/tabs/AttendanceTab'
 import CorrectionTab from '../components/tabs/CorrectionTab'
 import ApprovalsTab from '../components/tabs/ApprovalsTab'
@@ -84,8 +99,8 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mb-4 shadow-xl">
             <span className="text-white text-3xl">🏢</span>
           </div>
-          <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">Organization Setup</h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-2">
+          <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight font-inter">Organization Setup</h2>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-2 font-inter">
             {hasOrg && isAdmin ? 'Create New Division' : 'Join a Team or Create Your Own'}
           </p>
         </div>
@@ -93,20 +108,20 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
         {!(hasOrg && isAdmin) && (
           <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
             <button onClick={() => { setModalTab('join'); setError('') }}
-              className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modalTab === 'join' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400'}`}>
+              className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all font-inter ${modalTab === 'join' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400'}`}>
               Join Team
             </button>
             <button onClick={() => { setModalTab('create'); setError('') }}
-              className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modalTab === 'create' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400'}`}>
+              className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all font-inter ${modalTab === 'create' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400'}`}>
               Create Org
             </button>
           </div>
         )}
 
-        {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-xl text-[10px] font-bold mb-4 uppercase text-center">{error}</div>}
+        {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-xl text-[10px] font-bold mb-4 uppercase text-center font-inter">{error}</div>}
 
         {createdCode ? (
-          <div className="space-y-4">
+          <div className="space-y-4 font-inter">
             <div className="bg-green-50 border border-green-100 rounded-2xl p-5 text-center">
               <p className="text-[10px] text-green-700 font-black uppercase tracking-widest mb-3">Organization Online! 🎉</p>
               <div className="bg-white border border-green-200 rounded-xl px-4 py-3 font-mono text-indigo-700 font-black tracking-widest text-lg select-all shadow-inner">{createdCode}</div>
@@ -115,12 +130,12 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
             <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Get Started</button>
           </div>
         ) : modalTab === 'join' ? (
-          <form onSubmit={handleJoin} className="space-y-4">
+          <form onSubmit={handleJoin} className="space-y-4 font-inter">
             <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-black uppercase tracking-widest bg-gray-50 shadow-inner" />
             <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Verifying...' : 'Join Organization'}</button>
           </form>
         ) : (
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleCreate} className="space-y-4 font-inter">
             <input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="BUSINESS NAME" className="w-full border border-gray-200 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-black uppercase tracking-widest bg-gray-50 shadow-inner" />
             <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Creating...' : 'Initialize Org'}</button>
           </form>
@@ -153,14 +168,20 @@ export default function Dashboard() {
   }, [user?.orgId, user?.role])
 
   const allTabs = useMemo(() => [
-    { id: 'attendance', label: 'Attendance', icon: '📅', module: 'Attendance' },
-    { id: 'correction', label: 'Correction', icon: '✏️', module: 'Correction' },
-    { id: 'approvals', label: 'Approvals', icon: '✅', badge: 'OT', module: 'Approvals' },
-    { id: 'summary', label: 'Summary', icon: '📊', module: 'Summary' },
-    { id: 'salary-slip', label: 'Salary Slip', icon: '💰', module: 'SalarySlip' },
-    { id: 'portal', label: 'Self Service', icon: '👤', module: 'EmployeePortal' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', module: 'Settings' },
+    { id: 'attendance', label: 'Attendance', icon: <Calendar size={16} />, module: 'Attendance' },
+    { id: 'correction', label: 'Correction', icon: <PencilLine size={16} />, module: 'Correction' },
+    { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={16} />, badge: 'OT', module: 'Approvals' },
+    { id: 'summary', label: 'Summary', icon: <BarChart3 size={16} />, module: 'Summary' },
+    { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={16} />, module: 'SalarySlip' },
+    { id: 'portal', label: 'Self Service', icon: <User size={16} />, module: 'EmployeePortal' },
+    { id: 'settings', label: 'Settings', icon: <Settings size={16} />, module: 'Settings' },
   ], [])
+
+  const sections = useMemo(() => [
+    { title: 'HRMS', modules: ['Attendance', 'Correction', 'Approvals', 'Summary'] },
+    { title: 'Payroll', modules: ['SalarySlip'] },
+    { title: 'System', modules: ['EmployeePortal', 'Settings'] }
+  ], []);
 
   // Filter tabs based on role permissions
   const tabs = useMemo(() => {
@@ -183,66 +204,87 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-white flex flex-col font-inter">
       {user && !user.orgId && <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} />}
 
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm h-16 shrink-0">
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-none h-14 shrink-0">
         <div className="max-w-full mx-auto px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hidden md:block transition-all"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg></button>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg"><span className="text-white text-xl font-black">H</span></div>
-            <span className="text-lg font-black text-gray-800 uppercase tracking-tighter">HRFlow</span>
-            <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full hidden lg:inline-block uppercase tracking-widest ml-2">{user?.orgName || 'No Org'}</span>
+            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hidden md:block transition-all transition-colors"><PanelLeft size={18} /></button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center shadow-sm text-white"><Building2 size={16} /></div>
+              <span className="text-md font-bold text-gray-900 tracking-tight">HRFlow</span>
+            </div>
+            <span className="text-[11px] font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full hidden lg:inline-block uppercase tracking-wider ml-2 border border-gray-100">{user?.orgName || 'No Org'}</span>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex flex-col items-end text-right">
-              <span className="text-xs font-black text-gray-800 uppercase tracking-tight">{user?.name}</span>
-              <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest">{user?.role || 'Staff'}</span>
+              <span className="text-[13px] font-semibold text-gray-800 tracking-tight">{user?.name}</span>
+              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.role || 'Staff'}</span>
             </div>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[11px] font-black shadow-lg border-2 border-white" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
-            <button onClick={logout} className="p-2 text-gray-300 hover:text-red-500 transition-colors" title="Logout"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></button>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
+            <button onClick={logout} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all" title="Logout"><LogOut size={16} /></button>
           </div>
         </div>
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-gray-100 hidden md:flex flex-col shrink-0 transition-all duration-500 ease-in-out`}>
-          <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
-            {!isCollapsed && <div className="px-3 mb-4"><p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Main Modules</p></div>}
-            {tabs.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} title={isCollapsed ? tab.label : ''} className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-4'} py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 translate-x-1' : 'text-gray-400 hover:bg-gray-50'}`}>
-                <span className="text-lg">{tab.icon}</span>
-                {!isCollapsed && <span className="truncate">{tab.label}</span>}
-                {!isCollapsed && tab.badge && <span className={`ml-auto px-1.5 py-0.5 rounded-lg text-[8px] font-black ${activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-600'}`}>{tab.badge}</span>}
-              </button>
-            ))}
+        {/* Modern Minimal Sidebar */}
+        <aside className={`${isCollapsed ? 'w-[64px]' : 'w-[240px]'} bg-[#fafafa] border-r border-[#e5e7eb] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out p-[14px]`}>
+          <nav className="flex-1 space-y-[16px] overflow-y-auto">
+            {sections.map(section => {
+              const sectionTabs = tabs.filter(t => section.modules.includes(t.module));
+              if (sectionTabs.length === 0) return null;
+              return (
+                <div key={section.title} className="flex flex-col gap-[4px]">
+                  {!isCollapsed && <p className="text-[12px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-[12px] mb-[6px] mt-[18px] first:mt-0">{section.title}</p>}
+                  <div className="space-y-[4px]">
+                    {sectionTabs.map(tab => (
+                      <button 
+                        key={tab.id} 
+                        onClick={() => setActiveTab(tab.id)} 
+                        title={isCollapsed ? tab.label : ''}
+                        className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-[10px] px-[12px]'} h-[36px] rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer ${activeTab === tab.id ? 'bg-[#e5e7eb] text-[#374151] font-semibold' : 'text-[#374151] hover:bg-[#f3f4f6]'}`}
+                      >
+                        <span className={`transition-colors ${activeTab === tab.id ? 'text-gray-900' : 'text-[#6b7280]'}`}>{tab.icon}</span>
+                        {!isCollapsed && <span className="flex-1 text-left truncate">{tab.label}</span>}
+                        {!isCollapsed && tab.badge && <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${activeTab === tab.id ? 'bg-white/50 text-gray-900' : 'bg-gray-100 text-gray-500'}`}>{tab.badge}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </nav>
-          <div className="p-4 border-t border-gray-50">
-            <div className={`${isCollapsed ? 'justify-center' : 'px-3'} py-3 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3`}>
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 text-[9px] font-black">PRO</div>
-              {!isCollapsed && <div className="min-w-0"><p className="text-[10px] font-black text-gray-800 truncate uppercase">Corporate</p><p className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Active Plan</p></div>}
+          
+          {!isCollapsed && (
+            <div className="pt-4 border-t border-[#e5e7eb] mt-4">
+              <div className="px-3 py-3 bg-white rounded-xl border border-gray-100 flex items-center gap-3 shadow-sm">
+                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-900 text-[10px] font-bold">PRO</div>
+                <div className="min-w-0"><p className="text-[11px] font-bold text-gray-800 truncate uppercase tracking-tight">Enterprise</p><p className="text-[9px] text-gray-400 font-medium uppercase tracking-tighter">Verified Plan</p></div>
+              </div>
             </div>
-          </div>
+          )}
         </aside>
 
-        <div className="flex-1 flex flex-col min-w-0 bg-gray-50/30">
+        <div className="flex-1 flex flex-col min-w-0 bg-white">
           <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 overflow-x-auto flex items-center shrink-0">
             <div className="flex px-2 h-14">
               {tabs.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-5 h-full flex items-center text-[10px] font-black uppercase tracking-widest border-b-4 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400'}`}>
-                  {tab.icon} <span className="ml-2">{tab.label}</span>
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-5 h-full flex items-center text-[11px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
+                  <span className="mr-2">{tab.icon}</span> {tab.label}
                 </button>
               ))}
             </div>
           </nav>
 
-          <main className="flex-1 overflow-auto p-4 md:p-8">
+          <main className="flex-1 overflow-auto p-4 md:p-10">
             <div className="max-w-7xl mx-auto h-full flex flex-col">
               <div className="mb-8 flex items-center justify-between">
                 <div>
-                  <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">{activeTab}</h1>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Management Hub & Controls</p>
+                  <h1 className="text-3xl font-bold text-gray-900 tracking-tight font-inter">{activeTab.replace('-', ' ').toUpperCase()}</h1>
+                  <p className="text-[11px] text-gray-400 font-medium uppercase tracking-widest mt-1 font-inter">Management & Analytics Overview</p>
                 </div>
               </div>
               <div className="flex-1 min-h-0">
