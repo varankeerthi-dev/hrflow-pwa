@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
 
 export default function TimePicker({ value, onChange, onClose }) {
-  // value is in 24h format "HH:mm"
-  const [hour, setHour] = useState('12');
+  // value is in 24h format "HH:mm" — internally uses 12h display, saves 24h
+  const [hour, setHour] = useState('05');
   const [minute, setMinute] = useState('00');
   const [period, setPeriod] = useState('AM');
-  const pickerRef = useRef(null);
 
+  const pickerRef = useRef(null);
+  const hourRef = useRef(null);
+  const minuteRef = useRef(null);
+
+  // Parse incoming 24h value to 12h state
   useEffect(() => {
     if (value && value.includes(':')) {
       const [h24, m] = value.split(':').map(Number);
@@ -19,22 +22,36 @@ export default function TimePicker({ value, onChange, onClose }) {
     }
   }, [value]);
 
-  // Handle click outside to close
+  // Scroll selected item into view
+  useEffect(() => {
+    scrollToSelected(hourRef, hour);
+  }, [hour]);
+
+  useEffect(() => {
+    scrollToSelected(minuteRef, minute);
+  }, [minute]);
+
+  function scrollToSelected(ref, val) {
+    if (!ref.current) return;
+    const el = ref.current.querySelector(`[data-val="${val}"]`);
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  // Click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (pickerRef.current && !pickerRef.current.contains(event.target)) {
         onClose();
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
   const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
-  const periods = ['AM', 'PM'];
 
-  const handleSave = (e) => {
+  const handleOK = (e) => {
     e.stopPropagation();
     let h = Number(hour);
     if (period === 'PM' && h !== 12) h += 12;
@@ -44,62 +61,105 @@ export default function TimePicker({ value, onChange, onClose }) {
     onClose();
   };
 
+  const handleNow = (e) => {
+    e.stopPropagation();
+    const now = new Date();
+    const h24 = now.getHours();
+    const m = now.getMinutes();
+    const p = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 || 12;
+    setHour(String(h12).padStart(2, '0'));
+    setMinute(String(m).padStart(2, '0'));
+    setPeriod(p);
+  };
+
+  // Build display string for header input preview
+  const displayTime = `${hour}:${minute} ${period}`;
+
   return (
-    <div 
+    <div
       ref={pickerRef}
-      className="absolute top-full left-0 mt-[6px] z-[1000] bg-white rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.12)] border border-gray-100 p-3 w-[260px] font-inter animate-in fade-in slide-in-from-top-2 duration-200"
+      className="absolute top-[calc(100%+6px)] left-0 z-[9999] bg-white rounded-[12px] shadow-[0_12px_30px_rgba(0,0,0,0.18)] border border-gray-100 font-inter animate-in fade-in slide-in-from-top-2 duration-200"
+      style={{ width: '200px', minWidth: '200px' }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex justify-center gap-2 mb-3">
-        {/* Hours */}
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-[9px] font-black text-gray-400 uppercase">Hr</span>
-          <select 
-            value={hour} 
-            onChange={(e) => setHour(e.target.value)}
-            className="h-[100px] w-14 border border-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 p-1 text-[15px] font-bold text-gray-700 appearance-none bg-gray-50 text-center cursor-pointer"
-            size={4}
-          >
-            {hours.map(h => <option key={h} value={h}>{h}</option>)}
-          </select>
-        </div>
-
-        {/* Minutes */}
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-[9px] font-black text-gray-400 uppercase">Min</span>
-          <select 
-            value={minute} 
-            onChange={(e) => setMinute(e.target.value)}
-            className="h-[100px] w-14 border border-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 p-1 text-[15px] font-bold text-gray-700 appearance-none bg-gray-50 text-center cursor-pointer"
-            size={4}
-          >
-            {minutes.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </div>
-
-        {/* Period */}
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-[9px] font-black text-gray-400 uppercase">AM/PM</span>
-          <div className="flex flex-col gap-1 h-[100px] justify-center">
-            {periods.map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`w-12 py-1.5 rounded-lg text-[10px] font-black transition-all ${period === p ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
+      {/* Header input preview */}
+      <div className="px-3 pt-3 pb-2 border-b border-gray-100">
+        <div className="bg-gray-50 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-700 border border-gray-200">
+          {displayTime}
         </div>
       </div>
 
-      <button
-        onClick={handleSave}
-        className="w-full h-[36px] bg-indigo-600 text-white font-black rounded-lg shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest text-[10px]"
-      >
-        Confirm
-      </button>
+      {/* Scroll columns */}
+      <div className="flex px-2 py-2 gap-1">
+        {/* Hours column */}
+        <div
+          ref={hourRef}
+          className="flex-1 overflow-y-auto max-h-[160px] rounded-lg scroll-smooth"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {hours.map(h => (
+            <div
+              key={h}
+              data-val={h}
+              onClick={() => setHour(h)}
+              className={`text-center py-1.5 text-[14px] font-semibold rounded-md cursor-pointer transition-all select-none
+                ${hour === h ? 'bg-blue-100 text-blue-700 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+              {h}
+            </div>
+          ))}
+        </div>
+
+        {/* Minutes column */}
+        <div
+          ref={minuteRef}
+          className="flex-1 overflow-y-auto max-h-[160px] rounded-lg scroll-smooth"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {minutes.map(m => (
+            <div
+              key={m}
+              data-val={m}
+              onClick={() => setMinute(m)}
+              className={`text-center py-1.5 text-[14px] font-semibold rounded-md cursor-pointer transition-all select-none
+                ${minute === m ? 'bg-blue-100 text-blue-700 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+              {m}
+            </div>
+          ))}
+        </div>
+
+        {/* AM/PM column */}
+        <div className="flex flex-col gap-1 justify-start pt-1">
+          {['AM', 'PM'].map(p => (
+            <div
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-3 py-2 rounded-lg text-[13px] font-bold cursor-pointer transition-all select-none text-center
+                ${period === p ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              {p}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer: Now + OK */}
+      <div className="flex items-center justify-between px-3 pb-3 pt-1 border-t border-gray-100">
+        <button
+          onClick={handleNow}
+          className="text-[12px] font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          Now
+        </button>
+        <button
+          onClick={handleOK}
+          className="bg-blue-600 text-white text-[12px] font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+        >
+          OK
+        </button>
+      </div>
     </div>
   );
 }
