@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to get user's orgId
+    function getUserOrgId() {
+      return request.auth != null ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId : null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user is employee
+    function isEmployee() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee';
+    }
+    
+    // Users collection - read/write own document
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+    
+    // Organisations collection
+    match /organisations/{orgId} {
+      // Admins can do full CRUD on their org
+      allow read, write: if isAdmin() && getUserOrgId() == orgId;
+      
+      // Subcollections
+      match /employees/{empId} {
+        // Admins: full CRUD
+        allow read, write: if isAdmin() && getUserOrgId() == orgId;
+        // Employees: read-only
+        allow read: if isEmployee() && getUserOrgId() == orgId;
+      }
+      
+      match /shifts/{shiftId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow write: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
+      match /attendance/{attId} {
+        // Admins: full CRUD
+        allow read, write: if isAdmin() && getUserOrgId() == orgId;
+        // Employees: read own, write own only
+        allow read: if isEmployee() && getUserOrgId() == orgId;
+        allow write: if isEmployee() && getUserOrgId() == orgId && 
+                     resource.data.employeeId == request.auth.uid;
+      }
+      
+      match /corrections/{corrId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow update: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
+      match /otApprovals/{approvalId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow update: if isAdmin() && getUserOrgId() == orgId;
+      }
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
