@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getDocs, query, where, setDoc, serverTimestamp } from 'firebase/firestore'
 import { attendanceCol, attendanceDoc, attendanceDocId } from '../lib/firestore'
+import { useAuth } from './useAuth'
 
 export function useAttendance(orgId) {
+  const { user } = useAuth()
   const [attendance, setAttendance] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -29,6 +31,8 @@ export function useAttendance(orgId) {
       return setDoc(attendanceDoc(orgId, row.date, row.employeeId), {
         ...row,
         updatedAt: serverTimestamp(),
+        updatedBy: user?.uid || 'system',
+        updatedByName: user?.name || 'System'
       }, { merge: true })
     })
     await Promise.all(batch)
@@ -53,7 +57,8 @@ export function useAttendance(orgId) {
           summary[r.employeeId].present++
         }
         if (r.otHours) {
-          summary[r.employeeId].otHours += parseFloat(r.otHours) || 0
+          const [h, m] = r.otHours.split(':').map(Number)
+          summary[r.employeeId].otHours += (h || 0) + (m || 0) / 60
         }
       })
       return Object.entries(summary).map(([employeeId, stats]) => ({ employeeId, ...stats }))
