@@ -274,7 +274,6 @@ export default function AttendanceTab() {
                     {/* Employee Name */}
                     <td className="px-[14px]">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-sm" style={{ backgroundColor: getAvatarColor(row.employeeId) }}>{getInitials(row.name)}</div>
                         <span className="font-semibold text-gray-700 text-[12px] truncate uppercase">{row.name}</span>
                       </div>
                     </td>

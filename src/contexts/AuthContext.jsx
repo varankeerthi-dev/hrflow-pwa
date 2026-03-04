@@ -9,7 +9,9 @@ import {
   fetchSignInMethodsForEmail,
   linkWithCredential,
   updateProfile,
+  EmailAuthProvider,
 } from 'firebase/auth'
+
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
@@ -115,26 +117,52 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider()
-    const result = await signInWithPopup(auth, provider)
-    const firebaseUser = result.user
+    try {
+      const result = await signInWithPopup(auth, provider)
+      const firebaseUser = result.user
 
-    let userData = await readUserDoc(firebaseUser.uid)
-    if (!userData) {
-      const newDoc = {
-        email: firebaseUser.email,
-        name: firebaseUser.displayName || '',
-        orgId: null,
-        role: 'employee',
-        createdAt: new Date().toISOString(),
+      let userData = await readUserDoc(firebaseUser.uid)
+      if (!userData) {
+        const newDoc = {
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || '',
+          orgId: null,
+          role: 'employee',
+          createdAt: new Date().toISOString(),
+        }
+        await setDoc(doc(db, 'users', firebaseUser.uid), newDoc)
+        userData = { uid: firebaseUser.uid, ...newDoc }
       }
-      await setDoc(doc(db, 'users', firebaseUser.uid), newDoc)
-      userData = { uid: firebaseUser.uid, ...newDoc }
+      setUser(userData)
+      return firebaseUser
+    } catch (err) {
+      if (err.code === 'auth/account-exists-with-different-credential') {
+        const email = err.customData?.email
+        const credential = GoogleAuthProvider.credentialFromError(err)
+        const linkError = new Error('LINK_REQUIRED')
+        linkError.email = email
+        linkError.googleCredential = credential
+        throw linkError
+      }
+      throw err
     }
-    setUser(userData)
-    return firebaseUser
+  }
+
+  const linkGoogleToEmail = async (email, password, googleCredential) => {
+    try {
+      const credential = EmailAuthProvider.credential(email, password)
+      const result = await signInWithEmailAndPassword(auth, email, password)
+      await linkWithCredential(result.user, googleCredential)
+      const userData = await readUserDoc(result.user.uid)
+      if (userData) setUser(userData)
+      return result.user
+    } catch (err) {
+      throw err
+    }
   }
 
   const createOrganisation = async (orgName) => {
+
     const firebaseUser = auth.currentUser
     if (!firebaseUser) throw new Error('Not authenticated.')
 
@@ -185,7 +213,9 @@ export function AuthProvider({ children }) {
     login,
     register,
     loginWithGoogle,
+    linkGoogleToEmail,
     createOrganisation,
+
     joinOrganisation,
     logout
   }

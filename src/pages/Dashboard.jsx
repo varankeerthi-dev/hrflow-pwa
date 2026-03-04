@@ -35,7 +35,6 @@ import SettingsTab from '../components/tabs/SettingsTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SalarySlipTab from '../components/tabs/SalarySlipTab'
 import AdvanceExpenseTab from '../components/tabs/AdvanceExpenseTab'
-import BirthdayTab from '../components/tabs/BirthdayTab'
 import FineTab from '../components/tabs/FineTab'
 import EngagementTab from '../components/tabs/EngagementTab'
 import LeaveTab from '../components/tabs/LeaveTab'
@@ -196,8 +195,6 @@ export default function Dashboard() {
     { id: 'fines', label: 'Fine Tab', icon: <Gavel size={16} />, module: 'Fine' },
 
     { id: 'engage', label: 'Engage', icon: <Handshake size={16} />, module: 'Engagement' },
-    { id: 'birthdays', label: 'Birthdays', icon: <Gift size={16} />, module: 'Birthday' },
-
     { id: 'portal', label: 'Self Service', icon: <User size={16} />, module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: <Settings size={16} />, module: 'Settings' },
   ], [])
@@ -205,7 +202,7 @@ export default function Dashboard() {
   const sections = useMemo(() => [
     { title: 'HRMS', modules: ['Attendance', 'Correction', 'Leave', 'Approvals', 'HRLetters', 'Summary'] },
     { title: 'Payroll', modules: ['SalarySlip', 'AdvanceExpense', 'Fine'] },
-    { title: 'Engage', modules: ['Engagement', 'Birthday'] },
+    { title: 'Engage', modules: ['Engagement'] },
     { title: 'System', modules: ['EmployeePortal', 'Settings'] }
   ], []);
 
@@ -228,7 +225,6 @@ export default function Dashboard() {
       case 'advance': return <AdvanceExpenseTab />
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
-      case 'birthdays': return <BirthdayTab />
       case 'portal': return <EmployeePortalTab />
       case 'settings': return <SettingsTab />
       default: return <EmployeePortalTab />
