@@ -28,7 +28,6 @@ export default function CorrectionTab() {
     if (!selectedDate || !user?.orgId) return
     const data = await fetchByDate(selectedDate)
 
-    // Merge with employee list to show all employees even if no attendance record
     const merged = employees.map(emp => {
       const record = data.find(r => r.employeeId === emp.id)
       return {
@@ -59,22 +58,26 @@ export default function CorrectionTab() {
     <div className="space-y-6">
       <style>{`
         @media print {
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          body { background: white !important; }
-          .print-container { 
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            border: none;
-            box-shadow: none;
+          /* Hide everything by default */
+          body * { visibility: hidden; }
+          /* Show only the print container and its children */
+          .print-only-container, .print-only-container * { visibility: visible; }
+          /* Position the print container at the top left */
+          .print-only-container { 
+            position: absolute; 
+            left: 0; 
+            top: 0; 
+            width: 100% !important; 
+            margin: 0; 
+            padding: 20px;
+            box-shadow: none !important;
+            border: none !important;
           }
+          /* Hide the action buttons during print */
+          .no-print { display: none !important; }
+          /* Ensure table takes full width */
           table { width: 100% !important; border-collapse: collapse; }
           th, td { border: 1px solid #eee !important; padding: 8px !important; }
-          .lg\\:col-span-3 { width: 100% !important; grid-column: span 1 / span 1 !important; }
         }
       `}</style>
 
@@ -131,16 +134,16 @@ export default function CorrectionTab() {
         </div>
 
         {/* Right Side: Results Table */}
-        <div className="lg:col-span-3 print-container">
+        <div className="lg:col-span-3 print-only-container">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-5 flex justify-between items-center bg-white border-b border-gray-50 no-print">
               <div className="flex items-center gap-2 text-indigo-600 font-bold">
                 <span className="text-xl">📊</span>
-                <span>Results</span>
+                <span>Results Summary</span>
               </div>
               <div className="flex gap-2">
                 <button onClick={handlePrint} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-100 hover:bg-indigo-100 flex items-center gap-1">
-                  📄 PDF
+                  📄 Export PDF
                 </button>
                 <button onClick={handlePrint} className="bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-purple-100 hover:bg-purple-100 flex items-center gap-1">
                   🖨️ Print

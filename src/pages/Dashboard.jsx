@@ -142,6 +142,7 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
 export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation } = useAuth()
   const [activeTab, setActiveTab] = useState('attendance')
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   const tabs = useMemo(() => [
     { id: 'attendance', label: 'Attendance', icon: '📅' },
@@ -177,11 +178,19 @@ export default function Dashboard() {
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm h-16 shrink-0">
         <div className="max-w-full mx-auto px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hidden md:block transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
               <span className="text-white text-lg font-bold">H</span>
             </div>
             <span className="text-xl font-bold text-gray-800">HRFlow</span>
-            <span className="text-gray-400 text-sm ml-2 hidden sm:inline-block">{user?.orgName || user?.orgId || ''}</span>
+            <span className="text-gray-400 text-sm ml-2 hidden lg:inline-block">{user?.orgName || user?.orgId || ''}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -210,23 +219,26 @@ export default function Dashboard() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left Sidebar - Desktop */}
-        <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col shrink-0">
-          <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-            <div className="px-3 mb-4">
-               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Main Menu</p>
-            </div>
+        <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-gray-200 hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out`}>
+          <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
+            {!isCollapsed && (
+              <div className="px-3 mb-4">
+                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Main Menu</p>
+              </div>
+            )}
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id
+                title={isCollapsed ? tab.label : ''}
+                className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-4'} py-3 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id
                   ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200'
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                   }`}
               >
-                <span className="text-lg">{tab.icon}</span>
-                {tab.label}
-                {tab.badge && (
+                <span className="text-xl">{tab.icon}</span>
+                {!isCollapsed && <span className="truncate">{tab.label}</span>}
+                {!isCollapsed && tab.badge && (
                   <span className={`ml-auto px-1.5 py-0.5 rounded text-[10px] font-black ${activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
                     {tab.badge}
                   </span>
@@ -236,15 +248,21 @@ export default function Dashboard() {
           </nav>
           
           <div className="p-4 border-t border-gray-100">
-            <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold">
+            {isCollapsed ? (
+              <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold mx-auto">
                 PRO
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-gray-800 truncate">HRFlow Pro</p>
-                <p className="text-[10px] text-gray-500 truncate">Active Plan</p>
+            ) : (
+              <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold">
+                  PRO
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-gray-800 truncate">HRFlow Pro</p>
+                  <p className="text-[10px] text-gray-500 truncate">Active Plan</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </aside>
 
