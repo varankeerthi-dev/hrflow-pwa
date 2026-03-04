@@ -3,10 +3,14 @@ import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Spinner from './components/ui/Spinner'
+import { useEffect } from 'react'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  const navigate = useNavigate()
+  
+  useEffect(() => {
+    console.log('ProtectedRoute: user=', user, 'loading=', loading)
+  }, [user, loading])
 
   if (loading) {
     return (
@@ -20,6 +24,7 @@ function ProtectedRoute({ children }) {
   }
 
   if (!user) {
+    console.log('ProtectedRoute: redirecting to login')
     return <Navigate to="/login" replace />
   }
 

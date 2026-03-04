@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import AttendanceTab from '../components/tabs/AttendanceTab'
@@ -18,7 +18,7 @@ function getAvatarColor(id) {
   return `hsl(${h}, 70%, 50%)`
 }
 
-// ─── Org Setup Modal (inline in Dashboard for already-logged-in users) ────────
+// ─── Org Setup Modal ────────
 function OrgSetupModal({ user, onJoin, onCreate }) {
   const [modalTab, setModalTab] = useState('join')
   const [orgCode, setOrgCode] = useState('')
@@ -115,28 +115,50 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
 export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation } = useAuth()
   const [activeTab, setActiveTab] = useState('attendance')
+  const [hasError, setHasError] = useState(false)
 
-  const tabs = [
-    { id: 'attendance', label: 'Attendance' },
-    { id: 'correction', label: 'Correction' },
-    { id: 'approvals', label: 'Approvals', badge: 'OT' },
-    { id: 'summary', label: 'Summary' },
-    { id: 'settings', label: 'Settings' },
-  ]
+  const tabs = useMemo(() => [
+    { id: 'attendance', label: 'Attendance', icon: '📅' },
+    { id: 'correction', label: 'Correction', icon: '✏️' },
+    { id: 'approvals', label: 'Approvals', icon: '✅', badge: 'OT' },
+    { id: 'summary', label: 'Summary', icon: '📊' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' },
+  ], [])
 
   const renderTab = () => {
-    switch (activeTab) {
-      case 'attendance': return <AttendanceTab />
-      case 'correction': return <CorrectionTab />
-      case 'approvals': return <ApprovalsTab />
-      case 'summary': return <SummaryTab />
-      case 'settings': return <SettingsTab />
-      default: return <AttendanceTab />
+    try {
+      switch (activeTab) {
+        case 'attendance': return <AttendanceTab />
+        case 'correction': return <CorrectionTab />
+        case 'approvals': return <ApprovalsTab />
+        case 'summary': return <SummaryTab />
+        case 'settings': return <SettingsTab />
+        default: return <AttendanceTab />
+      }
+    } catch (err) {
+      console.error('Error rendering tab:', err)
+      setHasError(true)
+      return <div className="p-8 text-center text-red-500">Failed to load content. Please try refreshing.</div>
     }
   }
 
+  if (hasError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-xl border border-red-100 max-w-sm">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Something went wrong</h2>
+          <p className="text-gray-500 text-sm mb-6">The application encountered an error while rendering this page.</p>
+          <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-bold py-2 rounded-xl shadow-lg">
+            Reload Page
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
 
       {/* Show org setup modal if user has no org yet */}
       {user && !user.orgId && (
@@ -147,66 +169,120 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-screen-xl mx-auto px-4 h-16 flex items-center justify-between">
-          {/* Left: Logo + Org */}
+      {/* Sticky Top Header */}
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm h-16 shrink-0">
+        <div className="max-w-full mx-auto px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
               <span className="text-white text-lg font-bold">H</span>
             </div>
             <span className="text-xl font-bold text-gray-800">HRFlow</span>
-            <span className="text-gray-400 text-sm ml-2">{user?.orgName || user?.orgId || ''}</span>
+            <span className="text-gray-400 text-sm ml-2 hidden sm:inline-block">{user?.orgName || user?.orgId || ''}</span>
           </div>
 
-          {/* Right: User */}
           <div className="flex items-center gap-3">
+            <div className="hidden sm:flex flex-col items-end mr-2">
+              <span className="text-sm font-bold text-gray-800 leading-tight">{user?.name || 'User'}</span>
+              <span className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">{user?.role || 'Employee'}</span>
+            </div>
             <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 border-white shadow-sm"
               style={{ backgroundColor: getAvatarColor(user?.uid) }}
             >
               {getInitials(user?.name)}
             </div>
-            <span className="font-medium text-gray-700 hidden sm:block">{user?.name || 'User'}</span>
             <button
               onClick={logout}
-              className="text-sm text-gray-500 hover:text-red-500 hover:font-bold ml-2 transition-all"
+              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+              title="Logout"
             >
-              Logout
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Tab Bar */}
-      <nav className="sticky top-16 z-30 bg-white border-b border-gray-200">
-        <div className="max-w-screen-xl mx-auto">
-          <div className="flex overflow-x-auto">
+      <div className="flex flex-1 min-h-0">
+        {/* Left Sidebar - Desktop */}
+        <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col shrink-0">
+          <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+            <div className="px-3 mb-4">
+               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Main Menu</p>
+            </div>
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeTab === tab.id
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id
+                  ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200'
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                   }`}
               >
+                <span className="text-lg">{tab.icon}</span>
                 {tab.label}
                 {tab.badge && (
-                  <span className="ml-2 bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs font-semibold">
+                  <span className={`ml-auto px-1.5 py-0.5 rounded text-[10px] font-black ${activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
                     {tab.badge}
                   </span>
                 )}
               </button>
             ))}
+          </nav>
+          
+          <div className="p-4 border-t border-gray-100">
+            <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold">
+                PRO
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 truncate">HRFlow Pro</p>
+                <p className="text-[10px] text-gray-500 truncate">Active Plan</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </nav>
+        </aside>
 
-      {/* Main Content */}
-      <main className="max-w-screen-xl mx-auto px-4 py-5">
-        {renderTab()}
-      </main>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          
+          {/* Top Nav - Mobile */}
+          <nav className="md:hidden sticky top-16 z-30 bg-white border-b border-gray-200 overflow-x-auto flex items-center shrink-0">
+            <div className="flex px-2 h-12">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 h-full flex items-center text-xs font-bold whitespace-nowrap border-b-2 transition-all ${activeTab === tab.id
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  {tab.icon} <span className="ml-1.5">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          <main className="flex-1 overflow-auto bg-gray-50/50 p-4 md:p-6 lg:p-8">
+            <div className="max-w-7xl mx-auto">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-black text-gray-900 capitalize tracking-tight">{activeTab}</h1>
+                  <p className="text-sm text-gray-500 font-medium">Manage your {activeTab} information</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden min-h-[600px]">
+                <div className="h-full p-4 md:p-6">
+                  {renderTab()}
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
     </div>
   )
 }

@@ -41,7 +41,7 @@ export function useAttendance(orgId) {
       const q = query(attendanceCol(orgId), where('date', '>=', yearMonth), where('date', '<', yearMonth + '-31'))
       const snapshot = await getDocs(q)
       const records = snapshot.docs.map(d => d.data())
-      
+
       const summary = {}
       records.forEach(r => {
         if (!summary[r.employeeId]) {
@@ -69,32 +69,37 @@ export function useAttendance(orgId) {
 }
 
 export function calcOT(inTime, outTime, inDate, outDate, workHours) {
-  if (!inTime || !outTime) return '00:00'
-  
+  if (!inTime || !outTime || !inDate || !outDate) return '00:00'
+
   const parseTime = (t) => {
+    if (!t) return 0
     const [h, m] = t.split(':').map(Number)
-    return h * 60 + m
+    return (h || 0) * 60 + (m || 0)
   }
-  
+
   const parseDate = (d) => new Date(d)
-  
+
   const inMins = parseTime(inTime)
   let outMins = parseTime(outTime)
-  
+
   const inD = parseDate(inDate)
   const outD = parseDate(outDate)
-  
+
+  if (isNaN(inD.getTime()) || isNaN(outD.getTime())) return '00:00'
+
   // Handle overnight shift
   if (outD > inD || (outD.getTime() === inD.getTime() && outMins < inMins)) {
     outMins += 24 * 60
   }
-  
+
   const workedMins = outMins - inMins
-  const expectedMins = (workHours || 9) * 60
-  
+  const expectedMins = (parseFloat(workHours) || 9) * 60
+
   const otMins = Math.max(0, workedMins - expectedMins)
   const otHrs = Math.floor(otMins / 60)
   const otRemMins = otMins % 60
-  
+
+  if (isNaN(otHrs) || isNaN(otRemMins)) return '00:00'
+
   return `${String(otHrs).padStart(2, '0')}:${String(otRemMins).padStart(2, '0')}`
 }

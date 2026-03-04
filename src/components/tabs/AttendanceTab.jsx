@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance, calcOT } from '../../hooks/useAttendance'
+import { db } from '../../lib/firebase'
+import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
-
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
 }
 
 function getAvatarColor(id) {
   let hash = 0
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
+  for (let i = 0; i < (id || '').length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
   const h = hash % 360
   return `hsl(${h}, 70%, 50%)`
 }
@@ -268,8 +269,8 @@ export default function AttendanceTab() {
                 <button
                   onClick={() => toggleAbsent(row.employeeId)}
                   className={`text-[10px] font-bold border px-2 py-1 rounded transition-all ${row.isAbsent
-                      ? 'bg-red-500 text-white border-red-500'
-                      : 'border-red-300 text-red-500 hover:bg-red-50'
+                    ? 'bg-red-500 text-white border-red-500'
+                    : 'border-red-300 text-red-500 hover:bg-red-50'
                     }`}
                 >
                   {row.isAbsent ? 'ABSENT' : 'Mark Absent'}

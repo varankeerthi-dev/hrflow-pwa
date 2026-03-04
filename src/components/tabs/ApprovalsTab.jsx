@@ -9,7 +9,7 @@ function getInitials(name) {
 
 function getAvatarColor(id) {
   let hash = 0
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
+  for (let i = 0; i < (id || '').length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
   const h = hash % 360
   return `hsl(${h}, 70%, 50%)`
 }
@@ -63,7 +63,7 @@ export default function ApprovalsTab() {
                 <div key={approval.id} className="bg-white rounded-lg shadow p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
-                      <div 
+                      <div
                         className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
                         style={{ backgroundColor: getAvatarColor(approval.employeeId) }}
                       >
@@ -86,13 +86,13 @@ export default function ApprovalsTab() {
                   <div className="text-gray-600 text-sm mb-3">{approval.reason}</div>
                   {isAdmin && (
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => handleApprove(approval.id)}
                         className="px-4 py-1.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600"
                       >
                         Approve
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleReject(approval.id)}
                         className="px-4 py-1.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600"
                       >
@@ -120,7 +120,7 @@ export default function ApprovalsTab() {
                 <div key={approval.id} className="bg-white rounded-lg shadow p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
-                      <div 
+                      <div
                         className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
                         style={{ backgroundColor: getAvatarColor(approval.employeeId) }}
                       >
@@ -135,9 +135,8 @@ export default function ApprovalsTab() {
                       <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-sm font-semibold">
                         {approval.otHours} OT
                       </span>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        approval.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${approval.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
                         {approval.status}
                       </span>
                     </div>
