@@ -1,182 +1,235 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
+import { useAttendance } from '../../hooks/useAttendance'
 import { useCorrections } from '../../hooks/useCorrections'
 import Spinner from '../ui/Spinner'
-import Modal from '../ui/Modal'
 
 export default function CorrectionTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const { corrections, loading, submitCorrection, updateCorrectionStatus } = useCorrections(user?.orgId)
-  
-  const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({
+  const { fetchByDate, loading: attLoading } = useAttendance(user?.orgId)
+  const { submitCorrection } = useCorrections(user?.orgId)
+
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [results, setResults] = useState([])
+  const [editMode, setEditMode] = useState('single') // 'single' or 'multiple'
+  const [editForm, setEditForm] = useState({
     employeeId: '',
-    date: '',
-    fieldName: 'In Time',
-    oldValue: '',
-    newValue: '',
-    reason: '',
+    fromDate: new Date().toISOString().split('T')[0],
+    toDate: new Date().toISOString().split('T')[0],
   })
 
-  const fields = ['In Time', 'Out Time', 'In Date', 'Out Date', 'OT', 'Remarks']
+  useEffect(() => {
+    handleRefresh()
+  }, [selectedDate, user?.orgId])
 
-  const handleSubmit = async () => {
-    const emp = employees.find(e => e.id === form.employeeId)
-    await submitCorrection({
-      ...form,
-      employeeName: emp?.name,
-    }, user.uid)
-    setShowModal(false)
-    setForm({ employeeId: '', date: '', fieldName: 'In Time', oldValue: '', newValue: '', reason: '' })
+  const handleRefresh = async () => {
+    if (!selectedDate || !user?.orgId) return
+    const data = await fetchByDate(selectedDate)
+
+    // Merge with employee list to show all employees even if no attendance record
+    const merged = employees.map(emp => {
+      const record = data.find(r => r.employeeId === emp.id)
+      return {
+        id: emp.id,
+        name: emp.name,
+        date: selectedDate,
+        in: record?.inTime || '-',
+        out: record?.outTime || '-',
+        ot: record?.otHours || '-',
+        site: record?.site || '-',
+        status: record ? (record.isAbsent ? 'ABSENT' : 'PRESENT') : 'ABSENT',
+      }
+    })
+    setResults(merged)
   }
 
-  const handleApprove = async (corrId) => {
-    await updateCorrectionStatus(corrId, 'Approved', user.uid)
+  const handleDateChange = (days) => {
+    const d = new Date(selectedDate)
+    d.setDate(d.getDate() + days)
+    setSelectedDate(d.toISOString().split('T')[0])
   }
 
-  const handleReject = async (corrId) => {
-    await updateCorrectionStatus(corrId, 'Rejected', user.uid)
+  const handlePrint = () => {
+    window.print()
   }
-
-  const isAdmin = user?.role === 'admin'
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-gray-800">Attendance Corrections</h2>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-4 py-2 rounded-lg shadow"
-        >
-          + New Correction
-        </button>
-      </div>
+    <div className="space-y-6">
+      {/* Top Section: Split Screen */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto bg-white rounded-xl shadow">
-        <table className="w-full">
-          <thead className="bg-gray-50 sticky top-0">
-            <tr>
-              {['Employee', 'Date', 'Field', 'Old Value', 'New Value', 'Reason', 'Status', 'Actions'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-widest">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr><td colSpan={8} className="text-center py-8"><Spinner /></td></tr>
-            ) : corrections.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-8 text-gray-400">No corrections yet</td></tr>
-            ) : corrections.map(corr => (
-              <tr key={corr.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-800">{corr.employeeName}</td>
-                <td className="px-4 py-3 text-gray-600">{corr.date}</td>
-                <td className="px-4 py-3 text-gray-600">{corr.fieldName}</td>
-                <td className="px-4 py-3 text-red-500 line-through">{corr.oldValue}</td>
-                <td className="px-4 py-3 text-green-600 font-bold">{corr.newValue}</td>
-                <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{corr.reason}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    corr.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                    corr.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {corr.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {isAdmin && corr.status === 'Pending' && (
-                    <div className="flex gap-2">
-                      <button onClick={() => handleApprove(corr.id)} className="text-green-600 hover:bg-green-50 p-1 rounded">
-                        ✓
-                      </button>
-                      <button onClick={() => handleReject(corr.id)} className="text-red-600 hover:bg-red-50 p-1 rounded">
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        {/* Left Side: Date Navigator */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-4 text-indigo-600 font-bold">
+              <span className="text-xl">📅</span>
+              <span>Date Filter</span>
+            </div>
 
-      {/* Modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="New Correction">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Employee</label>
-            <select 
-              value={form.employeeId}
-              onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
-              className="w-full border rounded-lg px-3 py-2"
-            >
-              <option value="">Select employee</option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.id}>{emp.name} ({emp.empCode})</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input 
-              type="date" 
-              value={form.date}
-              onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Field</label>
-            <select 
-              value={form.fieldName}
-              onChange={e => setForm(f => ({ ...f, fieldName: e.target.value }))}
-              className="w-full border rounded-lg px-3 py-2"
-            >
-              {fields.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Old Value</label>
-              <input 
-                type="text" 
-                value={form.oldValue}
-                onChange={e => setForm(f => ({ ...f, oldValue: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                onClick={() => handleDateChange(-1)}
+                className="p-2 rounded-full hover:bg-gray-100 border border-gray-200 transition-colors"
+              >
+                ←
+              </button>
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full pl-3 pr-10 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+              <button
+                onClick={() => handleDateChange(1)}
+                className="p-2 rounded-full hover:bg-gray-100 border border-gray-200 transition-colors"
+              >
+                →
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">New Value</label>
-              <input 
-                type="text" 
-                value={form.newValue}
-                onChange={e => setForm(f => ({ ...f, newValue: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2"
-              />
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleRefresh}
+                className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-2 rounded-lg shadow-md hover:shadow-lg transition-all text-sm flex items-center justify-center gap-2"
+              >
+                🔍 View Day
+              </button>
+              <button
+                onClick={handleRefresh}
+                title="Quick Refresh"
+                className="p-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 transition-all flex items-center justify-center"
+              >
+                🔄
+              </button>
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-            <textarea 
-              value={form.reason}
-              onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
-              rows={3}
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-            <button onClick={handleSubmit} className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">Submit</button>
           </div>
         </div>
-      </Modal>
+
+        {/* Right Side: Results Table */}
+        <div className="lg:col-span-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-5 flex justify-between items-center bg-white border-b border-gray-50">
+              <div className="flex items-center gap-2 text-indigo-600 font-bold">
+                <span className="text-xl">📊</span>
+                <span>Results</span>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handlePrint} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-100 hover:bg-indigo-100 flex items-center gap-1">
+                  📄 PDF
+                </button>
+                <button onClick={handlePrint} className="bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-purple-100 hover:bg-purple-100 flex items-center gap-1">
+                  🖨️ Print
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead className="bg-gray-50 text-gray-400 font-bold text-[10px] uppercase tracking-wider border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 py-2">Date</th>
+                    <th className="px-4 py-2">Name</th>
+                    <th className="px-4 py-2 text-center">In</th>
+                    <th className="px-4 py-2 text-center">Out</th>
+                    <th className="px-4 py-2 text-center">OT</th>
+                    <th className="px-4 py-2">Site</th>
+                    <th className="px-4 py-2 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {attLoading ? (
+                    <tr><td colSpan={7} className="text-center py-20"><Spinner /></td></tr>
+                  ) : results.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-10 text-gray-400">No records found</td></tr>
+                  ) : results.map((row, i) => (
+                    <tr key={i} className="hover:bg-indigo-50/30 transition-colors group">
+                      <td className="px-4 py-1.5 text-gray-500 text-xs font-medium">{row.date}</td>
+                      <td className="px-4 py-1.5 text-gray-700 font-semibold">{row.name}</td>
+                      <td className="px-4 py-1.5 text-center text-gray-600">{row.in}</td>
+                      <td className="px-4 py-1.5 text-center text-gray-600">{row.out}</td>
+                      <td className="px-4 py-1.5 text-center text-gray-600 font-mono italic">{row.ot}</td>
+                      <td className="px-4 py-1.5 text-gray-500 text-xs">{row.site}</td>
+                      <td className="px-4 py-1.5 text-center">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${row.status === 'PRESENT' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'
+                          }`}>
+                          {row.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Section: Edit Attendance Record */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2 text-indigo-600 font-bold">
+            <span className="text-xl">✏️</span>
+            <span>Edit Attendance Record</span>
+          </div>
+          <div className="bg-gray-100 p-1 rounded-xl flex">
+            <button
+              onClick={() => setEditMode('single')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${editMode === 'single' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Single Employee
+            </button>
+            <button
+              onClick={() => setEditMode('multiple')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${editMode === 'multiple' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Multiple Employees
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="md:col-span-1">
+            <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">Employee</label>
+            <select
+              value={editForm.employeeId}
+              onChange={(e) => setEditForm(prev => ({ ...prev, employeeId: e.target.value }))}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              <option value="">Select Employee...</option>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">From Date</label>
+            <input
+              type="date"
+              value={editForm.fromDate}
+              onChange={(e) => setEditForm(prev => ({ ...prev, fromDate: e.target.value }))}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">To Date</label>
+            <input
+              type="date"
+              value={editForm.toDate}
+              onChange={(e) => setEditForm(prev => ({ ...prev, toDate: e.target.value }))}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+          <div>
+            <button className="w-full bg-indigo-500 text-white font-bold py-2 rounded-lg shadow-md hover:bg-indigo-600 transition-all text-sm flex items-center justify-center gap-2">
+              <span>🔍</span> Show Details
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

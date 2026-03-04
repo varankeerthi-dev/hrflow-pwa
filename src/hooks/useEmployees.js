@@ -13,17 +13,20 @@ export function useEmployees(orgId) {
     try {
       const q = query(employeesCol(orgId), where('status', '==', 'Active'))
       const snapshot = await getDocs(q)
-      const emps = await Promise.all(
-        snapshot.docs.map(async (d) => {
-          const data = d.data()
-          let shift = null
-          if (data.shiftId) {
-            const shiftDoc = await getDoc(doc(d.ref.parent.parent, 'shifts', data.shiftId))
-            shift = shiftDoc.exists() ? shiftDoc.data() : null
-          }
-          return { id: d.id, ...data, shift }
-        })
-      )
+
+      // Fetch all shifts once to avoid N+1 queries
+      const shiftsSnap = await getDocs(shiftsCol(orgId))
+      const shiftMap = {}
+      shiftsSnap.forEach(s => { shiftMap[s.id] = s.data() })
+
+      const emps = snapshot.docs.map(d => {
+        const data = d.data()
+        return {
+          id: d.id,
+          ...data,
+          shift: data.shiftId ? shiftMap[data.shiftId] : null
+        }
+      })
       setEmployees(emps)
     } catch (e) {
       setError(e.message)
@@ -33,10 +36,14 @@ export function useEmployees(orgId) {
   }
 
   const addEmployee = async (payload) => {
-    const docRef = await addDoc(employeesCol(orgId), {
+    const data = {
       ...payload,
       createdAt: serverTimestamp(),
-    })
+    }
+    const docRef = await addDoc(employeesCol(orgId), data)
+
+    // Optimistically update or at least refresh after add
+    fetchEmployees()
     return docRef.id
   }
 

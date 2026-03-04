@@ -46,7 +46,15 @@ export function formatAuthError(err) {
 // ── Helper: read Firestore user doc ──────────────────────────────────────────
 async function readUserDoc(uid) {
   const snap = await getDoc(doc(db, 'users', uid))
-  return snap.exists() ? { uid, ...snap.data() } : null
+  if (!snap.exists()) return null
+  const userData = snap.data()
+  if (userData.orgId) {
+    const orgSnap = await getDoc(doc(db, 'organisations', userData.orgId))
+    if (orgSnap.exists()) {
+      userData.orgName = orgSnap.data().name
+    }
+  }
+  return { uid, ...userData }
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -67,6 +75,7 @@ export function useAuth() {
             email: firebaseUser.email,
             name: firebaseUser.displayName || '',
             orgId: null,
+            orgName: '',
             role: 'employee',
           })
         }

@@ -156,7 +156,7 @@ export default function Dashboard() {
               <span className="text-white text-lg font-bold">H</span>
             </div>
             <span className="text-xl font-bold text-gray-800">HRFlow</span>
-            <span className="text-gray-400 text-sm ml-2">{user?.orgId || ''}</span>
+            <span className="text-gray-400 text-sm ml-2">{user?.orgName || user?.orgId || ''}</span>
           </div>
 
           {/* Right: User */}
