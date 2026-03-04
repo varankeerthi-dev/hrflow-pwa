@@ -25,6 +25,7 @@ export default function SalarySlipTab() {
 
   const [loading, setLoading] = useState(false)
   const [slipData, setSlipData] = useState(null)
+  const [generateError, setGenerateError] = useState('')
 
   const [advances, setAdvances] = useState([])
   const [newAdvance, setNewAdvance] = useState({ type: 'Advance', amount: 0, date: '', reason: '' })
@@ -38,9 +39,10 @@ export default function SalarySlipTab() {
   const slipRef = useRef(null)
 
   const handleGenerate = async () => {
-    console.log('handleGenerate: starting', { selectedEmp, selectedMonth })
+    console.log('handleGenerate: starting', { selectedEmp, selectedMonth, empCount: employees.length })
     if (!selectedEmp || !selectedMonth) return
     setLoading(true)
+    setGenerateError('')
     try {
       const slipId = `${selectedEmp}_${selectedMonth}`
       const savedSlipSnap = await getDoc(doc(db, 'organisations', user.orgId, 'salarySlips', slipId))
@@ -151,7 +153,8 @@ export default function SalarySlipTab() {
         employee: emp, month: selectedMonth, slab: activeSlab, grid, paidDays, lopDays, autoOTHours, finalOT, otPay, basic, hra, grossEarnings, pf, it, advanceDeduction: pendingAdvances, totalDeductions, netPay
       })
     } catch (err) {
-      console.error(err)
+      console.error('SalarySlip generate error:', err)
+      setGenerateError(err.message || 'Unknown error during generation.')
     } finally {
       setLoading(false)
     }
@@ -228,6 +231,11 @@ export default function SalarySlipTab() {
           {loading ? 'Crunching...' : 'Generate Slip'}
         </button>
       </div>
+      {generateError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2.5 rounded-xl text-[12px] font-semibold flex items-center gap-2">
+          ⚠️ {generateError}
+        </div>
+      )}
 
       {slipData && (
         <div className="flex-1 overflow-auto flex gap-8 pb-10">

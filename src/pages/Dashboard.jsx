@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { db } from '../lib/firebase'
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
-import { 
-  Calendar, 
-  PencilLine, 
-  CheckCircle2, 
-  BarChart3, 
-  Wallet, 
-  User, 
+import {
+  Calendar,
+  PencilLine,
+  CheckCircle2,
+  BarChart3,
+  Wallet,
+  User,
   Settings,
   LogOut,
   ChevronRight,
@@ -23,8 +23,10 @@ import {
   Handshake,
   FileText,
   Mail,
-  MoreHorizontal
+  MoreHorizontal,
+  History
 } from 'lucide-react'
+import ActivityLogSidebar from '../components/ui/ActivityLogSidebar'
 import AttendanceTab from '../components/tabs/AttendanceTab'
 import CorrectionTab from '../components/tabs/CorrectionTab'
 import ApprovalsTab from '../components/tabs/ApprovalsTab'
@@ -164,6 +166,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('attendance')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
+  const [showLog, setShowLog] = useState(false)
 
   useEffect(() => {
     if (!user?.orgId || !user?.role) return
@@ -187,14 +190,14 @@ export default function Dashboard() {
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={16} />, badge: 'OT', module: 'Approvals' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={16} />, module: 'HRLetters' },
     { id: 'summary', label: 'Summary', icon: <BarChart3 size={16} />, module: 'Summary' },
-    
+
     { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={16} />, module: 'SalarySlip' },
     { id: 'advance', label: 'Advance/Expense', icon: <Wallet size={16} />, module: 'AdvanceExpense' },
     { id: 'fines', label: 'Fine Tab', icon: <Gavel size={16} />, module: 'Fine' },
-    
+
     { id: 'engage', label: 'Engage', icon: <Handshake size={16} />, module: 'Engagement' },
     { id: 'birthdays', label: 'Birthdays', icon: <Gift size={16} />, module: 'Birthday' },
-    
+
     { id: 'portal', label: 'Self Service', icon: <User size={16} />, module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: <Settings size={16} />, module: 'Settings' },
   ], [])
@@ -235,6 +238,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-white flex flex-col font-inter">
       {user && !user.orgId && <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} />}
+      {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-none h-14 shrink-0">
         <div className="max-w-full mx-auto px-4 h-full flex items-center justify-between">
@@ -253,6 +257,13 @@ export default function Dashboard() {
               <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.role || 'Staff'}</span>
             </div>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
+            <button
+              onClick={() => setShowLog(s => !s)}
+              title="Activity Log"
+              className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'}`}
+            >
+              <History size={16} />
+            </button>
             <button onClick={logout} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all" title="Logout"><LogOut size={16} /></button>
           </div>
         </div>
@@ -270,9 +281,9 @@ export default function Dashboard() {
                   {!isCollapsed && <p className="text-[11px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-[12px] mb-[6px] mt-[18px] first:mt-0 font-inter">{section.title}</p>}
                   <div className="space-y-[4px]">
                     {sectionTabs.map(tab => (
-                      <button 
-                        key={tab.id} 
-                        onClick={() => setActiveTab(tab.id)} 
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
                         title={isCollapsed ? tab.label : ''}
                         className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-[10px] px-[12px]'} h-[36px] rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer font-inter ${activeTab === tab.id ? 'bg-[#e5e7eb] text-[#374151] font-semibold' : 'text-[#374151] hover:bg-[#f3f4f6]'}`}
                       >
@@ -286,7 +297,7 @@ export default function Dashboard() {
               );
             })}
           </nav>
-          
+
           {!isCollapsed && (
             <div className="pt-4 border-t border-[#e5e7eb] mt-4 font-inter">
               <div className="px-3 py-3 bg-white rounded-xl border border-gray-100 flex items-center gap-3 shadow-sm">

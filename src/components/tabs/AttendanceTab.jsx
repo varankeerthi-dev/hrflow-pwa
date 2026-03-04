@@ -9,6 +9,7 @@ import Modal from '../ui/Modal'
 import { ChevronLeft, ChevronRight, Check, Copy, Calendar, Clock } from 'lucide-react'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import TimePicker from '../ui/TimePicker'
+import { logActivity } from '../../hooks/useActivityLog'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -201,6 +202,11 @@ export default function AttendanceTab() {
     setSaving(true)
     try {
       await upsertAttendance(rows)
+      await logActivity(user?.orgId, user, {
+        module: 'Attendance',
+        action: `Attendance submitted for ${rows.length} employee(s) on ${selectedDate}`,
+        detail: rows.map(r => r.name).join(', ')
+      })
       setSaved(true)
       setShowWarning(false)
       setTimeout(() => setSaved(false), 3000)
@@ -275,18 +281,18 @@ export default function AttendanceTab() {
 
                     {/* In Date */}
                     <td className="px-[10px] text-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-1 relative">
                         <span className="text-[12px] font-medium text-gray-600">{displayDate(row.inDate)}</span>
-                        <label className="cursor-pointer">
-                          <Calendar size={13} className="text-gray-400 hover:text-indigo-500 transition-colors" />
+                        <div className="relative w-[18px] h-[18px]">
+                          <Calendar size={13} className="text-gray-400 hover:text-indigo-500 transition-colors absolute top-0 left-0 pointer-events-none" />
                           <input
                             type="date"
                             value={row.inDate || ''}
                             disabled={row.isAbsent || row.status === 'SunHoliday'}
                             onChange={e => updateRow(row.employeeId, 'inDate', e.target.value)}
-                            className="sr-only"
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
                           />
-                        </label>
+                        </div>
                       </div>
                     </td>
 
@@ -313,18 +319,18 @@ export default function AttendanceTab() {
 
                     {/* Out Date */}
                     <td className="px-[10px] text-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-1 relative">
                         <span className="text-[12px] font-medium text-gray-600">{displayDate(row.outDate)}</span>
-                        <label className="cursor-pointer">
-                          <Calendar size={13} className="text-gray-400 hover:text-indigo-500 transition-colors" />
+                        <div className="relative w-[18px] h-[18px]">
+                          <Calendar size={13} className="text-gray-400 hover:text-indigo-500 transition-colors absolute top-0 left-0 pointer-events-none" />
                           <input
                             type="date"
                             value={row.outDate || ''}
                             disabled={row.isAbsent || row.status === 'SunHoliday'}
                             onChange={e => updateRow(row.employeeId, 'outDate', e.target.value)}
-                            className="sr-only"
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
                           />
-                        </label>
+                        </div>
                       </div>
                     </td>
 
