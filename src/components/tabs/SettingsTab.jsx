@@ -34,7 +34,7 @@ export default function SettingsTab() {
   const [editingShift, setEditingShift] = useState(null)
   const [showAddEmployee, setShowAddEmployee] = useState(false)
   const [showAddRole, setShowAddRole] = useState(false)
-  
+
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [newEmployee, setNewEmployee] = useState({
     name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
@@ -45,7 +45,7 @@ export default function SettingsTab() {
     advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
     holidays: []
   })
-  
+
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [orgError, setOrgError] = useState('')
@@ -121,16 +121,16 @@ export default function SettingsTab() {
       try {
         const shiftsSnap = await getDocs(collection(db, 'organisations', user.orgId, 'shifts'))
         setShifts(shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
-        
+
         const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
         setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
-        
+
         const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
         if (orgSnap.exists()) {
           const data = orgSnap.data()
-          setOrgSettings(prev => ({ 
-            ...prev, 
-            ...data, 
+          setOrgSettings(prev => ({
+            ...prev,
+            ...data,
             advanceCategories: data.advanceCategories || prev.advanceCategories,
             holidays: data.holidays || prev.holidays
           }))
@@ -220,7 +220,7 @@ export default function SettingsTab() {
       if (r.id !== roleId) return r
       const permissions = { ...r.permissions }
       if (!permissions[module]) permissions[module] = {}
-      
+
       if (right === 'full') {
         const isCurrentlyFull = permissionRights.every(pr => permissions[module][pr])
         permissionRights.forEach(pr => permissions[module][pr] = !isCurrentlyFull)
@@ -229,7 +229,7 @@ export default function SettingsTab() {
         permissions[module][right] = !permissions[module][right]
         permissions[module].full = permissionRights.every(pr => permissions[module][pr])
       }
-      
+
       updateDoc(doc(db, 'organisations', user.orgId, 'roles', roleId), { permissions })
       return { ...r, permissions }
     }))
@@ -268,13 +268,13 @@ export default function SettingsTab() {
 
       <div className="flex gap-1.5 mb-4 flex-wrap no-print">
         {[
-          {id: 'organization', label: 'Org Details'},
-          {id: 'employee', label: 'Employees'},
-          {id: 'shift', label: 'Shifts'},
-          {id: 'roles', label: 'Roles & Rights'},
-          {id: 'salary', label: 'Salary Slab'},
-          {id: 'advance_cat', label: 'Advance Cats'},
-          {id: 'holidays', label: 'Holidays'}
+          { id: 'organization', label: 'Org Details' },
+          { id: 'employee', label: 'Employees' },
+          { id: 'shift', label: 'Shifts' },
+          { id: 'roles', label: 'Roles & Rights' },
+          { id: 'salary', label: 'Salary Slab' },
+          { id: 'advance_cat', label: 'Advance Cats' },
+          { id: 'holidays', label: 'Holidays' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -350,14 +350,14 @@ export default function SettingsTab() {
               <h3 className="text-sm font-black text-gray-800 uppercase">Advance Categories</h3>
               <Plus size={16} className="text-indigo-600 cursor-pointer" onClick={() => {
                 const name = prompt('New Category Name:')
-                if (name) setOrgSettings(s => ({...s, advanceCategories: [...s.advanceCategories, name]}))
+                if (name) setOrgSettings(s => ({ ...s, advanceCategories: [...s.advanceCategories, name] }))
               }} />
             </div>
             <div className="space-y-2">
               {orgSettings.advanceCategories.map((cat, i) => (
                 <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl group">
                   <span className="font-bold text-gray-700">{cat}</span>
-                  <Trash2 size={14} className="text-gray-300 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={() => setOrgSettings(s => ({...s, advanceCategories: s.advanceCategories.filter((_, idx) => idx !== i)}))} />
+                  <Trash2 size={14} className="text-gray-300 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={() => setOrgSettings(s => ({ ...s, advanceCategories: s.advanceCategories.filter((_, idx) => idx !== i) }))} />
                 </div>
               ))}
             </div>
@@ -372,7 +372,7 @@ export default function SettingsTab() {
               <button onClick={() => {
                 const name = prompt('Holiday Name:')
                 const date = prompt('Date (YYYY-MM-DD):')
-                if(name && date) setOrgSettings(s => ({...s, holidays: [...s.holidays, {name, date}]}))
+                if (name && date) setOrgSettings(s => ({ ...s, holidays: [...s.holidays, { name, date }] }))
               }} className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest">+ Add Holiday</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -382,7 +382,7 @@ export default function SettingsTab() {
                     <p className="font-black text-gray-800 uppercase tracking-tight">{h.name}</p>
                     <p className="text-[10px] font-bold text-indigo-500 font-mono mt-1">{h.date}</p>
                   </div>
-                  <Trash2 size={14} className="text-red-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={() => setOrgSettings(s => ({...s, holidays: s.holidays.filter((_, idx) => idx !== i)}))} />
+                  <Trash2 size={14} className="text-red-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={() => setOrgSettings(s => ({ ...s, holidays: s.holidays.filter((_, idx) => idx !== i) }))} />
                 </div>
               ))}
             </div>
@@ -471,7 +471,7 @@ export default function SettingsTab() {
                   <div className="text-[10px] font-bold text-gray-400">{s.isFlexible ? 'Anytime' : `${s.startTime} - ${s.endTime}`}</div>
                   <div className="mt-3 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => { setEditingShift(s); setNewShift(s); setShowAddShift(true); }} className="text-indigo-600 font-black">Edit</button>
-                    <button onClick={async () => { if(confirm('Delete shift?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'shifts', s.id)); setShifts(prev => prev.filter(x => x.id !== s.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
+                    <button onClick={async () => { if (confirm('Delete shift?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'shifts', s.id)); setShifts(prev => prev.filter(x => x.id !== s.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
                   </div>
                 </div>
               ))}
@@ -489,7 +489,7 @@ export default function SettingsTab() {
               <div key={role.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-10">
                 <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
                   <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">{role.name} Permissions</h4>
-                  <button onClick={async () => { if(confirm('Delete role?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="text-red-400 hover:text-red-600 font-bold text-[9px] uppercase tracking-tighter">Remove Role</button>
+                  <button onClick={async () => { if (confirm('Delete role?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="text-red-400 hover:text-red-600 font-bold text-[9px] uppercase tracking-tighter">Remove Role</button>
                 </div>
                 <div className="p-0">
                   <table className="w-full text-left text-[10px] permissions-table">
@@ -573,16 +573,154 @@ export default function SettingsTab() {
         </div>
       </Modal>
 
-      {/* QUICK REGISTER */}
-      <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="QUICK REGISTER">
-        <div className="p-6 space-y-4 max-w-sm mx-auto">
-          {['name', 'empCode', 'department'].map(f => (
-            <div key={f}>
-              <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f}</label>
-              <input type="text" value={newEmployee[f]} onChange={e => setNewEmployee(s => ({ ...s, [f]: e.target.value }))} className="w-full border rounded-xl px-4 py-2.5 text-xs font-black bg-gray-50 focus:ring-1 focus:ring-indigo-500 outline-none" />
+      {/* FULL EMPLOYEE CREATE FORM */}
+      <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="New Employee">
+        <div className="flex flex-col h-[85vh] max-w-2xl mx-auto font-inter">
+          {/* Header / Photo */}
+          <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center relative overflow-hidden bg-indigo-50 shadow-inner group shrink-0">
+              {newEmployee.photoURL
+                ? <img src={newEmployee.photoURL} className="w-full h-full object-cover" alt="photo" />
+                : <span className="text-[9px] text-indigo-300 font-black uppercase select-none text-center">📸<br />Photo</span>
+              }
+              <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
+                const url = await handleFileUpload(e.target.files[0], `employees/new_${Date.now()}/profile`)
+                if (url) setNewEmployee(s => ({ ...s, photoURL: url }))
+              }} />
             </div>
-          ))}
-          <button onClick={handleAddEmployee} disabled={saving} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl shadow-xl uppercase text-[10px]">REGISTER EMPLOYEE</button>
+            <div className="flex-1 min-w-0">
+              <input
+                type="text"
+                placeholder="Employee Full Name"
+                value={newEmployee.name}
+                onChange={e => setNewEmployee(s => ({ ...s, name: e.target.value }))}
+                className="w-full text-[18px] font-black text-gray-800 bg-transparent border-none focus:ring-0 outline-none placeholder-gray-200 uppercase tracking-tight"
+              />
+              <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest mt-0.5">New Personnel Master File</p>
+            </div>
+            <div className="flex flex-col gap-1 items-end shrink-0">
+              {['Active', 'Inactive'].map(s => (
+                <button key={s} type="button" onClick={() => setNewEmployee(e => ({ ...e, status: s }))}
+                  className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border transition-all ${newEmployee.status === s ? (s === 'Active' ? 'bg-green-100 text-green-600 border-green-200' : 'bg-red-100 text-red-500 border-red-200') : 'bg-white text-gray-200 border-gray-100'}`}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Scrollable Form Body */}
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-7">
+            {/* Identity & Role */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Identity & Role</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Employee ID</label>
+                  <input type="text" placeholder="EMP-001" value={newEmployee.empCode} onChange={e => setNewEmployee(s => ({ ...s, empCode: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none font-mono" />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Department</label>
+                  <input type="text" placeholder="Operations" value={newEmployee.department} onChange={e => setNewEmployee(s => ({ ...s, department: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Site Location</label>
+                  <input type="text" placeholder="Chennai HQ" value={newEmployee.site} onChange={e => setNewEmployee(s => ({ ...s, site: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Employment Type</label>
+                  <select value={newEmployee.employmentType} onChange={e => setNewEmployee(s => ({ ...s, employmentType: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none">
+                    {['Full-time', 'Part-time', 'Contract', 'Intern'].map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Joining Date</label>
+                  <input type="date" value={newEmployee.joinedDate} onChange={e => setNewEmployee(s => ({ ...s, joinedDate: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-400 outline-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Work & Schedule */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1.5 h-4 bg-purple-500 rounded-full" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Work & Schedule</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Assigned Shift</label>
+                  <select value={newEmployee.shiftId} onChange={e => setNewEmployee(s => ({ ...s, shiftId: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-purple-400 outline-none">
+                    <option value="">Select shift...</option>
+                    {shifts.map(s => <option key={s.id} value={s.id}>{s.name} ({s.isFlexible ? 'Flexible' : `${s.startTime}–${s.endTime}`})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Hours/Day</label>
+                  <input type="number" step="0.5" value={newEmployee.workHours} onChange={e => setNewEmployee(s => ({ ...s, workHours: Number(e.target.value) }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-purple-400 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Min Day Hrs</label>
+                  <input type="number" step="0.5" value={newEmployee.minDailyHours} onChange={e => setNewEmployee(s => ({ ...s, minDailyHours: Number(e.target.value) }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-purple-400 outline-none" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Permission Allowance (Hrs/Month)</label>
+                  <input type="number" step="0.5" value={newEmployee.permissionHours} onChange={e => setNewEmployee(s => ({ ...s, permissionHours: Number(e.target.value) }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-purple-400 outline-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Payroll */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1.5 h-4 bg-green-500 rounded-full" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Payroll & Banking</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Monthly Salary (₹)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 font-bold">₹</span>
+                    <input type="number" placeholder="0" value={newEmployee.monthlySalary} onChange={e => setNewEmployee(s => ({ ...s, monthlySalary: Number(e.target.value) }))} className="w-full h-[38px] border border-gray-200 rounded-xl pl-7 pr-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-green-400 outline-none" />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Bank Account Details</label>
+                  <input type="text" placeholder="Account no. / IFSC" value={newEmployee.bankAccount} onChange={e => setNewEmployee(s => ({ ...s, bankAccount: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-green-400 outline-none font-mono" />
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Details */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1.5 h-4 bg-orange-400 rounded-full" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em]">Personal Details</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">DOB</label>
+                  <input type="date" value={newEmployee.dob} onChange={e => setNewEmployee(s => ({ ...s, dob: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-orange-300 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Blood Group</label>
+                  <select value={newEmployee.bloodGroup} onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))} className="w-full h-[38px] border border-gray-200 rounded-xl px-3 text-[12px] font-semibold bg-gray-50/50 focus:ring-2 focus:ring-orange-300 outline-none">
+                    <option value="">Select...</option>
+                    {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg}>{bg}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex gap-3 bg-white">
+            <button type="button" onClick={() => setShowAddEmployee(false)} className="flex-1 h-[42px] border-2 border-gray-100 rounded-xl font-black text-gray-400 uppercase tracking-widest text-[10px] hover:border-gray-200 transition-all">Cancel</button>
+            <button type="button" onClick={handleAddEmployee} disabled={saving || !newEmployee.name} className="flex-[2] h-[42px] bg-indigo-600 text-white font-black rounded-xl shadow-lg shadow-indigo-500/20 uppercase tracking-widest text-[11px] hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+              {saving ? 'Creating...' : '✓ Create Employee'}
+            </button>
+          </div>
         </div>
       </Modal>
 

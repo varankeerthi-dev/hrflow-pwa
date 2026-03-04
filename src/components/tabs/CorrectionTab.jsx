@@ -168,7 +168,56 @@ export default function CorrectionTab() {
         }
       `}</style>
 
-      {/* ── TOP: Date selector + Adjustment Manager ── */}
+      {/* ── TOP: Daily Summary Logs ── */}
+      <div className="flex-1 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-0 print-area">
+        <div className="px-4 py-2.5 flex justify-between items-center bg-white border-b border-gray-50 no-print shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+            <h3 className="text-[12px] font-bold text-gray-800 uppercase tracking-tight">Daily Summary Logs</h3>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto">
+          {attLoading ? (
+            <div className="flex justify-center py-10"><Spinner /></div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="h-[36px] bg-[#f9fafb] sticky top-0">
+                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date</th>
+                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Employee Name</th>
+                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">In</th>
+                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Out</th>
+                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">OT</th>
+                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f1f5f9]">
+                {results.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center py-10 text-gray-300 italic text-[12px]">No records found for this date</td></tr>
+                ) : results.map((row, i) => (
+                  <tr key={i} className="h-[40px] hover:bg-[#f8fafc] transition-colors">
+                    <td className="px-4 text-[11px] font-medium text-gray-400">{row.date}</td>
+                    <td className="px-4 text-[12px] font-bold text-gray-700 uppercase tracking-tight">{row.name}</td>
+                    <td className="px-4 text-center text-[11px] font-semibold text-gray-600">{formatTimeTo12Hour(row.in)}</td>
+                    <td className="px-4 text-center text-[11px] font-semibold text-gray-600">{formatTimeTo12Hour(row.out)}</td>
+                    <td className="px-4 text-center text-[11px] font-bold text-indigo-600 font-mono">{row.ot}</td>
+                    <td className="px-4 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${row.status === 'PRESENT' ? 'bg-green-100 text-green-600'
+                          : row.status === 'ABSENT' ? 'bg-red-100 text-red-500'
+                            : 'bg-gray-100 text-gray-400'}`}>
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* ── BOTTOM: Date selector + Adjustment Manager ── */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 no-print shrink-0">
 
         {/* Date Selector */}
@@ -194,7 +243,7 @@ export default function CorrectionTab() {
 
         {/* Adjustment Manager */}
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100 h-full flex flex-col gap-3">
+          <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100 h-full flex flex-col gap-3 min-h-[400px]">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2 text-gray-400">
                 <FileText size={15} />
@@ -341,55 +390,6 @@ export default function CorrectionTab() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* ── BOTTOM: Daily Summary Logs ── */}
-      <div className="flex-1 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-0 print-area">
-        <div className="px-4 py-2.5 flex justify-between items-center bg-white border-b border-gray-50 no-print shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-            <h3 className="text-[12px] font-bold text-gray-800 uppercase tracking-tight">Daily Summary Logs</h3>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto">
-          {attLoading ? (
-            <div className="flex justify-center py-10"><Spinner /></div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="h-[36px] bg-[#f9fafb] sticky top-0">
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Employee Name</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">In</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Out</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">OT</th>
-                  <th className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f1f5f9]">
-                {results.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-10 text-gray-300 italic text-[12px]">No records found for this date</td></tr>
-                ) : results.map((row, i) => (
-                  <tr key={i} className="h-[40px] hover:bg-[#f8fafc] transition-colors">
-                    <td className="px-4 text-[11px] font-medium text-gray-400">{row.date}</td>
-                    <td className="px-4 text-[12px] font-bold text-gray-700 uppercase tracking-tight">{row.name}</td>
-                    <td className="px-4 text-center text-[11px] font-semibold text-gray-600">{formatTimeTo12Hour(row.in)}</td>
-                    <td className="px-4 text-center text-[11px] font-semibold text-gray-600">{formatTimeTo12Hour(row.out)}</td>
-                    <td className="px-4 text-center text-[11px] font-bold text-indigo-600 font-mono">{row.ot}</td>
-                    <td className="px-4 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${row.status === 'PRESENT' ? 'bg-green-100 text-green-600'
-                          : row.status === 'ABSENT' ? 'bg-red-100 text-red-500'
-                            : 'bg-gray-100 text-gray-400'}`}>
-                        {row.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
         </div>
       </div>
     </div>
