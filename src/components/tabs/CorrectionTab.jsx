@@ -8,7 +8,7 @@ import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { Calendar, Search, RefreshCcw, FileText, Printer, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function CorrectionTab() {
-  const { user } = userAuth?.() || useAuth()
+  const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const { fetchByDate, loading: attLoading } = useAttendance(user?.orgId)
   const { submitCorrection } = useCorrections(user?.orgId)

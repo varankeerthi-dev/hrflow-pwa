@@ -16,23 +16,23 @@ export default function SalarySlipTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const { slabs, increments, loading: slabLoading } = useSalarySlab(user?.orgId)
-  
+
   const [selectedEmp, setSelectedEmp] = useState('')
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
-  
+
   const [loading, setLoading] = useState(false)
   const [slipData, setSlipData] = useState(null)
-  
+
   const [advances, setAdvances] = useState([])
   const [newAdvance, setNewAdvance] = useState({ type: 'Advance', amount: 0, date: '', reason: '' })
-  
+
   const [otRequest, setOtRequest] = useState(null)
   const [revisedOT, setRevisedOT] = useState(0)
   const [otNote, setOtNote] = useState('')
-  
+
   const [activeBottomTab, setActiveBottomTab] = useState('ot') // 'ot' or 'advances'
   const [continuousLeaveRule, setContinuousLeaveRule] = useState(false)
   const slipRef = useRef(null)
@@ -52,33 +52,33 @@ export default function SalarySlipTab() {
 
       const emp = employees.find(e => e.id === selectedEmp)
       if (!emp) { setLoading(false); return }
-      
+
       const startDate = `${selectedMonth}-01`
       const [year, month] = selectedMonth.split('-')
       const endDay = new Date(year, month, 0).getDate()
       const endDate = `${selectedMonth}-${endDay}`
-      
+
       const attQ = query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp), where('date', '>=', startDate), where('date', '<=', endDate))
       const attSnap = await getDocs(attQ)
       const attData = attSnap.docs.map(d => d.data())
-      
+
       const applicableIncrements = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))
       const activeSlab = applicableIncrements[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
-      
+
       const totalSalary = Number(activeSlab.totalSalary) || 0
       const minDailyHours = Number(emp.minDailyHours) || 8
-      
+
       let paidDays = 0
       let lopDays = 0
       let autoOTHours = 0
-      
+
       const grid = []
       for (let i = 1; i <= endDay; i++) {
         const d = new Date(year, month - 1, i)
         const dStr = d.toISOString().split('T')[0]
         const isSunday = d.getDay() === 0
         const rec = attData.find(a => a.date === dStr)
-        
+
         let type = 'Normal'
         if (isSunday) type = 'Sunday'
         if (rec) {
@@ -92,12 +92,12 @@ export default function SalarySlipTab() {
           }
         } else if (isSunday) type = 'Sunday'
         else type = 'Absent'
-        
+
         if (type === 'Absent') lopDays++
         else paidDays++
         grid.push({ date: i, type, dStr })
       }
-      
+
       if (continuousLeaveRule) {
         grid.forEach((day, idx) => {
           if (day.type === 'Sunday' || day.type === 'Sunday Holiday') {
@@ -112,41 +112,41 @@ export default function SalarySlipTab() {
               if (grid[i].type === 'Working') break;
             }
             if (leftAbsent && rightAbsent) {
-               day.isUnpaidSunday = true
-               lopDays++
-               paidDays--
+              day.isUnpaidSunday = true
+              lopDays++
+              paidDays--
             }
           }
         })
       }
-      
+
       const perDaySalary = totalSalary / endDay
       const otRate = perDaySalary / minDailyHours
-      
+
       const otQ = query(collection(db, 'organisations', user.orgId, 'otRequests'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))
       const otSnap = await getDocs(otQ)
       const existingOT = otSnap.docs[0] ? { id: otSnap.docs[0].id, ...otSnap.docs[0].data() } : null
       setOtRequest(existingOT)
-      
+
       const finalOT = existingOT?.status === 'approved' ? existingOT.finalOTHours : autoOTHours
       const otPay = finalOT * otRate
-      
+
       const basic = totalSalary * (activeSlab.basicPercent / 100) * (paidDays / endDay)
       const hra = totalSalary * (activeSlab.hraPercent / 100) * (paidDays / endDay)
       const grossEarnings = basic + hra + otPay
-      
+
       const advQ = query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))
       const advSnap = await getDocs(advQ)
       const allAdv = advSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       setAdvances(allAdv)
       const pendingAdvances = allAdv.filter(a => a.status !== 'Recovered').reduce((acc, curr) => acc + Number(curr.amount), 0)
-      
+
       const pf = totalSalary * (activeSlab.pfPercent / 100)
       const it = totalSalary * (activeSlab.incomeTaxPercent / 100)
       const totalDeductions = pf + it + pendingAdvances
-      
+
       const netPay = Math.max(0, grossEarnings - totalDeductions)
-      
+
       setSlipData({
         employee: emp, month: selectedMonth, slab: activeSlab, grid, paidDays, lopDays, autoOTHours, finalOT, otPay, basic, hra, grossEarnings, pf, it, advanceDeduction: pendingAdvances, totalDeductions, netPay
       })
@@ -224,11 +224,11 @@ export default function SalarySlipTab() {
           <input type="checkbox" id="cont-rule" checked={continuousLeaveRule} onChange={e => setContinuousLeaveRule(e.target.checked)} className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
           <label htmlFor="cont-rule" className="text-[11px] font-black text-gray-500 uppercase tracking-tighter cursor-pointer">Deduct Sandwich Sundays</label>
         </div>
-        <button onClick={handleGenerate} disabled={loading || !selectedEmp || !selectedMonth} className="h-[40px] px-8 bg-indigo-600 text-white font-bold rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-indigo-700 disabled:opacity-50 transition-all">
+        <button onClick={handleGenerate} disabled={loading || empLoading || !selectedEmp || !selectedMonth} className="h-[40px] px-8 bg-indigo-600 text-white font-bold rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-indigo-700 disabled:opacity-50 transition-all">
           {loading ? 'Crunching...' : 'Generate Slip'}
         </button>
       </div>
-      
+
       {slipData && (
         <div className="flex-1 overflow-auto flex gap-8 pb-10">
           {/* Payslip Card */}
@@ -259,7 +259,7 @@ export default function SalarySlipTab() {
                   <div className="flex gap-6"><span className="w-36 text-gray-400 font-bold uppercase text-[10px]">Department</span><span className="font-bold text-gray-800 uppercase">: {slipData.employee.department}</span></div>
                   <div className="flex gap-6"><span className="w-36 text-gray-400 font-bold uppercase text-[10px]">Pay Period</span><span className="font-bold text-gray-800 uppercase">: {slipData.month}</span></div>
                 </div>
-                
+
                 <div className="border-2 border-green-600 rounded-2xl p-6 text-center min-w-[240px] bg-green-50/20 shadow-xl shadow-green-900/5">
                   <p className="text-[10px] font-black text-green-700 uppercase tracking-widest mb-2">FINAL NET PAYABLE</p>
                   <p className="text-4xl font-black text-green-800 tracking-tighter">{formatINR(slipData.netPay)}</p>
@@ -272,14 +272,14 @@ export default function SalarySlipTab() {
 
               {/* Mini Calendar Grid */}
               <div className="mb-10 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Attendance Visual Summary</p>
-                 <div className="flex flex-wrap gap-1.5">
-                   {slipData.grid.map(day => (
-                     <div key={day.date} className={`w-7 h-7 flex items-center justify-center text-[10px] font-black rounded-lg shadow-sm border ${day.type === 'Working' ? 'bg-green-500 text-white border-green-600' : day.type === 'Absent' ? 'bg-red-500 text-white border-red-600' : day.type.includes('Sunday') ? (day.isUnpaidSunday ? 'bg-gray-200 text-gray-400 border-gray-300' : 'bg-indigo-500 text-white border-indigo-600') : 'bg-white text-gray-400 border-gray-100'}`} title={day.type}>
-                       {day.date}
-                     </div>
-                   ))}
-                 </div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Attendance Visual Summary</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {slipData.grid.map(day => (
+                    <div key={day.date} className={`w-7 h-7 flex items-center justify-center text-[10px] font-black rounded-lg shadow-sm border ${day.type === 'Working' ? 'bg-green-500 text-white border-green-600' : day.type === 'Absent' ? 'bg-red-500 text-white border-red-600' : day.type.includes('Sunday') ? (day.isUnpaidSunday ? 'bg-gray-200 text-gray-400 border-gray-300' : 'bg-indigo-500 text-white border-indigo-600') : 'bg-white text-gray-400 border-gray-100'}`} title={day.type}>
+                      {day.date}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="border-2 border-gray-900 rounded-2xl overflow-hidden mb-10">
@@ -319,63 +319,63 @@ export default function SalarySlipTab() {
               </div>
             </div>
           </div>
-          
+
           {/* Control Panels */}
           <div className="w-[320px] flex flex-col gap-6 no-print">
             <div className="bg-gray-100 p-1 rounded-xl flex shadow-sm border border-gray-200">
               <button onClick={() => setActiveBottomTab('ot')} className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeBottomTab === 'ot' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>OT Review</button>
               <button onClick={() => setActiveBottomTab('advances')} className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeBottomTab === 'advances' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>Recovery</button>
             </div>
-            
+
             {activeBottomTab === 'ot' && (
               <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm flex flex-col gap-6">
-                 <div className="flex items-center gap-2 text-indigo-600"><Clock size={18} /><h4 className="text-sm font-black uppercase">Overtime Logic</h4></div>
-                 <div className="space-y-4">
-                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">System Calculated</p>
-                     <p className="text-2xl font-black text-gray-800">{slipData.autoOTHours.toFixed(2)}h</p>
-                   </div>
-                   <div>
-                     <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Adjustment Adjustment</label>
-                     <input type="number" value={revisedOT} onChange={e => setRevisedOT(e.target.value)} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50" placeholder="+ / - hours" />
-                   </div>
-                   <div className="bg-indigo-600 p-4 rounded-xl shadow-lg shadow-indigo-200">
-                     <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1">Requested Total</p>
-                     <p className="text-2xl font-black text-white">{(slipData.autoOTHours + Number(revisedOT)).toFixed(2)}h</p>
-                   </div>
-                   <textarea value={otNote} onChange={e => setOtNote(e.target.value)} placeholder="Revision justification..." className="w-full h-[100px] border border-gray-200 rounded-lg p-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50" />
-                   <button onClick={handleSubmitOT} className="w-full h-[40px] bg-indigo-600 text-white font-black rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-indigo-700 transition-all">Submit for Review</button>
-                 </div>
+                <div className="flex items-center gap-2 text-indigo-600"><Clock size={18} /><h4 className="text-sm font-black uppercase">Overtime Logic</h4></div>
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">System Calculated</p>
+                    <p className="text-2xl font-black text-gray-800">{slipData.autoOTHours.toFixed(2)}h</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Manual Adjustment</label>
+                    <input type="number" value={revisedOT} onChange={e => setRevisedOT(e.target.value)} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50" placeholder="+ / - hours" />
+                  </div>
+                  <div className="bg-indigo-600 p-4 rounded-xl shadow-lg shadow-indigo-200">
+                    <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1">Requested Total</p>
+                    <p className="text-2xl font-black text-white">{(slipData.autoOTHours + Number(revisedOT)).toFixed(2)}h</p>
+                  </div>
+                  <textarea value={otNote} onChange={e => setOtNote(e.target.value)} placeholder="Revision justification..." className="w-full h-[100px] border border-gray-200 rounded-lg p-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50" />
+                  <button onClick={handleSubmitOT} className="w-full h-[40px] bg-indigo-600 text-white font-black rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-indigo-700 transition-all">Submit for Review</button>
+                </div>
               </div>
             )}
-            
+
             {activeBottomTab === 'advances' && (
               <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm flex flex-col gap-6">
-                 <div className="flex items-center gap-2 text-red-600"><Banknote size={18} /><h4 className="text-sm font-black uppercase">Debit Adjustments</h4></div>
-                 <div className="space-y-3">
-                   <select value={newAdvance.type} onChange={e => setNewAdvance(s => ({...s, type: e.target.value}))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50">
-                     <option>Advance</option>
-                     <option>Loan</option>
-                   </select>
-                   <input type="number" placeholder="Value (₹)" value={newAdvance.amount || ''} onChange={e => setNewAdvance(s => ({...s, amount: e.target.value}))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-black bg-gray-50/50" />
-                   <input type="date" value={newAdvance.date} onChange={e => setNewAdvance(s => ({...s, date: e.target.value}))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50" />
-                   <button onClick={handleSaveAdvance} className="w-full h-[40px] bg-red-600 text-white font-black rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-red-700">Add Deduction</button>
-                 </div>
-                 
-                 <div className="flex-1 overflow-auto border border-gray-100 rounded-xl bg-gray-50/30">
-                   <div className="p-3 border-b border-gray-100 bg-white/50 sticky top-0 font-bold text-[9px] text-gray-400 uppercase tracking-widest">Employee Ledger</div>
-                   {advances.map(a => (
-                     <div key={a.id} className="p-4 border-b border-gray-100 last:border-0 hover:bg-white transition-colors">
-                       <div className="flex justify-between items-center mb-2">
-                         <span className="text-[10px] font-black uppercase text-gray-500">{a.type}</span>
-                         <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${a.status === 'Recovered' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{a.status}</span>
-                       </div>
-                       <p className="text-lg font-black text-gray-800">{formatINR(a.amount)}</p>
-                       <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{a.date}</p>
-                     </div>
-                   ))}
-                   {advances.length === 0 && <p className="text-[11px] text-center text-gray-300 font-bold uppercase py-10 opacity-50 italic">No entries</p>}
-                 </div>
+                <div className="flex items-center gap-2 text-red-600"><Banknote size={18} /><h4 className="text-sm font-black uppercase">Debit Adjustments</h4></div>
+                <div className="space-y-3">
+                  <select value={newAdvance.type} onChange={e => setNewAdvance(s => ({ ...s, type: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50">
+                    <option>Advance</option>
+                    <option>Loan</option>
+                  </select>
+                  <input type="number" placeholder="Value (₹)" value={newAdvance.amount || ''} onChange={e => setNewAdvance(s => ({ ...s, amount: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-black bg-gray-50/50" />
+                  <input type="date" value={newAdvance.date} onChange={e => setNewAdvance(s => ({ ...s, date: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50" />
+                  <button onClick={handleSaveAdvance} className="w-full h-[40px] bg-red-600 text-white font-black rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-red-700">Add Deduction</button>
+                </div>
+
+                <div className="flex-1 overflow-auto border border-gray-100 rounded-xl bg-gray-50/30">
+                  <div className="p-3 border-b border-gray-100 bg-white/50 sticky top-0 font-bold text-[9px] text-gray-400 uppercase tracking-widest">Employee Ledger</div>
+                  {advances.map(a => (
+                    <div key={a.id} className="p-4 border-b border-gray-100 last:border-0 hover:bg-white transition-colors">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-black uppercase text-gray-500">{a.type}</span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${a.status === 'Recovered' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{a.status}</span>
+                      </div>
+                      <p className="text-lg font-black text-gray-800">{formatINR(a.amount)}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{a.date}</p>
+                    </div>
+                  ))}
+                  {advances.length === 0 && <p className="text-[11px] text-center text-gray-300 font-bold uppercase py-10 opacity-50 italic">No entries</p>}
+                </div>
               </div>
             )}
           </div>
