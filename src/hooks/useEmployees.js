@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { getDocs, query, where, addDoc, updateDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'
 import { employeesCol, employeeDoc, shiftsCol } from '../lib/firestore'
 
-export function useEmployees(orgId) {
+export function useEmployees(orgId, activeOnly = false) {
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -11,7 +11,10 @@ export function useEmployees(orgId) {
     if (!orgId) return
     setLoading(true)
     try {
-      const q = query(employeesCol(orgId), where('status', '==', 'Active'))
+      let q = employeesCol(orgId)
+      if (activeOnly) {
+        q = query(employeesCol(orgId), where('status', '==', 'Active'))
+      }
       const snapshot = await getDocs(q)
 
       // Fetch all shifts once to avoid N+1 queries
@@ -41,23 +44,26 @@ export function useEmployees(orgId) {
       createdAt: serverTimestamp(),
     }
     const docRef = await addDoc(employeesCol(orgId), data)
-
-    // Optimistically update or at least refresh after add
     fetchEmployees()
     return docRef.id
   }
 
   const updateEmployee = async (empId, payload) => {
-    await updateDoc(employeeDoc(orgId, empId), payload)
+    await updateDoc(employeeDoc(orgId, empId), {
+      ...payload,
+      updatedAt: serverTimestamp(),
+    })
+    fetchEmployees()
   }
 
   const deactivateEmployee = async (empId) => {
     await updateDoc(employeeDoc(orgId, empId), { status: 'Inactive' })
+    fetchEmployees()
   }
 
   useEffect(() => {
     fetchEmployees()
-  }, [orgId])
+  }, [orgId, activeOnly])
 
   return { employees, loading, error, fetchEmployees, addEmployee, updateEmployee, deactivateEmployee }
 }

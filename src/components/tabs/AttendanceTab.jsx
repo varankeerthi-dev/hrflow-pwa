@@ -32,7 +32,7 @@ function formatDateForInput(date) {
 
 export default function AttendanceTab() {
   const { user } = useAuth()
-  const { employees, loading: empLoading } = useEmployees(user?.orgId)
+  const { employees, loading: empLoading } = useEmployees(user?.orgId, true)
   const { fetchByDate, upsertAttendance, loading: attLoading } = useAttendance(user?.orgId)
 
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
