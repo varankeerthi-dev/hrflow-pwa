@@ -146,7 +146,7 @@ export default function SalarySlipTab() {
       const perDaySalary = totalSalary / endDay
       const otRate = perDaySalary / minDailyHours
 
-      const otQ = query(collection(db, 'organisations', user.orgId, 'otRequests'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))
+      const otQ = query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))
       const otSnap = await getDocs(otQ)
       const existingOT = otSnap.docs[0] ? { id: otSnap.docs[0].id, ...otSnap.docs[0].data() } : null
       setOtRequest(existingOT)
@@ -212,21 +212,43 @@ export default function SalarySlipTab() {
   }
 
   const handleSaveAdvance = async () => {
-    if (!newAdvance.amount || !newAdvance.date) return
-    await addDoc(collection(db, 'organisations', user.orgId, 'advances'), {
-      ...newAdvance, employeeId: selectedEmp, status: 'Pending', createdAt: serverTimestamp()
-    })
-    setNewAdvance({ type: 'Advance', amount: 0, date: '', reason: '' })
-    handleGenerate()
+    if (!newAdvance.amount || !newAdvance.date) {
+      alert('Please enter amount and date')
+      return
+    }
+    setLoading(true)
+    try {
+      await addDoc(collection(db, 'organisations', user.orgId, 'advances'), {
+        ...newAdvance, employeeId: selectedEmp, status: 'Pending', createdAt: serverTimestamp()
+      })
+      alert('Deduction added successfully')
+      setNewAdvance({ type: 'Advance', amount: 0, date: '', reason: '' })
+      handleGenerate()
+    } catch (err) {
+      console.error('Error adding advance:', err)
+      alert('Failed to add deduction: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSubmitOT = async () => {
     const final = slipData.autoOTHours + Number(revisedOT)
-    await addDoc(collection(db, 'organisations', user.orgId, 'otRequests'), {
-      employeeId: selectedEmp, month: selectedMonth, autoOTHours: slipData.autoOTHours, revisedOTHours: Number(revisedOT), finalOTHours: final, note: otNote, status: 'pending', createdAt: serverTimestamp()
-    })
-    alert('OT request submitted for review. It will appear in Approvals tab for manager approval.')
-    handleGenerate()
+    setLoading(true)
+    try {
+      await addDoc(collection(db, 'organisations', user.orgId, 'otApprovals'), {
+        employeeId: selectedEmp, month: selectedMonth, autoOTHours: slipData.autoOTHours, revisedOTHours: Number(revisedOT), finalOTHours: final, note: otNote, status: 'pending', createdAt: serverTimestamp()
+      })
+      alert('OT request submitted for review. It will appear in Approvals tab for manager approval.')
+      setRevisedOT(0)
+      setOtNote('')
+      handleGenerate()
+    } catch (err) {
+      console.error('Error submitting OT:', err)
+      alert('Failed to submit OT request: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -410,7 +432,7 @@ export default function SalarySlipTab() {
                     <p className="text-2xl font-black text-white">{(slipData.autoOTHours + Number(revisedOT)).toFixed(2)}h</p>
                   </div>
                   <textarea value={otNote} onChange={e => setOtNote(e.target.value)} placeholder="Revision justification..." className="w-full h-[100px] border border-gray-200 rounded-lg p-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50" />
-                  <button onClick={handleSubmitOT} className="w-full h-[40px] bg-indigo-600 text-white font-black rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-indigo-700 transition-all">Submit for Review</button>
+                  <button onClick={handleSubmitOT} disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-black rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50">Submit for Review</button>
                 </div>
               </div>
             )}
@@ -425,7 +447,7 @@ export default function SalarySlipTab() {
                   </select>
                   <input type="number" placeholder="Value (₹)" value={newAdvance.amount || ''} onChange={e => setNewAdvance(s => ({ ...s, amount: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-black bg-gray-50/50" />
                   <input type="date" value={newAdvance.date} onChange={e => setNewAdvance(s => ({ ...s, date: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50" />
-                  <button onClick={handleSaveAdvance} className="w-full h-[40px] bg-red-600 text-white font-black rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-red-700">Add Deduction</button>
+                  <button onClick={handleSaveAdvance} disabled={loading} className="w-full h-[40px] bg-red-600 text-white font-black rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-red-700 disabled:opacity-50">Add Deduction</button>
                 </div>
 
                 <div className="flex-1 overflow-auto border border-gray-100 rounded-xl bg-gray-50/30">
