@@ -780,6 +780,7 @@ export default function SettingsTab() {
                 </div>
 
                 {/* ── Table ─────────────────────────────────── */}
+                <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse print-section">
                     <thead>
                       <tr className="bg-[#F9FAFB]">
@@ -1690,7 +1691,7 @@ export default function SettingsTab() {
               <textarea placeholder="Full residential address" value={newEmployee.address}
                 onChange={e => setNewEmployee(s => ({ ...s, address: e.target.value }))}
                 rows={3}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-grayoutline-none focus:ring-2 focus-800 focus::ring-gray-900 focus:border-transparent bg-white resize-none"
               />
             </div>
 
@@ -1702,29 +1703,6 @@ export default function SettingsTab() {
                 className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
               />
               <p className="text-[10px] text-gray-400 mt-1">Login access can be enabled after creating the employee</p>
-            </div>
-
-            {/* Full-width Address */}
-                        onChange={e => setNewEmployee(s => ({ ...s, tempPassword: e.target.value }))}
-                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                        placeholder="Min 6 characters"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
-                      <select
-                        value={newEmployee.role}
-                        onChange={e => setNewEmployee(s => ({ ...s, role: e.target.value }))}
-                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                      >
-                        <option value="Employee">Employee</option>
-                        <option value="HR">HR</option>
-                        <option value="Admin">Admin</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Documents Upload Section */}
