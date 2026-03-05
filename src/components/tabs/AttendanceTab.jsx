@@ -298,14 +298,16 @@ export default function AttendanceTab() {
                     {/* In Time */}
                     <td className="px-[10px] text-center">
                       <div className="flex items-center justify-center gap-1 relative">
+                        <span className="text-[12px] font-bold text-gray-800">
+                          {row.inTime ? formatTimeTo12Hour(row.inTime) : '—'}
+                        </span>
                         <button
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          onClick={() => setActiveTimePicker({ empId: row.employeeId, field: 'inTime', value: row.inTime })}
-                          className="text-[12px] font-bold text-gray-800 disabled:opacity-20 hover:text-indigo-600 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setActiveTimePicker({ empId: row.employeeId, field: 'inTime', value: row.inTime }); }}
+                          className="p-0.5 rounded hover:bg-indigo-50 disabled:opacity-20 transition-colors"
                         >
-                          {row.inTime ? formatTimeTo12Hour(row.inTime) : '—'}
+                          <Clock size={13} className="text-gray-400 hover:text-indigo-500" />
                         </button>
-                        <Clock size={13} className="text-gray-400" />
                         {activeTimePicker?.empId === row.employeeId && activeTimePicker?.field === 'inTime' && (
                           <TimePicker
                             value={activeTimePicker.value}
@@ -336,14 +338,16 @@ export default function AttendanceTab() {
                     {/* Out Time */}
                     <td className="px-[10px] text-center">
                       <div className="flex items-center justify-center gap-1 relative">
+                        <span className="text-[12px] font-bold text-gray-800">
+                          {row.outTime ? formatTimeTo12Hour(row.outTime) : '—'}
+                        </span>
                         <button
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          onClick={() => setActiveTimePicker({ empId: row.employeeId, field: 'outTime', value: row.outTime })}
-                          className="text-[12px] font-bold text-gray-800 disabled:opacity-20 hover:text-indigo-600 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setActiveTimePicker({ empId: row.employeeId, field: 'outTime', value: row.outTime }); }}
+                          className="p-0.5 rounded hover:bg-indigo-50 disabled:opacity-20 transition-colors"
                         >
-                          {row.outTime ? formatTimeTo12Hour(row.outTime) : '—'}
+                          <Clock size={13} className="text-gray-400 hover:text-indigo-500" />
                         </button>
-                        <Clock size={13} className="text-gray-400" />
                         {activeTimePicker?.empId === row.employeeId && activeTimePicker?.field === 'outTime' && (
                           <TimePicker
                             value={activeTimePicker.value}
@@ -368,7 +372,7 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* OT */}
-                    <td className="px-[10px] text-center font-mono font-bold text-indigo-600 text-[13px]">{row.otHours || '00:00'}</td>
+                    <td className="px-[10px] text-center font-bold text-black text-[13px]" style={{ fontFamily: 'Roboto, sans-serif' }}>{row.otHours || '00:00'}</td>
 
                     {/* Remarks */}
                     <td className="px-[10px]">

@@ -79,23 +79,23 @@ export default function TimePicker({ value, onChange, onClose }) {
   return (
     <div
       ref={pickerRef}
-      className="absolute top-[calc(100%+6px)] left-0 z-[9999] bg-white rounded-[12px] shadow-[0_12px_30px_rgba(0,0,0,0.18)] border border-gray-100 font-inter animate-in fade-in slide-in-from-top-2 duration-200"
-      style={{ width: '200px', minWidth: '200px' }}
+      className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-[9999] bg-white rounded-[10px] shadow-[0_8px_24px_rgba(0,0,0,0.15)] border border-gray-100 font-inter animate-in fade-in slide-in-from-top-2 duration-150"
+      style={{ width: '170px', minWidth: '170px' }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header input preview */}
-      <div className="px-3 pt-3 pb-2 border-b border-gray-100">
-        <div className="bg-gray-50 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-700 border border-gray-200">
+      {/* Header preview */}
+      <div className="px-2.5 pt-2.5 pb-1.5 border-b border-gray-100">
+        <div className="bg-gray-50 rounded-md px-2 py-1 text-[11px] font-semibold text-gray-700 border border-gray-200 text-center">
           {displayTime}
         </div>
       </div>
 
       {/* Scroll columns */}
-      <div className="flex px-2 py-2 gap-1">
+      <div className="flex px-1.5 py-1.5 gap-0.5">
         {/* Hours column */}
         <div
           ref={hourRef}
-          className="flex-1 overflow-y-auto max-h-[160px] rounded-lg scroll-smooth"
+          className="flex-1 overflow-y-auto max-h-[130px] rounded-md scroll-smooth"
           style={{ scrollbarWidth: 'none' }}
         >
           {hours.map(h => (
@@ -103,7 +103,7 @@ export default function TimePicker({ value, onChange, onClose }) {
               key={h}
               data-val={h}
               onClick={() => setHour(h)}
-              className={`text-center py-1.5 text-[14px] font-semibold rounded-md cursor-pointer transition-all select-none
+              className={`text-center py-1 text-[11px] font-semibold rounded cursor-pointer transition-all select-none
                 ${hour === h ? 'bg-blue-100 text-blue-700 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               {h}
@@ -114,7 +114,7 @@ export default function TimePicker({ value, onChange, onClose }) {
         {/* Minutes column */}
         <div
           ref={minuteRef}
-          className="flex-1 overflow-y-auto max-h-[160px] rounded-lg scroll-smooth"
+          className="flex-1 overflow-y-auto max-h-[130px] rounded-md scroll-smooth"
           style={{ scrollbarWidth: 'none' }}
         >
           {minutes.map(m => (
@@ -122,7 +122,7 @@ export default function TimePicker({ value, onChange, onClose }) {
               key={m}
               data-val={m}
               onClick={() => setMinute(m)}
-              className={`text-center py-1.5 text-[14px] font-semibold rounded-md cursor-pointer transition-all select-none
+              className={`text-center py-1 text-[11px] font-semibold rounded cursor-pointer transition-all select-none
                 ${minute === m ? 'bg-blue-100 text-blue-700 font-bold' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               {m}
@@ -131,12 +131,12 @@ export default function TimePicker({ value, onChange, onClose }) {
         </div>
 
         {/* AM/PM column */}
-        <div className="flex flex-col gap-1 justify-start pt-1">
+        <div className="flex flex-col gap-1 justify-start pt-0.5">
           {['AM', 'PM'].map(p => (
             <div
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-3 py-2 rounded-lg text-[13px] font-bold cursor-pointer transition-all select-none text-center
+              className={`px-2 py-1.5 rounded text-[10px] font-bold cursor-pointer transition-all select-none text-center
                 ${period === p ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
             >
               {p}
@@ -146,16 +146,16 @@ export default function TimePicker({ value, onChange, onClose }) {
       </div>
 
       {/* Footer: Now + OK */}
-      <div className="flex items-center justify-between px-3 pb-3 pt-1 border-t border-gray-100">
+      <div className="flex items-center justify-between px-2.5 pb-2.5 pt-1 border-t border-gray-100">
         <button
           onClick={handleNow}
-          className="text-[12px] font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+          className="text-[10px] font-semibold text-gray-500 hover:text-gray-800 transition-colors"
         >
           Now
         </button>
         <button
           onClick={handleOK}
-          className="bg-blue-600 text-white text-[12px] font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          className="bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-md hover:bg-blue-700 transition-colors shadow-sm"
         >
           OK
         </button>

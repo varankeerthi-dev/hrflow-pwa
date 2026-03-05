@@ -562,7 +562,7 @@ export default function SettingsTab() {
 
       {/* COMPREHENSIVE EMPLOYEE EDITOR MODAL */}
       <Modal isOpen={!!editingEmp} onClose={() => setEditingEmp(null)} title="EMPLOYEE MASTER DATA">
-        <div className="p-6 max-w-2xl mx-auto h-[80vh] flex flex-col">
+        <div className="p-6 max-w-3xl mx-auto h-[80vh] flex flex-col">
           <div className="flex-1 overflow-y-auto pr-2 space-y-6">
             <div className="flex items-center gap-6 bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-sm">
               <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center relative overflow-hidden bg-white shadow-inner group">
@@ -612,7 +612,7 @@ export default function SettingsTab() {
 
       {/* ADD NEW EMPLOYEE MODAL - Minimal, Clean Form */}
       <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add Employee">
-        <div className="flex flex-col h-[90vh] max-w-lg mx-auto font-inter bg-white">
+        <div className="flex flex-col h-[90vh] max-w-3xl mx-auto font-inter bg-white">
           {/* Scrollable Form Body */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
 
@@ -738,10 +738,10 @@ export default function SettingsTab() {
                       type="button"
                       onClick={() => setNewEmployee(e => ({ ...e, status: s }))}
                       className={`flex-1 h-10 rounded-lg text-sm font-semibold border transition-all ${newEmployee.status === s
-                          ? s === 'Active'
-                            ? 'bg-green-600 text-white border-green-600'
-                            : 'bg-red-500 text-white border-red-500'
-                          : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                        ? s === 'Active'
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-red-500 text-white border-red-500'
+                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
                         }`}
                     >
                       {s}
