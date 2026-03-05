@@ -4,9 +4,10 @@ import { useEmployees } from '../../hooks/useEmployees'
 import { db, storage } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import ImageViewer from '../ui/ImageViewer'
 
 import SalarySlabSettings from './SalarySlabSettings'
 
@@ -37,8 +38,10 @@ export default function SettingsTab() {
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [newEmployee, setNewEmployee] = useState({
-    name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
+    name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8, documents: []
   })
+  const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
+  const [viewerState, setViewerState] = useState(null) // { docs, index }
   const [newRole, setNewRole] = useState({ name: '', permissions: {} })
   const [orgSettings, setOrgSettings] = useState({
     name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: '', code: '', shiftStrategy: 'Day', logoURL: '',
@@ -211,7 +214,7 @@ export default function SettingsTab() {
       await logChange('EMPLOYEE_CREATE', 'new', { name: newEmployee.name })
       setShowAddEmployee(false)
       setNewEmployee({
-        name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
+        name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8, documents: []
       })
     } finally {
       setSaving(false)
@@ -612,6 +615,48 @@ export default function SettingsTab() {
                 </select>
               </div>
             </div>
+
+            {/* Documents Section in Edit Modal */}
+            <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5"><Paperclip size={13} /> Documents</label>
+                <span className="text-[10px] text-gray-400">{(editForm.documents || []).length} file(s)</span>
+              </div>
+              {(editForm.documents || []).length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {(editForm.documents || []).map((doc, i) => {
+                    const isImg = doc.type?.startsWith('image') || /\.(png|jpg|jpeg|gif|webp)$/i.test(doc.url || '')
+                    return (
+                      <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100">
+                        {isImg
+                          ? <img src={doc.url} alt={doc.name} className="w-8 h-8 rounded object-cover border border-gray-200" />
+                          : <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center border border-indigo-100"><FileText size={14} className="text-indigo-400" /></div>
+                        }
+                        <span className="flex-1 text-[11px] font-medium text-gray-700 truncate">{doc.name}</span>
+                        <button type="button" onClick={() => setViewerState({ docs: editForm.documents, index: i })} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition-all" title="View"><Eye size={13} /></button>
+                        <button type="button" onClick={() => setEditForm(s => ({ ...s, documents: s.documents.filter((_, idx) => idx !== i) }))} className="p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-400 transition-all" title="Remove"><X size={13} /></button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <div className="flex gap-2 items-center">
+                <label className="h-9 px-4 rounded-lg border border-gray-200 bg-white text-[12px] font-medium flex items-center gap-1.5 cursor-pointer hover:border-gray-400 hover:text-gray-900 transition-all text-gray-600">
+                  <Paperclip size={13} /> Attach Document
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files[0]
+                      if (!file) return
+                      const url = await handleFileUpload(file, `employees/${editingEmp}/docs/${Date.now()}_${file.name}`)
+                      if (url) setEditForm(s => ({ ...s, documents: [...(s.documents || []), { name: file.name, url, type: file.type }] }))
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
           </div>
           <div className="mt-6 pt-4 border-t flex gap-3">
             <button onClick={() => setEditingEmp(null)} className="flex-1 py-3 border-2 rounded-2xl font-black text-gray-400 uppercase tracking-widest text-[10px]">Cancel</button>
@@ -771,6 +816,91 @@ export default function SettingsTab() {
               />
             </div>
 
+            {/* Documents Upload Section */}
+            <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5"><Paperclip size={13} /> Documents</label>
+                <span className="text-[10px] text-gray-400">{newEmployee.documents?.length || 0} file(s)</span>
+              </div>
+
+              {/* Existing uploaded docs list */}
+              {(newEmployee.documents || []).length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {(newEmployee.documents || []).map((doc, i) => {
+                    const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(doc.url || '')
+                    return (
+                      <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100">
+                        {isImg
+                          ? <img src={doc.url} alt={doc.name} className="w-8 h-8 rounded object-cover border border-gray-200" />
+                          : <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center border border-indigo-100"><FileText size={14} className="text-indigo-400" /></div>
+                        }
+                        <span className="flex-1 text-[11px] font-medium text-gray-700 truncate">{doc.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setViewerState({ docs: newEmployee.documents, index: i })}
+                          className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition-all"
+                          title="View"
+                        >
+                          <Eye size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewEmployee(s => ({ ...s, documents: s.documents.filter((_, idx) => idx !== i) }))}
+                          className="p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-400 transition-all"
+                          title="Remove"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Upload new document row */}
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  placeholder="Document label (e.g. Aadhaar)"
+                  value={newDocUpload.name}
+                  onChange={e => setNewDocUpload(s => ({ ...s, name: e.target.value }))}
+                  className="flex-1 h-9 border border-gray-200 rounded-lg px-3 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+                <label className={`h-9 px-3 rounded-lg border text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-all ${newDocUpload.uploading
+                  ? 'bg-gray-100 text-gray-400 border-gray-200'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
+                  }`}>
+                  {newDocUpload.uploading ? (
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
+                  ) : <Paperclip size={13} />}
+                  {newDocUpload.uploading ? 'Uploading...' : 'Attach'}
+                  <input
+                    type="file"
+                    className="hidden"
+                    disabled={newDocUpload.uploading}
+                    onChange={async (e) => {
+                      const file = e.target.files[0]
+                      if (!file) return
+                      const label = newDocUpload.name.trim() || file.name
+                      setNewDocUpload(s => ({ ...s, uploading: true }))
+                      try {
+                        const url = await handleFileUpload(file, `employees/docs/${Date.now()}_${file.name}`)
+                        if (url) {
+                          setNewEmployee(s => ({
+                            ...s,
+                            documents: [...(s.documents || []), { name: label, url, type: file.type }]
+                          }))
+                        }
+                      } finally {
+                        setNewDocUpload({ name: '', file: null, uploading: false })
+                      }
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
           </div>
 
           {/* Footer */}
@@ -812,6 +942,15 @@ export default function SettingsTab() {
           <button onClick={handleAddRole} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px]">CREATE ROLE</button>
         </div>
       </Modal>
+
+      {/* Full-screen Image Viewer */}
+      {viewerState && (
+        <ImageViewer
+          docs={viewerState.docs}
+          index={viewerState.index}
+          onClose={() => setViewerState(null)}
+        />
+      )}
     </div>
   )
 }
