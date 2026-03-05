@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
-import { db, storage } from '../../lib/firebase'
+import { db, storage, auth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy } from 'lucide-react'
 import Spinner from '../ui/Spinner'
@@ -39,7 +40,36 @@ export default function SettingsTab() {
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [newEmployee, setNewEmployee] = useState({
-    name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', contactNo: '', pfNo: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8, documents: []
+    name: '',
+    empCode: '',
+    designation: '',
+    department: '',
+    shiftId: '',
+    workHours: 9,
+    site: '',
+    employmentType: 'Full-time',
+    monthlySalary: 0,
+    status: 'Active',
+    joinedDate: '',
+    bloodGroup: '',
+    dob: '',
+    fatherName: '',
+    motherName: '',
+    maritalStatus: '',
+    email: '',
+    emergencyContact: '',
+    contactNo: '',
+    pfNo: '',
+    address: '',
+    bankAccount: '',
+    photoURL: '',
+    permissionHours: 2,
+    minDailyHours: 8,
+    documents: [],
+    role: 'Employee',
+    reportingManager: '',
+    loginEnabled: false,
+    tempPassword: '',
   })
   const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
   const [viewerState, setViewerState] = useState(null) // { docs, index }
@@ -266,11 +296,71 @@ export default function SettingsTab() {
   const handleAddEmployee = async () => {
     setSaving(true)
     try {
-      await addEmployee(newEmployee)
-      await logChange('EMPLOYEE_CREATE', 'new', { name: newEmployee.name })
+      const empCode = newEmployee.empCode?.trim() ||
+        `EMP-${Date.now().toString(36).toUpperCase().slice(-4)}`
+
+      const payload = { ...newEmployee, empCode }
+      const { tempPassword, ...employeeDoc } = payload
+
+      // 1) Create employee master
+      const empId = await addEmployee(employeeDoc)
+      await logChange('EMPLOYEE_CREATE', empId, { name: employeeDoc.name })
+
+      // 2) Optionally create login-enabled auth user
+      if (employeeDoc.loginEnabled && employeeDoc.email && tempPassword) {
+        const cred = await createUserWithEmailAndPassword(auth, employeeDoc.email, tempPassword)
+        await updateProfile(cred.user, { displayName: employeeDoc.name })
+
+        await setDoc(
+          doc(db, 'users', cred.user.uid),
+          {
+            email: employeeDoc.email,
+            name: employeeDoc.name,
+            orgId: user.orgId,
+            role: (employeeDoc.role || 'Employee').toLowerCase(),
+            employeeId: empId,
+            empCode,
+            department: employeeDoc.department || '',
+            reportingManager: employeeDoc.reportingManager || '',
+            createdAt: serverTimestamp(),
+            loginEnabled: true,
+          },
+          { merge: true }
+        )
+      }
+
       setShowAddEmployee(false)
       setNewEmployee({
-        name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', contactNo: '', pfNo: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8, documents: []
+        name: '',
+        empCode: '',
+        designation: '',
+        department: '',
+        shiftId: '',
+        workHours: 9,
+        site: '',
+        employmentType: 'Full-time',
+        monthlySalary: 0,
+        status: 'Active',
+        joinedDate: '',
+        bloodGroup: '',
+        dob: '',
+        fatherName: '',
+        motherName: '',
+        maritalStatus: '',
+        email: '',
+        emergencyContact: '',
+        contactNo: '',
+        pfNo: '',
+        address: '',
+        bankAccount: '',
+        photoURL: '',
+        permissionHours: 2,
+        minDailyHours: 8,
+        documents: [],
+        role: 'Employee',
+        reportingManager: '',
+        loginEnabled: false,
+        tempPassword: '',
       })
     } finally {
       setSaving(false)
@@ -1406,6 +1496,28 @@ export default function SettingsTab() {
                 />
               </div>
               <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Department</label>
+                <input
+                  type="text"
+                  placeholder="e.g. HR, Finance"
+                  value={newEmployee.department}
+                  onChange={e => setNewEmployee(s => ({ ...s, department: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
+                <select
+                  value={newEmployee.role}
+                  onChange={e => setNewEmployee(s => ({ ...s, role: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option>Admin</option>
+                  <option>HR</option>
+                  <option>Employee</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
                 <select value={newEmployee.bloodGroup} onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
@@ -1433,6 +1545,16 @@ export default function SettingsTab() {
                 <input type="text" placeholder="Mother's full name" value={newEmployee.motherName}
                   onChange={e => setNewEmployee(s => ({ ...s, motherName: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Reporting Manager</label>
+                <input
+                  type="text"
+                  placeholder="Manager name"
+                  value={newEmployee.reportingManager}
+                  onChange={e => setNewEmployee(s => ({ ...s, reportingManager: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
               <div>
@@ -1509,6 +1631,44 @@ export default function SettingsTab() {
                 rows={3}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
               />
+            </div>
+
+            {/* Login controls */}
+            <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/60">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-[11px] font-bold text-gray-700">Login Enabled</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    If enabled, the employee can sign in using their Email / Employee ID.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewEmployee(s => ({ ...s, loginEnabled: !s.loginEnabled }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.loginEnabled ? 'bg-green-500' : 'bg-gray-300'}`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${newEmployee.loginEnabled ? 'translate-x-5' : 'translate-x-1'}`}
+                  />
+                </button>
+              </div>
+              {newEmployee.loginEnabled && (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password</label>
+                    <input
+                      type="password"
+                      value={newEmployee.tempPassword}
+                      onChange={e => setNewEmployee(s => ({ ...s, tempPassword: e.target.value }))}
+                      className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                      placeholder="Min 6 characters"
+                    />
+                  </div>
+                  <div className="flex items-end text-[10px] text-gray-400">
+                    HR can ask the employee to change this password after first login.
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Documents Upload Section */}

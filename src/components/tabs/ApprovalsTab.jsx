@@ -1,8 +1,11 @@
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useOTApprovals } from '../../hooks/useOTApprovals'
+import { db } from '../../lib/firebase'
+import { collection, query, where, getDocs, orderBy, doc, updateDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
-import { CheckCircle2, XCircle, Clock, Search, Filter } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, Search, Filter, FileText, Calendar as CalendarIcon } from 'lucide-react'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -12,10 +15,37 @@ export default function ApprovalsTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const { otApprovals, loading, updateOTStatus } = useOTApprovals(user?.orgId)
+  const [empRequests, setEmpRequests] = useState([])
+  const [loadingReq, setLoadingReq] = useState(false)
+
+  useEffect(() => {
+    const loadRequests = async () => {
+      if (!user?.orgId) return
+      setLoadingReq(true)
+      try {
+        const q = query(
+          collection(db, 'organisations', user.orgId, 'requests'),
+          where('status', '==', 'Pending'),
+          orderBy('createdAt', 'desc')
+        )
+        const snap = await getDocs(q)
+        setEmpRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      } finally {
+        setLoadingReq(false)
+      }
+    }
+    loadRequests()
+  }, [user?.orgId])
 
   const handleApproval = async (id, status) => {
     if (!user?.uid) return
     await updateOTStatus(id, status, user.uid)
+  }
+
+  const updateRequestStatus = async (id, status) => {
+    if (!user?.orgId) return
+    await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), { status })
+    setEmpRequests(prev => prev.map(r => (r.id === id ? { ...r, status } : r)))
   }
 
   return (
@@ -115,6 +145,111 @@ export default function ApprovalsTab() {
                     </tr>
                   )
                 })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Employee Requests Approvals */}
+      <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+          <FileText size={16} className="text-indigo-500" />
+          <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-widest">
+            Leave / Permission / Advance
+          </h4>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="h-[42px] bg-[#f9fafb]">
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">
+                  Employee
+                </th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">
+                  Request Type
+                </th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">
+                  Date / Details
+                </th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f1f5f9]">
+              {loadingReq ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-12">
+                    <Spinner />
+                  </td>
+                </tr>
+              ) : empRequests.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="text-center py-16 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic"
+                  >
+                    No pending employee requests
+                  </td>
+                </tr>
+              ) : (
+                empRequests.map(req => (
+                  <tr key={req.id} className="h-[48px] hover:bg-[#f8fafc] transition-colors group">
+                    <td className="px-[16px]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-gray-100 text-gray-500 text-[10px] font-bold">
+                          {getInitials(req.employeeName)}
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-bold text-gray-700 uppercase tracking-tight">
+                            {req.employeeName}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-[16px] text-[12px] font-semibold text-gray-700">
+                      {req.type}
+                    </td>
+                    <td className="px-[16px] text-[12px] text-gray-600">
+                      {req.type === 'Leave' && (
+                        <>
+                          {req.leaveType || 'Leave'} — {req.fromDate} to {req.toDate || req.fromDate}
+                        </>
+                      )}
+                      {req.type === 'Permission' && (
+                        <>
+                          {req.permissionDate} at {req.permissionTime || '--'}
+                        </>
+                      )}
+                      {req.type === 'Advance' && <>₹{req.amount}</>}
+                    </td>
+                    <td className="px-[16px]">
+                      <span className="inline-flex items-center gap-1 text-amber-600 text-[10px] font-black uppercase tracking-widest">
+                        <Clock size={12} /> {req.status}
+                      </span>
+                    </td>
+                    <td className="px-[16px]">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => updateRequestStatus(req.id, 'Approved')}
+                          className="h-[32px] px-3 bg-green-50 text-green-700 rounded-md text-[11px] font-bold uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all shadow-sm"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => updateRequestStatus(req.id, 'Rejected')}
+                          className="h-[32px] px-3 bg-red-50 text-red-700 rounded-md text-[11px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

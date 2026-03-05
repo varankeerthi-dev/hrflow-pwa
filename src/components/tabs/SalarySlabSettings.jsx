@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useSalarySlab } from '../../hooks/useSalarySlab'
+import { db } from '../../lib/firebase'
+import { collection, getDocs, setDoc, doc } from 'firebase/firestore'
+import { salarySlipWindowsCol } from '../../lib/firestore'
 import Spinner from '../ui/Spinner'
-import { Wallet, TrendingUp, Check, Save } from 'lucide-react'
+import { Wallet, TrendingUp, Check, Save, Calendar as CalendarIcon } from 'lucide-react'
 
 export default function SalarySlabSettings() {
   const { user } = useAuth()
@@ -13,6 +16,8 @@ export default function SalarySlabSettings() {
   const [activeTab, setActiveTab] = useState('structure')
   const [forms, setForms] = useState({})
   const [newInc, setNewInc] = useState({ employeeId: '', newSalary: 0, effectiveFrom: '', reason: '' })
+  const [windows, setWindows] = useState([])
+  const [newWindow, setNewWindow] = useState({ month: '', viewFrom: '', viewUntil: '' })
 
   useEffect(() => {
     const initialForms = {}
@@ -22,6 +27,15 @@ export default function SalarySlabSettings() {
     })
     setForms(initialForms)
   }, [employees, slabs])
+
+  useEffect(() => {
+    const loadWindows = async () => {
+      if (!user?.orgId) return
+      const snap = await getDocs(salarySlipWindowsCol(user.orgId))
+      setWindows(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    }
+    loadWindows()
+  }, [user?.orgId])
 
   const handleFormChange = (empId, field, value) => {
     setForms(prev => ({ ...prev, [empId]: { ...prev[empId], [field]: value } }))
@@ -72,6 +86,25 @@ export default function SalarySlabSettings() {
     alert('Increment logged successfully')
   }
 
+  const handleSaveWindow = async () => {
+    if (!user?.orgId) return
+    if (!newWindow.month || !newWindow.viewFrom || !newWindow.viewUntil) {
+      alert('All fields are required')
+      return
+    }
+    await setDoc(
+      doc(db, 'organisations', user.orgId, 'salarySlipWindows', newWindow.month),
+      {
+        month: newWindow.month,
+        viewFrom: newWindow.viewFrom,
+        viewUntil: newWindow.viewUntil,
+      }
+    )
+    const snap = await getDocs(salarySlipWindowsCol(user.orgId))
+    setWindows(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    setNewWindow({ month: '', viewFrom: '', viewUntil: '' })
+  }
+
   if (empLoading || slabLoading) return <div className="py-12 text-center"><Spinner /></div>
 
   return (
@@ -84,6 +117,7 @@ export default function SalarySlabSettings() {
         <div className="bg-gray-100 p-1 rounded-lg flex shadow-sm border border-gray-200">
           <button onClick={() => setActiveTab('structure')} className={`px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-widest transition-all ${activeTab === 'structure' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Definition</button>
           <button onClick={() => setActiveTab('increment')} className={`px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-widest transition-all ${activeTab === 'increment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Increments</button>
+          <button onClick={() => setActiveTab('release')} className={`px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-widest transition-all ${activeTab === 'release' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Release</button>
         </div>
       </div>
 
@@ -234,6 +268,99 @@ export default function SalarySlabSettings() {
                     )
                   })}
                   {increments.length === 0 && <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-medium uppercase tracking-widest text-lg opacity-40">No records archived</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'release' && (
+        <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarIcon size={18} className="text-indigo-500" />
+              <span className="text-[12px] font-bold text-gray-800 uppercase tracking-widest">Salary Slip Release Settings</span>
+            </div>
+          </div>
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">
+                  Salary Month
+                </label>
+                <input
+                  type="month"
+                  value={newWindow.month}
+                  onChange={e => setNewWindow(s => ({ ...s, month: e.target.value }))}
+                  className="w-full h-[40px] border border-gray-200 rounded-lg px-3 text-sm font-bold bg-gray-50/50 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">
+                  View From
+                </label>
+                <input
+                  type="date"
+                  value={newWindow.viewFrom}
+                  onChange={e => setNewWindow(s => ({ ...s, viewFrom: e.target.value }))}
+                  className="w-full h-[40px] border border-gray-200 rounded-lg px-3 text-sm font-bold bg-gray-50/50 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">
+                  View Until
+                </label>
+                <input
+                  type="date"
+                  value={newWindow.viewUntil}
+                  onChange={e => setNewWindow(s => ({ ...s, viewUntil: e.target.value }))}
+                  className="w-full h-[40px] border border-gray-200 rounded-lg px-3 text-sm font-bold bg-gray-50/50 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <button
+                  onClick={handleSaveWindow}
+                  className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg uppercase tracking-[0.15em] text-[11px] shadow-lg hover:bg-indigo-700 mt-4 md:mt-0"
+                >
+                  Save Window
+                </button>
+              </div>
+            </div>
+
+            <div className="border border-gray-100 rounded-[12px] overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 border-b">
+                  <tr className="h-[40px]">
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">
+                      Salary Month
+                    </th>
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">
+                      View From
+                    </th>
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">
+                      View Until
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {windows.map(w => (
+                    <tr key={w.id} className="h-[40px] hover:bg-gray-50/50">
+                      <td className="px-4 text-[12px] font-bold text-gray-800">{w.month}</td>
+                      <td className="px-4 text-[12px] text-gray-600">{w.viewFrom}</td>
+                      <td className="px-4 text-[12px] text-gray-600">{w.viewUntil}</td>
+                    </tr>
+                  ))}
+                  {windows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="px-4 py-8 text-center text-[12px] text-gray-300 font-medium uppercase tracking-widest"
+                      >
+                        No release windows configured
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

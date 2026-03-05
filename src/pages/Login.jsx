@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, formatAuthError } from '../hooks/useAuth'
+import { db } from '../lib/firebase'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 
 // Google SVG logo
 const GoogleIcon = () => (
@@ -224,7 +226,23 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
+      const identifier = email.trim()
+
+      if (identifier.includes('@')) {
+        await login(identifier, password)
+      } else {
+        const q = query(collection(db, 'users'), where('empCode', '==', identifier))
+        const snap = await getDocs(q)
+        if (snap.empty) {
+          throw { code: 'auth/user-not-found' }
+        }
+        const data = snap.docs[0].data()
+        if (data.loginEnabled === false) {
+          throw new Error('Login is disabled for this employee.')
+        }
+        await login(data.email, password)
+      }
+
       navigate('/')
     } catch (err) {
       setError(formatAuthError(err))
@@ -342,13 +360,13 @@ export default function Login() {
             <>
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID or Email</label>
                   <input
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    placeholder="you@example.com"
+                    placeholder="EMP-001 or you@example.com"
                     required
                   />
                 </div>

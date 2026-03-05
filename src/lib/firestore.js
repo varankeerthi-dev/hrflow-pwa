@@ -29,3 +29,6 @@ export const otApprovalsCol = (orgId) =>
 
 export const activityLogsCol = (orgId) =>
   collection(db, 'organisations', orgId, 'activityLogs')
+
+export const salarySlipWindowsCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'salarySlipWindows')

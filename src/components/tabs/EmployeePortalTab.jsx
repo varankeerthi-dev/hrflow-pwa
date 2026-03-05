@@ -1,36 +1,102 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { useAttendance } from '../../hooks/useAttendance'
+import { useEmployees } from '../../hooks/useEmployees'
+import { useAttendance, calcOT } from '../../hooks/useAttendance'
+import { attendanceCol } from '../../lib/firestore'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
-import { User, Calendar, FileText, Plus, ArrowRight, ShieldCheck, Mail, Building, Landmark, Hash, Clock } from 'lucide-react'
+import { User, Calendar, FileText, Plus, ArrowRight, ShieldCheck, Mail, Building, Landmark, Hash, Clock, LayoutDashboard } from 'lucide-react'
 
 export default function EmployeePortalTab() {
   const { user } = useAuth()
-  const { fetchByDate } = useAttendance(user?.orgId)
-  
-  const [activePortalTab, setActivePortalTab] = useState('profile')
+  const { employees } = useEmployees(user?.orgId)
+  const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
+
+  const employee = useMemo(
+    () => employees.find(e => e.id === user?.employeeId || e.email === user?.email),
+    [employees, user?.employeeId, user?.email]
+  )
+  const employeeId = employee?.id
+
+  const [activePortalTab, setActivePortalTab] = useState('dashboard')
   const [loading, setLoading] = useState(false)
-  
-  // Requests State
   const [requests, setRequests] = useState([])
   const [showRequestModal, setShowRequestModal] = useState(false)
-  const [requestForm, setRequestForm] = useState({ type: 'Leave', startDate: '', endDate: '', reason: '' })
+  const [requestForm, setRequestForm] = useState({
+    type: 'Leave',
+    leaveType: '',
+    fromDate: '',
+    toDate: '',
+    date: '',
+    time: '',
+    amount: '',
+    reason: '',
+  })
+  const [month, setMonth] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const [attendanceRows, setAttendanceRows] = useState([])
+  const [todayRecord, setTodayRecord] = useState(null)
 
   useEffect(() => {
-    if (!user?.orgId || !user?.uid) return
+    if (!user?.orgId || !employeeId) return
     fetchRequests()
-  }, [user?.orgId, user?.uid])
+  }, [user?.orgId, employeeId])
+
+  useEffect(() => {
+    if (!user?.orgId || !employeeId || !month) return
+
+    const loadMonth = async () => {
+      const [year, mon] = month.split('-')
+      const start = `${month}-01`
+      const endDay = new Date(year, mon, 0).getDate()
+      const end = `${month}-${String(endDay).padStart(2, '0')}`
+
+      const q = query(
+        attendanceCol(user.orgId),
+        where('employeeId', '==', employeeId),
+        where('date', '>=', start),
+        where('date', '<=', end)
+      )
+      const snap = await getDocs(q)
+      const map = {}
+      snap.docs.forEach(d => {
+        const rec = d.data()
+        map[rec.date] = rec
+      })
+
+      const days = []
+      for (let i = 1; i <= endDay; i++) {
+        const dStr = `${month}-${String(i).padStart(2, '0')}`
+        days.push({ date: dStr, record: map[dStr] || null })
+      }
+      setAttendanceRows(days)
+    }
+
+    loadMonth()
+  }, [user?.orgId, employeeId, month])
+
+  useEffect(() => {
+    const loadToday = async () => {
+      if (!user?.orgId || !employeeId) return
+      const today = new Date().toISOString().split('T')[0]
+      const records = await fetchByDate(today)
+      setTodayRecord(records.find(r => r.employeeId === employeeId) || null)
+    }
+    loadToday()
+  }, [user?.orgId, employeeId, fetchByDate])
 
   const fetchRequests = async () => {
     setLoading(true)
     try {
       const q = query(
         collection(db, 'organisations', user.orgId, 'requests'),
-        where('employeeId', '==', user.uid),
+        where('employeeId', '==', employeeId),
         orderBy('createdAt', 'desc')
       )
       const snap = await getDocs(q)
@@ -43,15 +109,41 @@ export default function EmployeePortalTab() {
   }
 
   const handleRequestSubmit = async () => {
-    if (!requestForm.startDate || !requestForm.reason) return
+    if (!requestForm.reason) return
     setLoading(true)
     try {
-      await addDoc(collection(db, 'organisations', user.orgId, 'requests'), {
-        ...requestForm,
-        employeeId: user.uid,
-        employeeName: user.name,
+      const base = {
+        employeeId,
+        employeeName: employee?.name || user.name,
+        type: requestForm.type,
         status: 'Pending',
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        reason: requestForm.reason,
+      }
+
+      let payload = base
+      if (requestForm.type === 'Leave') {
+        payload = {
+          ...base,
+          leaveType: requestForm.leaveType || '',
+          fromDate: requestForm.fromDate,
+          toDate: requestForm.toDate || requestForm.fromDate,
+        }
+      } else if (requestForm.type === 'Permission') {
+        payload = {
+          ...base,
+          permissionDate: requestForm.date,
+          permissionTime: requestForm.time,
+        }
+      } else if (requestForm.type === 'Advance') {
+        payload = {
+          ...base,
+          amount: Number(requestForm.amount || 0),
+        }
+      }
+
+      await addDoc(collection(db, 'organisations', user.orgId, 'requests'), {
+        ...payload,
       })
       setShowRequestModal(false)
       fetchRequests()
@@ -62,15 +154,69 @@ export default function EmployeePortalTab() {
     }
   }
 
+  const handleCheckIn = async () => {
+    if (!employeeId) return
+    const today = new Date().toISOString().split('T')[0]
+    const now = new Date()
+    const timeStr = now.toTimeString().slice(0, 5)
+
+    const records = await fetchByDate(today)
+    const mine = records.find(r => r.employeeId === employeeId)
+
+    const row = mine || {
+      employeeId,
+      name: employee?.name || user.name,
+      date: today,
+      inDate: today,
+      outDate: today,
+      outTime: '',
+      otHours: '00:00',
+      isAbsent: false,
+      sundayWorked: false,
+      sundayHoliday: false,
+      status: 'Present',
+    }
+
+    if (!row.inTime) {
+      row.inTime = timeStr
+      await upsertAttendance([row])
+      setTodayRecord(row)
+    }
+  }
+
+  const handleCheckOut = async () => {
+    if (!employeeId) return
+    const today = new Date().toISOString().split('T')[0]
+    const now = new Date()
+    const timeStr = now.toTimeString().slice(0, 5)
+    const records = await fetchByDate(today)
+    const mine = records.find(r => r.employeeId === employeeId)
+    if (!mine) return
+
+    mine.outTime = timeStr
+    mine.otHours = calcOT(mine.inTime, mine.outTime, mine.inDate, mine.outDate, mine.workHours || 9)
+    await upsertAttendance([mine])
+    setTodayRecord(mine)
+  }
+
+  const getStatusLabel = (rec) => {
+    if (!rec) return 'Absent'
+    if (rec.inTime && !rec.outTime) return 'Pending Checkout'
+    if (rec.isAbsent) return 'Absent'
+    return 'Present'
+  }
+
   return (
     <div className="h-full flex flex-col font-inter gap-8 pb-10">
       {/* SaaS Sub-Navigation */}
       <div className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100 flex justify-between items-center">
         <div className="flex bg-gray-100 p-1 rounded-lg">
           {[
-            { id: 'profile', label: 'My Identity', icon: <User size={16} /> },
-            { id: 'attendance', label: 'Work Logs', icon: <Calendar size={16} /> },
-            { id: 'requests', label: 'Internal Requests', icon: <FileText size={16} /> }
+            { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
+            { id: 'attendance', label: 'My Attendance', icon: <Calendar size={16} /> },
+            { id: 'requests', label: 'My Requests', icon: <FileText size={16} /> },
+            { id: 'salary', label: 'Salary Slip', icon: <Hash size={16} /> },
+            { id: 'profile', label: 'Profile', icon: <User size={16} /> }
           ].map(t => (
             <button
               key={t.id}
@@ -93,6 +239,110 @@ export default function EmployeePortalTab() {
       </div>
 
       <div className="flex-1 overflow-auto">
+        {activePortalTab === 'dashboard' && (
+          <div className="max-w-5xl mx-auto space-y-6">
+            <div className="bg-white rounded-[12px] p-8 border border-gray-100 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Welcome</p>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+                  {employee?.name || user?.name}
+                </h2>
+                <p className="text-[12px] text-gray-500 mt-2">
+                  Quick access to your workday: attendance, requests and salary slips.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCheckIn}
+                  className="h-[40px] px-4 rounded-lg bg-green-600 text-white text-[11px] font-black uppercase tracking-[0.16em]"
+                >
+                  Check In
+                </button>
+                <button
+                  onClick={handleCheckOut}
+                  className="h-[40px] px-4 rounded-lg bg-gray-900 text-white text-[11px] font-black uppercase tracking-[0.16em]"
+                >
+                  Check Out
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Today&apos;s Attendance
+                </p>
+                {todayRecord ? (
+                  <div className="space-y-2 text-[13px]">
+                    <p className="font-semibold text-gray-800">
+                      Status: {getStatusLabel(todayRecord)}
+                    </p>
+                    <p className="text-gray-500">
+                      In: {todayRecord.inTime ? formatTimeTo12Hour(todayRecord.inTime) : '—'}
+                    </p>
+                    <p className="text-gray-500">
+                      Out: {todayRecord.outTime ? formatTimeTo12Hour(todayRecord.outTime) : '—'}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-gray-400">No record yet for today.</p>
+                )}
+              </div>
+
+              <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Leave Balance
+                </p>
+                <p className="text-2xl font-black text-gray-900">
+                  {employee?.leaveBalance ?? '--'} <span className="text-sm font-semibold">days</span>
+                </p>
+                <p className="text-[12px] text-gray-500 mt-2">
+                  Contact HR if your leave balance looks incorrect.
+                </p>
+              </div>
+
+              <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Pending Requests
+                </p>
+                <p className="text-2xl font-black text-gray-900">
+                  {requests.filter(r => r.status === 'Pending').length}
+                </p>
+                <p className="text-[12px] text-gray-500 mt-2">
+                  Leave, permission and advance requests awaiting HR approval.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm flex flex-wrap gap-3">
+              <button
+                onClick={() => setShowRequestModal(true)}
+                className="h-[36px] px-4 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-[0.18em]"
+              >
+                Apply Leave
+              </button>
+              <button
+                onClick={() => {
+                  setRequestForm(f => ({ ...f, type: 'Advance' }))
+                  setShowRequestModal(true)
+                }}
+                className="h-[36px] px-4 rounded-lg bg-emerald-600 text-white text-[11px] font-black uppercase tracking-[0.18em]"
+              >
+                Request Advance
+              </button>
+              <button
+                onClick={() => {
+                  setRequestForm(f => ({ ...f, type: 'Permission' }))
+                  setShowRequestModal(true)
+                }}
+                className="h-[36px] px-4 rounded-lg bg-amber-500 text-white text-[11px] font-black uppercase tracking-[0.18em]"
+              >
+                Request Permission
+              </button>
+            </div>
+          </div>
+        )}
+
         {activePortalTab === 'profile' && (
           <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Profile Hero Card */}
@@ -106,9 +356,9 @@ export default function EmployeePortalTab() {
                   <span className="bg-green-100 text-green-700 px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-200">Active Duty</span>
                 </div>
                 <div className="flex flex-wrap gap-6 mt-4">
-                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><ShieldCheck size={14} className="text-indigo-500" /> {user?.role || 'Staff'}</div>
-                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><Building size={14} className="text-indigo-500" /> {user?.department || 'Operations'}</div>
-                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><Clock size={14} className="text-indigo-500" /> Joined {user?.joinedDate || 'N/A'}</div>
+                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><ShieldCheck size={14} className="text-indigo-500" /> {user?.role || 'Employee'}</div>
+                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><Building size={14} className="text-indigo-500" /> {employee?.department || user?.department || 'Operations'}</div>
+                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><Clock size={14} className="text-indigo-500" /> Joined {employee?.joinedDate || 'N/A'}</div>
                 </div>
               </div>
             </div>
@@ -123,9 +373,9 @@ export default function EmployeePortalTab() {
                 {[
                   { label: 'Primary Email', value: user?.email, icon: <Mail size={16} /> },
                   { label: 'Organisation', value: user?.orgName, icon: <Building size={16} /> },
-                  { label: 'Staff Identifier', value: user?.empCode || 'EX-999', icon: <Hash size={16} /> },
-                  { label: 'Settlement Account', value: user?.bankAccount || 'Not Configured', icon: <Landmark size={16} /> },
-                  { label: 'Permission Allowance', value: `${user?.permissionHours || 2}h Monthly`, icon: <Clock size={16} /> },
+                  { label: 'Staff Identifier', value: employee?.empCode || user?.empCode || 'N/A', icon: <Hash size={16} /> },
+                  { label: 'Settlement Account', value: employee?.bankAccount || 'Not Configured', icon: <Landmark size={16} /> },
+                  { label: 'Permission Allowance', value: `${employee?.permissionHours || user?.permissionHours || 2}h Monthly`, icon: <Clock size={16} /> },
                   { label: 'Internal Status', value: 'Permanent Employee', icon: <ShieldCheck size={16} /> }
                 ].map(info => (
                   <div key={info.label} className="p-8 hover:bg-gray-50/50 transition-colors">
@@ -137,6 +387,111 @@ export default function EmployeePortalTab() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {activePortalTab === 'attendance' && (
+          <div className="max-w-5xl mx-auto space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    setMonth(prev => {
+                      const [y, m] = prev.split('-').map(Number)
+                      const d = new Date(y, m - 2, 1)
+                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                    })
+                  }
+                  className="px-2 py-1 rounded-md hover:bg-gray-100 text-gray-500"
+                >
+                  ◀
+                </button>
+                <span className="text-sm font-semibold text-gray-800">
+                  {month}
+                </span>
+                <button
+                  onClick={() =>
+                    setMonth(prev => {
+                      const [y, m] = prev.split('-').map(Number)
+                      const d = new Date(y, m, 1)
+                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                    })
+                  }
+                  className="px-2 py-1 rounded-md hover:bg-gray-100 text-gray-500"
+                >
+                  ▶
+                </button>
+              </div>
+              <input
+                type="month"
+                value={month}
+                onChange={e => setMonth(e.target.value)}
+                className="h-[36px] border border-gray-200 rounded-lg px-3 text-sm bg-gray-50/50 outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-[#f9fafb]">
+                  <tr className="h-[38px]">
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">
+                      Date
+                    </th>
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest text-center">
+                      In Time
+                    </th>
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest text-center">
+                      Out Time
+                    </th>
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest text-center">
+                      OT
+                    </th>
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest text-center">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {attendanceRows.map(r => {
+                    const rec = r.record
+                    const d = new Date(r.date)
+                    const label = d.toLocaleDateString(undefined, {
+                      day: '2-digit',
+                      month: 'short',
+                    })
+                    return (
+                      <tr key={r.date} className="h-[34px] hover:bg-gray-50/60">
+                        <td className="px-4 text-[12px] text-gray-700">{label}</td>
+                        <td className="px-4 text-[12px] text-center text-gray-800">
+                          {rec?.inTime ? formatTimeTo12Hour(rec.inTime) : '—'}
+                        </td>
+                        <td className="px-4 text-[12px] text-center text-gray-800">
+                          {rec?.outTime ? formatTimeTo12Hour(rec.outTime) : '—'}
+                        </td>
+                        <td className="px-4 text-[12px] text-center text-gray-900 font-mono">
+                          {rec?.otHours || '00:00'}
+                        </td>
+                        <td className="px-4 text-[11px] text-center">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-gray-100 text-gray-600">
+                            {getStatusLabel(rec)}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {attendanceRows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-4 py-8 text-center text-[12px] text-gray-300 font-medium uppercase tracking-widest"
+                      >
+                        No attendance records for this month
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -165,9 +520,22 @@ export default function EmployeePortalTab() {
                     </div>
                     <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">{req.type}</span>
                   </div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest flex items-center gap-2"><Calendar size={12} /> Scheduled Interval</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest flex items-center gap-2">
+                    <Calendar size={12} /> Details
+                  </p>
                   <p className="text-sm font-black text-gray-800 mb-6 flex items-center gap-2">
-                    {req.startDate} <ArrowRight size={14} className="text-gray-300" /> {req.endDate || 'One-off'}
+                    {req.type === 'Leave' && (
+                      <>
+                        {req.leaveType || 'Leave'}: {req.fromDate} <ArrowRight size={14} className="text-gray-300" />{' '}
+                        {req.toDate || req.fromDate}
+                      </>
+                    )}
+                    {req.type === 'Permission' && (
+                      <>
+                        {req.permissionDate} at {req.permissionTime || '--'}
+                      </>
+                    )}
+                    {req.type === 'Advance' && <>₹{req.amount}</>}
                   </p>
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Justification</p>
                   <p className="text-[13px] font-medium text-gray-600 italic leading-relaxed line-clamp-3">"{req.reason}"</p>
@@ -189,26 +557,98 @@ export default function EmployeePortalTab() {
         )}
       </div>
 
-      <Modal isOpen={showRequestModal} onClose={() => setShowRequestModal(false)} title="New Protocol Request">
+      <Modal isOpen={showRequestModal} onClose={() => setShowRequestModal(false)} title="New Request">
         <form onSubmit={e => { e.preventDefault(); handleRequestSubmit(); }} className="p-10 space-y-8 max-w-lg mx-auto font-inter">
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Protocol Classification</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Request Type</label>
             <div className="flex bg-gray-100 p-1.5 rounded-xl border border-gray-200">
-              {['Leave', 'Permission'].map(t => (
+              {['Leave', 'Permission', 'Advance'].map(t => (
                 <button key={t} type="button" onClick={() => setRequestForm(f => ({ ...f, type: t }))} className={`flex-1 py-3 rounded-lg text-[11px] font-black tracking-[0.1em] transition-all uppercase ${requestForm.type === t ? 'bg-white shadow-lg text-indigo-600 border border-indigo-50' : 'text-gray-400'}`}>{t}</button>
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Start Date</label>
-              <input type="date" value={requestForm.startDate} onChange={e => setRequestForm(f => ({ ...f, startDate: e.target.value }))} className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none" />
+          {requestForm.type === 'Leave' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                  Leave Type
+                </label>
+                <input
+                  type="text"
+                  value={requestForm.leaveType}
+                  onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
+                  className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="Casual / Sick / Paid"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                    From Date
+                  </label>
+                  <input
+                    type="date"
+                    value={requestForm.fromDate}
+                    onChange={e => setRequestForm(f => ({ ...f, fromDate: e.target.value }))}
+                    className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                    To Date
+                  </label>
+                  <input
+                    type="date"
+                    value={requestForm.toDate}
+                    onChange={e => setRequestForm(f => ({ ...f, toDate: e.target.value }))}
+                    className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">End Date (Optional)</label>
-              <input type="date" value={requestForm.endDate} onChange={e => setRequestForm(f => ({ ...f, endDate: e.target.value }))} className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none" />
+          )}
+
+          {requestForm.type === 'Permission' && (
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={requestForm.date}
+                  onChange={e => setRequestForm(f => ({ ...f, date: e.target.value }))}
+                  className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                  Time
+                </label>
+                <input
+                  type="time"
+                  value={requestForm.time}
+                  onChange={e => setRequestForm(f => ({ ...f, time: e.target.value }))}
+                  className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
             </div>
-          </div>
+          )}
+
+          {requestForm.type === 'Advance' && (
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                Amount
+              </label>
+              <input
+                type="number"
+                value={requestForm.amount}
+                onChange={e => setRequestForm(f => ({ ...f, amount: e.target.value }))}
+                className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                placeholder="₹"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Detailed Justification</label>
             <textarea value={requestForm.reason} onChange={e => setRequestForm(f => ({ ...f, reason: e.target.value }))} className="w-full border border-gray-200 rounded-xl p-5 text-sm font-medium outline-none bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 h-[120px] transition-all" placeholder="Briefly state the reason for this administrative request..." />
