@@ -270,10 +270,51 @@ export default function SettingsTab() {
   const handleSaveEmployee = async () => {
     setSaving(true)
     try {
+      const empDoc = await getDoc(doc(db, 'organisations', user.orgId, 'employees', editingEmp))
+      const empData = empDoc.exists() ? empDoc.data() : {}
+      
       await updateEmployee(editingEmp, editForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
+
+      if (editForm.loginEnabled && editForm.email) {
+        const tempPassword = editForm.tempPassword || `HRFlow${Date.now()}`
+        
+        try {
+          const cred = await createUserWithEmailAndPassword(auth, editForm.email, tempPassword)
+          await updateProfile(cred.user, { displayName: editForm.name })
+
+          await setDoc(
+            doc(db, 'users', cred.user.uid),
+            {
+              email: editForm.email,
+              name: editForm.name,
+              orgId: user.orgId,
+              role: (editForm.role || 'employee').toLowerCase(),
+              employeeId: editingEmp,
+              empCode: editForm.empCode,
+              department: editForm.department || '',
+              reportingManager: editForm.reportingManager || '',
+              createdAt: serverTimestamp(),
+              loginEnabled: true,
+            },
+            { merge: true }
+          )
+          
+          alert(`Login enabled! Temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
+        } catch (authErr) {
+          if (authErr.code === 'auth/email-already-in-use') {
+            alert('Login enabled. Employee can login with their existing credentials.')
+          } else {
+            console.error('Auth error:', authErr)
+          }
+        }
+      }
+
       setEditingEmp(null)
       setEditForm({})
+    } catch (err) {
+      console.error('Error saving employee:', err)
+      alert('Failed to save employee: ' + err.message)
     } finally {
       setSaving(false)
     }
@@ -705,9 +746,55 @@ export default function SettingsTab() {
                             <span className="text-[12px] text-gray-600 font-medium">{col.label}</span>
                           </label>
                         ))}
-                      </div>
-                    </div>
+            </div>
 
+            {/* Login Access Section */}
+            <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5">Login Access</label>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Enable employee to log in to HRFlow</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditForm(s => ({ ...s, loginEnabled: !s.loginEnabled }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.loginEnabled ? 'bg-green-500' : 'bg-gray-300'}`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editForm.loginEnabled ? 'translate-x-5' : 'translate-x-1'}`}
+                  />
+                </button>
+              </div>
+              {editForm.loginEnabled && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
+                    <input type="email" placeholder="employee@company.com" value={editForm.email || ''}
+                      onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))}
+                      className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Temp Password</label>
+                    <input type="text" placeholder="Leave blank for auto-generate" value={editForm.tempPassword || ''}
+                      onChange={e => setEditForm(s => ({ ...s, tempPassword: e.target.value }))}
+                      className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                    />
+                    <p className="text-[9px] text-gray-400 mt-1">If blank, a password will be auto-generated</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Role</label>
+                    <select value={editForm.role || 'Employee'} onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                      <option value="Employee">Employee</option>
+                      <option value="HR">HR</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
                     <button
                       onClick={() => setShowAddEmployee(true)}
                       className="h-[34px] px-4 bg-gray-900 text-white text-[12px] font-semibold rounded-lg hover:bg-gray-800 transition-all flex items-center gap-1.5"
@@ -1653,19 +1740,40 @@ export default function SettingsTab() {
                 </button>
               </div>
               {newEmployee.loginEnabled && (
-                <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="mt-3 space-y-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password</label>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">Email</label>
                     <input
-                      type="password"
-                      value={newEmployee.tempPassword}
-                      onChange={e => setNewEmployee(s => ({ ...s, tempPassword: e.target.value }))}
+                      type="email"
+                      value={newEmployee.email}
+                      onChange={e => setNewEmployee(s => ({ ...s, email: e.target.value }))}
                       className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                      placeholder="Min 6 characters"
+                      placeholder="employee@company.com"
                     />
                   </div>
-                  <div className="flex items-end text-[10px] text-gray-400">
-                    HR can ask the employee to change this password after first login.
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password</label>
+                      <input
+                        type="password"
+                        value={newEmployee.tempPassword}
+                        onChange={e => setNewEmployee(s => ({ ...s, tempPassword: e.target.value }))}
+                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                        placeholder="Min 6 characters"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
+                      <select
+                        value={newEmployee.role}
+                        onChange={e => setNewEmployee(s => ({ ...s, role: e.target.value }))}
+                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                      >
+                        <option value="Employee">Employee</option>
+                        <option value="HR">HR</option>
+                        <option value="Admin">Admin</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
