@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
-import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, deleteDoc, doc } from 'firebase/firestore'
+import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc } from 'firebase/firestore'
 import { Wallet, Plus, Filter, Trash2, Receipt, Search } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
@@ -15,6 +15,7 @@ export default function AdvanceExpenseTab() {
   const [entries, setEntries] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [filterType, setFilterType] = useState('All')
+  const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
   
   const [form, setForm] = useState({
     employeeId: '',
@@ -25,7 +26,8 @@ export default function AdvanceExpenseTab() {
     reason: ''
   })
 
-  const categories = ['Salary Advance', 'Travel', 'Food', 'Medical', 'Office Supplies', 'Others']
+  // Default categories plus room for future expansion
+  const defaultCategories = ['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Others']
 
   const fetchEntries = async () => {
     if (!user?.orgId) return
@@ -44,7 +46,28 @@ export default function AdvanceExpenseTab() {
     }
   }
 
+  const fetchCategories = async () => {
+    if (!user?.orgId) return
+    try {
+      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+      if (orgSnap.exists()) {
+        const orgData = orgSnap.data()
+        if (orgData.advanceCategories && orgData.advanceCategories.length > 0) {
+          // Merge saved categories with defaults for future expansion
+          const merged = [...new Set([...orgData.advanceCategories, ...defaultCategories])]
+          setCategories(merged)
+        } else {
+          setCategories(defaultCategories)
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+      setCategories(defaultCategories)
+    }
+  }
+
   useEffect(() => { fetchEntries() }, [user?.orgId])
+  useEffect(() => { fetchCategories() }, [user?.orgId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
