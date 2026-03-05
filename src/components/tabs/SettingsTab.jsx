@@ -782,58 +782,217 @@ export default function SettingsTab() {
       </div>
 
       {/* COMPREHENSIVE EMPLOYEE EDITOR MODAL */}
-      <Modal isOpen={!!editingEmp} onClose={() => setEditingEmp(null)} title="EMPLOYEE MASTER DATA">
-        <div className="p-6 max-w-3xl mx-auto h-[80vh] flex flex-col">
-          <div className="flex-1 overflow-y-auto pr-2 space-y-6">
-            <div className="flex items-center gap-6 bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-sm">
-              <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center relative overflow-hidden bg-white shadow-inner group">
-                {editForm.photoURL ? <img src={editForm.photoURL} className="w-full h-full object-cover" /> : <span className="text-[10px] text-indigo-300 font-black uppercase">Upload</span>}
-                <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
-                  const url = await handleFileUpload(e.target.files[0], `employees/${editingEmp}/profile`)
-                  if (url) setEditForm(s => ({ ...s, photoURL: url }))
-                }} />
+      <Modal isOpen={!!editingEmp} onClose={() => setEditingEmp(null)} title="EDIT EMPLOYEE">
+        <div className="flex flex-col h-[85vh] max-w-3xl mx-auto font-inter bg-white">
+          {/* Scrollable Form Body - Single scroll */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+
+            {/* Passport Photo + Name header */}
+            <div className="flex items-start gap-4 pb-5 border-b border-gray-100">
+              {/* Passport size photo */}
+              <div className="relative shrink-0">
+                <div className="w-20 h-24 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-all">
+                  {editForm.photoURL
+                    ? <img src={editForm.photoURL} className="w-full h-full object-cover" alt="photo" />
+                    : <>
+                      <svg className="w-6 h-6 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      <span className="text-[9px] text-gray-400 font-medium text-center leading-tight">Passport<br />Photo</span>
+                    </>
+                  }
+                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
+                    const url = await handleFileUpload(e.target.files[0], `employees/${editingEmp}/profile`)
+                    if (url) setEditForm(s => ({ ...s, photoURL: url }))
+                  }} />
+                </div>
+                <span className="block text-[9px] text-gray-400 text-center mt-1">Click to upload</span>
               </div>
-              <div className="flex-1">
-                <input type="text" value={editForm.name || ''} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} className="text-xl font-black uppercase tracking-tight text-gray-800 bg-transparent border-none focus:ring-0 w-full p-0" />
-                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Personnel Master File</p>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Name</label>
+                  <input type="text" placeholder="Full Name" value={editForm.name || ''}
+                    onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Designation</label>
+                  <input type="text" placeholder="e.g. Software Engineer" value={editForm.designation || ''}
+                    onChange={e => setEditForm(s => ({ ...s, designation: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  />
+                </div>
               </div>
             </div>
+
+            {/* Two-column fields */}
             <div className="grid grid-cols-2 gap-4">
-              {[
-                { label: 'Employee ID', key: 'empCode' },
-                { label: 'Department', key: 'department' },
-                { label: 'Site Location', key: 'site' },
-                { label: 'Bank Account', key: 'bankAccount' },
-                { label: 'Joined Date', key: 'joinedDate', type: 'date' },
-                { label: 'Date of Birth', key: 'dob', type: 'date' },
-                { label: 'Blood Group', key: 'bloodGroup' },
-                { label: 'Perm. Hrs/Month', key: 'permissionHours', type: 'number' },
-                { label: 'Min Daily Hrs', key: 'minDailyHours', type: 'number' }
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
-                  <input type={f.type || 'text'} value={editForm[f.key] || ''} onChange={e => setEditForm(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none bg-white shadow-sm" />
-                </div>
-              ))}
               <div>
-                <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Shift</label>
-                <select value={editForm.shiftId || ''} onChange={e => setEditForm(s => ({ ...s, shiftId: e.target.value }))} className="w-full border rounded-xl px-3 py-2 text-xs font-bold bg-white">
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Employee ID</label>
+                <input type="text" placeholder="EMP-001" value={editForm.empCode || ''}
+                  onChange={e => setEditForm(s => ({ ...s, empCode: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Date of Joining</label>
+                <input type="date" value={editForm.joinedDate || ''}
+                  onChange={e => setEditForm(s => ({ ...s, joinedDate: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
+                <select value={editForm.bloodGroup || ''} onChange={e => setEditForm(s => ({ ...s, bloodGroup: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select...</option>
+                  {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg}>{bg}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Date of Birth</label>
+                <input type="date" value={editForm.dob || ''}
+                  onChange={e => setEditForm(s => ({ ...s, dob: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Father's Name</label>
+                <input type="text" placeholder="Father's full name" value={editForm.fatherName || ''}
+                  onChange={e => setEditForm(s => ({ ...s, fatherName: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Mother's Name</label>
+                <input type="text" placeholder="Mother's full name" value={editForm.motherName || ''}
+                  onChange={e => setEditForm(s => ({ ...s, motherName: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Marital Status</label>
+                <select value={editForm.maritalStatus || ''} onChange={e => setEditForm(s => ({ ...s, maritalStatus: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select...</option>
+                  {['Single', 'Married', 'Divorced', 'Widowed'].map(ms => <option key={ms}>{ms}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Email</label>
+                <input type="email" placeholder="employee@email.com" value={editForm.email || ''}
+                  onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Emergency Contact No.</label>
+                <input type="tel" placeholder="+91 xxxxxxxxxx" value={editForm.emergencyContact || ''}
+                  onChange={e => setEditForm(s => ({ ...s, emergencyContact: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Contact No.</label>
+                <input type="tel" placeholder="+91 xxxxxxxxxx" value={editForm.contactNo || ''}
+                  onChange={e => setEditForm(s => ({ ...s, contactNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">PF No.</label>
+                <input type="text" placeholder="PF Number" value={editForm.pfNo || ''}
+                  onChange={e => setEditForm(s => ({ ...s, pfNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Bank Account No.</label>
+                <input type="text" placeholder="Account number" value={editForm.bankAccount || ''}
+                  onChange={e => setEditForm(s => ({ ...s, bankAccount: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Department</label>
+                <input type="text" placeholder="Department" value={editForm.department || ''}
+                  onChange={e => setEditForm(s => ({ ...s, department: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Site Location</label>
+                <input type="text" placeholder="Site Location" value={editForm.site || ''}
+                  onChange={e => setEditForm(s => ({ ...s, site: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Shift</label>
+                <select value={editForm.shiftId || ''} onChange={e => setEditForm(s => ({ ...s, shiftId: e.target.value }))} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
                   <option value="">Select Shift...</option>
                   {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Perm. Hrs/Month</label>
+                <input type="number" placeholder="2" value={editForm.permissionHours || ''}
+                  onChange={e => setEditForm(s => ({ ...s, permissionHours: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Min Daily Hrs</label>
+                <input type="number" placeholder="8" value={editForm.minDailyHours || ''}
+                  onChange={e => setEditForm(s => ({ ...s, minDailyHours: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[11px] font-bold text-gray-700 mb-2">Status</label>
+                <div className="flex gap-2">
+                  {['Active', 'Inactive'].map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setEditForm(e => ({ ...e, status: s }))}
+                      className={`flex-1 h-10 rounded-lg text-sm font-semibold border transition-all ${editForm.status === s
+                        ? s === 'Active'
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-red-500 text-white border-red-500'
+                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                        }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {/* Documents Section in Edit Modal */}
+            {/* Full-width Address */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Address</label>
+              <textarea placeholder="Full residential address" value={editForm.address || ''}
+                onChange={e => setEditForm(s => ({ ...s, address: e.target.value }))}
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
+              />
+            </div>
+
+            {/* Documents Section */}
             <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
               <div className="flex items-center justify-between mb-3">
                 <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5"><Paperclip size={13} /> Documents</label>
                 <span className="text-[10px] text-gray-400">{(editForm.documents || []).length} file(s)</span>
               </div>
+
+              {/* Existing uploaded docs list */}
               {(editForm.documents || []).length > 0 && (
                 <div className="space-y-2 mb-3">
                   {(editForm.documents || []).map((doc, i) => {
-                    const isImg = doc.type?.startsWith('image') || /\.(png|jpg|jpeg|gif|webp)$/i.test(doc.url || '')
+                    const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(doc.url || '')
                     return (
                       <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100">
                         {isImg
@@ -841,34 +1000,91 @@ export default function SettingsTab() {
                           : <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center border border-indigo-100"><FileText size={14} className="text-indigo-400" /></div>
                         }
                         <span className="flex-1 text-[11px] font-medium text-gray-700 truncate">{doc.name}</span>
-                        <button type="button" onClick={() => setViewerState({ docs: editForm.documents, index: i })} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition-all" title="View"><Eye size={13} /></button>
-                        <button type="button" onClick={() => setEditForm(s => ({ ...s, documents: s.documents.filter((_, idx) => idx !== i) }))} className="p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-400 transition-all" title="Remove"><X size={13} /></button>
+                        <button
+                          type="button"
+                          onClick={() => setViewerState({ docs: editForm.documents, index: i })}
+                          className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition-all"
+                          title="View"
+                        >
+                          <Eye size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(s => ({ ...s, documents: s.documents.filter((_, idx) => idx !== i) }))}
+                          className="p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-400 transition-all"
+                          title="Remove"
+                        >
+                          <X size={13} />
+                        </button>
                       </div>
                     )
                   })}
                 </div>
               )}
+
+              {/* Upload new document row */}
               <div className="flex gap-2 items-center">
-                <label className="h-9 px-4 rounded-lg border border-gray-200 bg-white text-[12px] font-medium flex items-center gap-1.5 cursor-pointer hover:border-gray-400 hover:text-gray-900 transition-all text-gray-600">
-                  <Paperclip size={13} /> Attach Document
+                <input
+                  type="text"
+                  placeholder="Document label (e.g. Aadhaar)"
+                  value={newDocUpload.name}
+                  onChange={e => setNewDocUpload(s => ({ ...s, name: e.target.value }))}
+                  className="flex-1 h-9 border border-gray-200 rounded-lg px-3 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+                <label className={`h-9 px-3 rounded-lg border text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-all ${newDocUpload.uploading
+                  ? 'bg-gray-100 text-gray-400 border-gray-200'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
+                  }`}>
+                  {newDocUpload.uploading ? (
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
+                  ) : <Paperclip size={13} />}
+                  {newDocUpload.uploading ? 'Uploading...' : 'Attach'}
                   <input
                     type="file"
                     className="hidden"
+                    disabled={newDocUpload.uploading}
                     onChange={async (e) => {
                       const file = e.target.files[0]
                       if (!file) return
-                      const url = await handleFileUpload(file, `employees/${editingEmp}/docs/${Date.now()}_${file.name}`)
-                      if (url) setEditForm(s => ({ ...s, documents: [...(s.documents || []), { name: file.name, url, type: file.type }] }))
+                      const label = newDocUpload.name.trim() || file.name
+                      setNewDocUpload(s => ({ ...s, uploading: true }))
+                      try {
+                        const url = await handleFileUpload(file, `employees/${editingEmp}/docs/${Date.now()}_${file.name}`)
+                        if (url) {
+                          setEditForm(s => ({
+                            ...s,
+                            documents: [...(s.documents || []), { name: label, url, type: file.type }]
+                          }))
+                        }
+                      } finally {
+                        setNewDocUpload({ name: '', file: null, uploading: false })
+                      }
                       e.target.value = ''
                     }}
                   />
                 </label>
               </div>
             </div>
+
           </div>
-          <div className="mt-6 pt-4 border-t flex gap-3">
-            <button onClick={() => setEditingEmp(null)} className="flex-1 py-3 border-2 rounded-2xl font-black text-gray-400 uppercase tracking-widest text-[10px]">Cancel</button>
-            <button onClick={handleSaveEmployee} disabled={saving} className="flex-2 bg-indigo-600 text-white py-3 rounded-2xl font-black shadow-xl uppercase text-[10px]">{saving ? 'SYNCHING...' : 'SAVE MASTER DATA'}</button>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex gap-3 bg-white">
+            <button
+              type="button"
+              onClick={() => setEditingEmp(null)}
+              className="px-5 h-10 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-200 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveEmployee}
+              disabled={saving}
+              className="flex-1 h-10 bg-gray-900 text-white font-semibold rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50 transition-all"
+            >
+              {saving ? 'Saving...' : 'Save Employee'}
+            </button>
           </div>
         </div>
       </Modal>
