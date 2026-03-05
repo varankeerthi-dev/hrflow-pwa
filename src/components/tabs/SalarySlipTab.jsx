@@ -260,7 +260,7 @@ export default function SalarySlipTab() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-[42px] border border-gray-200 rounded-lg pl-10 pr-4 text-sm font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none">
-              <option value="">Choose roster member...</option>
+              <option value="">Choose Employee...</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empCode})</option>)}
             </select>
           </div>
