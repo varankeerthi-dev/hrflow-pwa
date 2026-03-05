@@ -13,6 +13,17 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
+    // Helper function to check if user is HR
+    function isHR() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'HR';
+    }
+    
+    // Helper function to check if user is admin or HR
+    function isAdminOrHR() {
+      return isAdmin() || isHR();
+    }
+    
     // Helper function to check if user is employee
     function isEmployee() {
       return request.auth != null && 
@@ -27,20 +38,20 @@ service cloud.firestore {
     
     // Organisations collection
     match /organisations/{orgId} {
-      // Admins can do full CRUD on their org
-      allow read, write: if isAdmin() && getUserOrgId() == orgId;
+      // Admins and HR can do full CRUD on their org
+      allow read, write: if isAdminOrHR() && getUserOrgId() == orgId;
       
       // Subcollections
       match /employees/{empId} {
-        // Admins: full CRUD
-        allow read, write: if isAdmin() && getUserOrgId() == orgId;
+        // Admins/HR: full CRUD
+        allow read, write: if isAdminOrHR() && getUserOrgId() == orgId;
         // Employees: read-only
         allow read: if isEmployee() && getUserOrgId() == orgId;
       }
       
       match /shifts/{shiftId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
-        allow write: if isAdmin() && getUserOrgId() == orgId;
+        allow write: if isAdminOrHR() && getUserOrgId() == orgId;
       }
       
       match /attendance/{attId} {
@@ -62,6 +73,11 @@ service cloud.firestore {
         allow read: if request.auth != null && getUserOrgId() == orgId;
         allow create: if isEmployee() && getUserOrgId() == orgId;
         allow update: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
+      match /salaryIncrements/{incrementId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create, update: if isAdminOrHR() && getUserOrgId() == orgId;
       }
     }
     
