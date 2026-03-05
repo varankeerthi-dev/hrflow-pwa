@@ -55,8 +55,8 @@ service cloud.firestore {
       }
       
       match /attendance/{attId} {
-        // Admins: full CRUD
-        allow read, write: if isAdmin() && getUserOrgId() == orgId;
+        // Admins/HR: full CRUD
+        allow read, write: if isAdminOrHR() && getUserOrgId() == orgId;
         // Employees: read own, write own only
         allow read: if isEmployee() && getUserOrgId() == orgId;
         allow write: if isEmployee() && getUserOrgId() == orgId && 
@@ -66,18 +66,68 @@ service cloud.firestore {
       match /corrections/{corrId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
         allow create: if isEmployee() && getUserOrgId() == orgId;
-        allow update: if isAdmin() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
       }
       
       match /otApprovals/{approvalId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
         allow create: if isEmployee() && getUserOrgId() == orgId;
-        allow update: if isAdmin() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      match /otRequests/{requestId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      match /advances/{advanceId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
       }
       
       match /salaryIncrements/{incrementId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
         allow create, update: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      match /leaves/{leaveId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      match /fines/{fineId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      match /engagement/{postId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      match /advances_expenses/{expenseId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      match /requests/{requestId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      match /activityLogs/{logId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+      }
+      
+      match /logs/{logId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create: if request.auth != null && getUserOrgId() == orgId;
       }
     }
     
