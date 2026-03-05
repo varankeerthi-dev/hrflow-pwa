@@ -140,10 +140,15 @@ export default function SettingsTab() {
           setOrgSettings(prev => ({
             ...prev,
             ...data,
-            // Ensure name is always populated (fallback to user.orgName if missing in doc)
-            name: data.name || user?.orgName || prev.name,
+            name: data.name || user?.orgName || prev.name || '',
             advanceCategories: data.advanceCategories || prev.advanceCategories,
             holidays: data.holidays || prev.holidays
+          }))
+        } else {
+          // If no org doc exists, use user.orgName as fallback
+          setOrgSettings(prev => ({
+            ...prev,
+            name: user?.orgName || ''
           }))
         }
       } catch (err) {
@@ -258,6 +263,18 @@ export default function SettingsTab() {
     try {
       await setDoc(doc(db, 'organisations', user.orgId), orgSettings, { merge: true })
       setSaved(true)
+      
+      // Refresh org settings from database
+      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+      if (orgSnap.exists()) {
+        const data = orgSnap.data()
+        setOrgSettings(prev => ({
+          ...prev,
+          ...data,
+          name: data.name || prev.name
+        }))
+      }
+      
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       setOrgError(err.message || 'Save failed.')
