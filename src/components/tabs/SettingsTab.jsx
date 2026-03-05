@@ -37,7 +37,7 @@ export default function SettingsTab() {
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [newEmployee, setNewEmployee] = useState({
-    name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
+    name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
   })
   const [newRole, setNewRole] = useState({ name: '', permissions: {} })
   const [orgSettings, setOrgSettings] = useState({
@@ -50,19 +50,25 @@ export default function SettingsTab() {
   const [saved, setSaved] = useState(false)
   const [orgError, setOrgError] = useState('')
 
-  // Roster Columns
-  const [visibleColumns, setVisibleColumns] = useState(['Employee', 'Dept', 'Status'])
+  // Roster Columns - Name, Designation, Contact mandatory; rest user-configurable
+  const mandatoryColumns = ['name', 'designation', 'emergencyContact']
+  const [visibleColumns, setVisibleColumns] = useState(['name', 'designation', 'emergencyContact', 'status'])
   const allColumns = [
-    { label: 'Photo', key: 'photo' },
-    { label: 'Employee', key: 'name' },
-    { label: 'Emp ID', key: 'empCode' },
-    { label: 'Department', key: 'department' },
-    { label: 'Shift', key: 'shift' },
-    { label: 'Site', key: 'site' },
-    { label: 'Bank Account', key: 'bankAccount' },
-    { label: 'Status', key: 'status' },
-    { label: 'Join Date', key: 'joinedDate' },
-    { label: 'Blood Group', key: 'bloodGroup' }
+    { label: 'Photo', key: 'photo', optional: true },
+    { label: 'Name', key: 'name', optional: false },
+    { label: 'Designation', key: 'designation', optional: false },
+    { label: 'Contact No', key: 'emergencyContact', optional: false },
+    { label: 'Emp Code', key: 'empCode', optional: true },
+    { label: 'Department', key: 'department', optional: true },
+    { label: 'Email', key: 'email', optional: true },
+    { label: 'Shift', key: 'shift', optional: true },
+    { label: 'Site', key: 'site', optional: true },
+    { label: 'Bank Account', key: 'bankAccount', optional: true },
+    { label: 'Status', key: 'status', optional: true },
+    { label: 'Join Date', key: 'joinedDate', optional: true },
+    { label: 'Blood Group', key: 'bloodGroup', optional: true },
+    { label: 'Date of Birth', key: 'dob', optional: true },
+    { label: 'Marital Status', key: 'maritalStatus', optional: true },
   ]
 
   const modules = ['Attendance', 'Correction', 'Approvals', 'Summary', 'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday', 'Leave', 'HRLetters', 'Settings', 'Employees', 'Roles', 'Shifts', 'EmployeePortal']
@@ -198,13 +204,16 @@ export default function SettingsTab() {
 
   const handleAddEmployee = async () => {
     setSaving(true)
-    await addEmployee(newEmployee)
-    await logChange('EMPLOYEE_CREATE', 'new', { name: newEmployee.name })
-    setShowAddEmployee(false)
-    setNewEmployee({
-      name: '', empCode: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
-    })
-    setSaving(false)
+    try {
+      await addEmployee(newEmployee)
+      await logChange('EMPLOYEE_CREATE', 'new', { name: newEmployee.name })
+      setShowAddEmployee(false)
+      setNewEmployee({
+        name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleAddRole = async () => {
@@ -253,7 +262,7 @@ export default function SettingsTab() {
   const handlePrintRoster = () => { window.print() }
 
   return (
-    <div className="h-full flex flex-col text-[11px] font-roboto">
+    <div className="h-full flex flex-col text-[11px] font-inter">
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -266,9 +275,10 @@ export default function SettingsTab() {
         .group-header { color: #1e293b; font-weight: 800; font-size: 13px; margin-top: 24px; margin-bottom: 12px; }
       `}</style>
 
-      <div className="flex gap-1.5 mb-4 flex-wrap no-print">
+      {/* Shadcn-style minimal tab navigation */}
+      <div className="flex gap-0 mb-5 border-b border-gray-200 no-print">
         {[
-          { id: 'organization', label: 'Org Details' },
+          { id: 'organization', label: 'Organization' },
           { id: 'employee', label: 'Employees' },
           { id: 'shift', label: 'Shifts' },
           { id: 'roles', label: 'Roles & Rights' },
@@ -279,7 +289,10 @@ export default function SettingsTab() {
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id)}
-            className={`px-3 py-1.5 rounded-xl font-black transition-all uppercase tracking-tighter border ${activeSubTab === tab.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-gray-400 hover:bg-gray-50 border-gray-100'}`}
+            className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeSubTab === tab.id
+              ? 'border-gray-900 text-gray-900'
+              : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300'
+              }`}
           >
             {tab.label}
           </button>
@@ -393,24 +406,41 @@ export default function SettingsTab() {
         {activeSubTab === 'employee' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center no-print">
-              <div className="flex items-center gap-4">
-                <h3 className="text-sm font-black text-gray-800 uppercase">Employee Roster</h3>
-                <div className="flex gap-1">
+              <div className="flex items-center gap-4 flex-wrap">
+                <h3 className="text-sm font-bold text-gray-800">Employee Roster</h3>
+                <div className="flex gap-1.5 flex-wrap items-center">
+                  <span className="text-[10px] text-gray-400 font-medium mr-1">Columns:</span>
                   {allColumns.map(col => (
-                    <button key={col.key} onClick={() => setVisibleColumns(prev => prev.includes(col.key) ? prev.filter(k => k !== col.key) : [...prev, col.key])} className={`px-2 py-1 rounded text-[8px] font-black uppercase border transition-all ${visibleColumns.includes(col.key) ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-100 text-gray-300'}`}>{col.label}</button>
+                    <button
+                      key={col.key}
+                      disabled={!col.optional}
+                      onClick={() => {
+                        if (!col.optional) return
+                        setVisibleColumns(prev => prev.includes(col.key) ? prev.filter(k => k !== col.key) : [...prev, col.key])
+                      }}
+                      title={!col.optional ? 'Required column' : ''}
+                      className={`px-2 py-1 rounded-md text-[9px] font-semibold border transition-all ${!col.optional
+                        ? 'bg-gray-900 text-white border-gray-900 cursor-default'
+                        : visibleColumns.includes(col.key)
+                          ? 'bg-white border-gray-300 text-gray-700 shadow-sm'
+                          : 'bg-white border-gray-100 text-gray-300 hover:border-gray-200'
+                        }`}
+                    >
+                      {col.label}
+                    </button>
                   ))}
                 </div>
               </div>
-              <button onClick={() => setShowAddEmployee(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-[10px] shadow-lg">+ ADD NEW</button>
+              <button onClick={() => setShowAddEmployee(true)} className="bg-gray-900 text-white px-4 py-2 rounded-lg font-semibold text-[12px] hover:bg-gray-800 transition-all">+ Add Employee</button>
             </div>
-            <div className="bg-white rounded-2xl border shadow-sm overflow-hidden print-section">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden print-section">
               <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     {allColumns.filter(c => visibleColumns.includes(c.key)).map(h => (
-                      <th key={h.key} className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">{h.label}</th>
+                      <th key={h.key} className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{h.label}</th>
                     ))}
-                    <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-widest no-print">Actions</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider no-print">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -420,37 +450,44 @@ export default function SettingsTab() {
                     <tr key={emp.id} className="hover:bg-gray-50/50 group">
                       {visibleColumns.includes('photo') && (
                         <td className="px-4 py-2">
-                          <div className="w-10 h-10 rounded-lg border bg-gray-50 overflow-hidden flex items-center justify-center">
-                            {emp.photoURL ? <img src={emp.photoURL} className="w-full h-full object-cover" /> : <span className="text-[8px] text-gray-300 font-black">NO PIC</span>}
+                          <div className="w-9 h-9 rounded-lg border bg-gray-50 overflow-hidden flex items-center justify-center">
+                            {emp.photoURL ? <img src={emp.photoURL} className="w-full h-full object-cover" alt={emp.name} /> : <span className="text-[8px] text-gray-300 font-bold">—</span>}
                           </div>
                         </td>
                       )}
                       {visibleColumns.includes('name') && (
                         <td className="px-4 py-2.5">
                           <button onClick={() => { setEditingEmp(emp.id); setEditForm(emp); }} className="flex items-center gap-2 text-left hover:text-indigo-600 transition-colors">
-                            <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[9px] font-black shrink-0" style={{ backgroundColor: getAvatarColor(emp.id) }}>{getInitials(emp.name)}</div>
-                            <span className="font-bold text-gray-700 uppercase tracking-tight">{emp.name}</span>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0" style={{ backgroundColor: getAvatarColor(emp.id) }}>{getInitials(emp.name)}</div>
+                            <span className="font-semibold text-gray-800 text-[12px]">{emp.name}</span>
                           </button>
                         </td>
                       )}
-                      {visibleColumns.includes('empCode') && <td className="px-4 py-2.5 font-mono text-gray-400 text-[10px]">{emp.empCode}</td>}
-                      {visibleColumns.includes('department') && <td className="px-4 py-2.5 text-gray-500 font-medium uppercase">{emp.department}</td>}
-                      {visibleColumns.includes('shift') && <td className="px-4 py-2.5 text-gray-500 text-[10px] uppercase font-bold">{emp.shift?.name || '-'}</td>}
-                      {visibleColumns.includes('site') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.site || '-'}</td>}
-                      {visibleColumns.includes('bankAccount') && <td className="px-4 py-2.5 font-mono text-gray-400 text-[10px]">{emp.bankAccount || '-'}</td>}
+                      {visibleColumns.includes('designation') && <td className="px-4 py-2.5 text-gray-600 text-[11px] font-medium">{emp.designation || '—'}</td>}
+                      {visibleColumns.includes('emergencyContact') && <td className="px-4 py-2.5 text-gray-600 text-[11px] font-medium">{emp.emergencyContact || '—'}</td>}
+                      {visibleColumns.includes('empCode') && <td className="px-4 py-2.5 font-mono text-gray-400 text-[10px]">{emp.empCode || '—'}</td>}
+                      {visibleColumns.includes('department') && <td className="px-4 py-2.5 text-gray-500 text-[11px]">{emp.department || '—'}</td>}
+                      {visibleColumns.includes('email') && <td className="px-4 py-2.5 text-gray-500 text-[10px]">{emp.email || '—'}</td>}
+                      {visibleColumns.includes('shift') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.shift?.name || '—'}</td>}
+                      {visibleColumns.includes('site') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.site || '—'}</td>}
+                      {visibleColumns.includes('bankAccount') && <td className="px-4 py-2.5 font-mono text-gray-400 text-[10px]">{emp.bankAccount || '—'}</td>}
                       {visibleColumns.includes('status') && (
-                        <td className="px-4 py-2.5"><span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${emp.status === 'Active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{emp.status}</span></td>
+                        <td className="px-4 py-2.5"><span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold ${emp.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>{emp.status || 'Active'}</span></td>
                       )}
-                      {visibleColumns.includes('joinedDate') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.joinedDate || '-'}</td>}
-                      {visibleColumns.includes('bloodGroup') && <td className="px-4 py-2.5 text-gray-400 text-[10px] font-black">{emp.bloodGroup || '-'}</td>}
-                      <td className="px-4 py-2.5 no-print"><button onClick={() => { setEditingEmp(emp.id); setEditForm(emp); }} className="text-indigo-600 font-black hover:underline text-[9px] uppercase">MODIFY</button></td>
+                      {visibleColumns.includes('joinedDate') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.joinedDate || '—'}</td>}
+                      {visibleColumns.includes('bloodGroup') && <td className="px-4 py-2.5 text-gray-500 text-[10px] font-bold">{emp.bloodGroup || '—'}</td>}
+                      {visibleColumns.includes('dob') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.dob || '—'}</td>}
+                      {visibleColumns.includes('maritalStatus') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.maritalStatus || '—'}</td>}
+                      <td className="px-4 py-2.5 no-print">
+                        <button onClick={() => { setEditingEmp(emp.id); setEditForm(emp); }} className="text-gray-400 hover:text-gray-900 font-medium text-[10px] transition-colors">Edit</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <div className="flex justify-end no-print">
-              <button onClick={handlePrintRoster} className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Export PDF Roster</button>
+              <button onClick={handlePrintRoster} className="text-gray-400 hover:text-gray-700 text-[11px] font-medium transition-colors">Export PDF Roster</button>
             </div>
           </div>
         )}
@@ -573,191 +610,175 @@ export default function SettingsTab() {
         </div>
       </Modal>
 
-      {/* FULL EMPLOYEE CREATE FORM */}
-      <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add New Employee">
-        <div className="flex flex-col h-[85vh] max-w-2xl mx-auto font-inter bg-white">
-          {/* Header */}
-          <div className="px-8 pt-8 pb-6 border-b border-gray-50 shrink-0">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center relative overflow-hidden bg-gray-50 shrink-0 group">
-                {newEmployee.photoURL
-                  ? <img src={newEmployee.photoURL} className="w-full h-full object-cover" alt="photo" />
-                  : <div className="text-center">
-                      <span className="text-xl">👤</span>
-                      <p className="text-[8px] text-gray-400 font-bold uppercase mt-1">Photo</p>
-                    </div>
-                }
-                <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
-                  const url = await handleFileUpload(e.target.files[0], `employees/new_${Date.now()}/profile`)
-                  if (url) setNewEmployee(s => ({ ...s, photoURL: url }))
-                }} />
+      {/* ADD NEW EMPLOYEE MODAL - Minimal, Clean Form */}
+      <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add Employee">
+        <div className="flex flex-col h-[90vh] max-w-lg mx-auto font-inter bg-white">
+          {/* Scrollable Form Body */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+
+            {/* Passport Photo + Name header */}
+            <div className="flex items-start gap-4 pb-5 border-b border-gray-100">
+              {/* Passport size photo */}
+              <div className="relative shrink-0">
+                <div className="w-20 h-24 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-all">
+                  {newEmployee.photoURL
+                    ? <img src={newEmployee.photoURL} className="w-full h-full object-cover" alt="photo" />
+                    : <>
+                      <svg className="w-6 h-6 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      <span className="text-[9px] text-gray-400 font-medium text-center leading-tight">Passport<br />Photo</span>
+                    </>
+                  }
+                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
+                    const url = await handleFileUpload(e.target.files[0], `employees/new_${Date.now()}/profile`)
+                    if (url) setNewEmployee(s => ({ ...s, photoURL: url }))
+                  }} />
+                </div>
+                <span className="block text-[9px] text-gray-400 text-center mt-1">Click to upload</span>
               </div>
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="FULL NAME"
-                  value={newEmployee.name}
-                  onChange={e => setNewEmployee(s => ({ ...s, name: e.target.value }))}
-                  className="w-full text-2xl font-black text-gray-800 bg-transparent border-none focus:ring-0 outline-none placeholder-gray-200 uppercase tracking-tight"
+              <div className="flex-1 space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Name</label>
+                  <input type="text" placeholder="Full Name" value={newEmployee.name}
+                    onChange={e => setNewEmployee(s => ({ ...s, name: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Designation</label>
+                  <input type="text" placeholder="e.g. Software Engineer" value={newEmployee.designation}
+                    onChange={e => setNewEmployee(s => ({ ...s, designation: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Two-column fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Employee ID</label>
+                <input type="text" placeholder="EMP-001" value={newEmployee.empCode}
+                  onChange={e => setNewEmployee(s => ({ ...s, empCode: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
-                <div className="flex items-center gap-4 mt-2">
-                  <span className="text-[10px] text-indigo-600 font-black uppercase tracking-[0.2em]">New Employee Profile</span>
-                  <div className="flex gap-1">
-                    {['Active', 'Inactive'].map(s => (
-                      <button key={s} type="button" onClick={() => setNewEmployee(e => ({ ...e, status: s }))}
-                        className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${newEmployee.status === s ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Date of Joining</label>
+                <input type="date" value={newEmployee.joinedDate}
+                  onChange={e => setNewEmployee(s => ({ ...s, joinedDate: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
+                <select value={newEmployee.bloodGroup} onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select...</option>
+                  {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg}>{bg}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Date of Birth</label>
+                <input type="date" value={newEmployee.dob}
+                  onChange={e => setNewEmployee(s => ({ ...s, dob: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Father's Name</label>
+                <input type="text" placeholder="Father's full name" value={newEmployee.fatherName}
+                  onChange={e => setNewEmployee(s => ({ ...s, fatherName: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Mother's Name</label>
+                <input type="text" placeholder="Mother's full name" value={newEmployee.motherName}
+                  onChange={e => setNewEmployee(s => ({ ...s, motherName: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Marital Status</label>
+                <select value={newEmployee.maritalStatus} onChange={e => setNewEmployee(s => ({ ...s, maritalStatus: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select...</option>
+                  {['Single', 'Married', 'Divorced', 'Widowed'].map(ms => <option key={ms}>{ms}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Email</label>
+                <input type="email" placeholder="employee@email.com" value={newEmployee.email}
+                  onChange={e => setNewEmployee(s => ({ ...s, email: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Emergency Contact No.</label>
+                <input type="tel" placeholder="+91 xxxxxxxxxx" value={newEmployee.emergencyContact}
+                  onChange={e => setNewEmployee(s => ({ ...s, emergencyContact: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Bank Account No.</label>
+                <input type="text" placeholder="Account number" value={newEmployee.bankAccount}
+                  onChange={e => setNewEmployee(s => ({ ...s, bankAccount: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[11px] font-bold text-gray-700 mb-2">Status</label>
+                <div className="flex gap-2">
+                  {['Active', 'Inactive'].map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setNewEmployee(e => ({ ...e, status: s }))}
+                      className={`flex-1 h-10 rounded-lg text-sm font-semibold border transition-all ${newEmployee.status === s
+                          ? s === 'Active'
+                            ? 'bg-green-600 text-white border-green-600'
+                            : 'bg-red-500 text-white border-red-500'
+                          : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                        }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
+
+            {/* Full-width Address */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Address</label>
+              <textarea placeholder="Full residential address" value={newEmployee.address}
+                onChange={e => setNewEmployee(s => ({ ...s, address: e.target.value }))}
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
+              />
+            </div>
+
           </div>
 
-          {/* Form Body - All fields visible in a clean grid */}
-          <div className="flex-1 overflow-y-auto px-8 py-8 space-y-10">
-            
-            {/* 01. Employment Identity */}
-            <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">01. Employment Identity</span>
-                <div className="h-px bg-gray-100 flex-1" />
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                {[
-                  { label: 'Employee ID', key: 'empCode', placeholder: 'TC-001' },
-                  { label: 'Department', key: 'department', placeholder: 'Engineering' },
-                  { label: 'Site Location', key: 'site', placeholder: 'Main Office' },
-                  { label: 'Joining Date', key: 'joinedDate', type: 'date' },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{f.label}</label>
-                    <input 
-                      type={f.type || 'text'} 
-                      placeholder={f.placeholder}
-                      value={newEmployee[f.key]} 
-                      onChange={e => setNewEmployee(s => ({ ...s, [f.key]: e.target.value }))} 
-                      className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all" 
-                    />
-                  </div>
-                ))}
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Employment Type</label>
-                  <select 
-                    value={newEmployee.employmentType} 
-                    onChange={e => setNewEmployee(s => ({ ...s, employmentType: e.target.value }))} 
-                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all"
-                  >
-                    {['Full-time', 'Part-time', 'Contract', 'Intern'].map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* 02. Shift & Work Schedule */}
-            <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">02. Work & Schedule</span>
-                <div className="h-px bg-gray-100 flex-1" />
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Assigned Shift</label>
-                  <select 
-                    value={newEmployee.shiftId} 
-                    onChange={e => setNewEmployee(s => ({ ...s, shiftId: e.target.value }))} 
-                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all"
-                  >
-                    <option value="">Select shift...</option>
-                    {shifts.map(s => <option key={s.id} value={s.id}>{s.name} ({s.isFlexible ? 'Flexible' : `${s.startTime}–${s.endTime}`})</option>)}
-                  </select>
-                </div>
-                {[
-                  { label: 'Work Hours/Day', key: 'workHours', type: 'number' },
-                  { label: 'Min Daily Hours', key: 'minDailyHours', type: 'number' },
-                  { label: 'Monthly Permission (Hrs)', key: 'permissionHours', type: 'number' },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{f.label}</label>
-                    <input 
-                      type="number" 
-                      step="0.5" 
-                      value={newEmployee[f.key]} 
-                      onChange={e => setNewEmployee(s => ({ ...s, [f.key]: Number(e.target.value) }))} 
-                      className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 03. Payroll & Personal */}
-            <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">03. Payroll & Personal</span>
-                <div className="h-px bg-gray-100 flex-1" />
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Monthly Salary (₹)</label>
-                  <input 
-                    type="number" 
-                    value={newEmployee.monthlySalary} 
-                    onChange={e => setNewEmployee(s => ({ ...s, monthlySalary: Number(e.target.value) }))} 
-                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-indigo-600 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Bank Account Info</label>
-                  <input 
-                    type="text" 
-                    placeholder="ACC: XXXX / IFSC: XXXX"
-                    value={newEmployee.bankAccount} 
-                    onChange={e => setNewEmployee(s => ({ ...s, bankAccount: e.target.value }))} 
-                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-[10px] font-bold text-gray-500 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Date of Birth</label>
-                  <input 
-                    type="date" 
-                    value={newEmployee.dob} 
-                    onChange={e => setNewEmployee(s => ({ ...s, dob: e.target.value }))} 
-                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Blood Group</label>
-                  <select 
-                    value={newEmployee.bloodGroup} 
-                    onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))} 
-                    className="w-full h-[44px] border border-gray-100 rounded-xl px-4 text-xs font-bold text-gray-700 bg-gray-50/50 focus:bg-white focus:border-indigo-500 outline-none transition-all"
-                  >
-                    <option value="">Select...</option>
-                    {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg}>{bg}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Footer */}
-          <div className="px-8 py-6 border-t border-gray-50 shrink-0 flex gap-4 bg-white">
-            <button 
-              type="button" 
-              onClick={() => setShowAddEmployee(false)} 
-              className="px-6 h-[48px] rounded-xl font-black text-gray-400 uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all"
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex gap-3 bg-white">
+            <button
+              type="button"
+              onClick={() => setShowAddEmployee(false)}
+              className="px-5 h-10 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-200 transition-all"
             >
               Cancel
             </button>
-            <button 
-              type="button" 
-              onClick={handleAddEmployee} 
-              disabled={saving || !newEmployee.name} 
-              className="flex-1 h-[48px] bg-indigo-600 text-white font-black rounded-xl shadow-xl shadow-indigo-100 uppercase tracking-[0.2em] text-[11px] hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            <button
+              type="button"
+              onClick={handleAddEmployee}
+              disabled={saving}
+              className="flex-1 h-10 bg-gray-900 text-white font-semibold rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50 transition-all"
             >
-              {saving ? 'Processing...' : 'Complete Registration'}
+              {saving ? 'Saving...' : 'Save Employee'}
             </button>
           </div>
         </div>
