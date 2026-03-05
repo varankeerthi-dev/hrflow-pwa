@@ -38,6 +38,12 @@ export default function SalarySlipTab() {
   const [continuousLeaveRule, setContinuousLeaveRule] = useState(false)
   const slipRef = useRef(null)
 
+  const formatMonthYear = (monthStr) => {
+    const [year, month] = monthStr.split('-')
+    const date = new Date(year, parseInt(month) - 1)
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  }
+
   const handleGenerate = async () => {
     console.log('handleGenerate: starting', { selectedEmp, selectedMonth, empCount: employees.length })
     if (!selectedEmp || !selectedMonth) return
@@ -76,6 +82,9 @@ export default function SalarySlipTab() {
       let paidDays = 0
       let lopDays = 0
       let autoOTHours = 0
+      let sundayCount = 0
+      let sundayWorkedCount = 0
+      let holidayWorkedCount = 0
 
       const grid = []
       for (let i = 1; i <= endDay; i++) {
@@ -85,11 +94,20 @@ export default function SalarySlipTab() {
         const rec = attData.find(a => a.date === dStr)
 
         let type = 'Normal'
-        if (isSunday) type = 'Sunday'
+        if (isSunday) {
+          type = 'Sunday'
+          sundayCount++
+        }
         if (rec) {
           if (rec.isAbsent) type = 'Absent'
-          else if (rec.sundayWorked) type = 'Sunday Working'
-          else if (rec.sundayHoliday) type = 'Sunday Holiday'
+          else if (rec.sundayWorked) {
+            type = 'Sunday Working'
+            sundayWorkedCount++
+          }
+          else if (rec.sundayHoliday) {
+            type = 'Sunday Holiday'
+            holidayWorkedCount++
+          }
           else type = 'Working'
           if (rec.otHours) {
             const [h, m] = rec.otHours.split(':').map(Number)
@@ -153,7 +171,7 @@ export default function SalarySlipTab() {
       const netPay = Math.max(0, grossEarnings - totalDeductions)
 
       setSlipData({
-        employee: emp, month: selectedMonth, slab: activeSlab, grid, paidDays, lopDays, autoOTHours, finalOT, otPay, basic, hra, grossEarnings, pf, it, advanceDeduction: pendingAdvances, totalDeductions, netPay
+        employee: emp, month: selectedMonth, slab: activeSlab, grid, paidDays, lopDays, autoOTHours, finalOT, otPay, basic, hra, grossEarnings, pf, it, advanceDeduction: pendingAdvances, totalDeductions, netPay, sundayCount, sundayWorkedCount, holidayWorkedCount
       })
     } catch (err) {
       console.error('SalarySlip generate error:', err)
@@ -171,7 +189,9 @@ export default function SalarySlipTab() {
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-    pdf.save(`Payslip_${slipData.employee.name}_${selectedMonth}.pdf`)
+    const pdfBlob = pdf.output('blob')
+    const pdfUrl = URL.createObjectURL(pdfBlob)
+    window.open(pdfUrl, '_blank')
   }
 
   const handleSaveSlip = async () => {
@@ -205,6 +225,7 @@ export default function SalarySlipTab() {
     await addDoc(collection(db, 'organisations', user.orgId, 'otRequests'), {
       employeeId: selectedEmp, month: selectedMonth, autoOTHours: slipData.autoOTHours, revisedOTHours: Number(revisedOT), finalOTHours: final, note: otNote, status: 'pending', createdAt: serverTimestamp()
     })
+    alert('OT request submitted for review. It will appear in Approvals tab for manager approval.')
     handleGenerate()
   }
 
@@ -258,7 +279,7 @@ export default function SalarySlipTab() {
                 </div>
                 <div className="text-right">
                   <h2 className="text-xl font-black text-gray-800 tracking-tight uppercase">Monthly Payslip</h2>
-                  <p className="text-sm font-black text-indigo-600 uppercase mt-1 px-3 py-1 bg-indigo-50 rounded-full inline-block">{slipData.month}</p>
+                  <p className="text-sm font-black text-indigo-600 uppercase mt-1 px-3 py-1 bg-indigo-50 rounded-full inline-block">{formatMonthYear(slipData.month)}</p>
                 </div>
               </div>
 
@@ -277,6 +298,40 @@ export default function SalarySlipTab() {
                   <div className="mt-6 pt-4 border-t border-green-200/50 flex justify-between text-[11px] font-black text-green-700 uppercase">
                     <span>Paid: {slipData.paidDays}d</span>
                     <span>LOP: {slipData.lopDays}d</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendance Summary Grid */}
+              <div className="mb-8">
+                <div className="grid grid-cols-7 gap-3">
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Total Worked Days</p>
+                    <p className="text-2xl font-black text-blue-600">{slipData.paidDays}</p>
+                  </div>
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Sunday</p>
+                    <p className="text-2xl font-black text-indigo-600">{slipData.sundayCount || 0}</p>
+                  </div>
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1">Sunday Worked</p>
+                    <p className="text-2xl font-black text-green-600">{slipData.sundayWorkedCount || 0}</p>
+                  </div>
+                  <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-1">Holiday Worked</p>
+                    <p className="text-2xl font-black text-purple-600">{slipData.holidayWorkedCount || 0}</p>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">OT</p>
+                    <p className="text-2xl font-black text-amber-600">{slipData.autoOTHours.toFixed(1)}h</p>
+                  </div>
+                  <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Advance</p>
+                    <p className="text-2xl font-black text-red-600">{formatINR(slipData.advanceDeduction || 0)}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Leave</p>
+                    <p className="text-2xl font-black text-gray-600">{slipData.lopDays}</p>
                   </div>
                 </div>
               </div>
@@ -340,7 +395,7 @@ export default function SalarySlipTab() {
 
             {activeBottomTab === 'ot' && (
               <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm flex flex-col gap-6">
-                <div className="flex items-center gap-2 text-indigo-600"><Clock size={18} /><h4 className="text-sm font-black uppercase">Overtime Logic</h4></div>
+                <div className="flex items-center gap-2 text-indigo-600"><Clock size={18} /><h4 className="text-sm font-black uppercase">OT Escalation</h4></div>
                 <div className="space-y-4">
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">System Calculated</p>
