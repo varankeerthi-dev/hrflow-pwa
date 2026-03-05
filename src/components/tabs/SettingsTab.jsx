@@ -416,94 +416,248 @@ export default function SettingsTab() {
           </div>
         )}
 
-        {activeSubTab === 'employee' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center no-print">
-              <div className="flex items-center gap-4 flex-wrap">
-                <h3 className="text-sm font-bold text-gray-800">Employee Roster</h3>
-                <div className="flex gap-1.5 flex-wrap items-center">
-                  <span className="text-[10px] text-gray-400 font-medium mr-1">Columns:</span>
-                  {allColumns.map(col => (
+        {activeSubTab === 'employee' && (() => {
+          // Derive filter options
+          const deptOptions = [...new Set(employees.map(e => e.department).filter(Boolean))]
+          const statusOptions = ['All', 'Active', 'Inactive']
+
+          return (
+            <div className="space-y-3 no-print">
+              {/* ── Header ─────────────────────────────────── */}
+              <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[#F3F4F6]">
+                  {/* Left: title + subtitle */}
+                  <div>
+                    <h2 className="text-[15px] font-semibold text-gray-900 tracking-tight">Employee Directory</h2>
+                    <p className="text-[12px] text-gray-400 mt-0.5">All employees in your organisation</p>
+                  </div>
+                  {/* Right: filters + add */}
+                  <div className="flex items-center gap-2">
+                    {/* Column picker toggle */}
+                    <div className="relative group">
+                      <button className="h-[34px] px-3 flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[12px] font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all">
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" /></svg>
+                        Columns
+                      </button>
+                      {/* Column picker dropdown */}
+                      <div className="absolute right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-3 z-20 w-44 hidden group-focus-within:block">
+                        {allColumns.filter(c => c.optional).map(col => (
+                          <label key={col.key} className="flex items-center gap-2.5 py-1.5 px-1 hover:bg-gray-50 rounded-lg cursor-pointer">
+                            <input type="checkbox" checked={visibleColumns.includes(col.key)} onChange={() => setVisibleColumns(prev => prev.includes(col.key) ? prev.filter(k => k !== col.key) : [...prev, col.key])} className="w-3.5 h-3.5 rounded border-gray-300 text-gray-900 accent-gray-900" />
+                            <span className="text-[12px] text-gray-600 font-medium">{col.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
                     <button
-                      key={col.key}
-                      disabled={!col.optional}
-                      onClick={() => {
-                        if (!col.optional) return
-                        setVisibleColumns(prev => prev.includes(col.key) ? prev.filter(k => k !== col.key) : [...prev, col.key])
-                      }}
-                      title={!col.optional ? 'Required column' : ''}
-                      className={`px-2 py-1 rounded-md text-[9px] font-semibold border transition-all ${!col.optional
-                        ? 'bg-gray-900 text-white border-gray-900 cursor-default'
-                        : visibleColumns.includes(col.key)
-                          ? 'bg-white border-gray-300 text-gray-700 shadow-sm'
-                          : 'bg-white border-gray-100 text-gray-300 hover:border-gray-200'
-                        }`}
+                      onClick={() => setShowAddEmployee(true)}
+                      className="h-[34px] px-4 bg-gray-900 text-white text-[12px] font-semibold rounded-lg hover:bg-gray-800 transition-all flex items-center gap-1.5"
                     >
-                      {col.label}
+                      <Plus size={14} /> Add Employee
                     </button>
-                  ))}
+                  </div>
+                </div>
+
+                {/* ── Table ─────────────────────────────────── */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse print-section">
+                    <thead>
+                      <tr className="bg-[#F9FAFB]">
+                        <th className="px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap border-b border-[#F3F4F6] w-[40px]">#</th>
+                        <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap border-b border-[#F3F4F6]">Employee</th>
+                        {visibleColumns.includes('designation') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Role</th>}
+                        {visibleColumns.includes('department') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Department</th>}
+                        {visibleColumns.includes('emergencyContact') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Contact</th>}
+                        {visibleColumns.includes('status') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Status</th>}
+                        {visibleColumns.includes('empCode') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">ID</th>}
+                        {visibleColumns.includes('email') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Email</th>}
+                        {visibleColumns.includes('joinedDate') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Joined</th>}
+                        {visibleColumns.includes('bloodGroup') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Blood</th>}
+                        {visibleColumns.includes('dob') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">DOB</th>}
+                        {visibleColumns.includes('maritalStatus') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Marital</th>}
+                        {visibleColumns.includes('shift') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Shift</th>}
+                        {visibleColumns.includes('site') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Site</th>}
+                        {visibleColumns.includes('bankAccount') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Bank Acc.</th>}
+                        {visibleColumns.includes('photo') && <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6]">Photo</th>}
+                        <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-[#F3F4F6] text-right no-print">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {empLoading ? (
+                        <tr><td colSpan={20} className="text-center py-14"><Spinner /></td></tr>
+                      ) : employees.length === 0 ? (
+                        <tr><td colSpan={20} className="text-center py-16 text-gray-300 text-sm font-medium">No employees yet — click <span className="font-semibold text-gray-500">Add Employee</span> to get started</td></tr>
+                      ) : employees.map((emp, idx) => {
+                        // Department badge colors
+                        const deptColors = [
+                          'bg-violet-50 text-violet-700',
+                          'bg-emerald-50 text-emerald-700',
+                          'bg-amber-50 text-amber-700',
+                          'bg-sky-50 text-sky-700',
+                          'bg-rose-50 text-rose-700',
+                          'bg-indigo-50 text-indigo-700',
+                        ]
+                        const deptColor = deptColors[deptOptions.indexOf(emp.department) % deptColors.length] || 'bg-gray-100 text-gray-600'
+
+                        // Status badge
+                        const statusBadge = emp.status === 'Active'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          : 'bg-red-50 text-red-600 border border-red-100'
+
+                        return (
+                          <tr
+                            key={emp.id}
+                            className="group border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors"
+                            style={{ height: '52px' }}
+                          >
+                            {/* Index */}
+                            <td className="px-5 py-3 text-[11px] text-gray-400 font-medium tabular-nums">{idx + 1}</td>
+
+                            {/* Employee: avatar + name + email */}
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => { setEditingEmp(emp.id); setEditForm(emp) }}
+                                className="flex items-center gap-3 text-left"
+                              >
+                                <div className="w-8 h-8 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white text-[11px] font-bold" style={{ backgroundColor: getAvatarColor(emp.id) }}>
+                                  {emp.photoURL ? <img src={emp.photoURL} className="w-full h-full object-cover" alt="" /> : getInitials(emp.name)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">{emp.name}</p>
+                                  {emp.email && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{emp.email}</p>}
+                                </div>
+                              </button>
+                            </td>
+
+                            {/* Role / Designation */}
+                            {visibleColumns.includes('designation') && (
+                              <td className="px-4 py-3 text-[12px] text-gray-600 font-medium">{emp.designation || <span className="text-gray-300">—</span>}</td>
+                            )}
+
+                            {/* Department badge */}
+                            {visibleColumns.includes('department') && (
+                              <td className="px-4 py-3">
+                                {emp.department
+                                  ? <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${deptColor}`}>{emp.department}</span>
+                                  : <span className="text-gray-300 text-[12px]">—</span>
+                                }
+                              </td>
+                            )}
+
+                            {/* Contact */}
+                            {visibleColumns.includes('emergencyContact') && (
+                              <td className="px-4 py-3 text-[12px] text-gray-500 font-medium tabular-nums">{emp.emergencyContact || <span className="text-gray-300">—</span>}</td>
+                            )}
+
+                            {/* Status badge */}
+                            {visibleColumns.includes('status') && (
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${statusBadge}`}>
+                                  {emp.status || 'Active'}
+                                </span>
+                              </td>
+                            )}
+
+                            {/* Emp ID */}
+                            {visibleColumns.includes('empCode') && (
+                              <td className="px-4 py-3 font-mono text-[11px] text-gray-400">{emp.empCode || <span className="text-gray-200">—</span>}</td>
+                            )}
+
+                            {/* Email */}
+                            {visibleColumns.includes('email') && (
+                              <td className="px-4 py-3 text-[11px] text-gray-400 max-w-[160px] truncate">{emp.email || <span className="text-gray-200">—</span>}</td>
+                            )}
+
+                            {/* Joined Date */}
+                            {visibleColumns.includes('joinedDate') && (
+                              <td className="px-4 py-3 text-[11px] text-gray-400 tabular-nums">{emp.joinedDate || <span className="text-gray-200">—</span>}</td>
+                            )}
+
+                            {/* Blood Group */}
+                            {visibleColumns.includes('bloodGroup') && (
+                              <td className="px-4 py-3">
+                                {emp.bloodGroup
+                                  ? <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-red-50 text-red-600">{emp.bloodGroup}</span>
+                                  : <span className="text-gray-200 text-[12px]">—</span>
+                                }
+                              </td>
+                            )}
+
+                            {/* DOB */}
+                            {visibleColumns.includes('dob') && (
+                              <td className="px-4 py-3 text-[11px] text-gray-400 tabular-nums">{emp.dob || <span className="text-gray-200">—</span>}</td>
+                            )}
+
+                            {/* Marital Status */}
+                            {visibleColumns.includes('maritalStatus') && (
+                              <td className="px-4 py-3 text-[11px] text-gray-400">{emp.maritalStatus || <span className="text-gray-200">—</span>}</td>
+                            )}
+
+                            {/* Shift */}
+                            {visibleColumns.includes('shift') && (
+                              <td className="px-4 py-3 text-[11px] text-gray-400">{emp.shift?.name || <span className="text-gray-200">—</span>}</td>
+                            )}
+
+                            {/* Site */}
+                            {visibleColumns.includes('site') && (
+                              <td className="px-4 py-3 text-[11px] text-gray-400">{emp.site || <span className="text-gray-200">—</span>}</td>
+                            )}
+
+                            {/* Bank Account */}
+                            {visibleColumns.includes('bankAccount') && (
+                              <td className="px-4 py-3 font-mono text-[11px] text-gray-400">{emp.bankAccount || <span className="text-gray-200">—</span>}</td>
+                            )}
+
+                            {/* Photo thumbnail */}
+                            {visibleColumns.includes('photo') && (
+                              <td className="px-4 py-3">
+                                <div className="w-8 h-8 rounded-lg border border-gray-100 bg-gray-50 overflow-hidden">
+                                  {emp.photoURL ? <img src={emp.photoURL} className="w-full h-full object-cover" alt="" /> : <span className="w-full h-full flex items-center justify-center text-gray-200 text-[9px]">—</span>}
+                                </div>
+                              </td>
+                            )}
+
+                            {/* Actions */}
+                            <td className="px-4 py-3 text-right no-print">
+                              <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => {
+                                    if (emp.documents?.length) setViewerState({ docs: emp.documents, index: 0 })
+                                  }}
+                                  title="View documents"
+                                  className={`p-1.5 rounded-md text-gray-400 transition-all ${emp.documents?.length ? 'hover:bg-gray-100 hover:text-gray-700' : 'opacity-20 cursor-default'}`}
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                <button
+                                  onClick={() => { setEditingEmp(emp.id); setEditForm(emp) }}
+                                  title="Edit employee"
+                                  className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
+                                >
+                                  <Edit size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between px-5 py-3 border-t border-[#F3F4F6]">
+                  <p className="text-[12px] text-gray-400">{employees.length} employee{employees.length !== 1 ? 's' : ''} total</p>
+                  <button onClick={handlePrintRoster} className="text-[12px] text-gray-400 hover:text-gray-700 font-medium transition-colors flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                    Export PDF
+                  </button>
                 </div>
               </div>
-              <button onClick={() => setShowAddEmployee(true)} className="bg-gray-900 text-white px-4 py-2 rounded-lg font-semibold text-[12px] hover:bg-gray-800 transition-all">+ Add Employee</button>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden print-section">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    {allColumns.filter(c => visibleColumns.includes(c.key)).map(h => (
-                      <th key={h.key} className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{h.label}</th>
-                    ))}
-                    <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider no-print">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {empLoading ? (
-                    <tr><td colSpan={visibleColumns.length + 1} className="text-center py-10"><Spinner /></td></tr>
-                  ) : employees.map(emp => (
-                    <tr key={emp.id} className="hover:bg-gray-50/50 group">
-                      {visibleColumns.includes('photo') && (
-                        <td className="px-4 py-2">
-                          <div className="w-9 h-9 rounded-lg border bg-gray-50 overflow-hidden flex items-center justify-center">
-                            {emp.photoURL ? <img src={emp.photoURL} className="w-full h-full object-cover" alt={emp.name} /> : <span className="text-[8px] text-gray-300 font-bold">—</span>}
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.includes('name') && (
-                        <td className="px-4 py-2.5">
-                          <button onClick={() => { setEditingEmp(emp.id); setEditForm(emp); }} className="flex items-center gap-2 text-left hover:text-indigo-600 transition-colors">
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0" style={{ backgroundColor: getAvatarColor(emp.id) }}>{getInitials(emp.name)}</div>
-                            <span className="font-semibold text-gray-800 text-[12px]">{emp.name}</span>
-                          </button>
-                        </td>
-                      )}
-                      {visibleColumns.includes('designation') && <td className="px-4 py-2.5 text-gray-600 text-[11px] font-medium">{emp.designation || '—'}</td>}
-                      {visibleColumns.includes('emergencyContact') && <td className="px-4 py-2.5 text-gray-600 text-[11px] font-medium">{emp.emergencyContact || '—'}</td>}
-                      {visibleColumns.includes('empCode') && <td className="px-4 py-2.5 font-mono text-gray-400 text-[10px]">{emp.empCode || '—'}</td>}
-                      {visibleColumns.includes('department') && <td className="px-4 py-2.5 text-gray-500 text-[11px]">{emp.department || '—'}</td>}
-                      {visibleColumns.includes('email') && <td className="px-4 py-2.5 text-gray-500 text-[10px]">{emp.email || '—'}</td>}
-                      {visibleColumns.includes('shift') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.shift?.name || '—'}</td>}
-                      {visibleColumns.includes('site') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.site || '—'}</td>}
-                      {visibleColumns.includes('bankAccount') && <td className="px-4 py-2.5 font-mono text-gray-400 text-[10px]">{emp.bankAccount || '—'}</td>}
-                      {visibleColumns.includes('status') && (
-                        <td className="px-4 py-2.5"><span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold ${emp.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>{emp.status || 'Active'}</span></td>
-                      )}
-                      {visibleColumns.includes('joinedDate') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.joinedDate || '—'}</td>}
-                      {visibleColumns.includes('bloodGroup') && <td className="px-4 py-2.5 text-gray-500 text-[10px] font-bold">{emp.bloodGroup || '—'}</td>}
-                      {visibleColumns.includes('dob') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.dob || '—'}</td>}
-                      {visibleColumns.includes('maritalStatus') && <td className="px-4 py-2.5 text-gray-400 text-[10px]">{emp.maritalStatus || '—'}</td>}
-                      <td className="px-4 py-2.5 no-print">
-                        <button onClick={() => { setEditingEmp(emp.id); setEditForm(emp); }} className="text-gray-400 hover:text-gray-900 font-medium text-[10px] transition-colors">Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex justify-end no-print">
-              <button onClick={handlePrintRoster} className="text-gray-400 hover:text-gray-700 text-[11px] font-medium transition-colors">Export PDF Roster</button>
-            </div>
-          </div>
-        )}
+          )
+        })()}
 
         {activeSubTab === 'shift' && (
           <div className="space-y-4 no-print">
