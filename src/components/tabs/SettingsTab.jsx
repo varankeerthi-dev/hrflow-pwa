@@ -331,15 +331,21 @@ export default function SettingsTab() {
               Loading organisation data...
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl no-print">
-              <div className="bg-white rounded-2xl border p-5 space-y-4 shadow-sm">
-                <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Org Information</h3>
-                <div className="flex flex-col items-center mb-4">
-                  <div className="w-20 h-20 rounded-none border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden bg-gray-50 group shadow-inner">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl no-print">
+              {/* Left Card - Organization Information */}
+              <div className="bg-white rounded-2xl p-6 space-y-6" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+                <h3 className="text-base font-bold text-gray-800">Organization Information</h3>
+                
+                {/* Logo Upload */}
+                <div className="flex flex-col items-center pb-6 border-b border-gray-100">
+                  <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden bg-gray-50 group hover:border-indigo-400 transition-all cursor-pointer" style={{ width: '90px', height: '90px' }}>
                     {orgSettings.logoURL ? (
-                      <img src={orgSettings.logoURL} className="w-full h-full object-contain" alt="Logo" />
+                      <img src={orgSettings.logoURL} className="w-full h-full object-cover rounded-full" alt="Logo" />
                     ) : (
-                      <span className="text-[10px] text-blue-600 font-bold uppercase">Logo</span>
+                      <div className="flex flex-col items-center justify-center">
+                        <svg className="w-8 h-8 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span className="text-[9px] text-gray-400 font-medium">Upload</span>
+                      </div>
                     )}
                     <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
                       const url = await handleFileUpload(e.target.files[0], `orgs/${user.orgId}/logo`)
@@ -349,44 +355,115 @@ export default function SettingsTab() {
                       }
                     }} />
                   </div>
-                  <span className="text-[9px] text-blue-600 font-bold mt-1">Click to upload</span>
+                  <div className="mt-3 text-center">
+                    <p className="text-[13px] font-semibold text-gray-700">Upload Logo</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Supported: PNG, JPG</p>
+                  </div>
                 </div>
-                <div className="space-y-3">
+
+                {/* Form Fields */}
+                <div className="space-y-4">
                   {[
-                    { label: 'Org Name', key: 'name', required: true },
+                    { label: 'Organization Name', key: 'name', required: true },
                     { label: 'Email', key: 'email' },
-                    { label: 'Address', key: 'address' },
-                    { label: 'Branch Address', key: 'branchAddress' },
+                    { label: 'Address', key: 'address', isTextarea: true },
+                    { label: 'Branch Address', key: 'branchAddress', isTextarea: true },
                     { label: 'GSTIN', key: 'gstin' }
                   ].map(f => (
                     <div key={f.key}>
-                      <label className="block text-[9px] font-bold text-blue-600 uppercase mb-1">{f.label}{f.required && ' *'}</label>
-                      <input type="text" value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-none px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-bold bg-gray-50/50" />
+                      <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">{f.label}{f.required && <span className="text-red-500"> *</span>}</label>
+                      {f.isTextarea ? (
+                        <textarea 
+                          value={orgSettings[f.key] || ''} 
+                          onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))}
+                          rows={3}
+                          className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
+                          style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                        />
+                      ) : (
+                        <input 
+                          type="text" 
+                          value={orgSettings[f.key] || ''} 
+                          onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))}
+                          className="w-full h-[42px] border rounded-lg px-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50"
+                          style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border p-5 space-y-4 shadow-sm">
-                <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Structure & Accounts</h3>
-                <div className="space-y-3">
-                  {[
-                    { label: 'Hierarchy', key: 'hierarchy', placeholder: 'CEO > Manager > Staff' },
-                    { label: 'Branches', key: 'branches', placeholder: 'Chennai, Mumbai...' },
-                    { label: 'Bank Accounts', key: 'bankAccounts', placeholder: 'HDFC: XXX, SBI: YYY' }
-                  ].map(f => (
-                    <div key={f.key}>
-                      <label className="block text-[9px] font-bold text-blue-600 uppercase mb-1">{f.label}</label>
-                      <textarea value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-none px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-medium bg-gray-50/50 h-20" placeholder={f.placeholder} />
+              {/* Right Card - Structure & Accounts */}
+              <div className="bg-white rounded-2xl p-6 space-y-6" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+                <h3 className="text-base font-bold text-gray-800">Structure & Accounts</h3>
+
+                {/* Hierarchy Section */}
+                <div className="pb-5 border-b border-gray-100">
+                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Hierarchy</label>
+                  <textarea 
+                    value={orgSettings.hierarchy || ''} 
+                    onChange={e => setOrgSettings(s => ({ ...s, hierarchy: e.target.value }))}
+                    rows={2}
+                    placeholder="CEO > Manager > Staff"
+                    className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
+                    style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1.5">Define your reporting structure</p>
+                </div>
+
+                {/* Branches Section */}
+                <div className="pb-5 border-b border-gray-100">
+                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Branches</label>
+                  <textarea 
+                    value={orgSettings.branches || ''} 
+                    onChange={e => setOrgSettings(s => ({ ...s, branches: e.target.value }))}
+                    rows={2}
+                    placeholder="Chennai, Mumbai, Bangalore"
+                    className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
+                    style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                  />
+                </div>
+
+                {/* Bank Accounts Section */}
+                <div className="pb-5 border-b border-gray-100">
+                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Bank Accounts</label>
+                  <textarea 
+                    value={orgSettings.bankAccounts || ''} 
+                    onChange={e => setOrgSettings(s => ({ ...s, bankAccounts: e.target.value }))}
+                    rows={2}
+                    placeholder="HDFC - 123456&#10;SBI - 987654"
+                    className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
+                    style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                  />
+                </div>
+
+                {/* Invite Code */}
+                <div>
+                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Invite Code</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 bg-gray-50 border rounded-lg px-3 py-2.5 font-mono text-sm text-indigo-600 select-all" style={{ borderColor: '#e4e6eb' }}>
+                      {orgSettings.code || 'N/A'}
                     </div>
-                  ))}
-                  <div>
-                    <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Invite Code</label>
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 font-mono font-bold text-indigo-600 text-center select-all">{orgSettings.code}</div>
+                    <button 
+                      onClick={() => navigator.clipboard.writeText(orgSettings.code)}
+                      className="px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-all"
+                    >
+                      Copy
+                    </button>
                   </div>
                 </div>
-                {orgError && <div className="text-red-500 text-xs font-bold">{orgError}</div>}
-                <button onClick={handleSaveOrg} disabled={saving} className={`w-full py-2.5 rounded-none font-black transition-all shadow-md mt-2 ${saved ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+
+                {/* Error Message */}
+                {orgError && <div className="text-red-500 text-sm font-medium">{orgError}</div>}
+
+                {/* Save Button */}
+                <button 
+                  onClick={handleSaveOrg} 
+                  disabled={saving}
+                  className={`w-full h-[46px] rounded-xl font-semibold text-white transition-all flex items-center justify-center ${saved ? 'bg-green-500' : 'hover:shadow-lg hover:-translate-y-0.5'}`}
+                  style={{ background: saved ? '#22c55e' : 'linear-gradient(135deg,#6366f1,#4f46e5)' }}
+                >
                   {saving ? 'SAVING...' : saved ? 'SAVED ✓' : 'SAVE ALL CHANGES'}
                 </button>
               </div>
