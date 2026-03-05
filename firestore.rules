@@ -92,6 +92,11 @@ service cloud.firestore {
         allow create, update: if isAdminOrHR() && getUserOrgId() == orgId;
       }
       
+      match /salarySlips/{slipId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow create, update: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
       match /leaves/{leaveId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
         allow create: if isEmployee() && getUserOrgId() == orgId;
