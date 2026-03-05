@@ -181,7 +181,7 @@ function LinkAccountModal({ email, googleCredential, onLink, onCancel }) {
 
 // ─── Main Login Page ──────────────────────────────────────────────────────────
 export default function Login() {
-  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation } = useAuth()
+  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation, resetPassword } = useAuth()
   const navigate = useNavigate()
 
   const [tab, setTab] = useState('signin')   // 'signin' | 'signup'
@@ -201,6 +201,12 @@ export default function Login() {
 
   // Account-link modal state
   const [linkData, setLinkData] = useState(null) // { email, googleCredential }
+
+  // Forgot password modal state
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
 
   // If user is logged in but has no org → show org setup modal
   if (user && !user.orgId) {
@@ -283,6 +289,20 @@ export default function Login() {
     }
   }
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault()
+    if (!forgotEmail.trim()) return
+    setForgotLoading(true)
+    try {
+      await resetPassword(forgotEmail.trim())
+      setForgotSent(true)
+    } catch (err) {
+      setError(formatAuthError(err))
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
   const handleLink = async (email, password, googleCredential) => {
     await linkGoogleToEmail(email, password, googleCredential)
     setLinkData(null)
@@ -319,6 +339,63 @@ export default function Login() {
           onLink={handleLink}
           onCancel={() => setLinkData(null)}
         />
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 mx-4">
+            <div className="flex flex-col items-center mb-5">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-3">
+                <span className="text-white text-2xl">🔐</span>
+              </div>
+              <h2 className="text-xl font-bold text-gray-800">Reset Password</h2>
+              <p className="text-sm text-gray-500 text-center mt-1">
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+            </div>
+
+            {forgotSent ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <p className="text-sm text-green-700 font-medium mb-2">Password reset link sent! 📧</p>
+                <p className="text-xs text-gray-500">Check your email for instructions.</p>
+                <button
+                  onClick={() => { setShowForgotPassword(false); setForgotSent(false); setForgotEmail(''); }}
+                  className="mt-4 w-full bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition-all"
+                >
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+                  required
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(false)}
+                    className="flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold py-2.5 rounded-lg shadow-lg hover:shadow-indigo-500/30 transition-all disabled:opacity-50"
+                  >
+                    {forgotLoading ? 'Sending...' : 'Send Link'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -380,6 +457,15 @@ export default function Login() {
                     placeholder="••••••••"
                     required
                   />
+                </div>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
                 <button
                   type="submit"

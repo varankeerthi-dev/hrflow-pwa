@@ -5,7 +5,7 @@ import { db, storage, auth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
@@ -648,6 +648,27 @@ export default function SettingsTab() {
                       className="px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-all"
                     >
                       Copy
+                    </button>
+                  </div>
+                </div>
+
+                {/* Share Link for Employees */}
+                <div className="border-t border-gray-100 pt-5">
+                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Employee Login Link</label>
+                  <p className="text-[11px] text-gray-400 mb-3">Share this link with employees so they can create their account</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 bg-gray-50 border rounded-lg px-3 py-2.5 font-mono text-xs text-indigo-600 select-all break-all" style={{ borderColor: '#e4e6eb' }}>
+                      {typeof window !== 'undefined' ? window.location.origin : ''}/login
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const link = `${window.location.origin}/login`
+                        navigator.clipboard.writeText(link)
+                        alert('Login link copied to clipboard!')
+                      }}
+                      className="px-4 py-2.5 bg-indigo-600 border border-indigo-600 rounded-lg text-sm font-medium text-white hover:bg-indigo-700 transition-all flex items-center gap-1.5"
+                    >
+                      <Share2 size={14} /> Share
                     </button>
                   </div>
                 </div>
