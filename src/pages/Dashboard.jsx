@@ -265,6 +265,29 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Quick Access Bar - always visible sticky strip */}
+      <div className="sticky top-14 z-30 bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 shrink-0 overflow-x-auto">
+        {[
+          { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={15} /> },
+          { label: 'Add Employee', tab: 'settings', icon: <Users size={15} /> },
+          { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} /> },
+          { label: 'Make Correction', tab: 'correction', icon: <PencilLine size={15} /> },
+          { label: 'Full Summary', tab: 'summary', icon: <BarChart3 size={15} /> },
+        ].map(item => (
+          <button
+            key={item.tab}
+            onClick={() => setActiveTab(item.tab)}
+            className={`flex items-center gap-2 px-3 h-9 rounded-md border text-[12px] font-medium whitespace-nowrap transition-all ${activeTab === item.tab
+              ? 'bg-gray-100 border-gray-400 text-gray-800'
+              : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+          >
+            <span>{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Modern Minimal Sidebar */}
         <aside className={`${isCollapsed ? 'w-[64px]' : 'w-[240px]'} bg-[#fafafa] border-r border-[#e5e7eb] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out p-[14px]`}>
@@ -317,28 +340,6 @@ export default function Dashboard() {
 
           <main className="flex-1 overflow-auto p-8 bg-[#f9fafb]/30">
             <div className="max-w-7xl mx-auto h-full flex flex-col">
-              {/* Quick Access Bar */}
-              <div className="mb-5 flex items-center gap-2">
-                {[
-                  { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={16} /> },
-                  { label: 'Add Employee', tab: 'settings', icon: <Users size={16} /> },
-                  { label: 'Add Expense', tab: 'advance', icon: <Wallet size={16} /> },
-                  { label: 'Make Correction', tab: 'correction', icon: <PencilLine size={16} /> },
-                  { label: 'Full Summary', tab: 'summary', icon: <BarChart3 size={16} /> },
-                ].map(item => (
-                  <button
-                    key={item.tab}
-                    onClick={() => setActiveTab(item.tab)}
-                    className={`flex flex-col items-center justify-center gap-1.5 w-[110px] h-[70px] rounded-lg border text-center transition-all ${activeTab === item.tab
-                        ? 'bg-gray-900 text-white border-gray-900 shadow-md'
-                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800 hover:shadow-sm'
-                      }`}
-                  >
-                    <span className={activeTab === item.tab ? 'text-white' : 'text-gray-400'}>{item.icon}</span>
-                    <span className="text-[10px] font-semibold leading-tight px-1">{item.label}</span>
-                  </button>
-                ))}
-              </div>
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 tracking-tight font-inter">{activeTab.replace('-', ' ').toUpperCase()}</h1>

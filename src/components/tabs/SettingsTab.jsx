@@ -137,6 +137,8 @@ export default function SettingsTab() {
           setOrgSettings(prev => ({
             ...prev,
             ...data,
+            // Ensure name is always populated (fallback to user.orgName if missing in doc)
+            name: data.name || user?.orgName || prev.name,
             advanceCategories: data.advanceCategories || prev.advanceCategories,
             holidays: data.holidays || prev.holidays
           }))
@@ -246,6 +248,7 @@ export default function SettingsTab() {
 
   const handleSaveOrg = async () => {
     if (!user?.orgId) { setOrgError('No organisation ID found.'); return }
+    if (loading) { setOrgError('Still loading data. Please wait.'); return }
     setSaving(true)
     setOrgError('')
     try {
@@ -301,60 +304,67 @@ export default function SettingsTab() {
 
       <div className="flex-1 overflow-auto">
         {activeSubTab === 'organization' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl no-print">
-            <div className="bg-white rounded-2xl border p-5 space-y-4 shadow-sm">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Org Information</h3>
-              <div className="flex flex-col items-center mb-4">
-                <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden bg-gray-50 group shadow-inner">
-                  {orgSettings.logoURL ? (
-                    <img src={orgSettings.logoURL} className="w-full h-full object-contain" alt="Logo" />
-                  ) : (
-                    <span className="text-[10px] text-gray-400 font-bold uppercase">Logo</span>
-                  )}
-                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
-                    const url = await handleFileUpload(e.target.files[0], `orgs/${user.orgId}/logo`)
-                    if (url) setOrgSettings(s => ({ ...s, logoURL: url }))
-                  }} />
+          loading ? (
+            <div className="flex items-center justify-center py-16 text-gray-400">
+              <svg className="animate-spin h-6 w-6 mr-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
+              Loading organisation data...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl no-print">
+              <div className="bg-white rounded-2xl border p-5 space-y-4 shadow-sm">
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Org Information</h3>
+                <div className="flex flex-col items-center mb-4">
+                  <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden bg-gray-50 group shadow-inner">
+                    {orgSettings.logoURL ? (
+                      <img src={orgSettings.logoURL} className="w-full h-full object-contain" alt="Logo" />
+                    ) : (
+                      <span className="text-[10px] text-gray-400 font-bold uppercase">Logo</span>
+                    )}
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
+                      const url = await handleFileUpload(e.target.files[0], `orgs/${user.orgId}/logo`)
+                      if (url) setOrgSettings(s => ({ ...s, logoURL: url }))
+                    }} />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Org Name', key: 'name' },
+                    { label: 'Email', key: 'email' },
+                    { label: 'Address', key: 'address' },
+                    { label: 'GSTIN', key: 'gstin' }
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
+                      <input type="text" value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-bold bg-gray-50/50" />
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="space-y-3">
-                {[
-                  { label: 'Org Name', key: 'name' },
-                  { label: 'Email', key: 'email' },
-                  { label: 'Address', key: 'address' },
-                  { label: 'GSTIN', key: 'gstin' }
-                ].map(f => (
-                  <div key={f.key}>
-                    <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
-                    <input type="text" value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-bold bg-gray-50/50" />
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="bg-white rounded-2xl border p-5 space-y-4 shadow-sm">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Structure & Accounts</h3>
-              <div className="space-y-3">
-                {[
-                  { label: 'Hierarchy', key: 'hierarchy', placeholder: 'CEO > Manager > Staff' },
-                  { label: 'Branches', key: 'branches', placeholder: 'Chennai, Mumbai...' },
-                  { label: 'Bank Accounts', key: 'bankAccounts', placeholder: 'HDFC: XXX, SBI: YYY' }
-                ].map(f => (
-                  <div key={f.key}>
-                    <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
-                    <textarea value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-medium bg-gray-50/50 h-20" placeholder={f.placeholder} />
+              <div className="bg-white rounded-2xl border p-5 space-y-4 shadow-sm">
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Structure & Accounts</h3>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Hierarchy', key: 'hierarchy', placeholder: 'CEO > Manager > Staff' },
+                    { label: 'Branches', key: 'branches', placeholder: 'Chennai, Mumbai...' },
+                    { label: 'Bank Accounts', key: 'bankAccounts', placeholder: 'HDFC: XXX, SBI: YYY' }
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
+                      <textarea value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-medium bg-gray-50/50 h-20" placeholder={f.placeholder} />
+                    </div>
+                  ))}
+                  <div>
+                    <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Invite Code</label>
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 font-mono font-bold text-indigo-600 text-center select-all">{orgSettings.code}</div>
                   </div>
-                ))}
-                <div>
-                  <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Invite Code</label>
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 font-mono font-bold text-indigo-600 text-center select-all">{orgSettings.code}</div>
                 </div>
+                <button onClick={handleSaveOrg} disabled={saving} className={`w-full py-2.5 rounded-xl font-black transition-all shadow-md mt-2 ${saved ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+                  {saving ? 'SAVING...' : saved ? 'SAVED ✓' : 'SAVE ALL CHANGES'}
+                </button>
               </div>
-              <button onClick={handleSaveOrg} disabled={saving} className={`w-full py-2.5 rounded-xl font-black transition-all shadow-md mt-2 ${saved ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
-                {saving ? 'SAVING...' : saved ? 'SAVED ✓' : 'SAVE ALL CHANGES'}
-              </button>
             </div>
-          </div>
+          )
         )}
 
         {activeSubTab === 'advance_cat' && (
