@@ -987,7 +987,7 @@ export default function SettingsTab() {
                       <tr className="bg-gray-50 border-b border-gray-100">
                         <th className="px-4 py-3 font-semibold text-gray-600 sticky left-0 bg-gray-50">Module</th>
                         {roles.map(role => (
-                          <th key={role.id} className="px-3 py-3 font-semibold text-gray-600 text-center min-w-[100px]">{role.name}</th>
+                          <th key={role.id} className="px-4 py-3 font-semibold text-gray-600 text-center min-w-[280px] border-l border-gray-100">{role.name}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1001,16 +1001,23 @@ export default function SettingsTab() {
                             <tr key={mod.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                               <td className="px-4 py-3 font-medium text-gray-700 sticky left-0 bg-white">{mod.label}</td>
                               {roles.map(role => (
-                                <td key={role.id} className="px-3 py-3 text-center">
-                                  <div className="flex items-center justify-center gap-1">
-                                    {['view', 'create', 'edit', 'delete', 'approve'].map(perm => (
+                                <td key={role.id} className="px-4 py-3 text-center border-l border-gray-100">
+                                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                                    {[
+                                      { key: 'view', label: 'View' },
+                                      { key: 'create', label: 'Create' },
+                                      { key: 'edit', label: 'Edit' },
+                                      { key: 'delete', label: 'Delete' },
+                                      { key: 'approve', label: 'Approve' },
+                                      { key: 'export', label: 'Export' }
+                                    ].map(perm => (
                                       <button
-                                        key={perm}
-                                        onClick={() => togglePermission(role.id, mod.id, perm)}
-                                        className={`w-6 h-6 rounded flex items-center justify-center text-[10px] transition-all ${role.permissions?.[mod.id]?.[perm] ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-300'}`}
-                                        title={`${perm.charAt(0).toUpperCase() + perm.slice(1)}`}
+                                        key={perm.key}
+                                        onClick={() => togglePermission(role.id, mod.id, perm.key)}
+                                        className={`px-2 py-1.5 rounded-md text-[11px] font-medium transition-all flex items-center gap-1.5 ${role.permissions?.[mod.id]?.[perm.key] ? 'bg-green-500 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                        title={perm.label}
                                       >
-                                        {perm.charAt(0).toUpperCase()}
+                                        {perm.label}
                                       </button>
                                     ))}
                                   </div>
