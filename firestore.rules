@@ -79,7 +79,7 @@ service cloud.firestore {
       
       match /otApprovals/{approvalId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
-        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow create: if (isEmployee() || isAdminOrHR()) && getUserOrgId() == orgId;
         allow update: if isAdminOrHR() && getUserOrgId() == orgId;
         allow delete: if isAdmin() && getUserOrgId() == orgId;
       }
@@ -93,7 +93,7 @@ service cloud.firestore {
       
       match /advances/{advanceId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
-        allow create: if isEmployee() && getUserOrgId() == orgId;
+        allow create: if (isEmployee() || isAdminOrHR()) && getUserOrgId() == orgId;
         allow update: if isAdminOrHR() && getUserOrgId() == orgId;
         allow delete: if isAdmin() && getUserOrgId() == orgId;
       }

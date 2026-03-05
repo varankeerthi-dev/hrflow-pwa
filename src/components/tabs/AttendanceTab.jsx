@@ -6,7 +6,7 @@ import { db } from '../../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
-import { ChevronLeft, ChevronRight, Check, Copy, Calendar, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, Calendar, Clock, X, Plus } from 'lucide-react'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import TimePicker from '../ui/TimePicker'
 import { logActivity } from '../../hooks/useActivityLog'
@@ -161,6 +161,55 @@ export default function AttendanceTab() {
     setRows(newRows)
   }
 
+  const handleAddRow = () => {
+    const newRow = {
+      employeeId: '',
+      name: '',
+      date: selectedDate,
+      inDate: selectedDate,
+      inTime: '09:00',
+      outDate: selectedDate,
+      outTime: '21:00',
+      otHours: '00:00',
+      remarks: '',
+      isAbsent: false,
+      sundayWorked: false,
+      sundayHoliday: false,
+      status: 'Present',
+      isNew: true
+    }
+    setRows(prev => [...prev, newRow])
+  }
+
+  const handleClearRow = (empId) => {
+    setRows(prev => prev.filter(r => r.employeeId !== empId))
+  }
+
+  const handleEmployeeSelect = (rowIndex, empId) => {
+    const emp = employees.find(e => e.id === empId)
+    if (!emp) return
+    setRows(prev => prev.map((r, idx) => {
+      if (idx !== rowIndex) return r
+      return {
+        ...r,
+        employeeId: emp.id,
+        name: emp.name,
+        date: selectedDate,
+        inDate: selectedDate,
+        inTime: emp.shift?.startTime || '09:00',
+        outDate: selectedDate,
+        outTime: emp.shift?.endTime || '21:00',
+        otHours: '00:00',
+        remarks: emp.site || '',
+        isAbsent: false,
+        sundayWorked: false,
+        sundayHoliday: false,
+        status: 'Present',
+        isNew: false
+      }
+    }))
+  }
+
   const updateRow = (empId, field, value) => {
     setRows(prev => prev.map(r => {
       if (r.employeeId !== empId) return r
@@ -244,7 +293,8 @@ export default function AttendanceTab() {
             {isSunday && <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest flex items-center gap-1">Sunday Routine</span>}
           </div>
         </div>
-        <button onClick={handleGenerate} className="h-[38px] px-[16px] bg-indigo-600 text-white font-semibold rounded-[8px] text-[12px] shadow-sm hover:bg-indigo-700 transition-all uppercase tracking-widest">Generate Active</button>
+        <button onClick={handleAddRow} className="h-[38px] px-[12px] bg-gray-100 text-gray-600 font-semibold rounded-[8px] text-[12px] shadow-sm hover:bg-gray-200 transition-all uppercase tracking-widest flex items-center gap-1.5"><Plus size={14} /> Add Row</button>
+          <button onClick={handleGenerate} className="h-[38px] px-[16px] bg-indigo-600 text-white font-semibold rounded-[8px] text-[12px] shadow-sm hover:bg-indigo-700 transition-all uppercase tracking-widest">Generate Active</button>
       </div>
 
       {/* Main Table Card */}
@@ -261,21 +311,35 @@ export default function AttendanceTab() {
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">OT</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Remarks</th>
                 <th className="px-[14px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">Status Multi-Toggle</th>
+                <th className="px-[8px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider w-[40px]"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f1f5f9]">
               {empLoading ? (
-                <tr><td colSpan={8} className="text-center py-12"><Spinner /></td></tr>
+                <tr><td colSpan={9} className="text-center py-12"><Spinner /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">Ready to generate attendance</td></tr>
+                <tr><td colSpan={9} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">Ready to generate attendance</td></tr>
               ) : (
-                rows.map((row) => (
-                  <tr key={row.employeeId} className={`h-[46px] transition-colors hover:bg-[#f8fafc] ${row.isAbsent ? 'bg-red-50/20' : ''}`}>
+                rows.map((row, idx) => (
+                  <tr key={row.employeeId || `new-${idx}`} className={`h-[46px] transition-colors hover:bg-[#f8fafc] ${row.isAbsent ? 'bg-red-50/20' : ''}`}>
                     {/* Employee Name */}
                     <td className="px-[14px]">
-                      <div className="flex items-center gap-2.5">
-                        <span className="font-semibold text-gray-700 text-[12px] truncate uppercase">{row.name}</span>
-                      </div>
+                      {row.employeeId ? (
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-semibold text-gray-700 text-[12px] truncate uppercase">{row.name}</span>
+                        </div>
+                      ) : (
+                        <select
+                          value=""
+                          onChange={(e) => handleEmployeeSelect(idx, e.target.value)}
+                          className="w-full h-[30px] border border-gray-200 rounded-lg px-3 text-[11px] font-semibold bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                          <option value="">Select Employee...</option>
+                          {employees.filter(e => !rows.some(r => r.employeeId === e.id)).map(e => (
+                            <option key={e.id} value={e.id}>{e.name}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
 
                     {/* In Date */}
@@ -426,6 +490,17 @@ export default function AttendanceTab() {
                           </button>
                         ))}
                       </div>
+                      </td>
+
+                    {/* Clear Row Button */}
+                    <td className="px-[8px] text-center">
+                      <button
+                        onClick={() => handleClearRow(row.employeeId)}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                        title="Clear row"
+                      >
+                        <X size={14} />
+                      </button>
                     </td>
                   </tr>
                 ))
