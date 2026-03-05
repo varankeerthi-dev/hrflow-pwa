@@ -60,9 +60,12 @@ export default function SalarySlipTab() {
       const endDay = new Date(year, month, 0).getDate()
       const endDate = `${selectedMonth}-${endDay}`
 
-      const attQ = query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp), where('date', '>=', startDate), where('date', '<=', endDate))
+      // Fetch all attendance for employee, filter in JS (avoids index requirement)
+      const attQ = query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp))
       const attSnap = await getDocs(attQ)
-      const attData = attSnap.docs.map(d => d.data())
+      const allAttData = attSnap.docs.map(d => d.data())
+      // Filter by date range in JavaScript
+      const attData = allAttData.filter(a => a.date >= startDate && a.date <= endDate)
 
       const applicableIncrements = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))
       const activeSlab = applicableIncrements[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
