@@ -43,8 +43,8 @@ service cloud.firestore {
       
       // Subcollections
       match /employees/{empId} {
-        // Admins/HR: full CRUD
-        allow read, write: if isAdminOrHR() && getUserOrgId() == orgId;
+        // Admins/HR: full CRUD including delete
+        allow read, write, delete: if isAdminOrHR() && getUserOrgId() == orgId;
         // Employees: read-only
         allow read: if isEmployee() && getUserOrgId() == orgId;
       }

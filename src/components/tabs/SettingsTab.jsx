@@ -24,7 +24,7 @@ function getAvatarColor(id) {
 
 export default function SettingsTab() {
   const { user } = useAuth()
-  const { employees, loading: empLoading, updateEmployee, addEmployee } = useEmployees(user?.orgId)
+  const { employees, loading: empLoading, updateEmployee, addEmployee, deleteEmployee } = useEmployees(user?.orgId)
   const [activeSubTab, setActiveSubTab] = useState('organization')
   const [shifts, setShifts] = useState([])
   const [roles, setRoles] = useState([])
@@ -660,6 +660,17 @@ export default function SettingsTab() {
                                   className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
                                 >
                                   <Edit size={14} />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (confirm(`Are you sure you want to delete ${emp.name}? This action cannot be undone.`)) {
+                                      await deleteEmployee(emp.id)
+                                    }
+                                  }}
+                                  title="Delete employee"
+                                  className="p-1.5 rounded-md text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all"
+                                >
+                                  <Trash2 size={14} />
                                 </button>
                               </div>
                             </td>

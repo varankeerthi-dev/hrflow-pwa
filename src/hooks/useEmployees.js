@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getDocs, query, where, addDoc, updateDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'
+import { getDocs, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'
 import { employeesCol, employeeDoc, shiftsCol } from '../lib/firestore'
 
 export function useEmployees(orgId, activeOnly = false) {
@@ -61,9 +61,14 @@ export function useEmployees(orgId, activeOnly = false) {
     fetchEmployees()
   }
 
+  const deleteEmployee = async (empId) => {
+    await deleteDoc(employeeDoc(orgId, empId))
+    fetchEmployees()
+  }
+
   useEffect(() => {
     fetchEmployees()
   }, [orgId, activeOnly])
 
-  return { employees, loading, error, fetchEmployees, addEmployee, updateEmployee, deactivateEmployee }
+  return { employees, loading, error, fetchEmployees, addEmployee, updateEmployee, deactivateEmployee, deleteEmployee }
 }
