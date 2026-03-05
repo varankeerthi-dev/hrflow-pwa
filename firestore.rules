@@ -41,6 +41,12 @@ service cloud.firestore {
       // Admins and HR can do full CRUD on their org
       allow read, write: if isAdminOrHR() && getUserOrgId() == orgId;
       
+      // Roles - read by all org members, write by admin/HR
+      match /roles/{roleId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow write, delete: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
       // Subcollections
       match /employees/{empId} {
         // Admins/HR: full CRUD including delete
@@ -133,6 +139,17 @@ service cloud.firestore {
       match /logs/{logId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
         allow create: if request.auth != null && getUserOrgId() == orgId;
+      }
+      
+      // RBAC Collections
+      match /modules/{moduleId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow write: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
+      match /role_users/{ruId} {
+        allow read: if request.auth != null && getUserOrgId() == orgId;
+        allow write: if isAdmin() && getUserOrgId() == orgId;
       }
     }
     
