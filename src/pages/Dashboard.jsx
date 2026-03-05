@@ -265,8 +265,8 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Quick Access Bar - moved to top of page */}
-      <div className="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 shrink-0 overflow-x-auto">
+      {/* Quick Access Bar - sticky at top */}
+      <div className="sticky top-14 z-30 bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 shrink-0 overflow-x-auto">
         {[
           { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={15} /> },
           { label: 'Add Employee', tab: 'settings', icon: <Users size={15} /> },
@@ -338,12 +338,12 @@ export default function Dashboard() {
             </div>
           </nav>
 
-          <main className="flex-1 overflow-auto p-8 bg-[#f9fafb]/30">
+          <main className="flex-1 overflow-auto p-6 bg-[#f9fafb]/30">
             <div className="max-w-7xl mx-auto h-full flex flex-col">
-              <div className="mb-6 flex items-center justify-between">
+              <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 tracking-tight font-inter">{activeTab.replace('-', ' ').toUpperCase()}</h1>
-                  <p className="text-[11px] text-gray-400 font-medium uppercase tracking-widest mt-1 font-inter">Management & Analytics Overview</p>
+                  <h1 className="text-xl font-bold text-gray-900 tracking-tight font-inter">{activeTab.replace('-', ' ').toUpperCase()}</h1>
+                  <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest mt-0.5 font-inter">Management & Analytics Overview</p>
                 </div>
               </div>
               <div className="flex-1 min-h-0">
