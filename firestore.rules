@@ -27,7 +27,7 @@ service cloud.firestore {
     // Helper function to check if user is employee
     function isEmployee() {
       return request.auth != null && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['employee', 'Employee'];
     }
     
     // Users collection - read/write own document
@@ -79,7 +79,7 @@ service cloud.firestore {
       
       match /otApprovals/{approvalId} {
         allow read: if request.auth != null && getUserOrgId() == orgId;
-        allow create: if (isEmployee() || isAdminOrHR()) && getUserOrgId() == orgId;
+        allow create: if request.auth != null && getUserOrgId() == orgId;
         allow update: if isAdminOrHR() && getUserOrgId() == orgId;
         allow delete: if isAdmin() && getUserOrgId() == orgId;
       }

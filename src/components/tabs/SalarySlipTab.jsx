@@ -182,16 +182,24 @@ export default function SalarySlipTab() {
   }
 
   const handleDownloadPDF = async () => {
-    if (!slipRef.current) return
-    const canvas = await html2canvas(slipRef.current, { scale: 2 })
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-    const pdfBlob = pdf.output('blob')
-    const pdfUrl = URL.createObjectURL(pdfBlob)
-    window.open(pdfUrl, '_blank')
+    if (!slipRef.current) {
+      alert('Please generate salary slip first')
+      return
+    }
+    try {
+      const canvas = await html2canvas(slipRef.current, { scale: 2, useCORS: true })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      const pdfBlob = pdf.output('blob')
+      const pdfUrl = URL.createObjectURL(pdfBlob)
+      window.open(pdfUrl, '_blank')
+    } catch (err) {
+      console.error('PDF error:', err)
+      alert('Failed to generate PDF: ' + err.message)
+    }
   }
 
   const handleSaveSlip = async () => {
@@ -314,10 +322,10 @@ export default function SalarySlipTab() {
                   <div className="flex gap-6"><span className="w-36 text-gray-400 font-bold uppercase text-[10px]">Pay Period</span><span className="font-bold text-gray-800 uppercase">: {slipData.month}</span></div>
                 </div>
 
-                <div className="border-2 border-green-600 rounded-2xl p-6 text-center min-w-[240px] bg-green-50/20 shadow-xl shadow-green-900/5">
-                  <p className="text-[10px] font-black text-green-700 uppercase tracking-widest mb-2">FINAL NET PAYABLE</p>
-                  <p className="text-4xl font-black text-green-800 tracking-tighter">{formatINR(slipData.netPay)}</p>
-                  <div className="mt-6 pt-4 border-t border-green-200/50 flex justify-between text-[11px] font-black text-green-700 uppercase">
+                <div className="border-2 border-green-600 rounded-xl p-4 text-center min-w-[180px] bg-green-50/20 shadow-lg">
+                  <p className="text-[9px] font-black text-green-700 uppercase tracking-widest mb-1">FINAL NET PAYABLE</p>
+                  <p className="text-2xl font-black text-green-800">{formatINR(slipData.netPay)}</p>
+                  <div className="mt-3 pt-2 border-t border-green-200/50 flex justify-between text-[9px] font-black text-green-700 uppercase">
                     <span>Paid: {slipData.paidDays}d</span>
                     <span>LOP: {slipData.lopDays}d</span>
                   </div>
