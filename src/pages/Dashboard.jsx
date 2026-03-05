@@ -169,6 +169,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user?.orgId || !user?.role) return
+    
+    // Use cached permissions if available (from login)
+    if (user.permissions && Object.keys(user.permissions).length > 0) {
+      setRolePermissions(user.permissions)
+      return
+    }
+    
     const fetchRole = async () => {
       try {
         const q = collection(db, 'organisations', user.orgId, 'roles')
@@ -180,7 +187,7 @@ export default function Dashboard() {
       }
     }
     fetchRole()
-  }, [user?.orgId, user?.role])
+  }, [user?.orgId, user?.role, user?.permissions])
 
   const allTabs = useMemo(() => [
     { id: 'attendance', label: 'Attendance', icon: <Calendar size={16} />, module: 'Attendance' },

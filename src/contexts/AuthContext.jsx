@@ -39,6 +39,17 @@ async function readUserDoc(uid) {
         if (orgSnap.exists()) {
           userData.orgName = orgSnap.data().name
         }
+        
+        // Cache role permissions on login
+        if (userData.role) {
+          const rolesQuery = query(collection(db, 'organisations', userData.orgId, 'roles'))
+          const rolesSnap = await getDocs(rolesQuery)
+          const roleDoc = rolesSnap.docs.find(d => d.data().name.toLowerCase() === userData.role.toLowerCase())
+          if (roleDoc) {
+            userData.permissions = roleDoc.data().permissions || {}
+            console.log('readUserDoc: Cached permissions for role:', userData.role)
+          }
+        }
       } catch (err) {
         console.warn('readUserDoc: Could not read org doc:', err)
       }
