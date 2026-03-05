@@ -29,21 +29,30 @@ export default function SalarySlabSettings() {
 
   const handleSaveStructure = async (empId) => {
     const form = forms[empId]
+    if (!form || !form.totalSalary) {
+      alert('Please enter a valid CTC amount')
+      return
+    }
     const d = new Date()
     const month = String(d.getMonth() + 1).padStart(2, '0')
     const year = d.getFullYear()
     
-    await saveSlab(empId, {
-      totalSalary: Number(form.totalSalary),
-      basicPercent: Number(form.basicPercent),
-      hraPercent: Number(form.hraPercent),
-      incomeTaxPercent: Number(form.incomeTaxPercent),
-      pfPercent: Number(form.pfPercent),
-      includeInPayroll: form.includeInPayroll,
-      effectiveFrom: `${year}-${month}`,
-      reason: 'Structure Update'
-    })
-    alert('Structure updated successfully')
+    try {
+      await saveSlab(empId, {
+        totalSalary: Number(form.totalSalary),
+        basicPercent: Number(form.basicPercent) || 40,
+        hraPercent: Number(form.hraPercent) || 20,
+        incomeTaxPercent: Number(form.incomeTaxPercent) || 0,
+        pfPercent: Number(form.pfPercent) || 0,
+        includeInPayroll: form.includeInPayroll,
+        effectiveFrom: `${year}-${month}`,
+        reason: 'Structure Update'
+      })
+      alert('Structure updated successfully')
+    } catch (err) {
+      console.error('Save error:', err)
+      alert('Failed to save: ' + err.message)
+    }
   }
 
   const handleSaveIncrement = async () => {
@@ -86,7 +95,7 @@ export default function SalarySlabSettings() {
                 <tr className="h-[42px] bg-[#f9fafb]">
                   <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Payroll</th>
                   <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Employee Profile</th>
-                  <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Gross CTC (₹)</th>
+                  <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider" style={{ fontFamily: 'Roboto, sans-serif' }}>Gross CTC (₹)</th>
                   <th className="px-[16px] text-[12px] font-semibold text-green-600 uppercase tracking-wider bg-green-50/30">Earnings (%)</th>
                   <th className="px-[16px] text-[12px] font-semibold text-red-600 uppercase tracking-wider bg-red-50/30">Deductions (%)</th>
                   <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">Commit</th>
@@ -107,7 +116,7 @@ export default function SalarySlabSettings() {
                         <p className="text-[10px] text-gray-400 font-medium uppercase">{emp.department || 'General'}</p>
                       </td>
                       <td className="px-[16px]">
-                        <input type="number" value={form.totalSalary} onChange={e => handleFormChange(emp.id, 'totalSalary', e.target.value)} className="w-32 h-[36px] border border-gray-200 rounded-lg px-3 text-[13px] font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50" />
+                        <input type="number" value={form.totalSalary} onChange={e => handleFormChange(emp.id, 'totalSalary', e.target.value)} className="w-32 h-[36px] border border-gray-200 rounded-lg px-3 text-[13px] font-roboto font-bold outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50" style={{ fontFamily: 'Roboto, sans-serif' }} />
                       </td>
                       <td className="px-[16px] bg-green-50/10">
                         <div className="flex gap-4">

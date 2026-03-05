@@ -265,8 +265,8 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Quick Access Bar - always visible sticky strip */}
-      <div className="sticky top-14 z-30 bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 shrink-0 overflow-x-auto">
+      {/* Quick Access Bar - moved to top of page */}
+      <div className="bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 shrink-0 overflow-x-auto">
         {[
           { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={15} /> },
           { label: 'Add Employee', tab: 'settings', icon: <Users size={15} /> },
@@ -290,21 +290,21 @@ export default function Dashboard() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Modern Minimal Sidebar */}
-        <aside className={`${isCollapsed ? 'w-[64px]' : 'w-[240px]'} bg-[#fafafa] border-r border-[#e5e7eb] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out p-[14px]`}>
-          <nav className="flex-1 space-y-[16px] overflow-y-auto pr-1">
+        <aside className={`${isCollapsed ? 'w-[64px]' : 'w-[240px]'} bg-[#fafafa] border-r border-[#e5e7eb] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out p-2`}>
+          <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
             {sections.map(section => {
               const sectionTabs = tabs.filter(t => section.modules.includes(t.module));
               if (sectionTabs.length === 0) return null;
               return (
-                <div key={section.title} className="flex flex-col gap-[4px]">
-                  {!isCollapsed && <p className="text-[11px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-[12px] mb-[6px] mt-[18px] first:mt-0 font-inter">{section.title}</p>}
-                  <div className="space-y-[4px]">
+                <div key={section.title} className="flex flex-col gap-1">
+                  {!isCollapsed && <p className="text-[11px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-2 mb-1 mt-2 first:mt-0 font-inter">{section.title}</p>}
+                  <div className="space-y-0.5">
                     {sectionTabs.map(tab => (
                       <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         title={isCollapsed ? tab.label : ''}
-                        className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-[10px] px-[12px]'} h-[36px] rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer font-inter ${activeTab === tab.id ? 'bg-[#e5e7eb] text-[#374151] font-semibold' : 'text-[#374151] hover:bg-[#f3f4f6]'}`}
+                        className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-2 px-2'} h-8 rounded text-[14px] font-medium transition-colors cursor-pointer font-inter ${activeTab === tab.id ? 'bg-[#e5e7eb] text-[#374151] font-semibold' : 'text-[#374151] hover:bg-[#f3f4f6]'}`}
                       >
                         <span className={`transition-colors ${activeTab === tab.id ? 'text-gray-900' : 'text-[#6b7280]'}`}>{tab.icon}</span>
                         {!isCollapsed && <span className="flex-1 text-left truncate">{tab.label}</span>}

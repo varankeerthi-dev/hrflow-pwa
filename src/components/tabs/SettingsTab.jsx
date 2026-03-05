@@ -38,7 +38,7 @@ export default function SettingsTab() {
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [newEmployee, setNewEmployee] = useState({
-    name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8, documents: []
+    name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', contactNo: '', pfNo: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8, documents: []
   })
   const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
   const [viewerState, setViewerState] = useState(null) // { docs, index }
@@ -214,7 +214,7 @@ export default function SettingsTab() {
       await logChange('EMPLOYEE_CREATE', 'new', { name: newEmployee.name })
       setShowAddEmployee(false)
       setNewEmployee({
-        name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8, documents: []
+        name: '', empCode: '', designation: '', department: '', shiftId: '', workHours: 9, site: '', employmentType: 'Full-time', monthlySalary: 0, status: 'Active', joinedDate: '', bloodGroup: '', dob: '', fatherName: '', motherName: '', maritalStatus: '', email: '', emergencyContact: '', contactNo: '', pfNo: '', address: '', bankAccount: '', photoURL: '', permissionHours: 2, minDailyHours: 8, documents: []
       })
     } finally {
       setSaving(false)
@@ -252,6 +252,7 @@ export default function SettingsTab() {
   const handleSaveOrg = async () => {
     if (!user?.orgId) { setOrgError('No organisation ID found.'); return }
     if (loading) { setOrgError('Still loading data. Please wait.'); return }
+    if (!orgSettings.name || !orgSettings.name.trim()) { setOrgError('Organisation Name is required.'); return }
     setSaving(true)
     setOrgError('')
     try {
@@ -317,28 +318,33 @@ export default function SettingsTab() {
               <div className="bg-white rounded-2xl border p-5 space-y-4 shadow-sm">
                 <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Org Information</h3>
                 <div className="flex flex-col items-center mb-4">
-                  <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden bg-gray-50 group shadow-inner">
+                  <div className="w-20 h-20 rounded-none border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden bg-gray-50 group shadow-inner">
                     {orgSettings.logoURL ? (
                       <img src={orgSettings.logoURL} className="w-full h-full object-contain" alt="Logo" />
                     ) : (
-                      <span className="text-[10px] text-gray-400 font-bold uppercase">Logo</span>
+                      <span className="text-[10px] text-blue-600 font-bold uppercase">Logo</span>
                     )}
                     <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
                       const url = await handleFileUpload(e.target.files[0], `orgs/${user.orgId}/logo`)
-                      if (url) setOrgSettings(s => ({ ...s, logoURL: url }))
+                      if (url) {
+                        setOrgSettings(s => ({ ...s, logoURL: url }))
+                        await setDoc(doc(db, 'organisations', user.orgId), { logoURL: url }, { merge: true })
+                      }
                     }} />
                   </div>
+                  <span className="text-[9px] text-blue-600 font-bold mt-1">Click to upload</span>
                 </div>
                 <div className="space-y-3">
                   {[
-                    { label: 'Org Name', key: 'name' },
+                    { label: 'Org Name', key: 'name', required: true },
                     { label: 'Email', key: 'email' },
                     { label: 'Address', key: 'address' },
+                    { label: 'Branch Address', key: 'branchAddress' },
                     { label: 'GSTIN', key: 'gstin' }
                   ].map(f => (
                     <div key={f.key}>
-                      <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
-                      <input type="text" value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-bold bg-gray-50/50" />
+                      <label className="block text-[9px] font-bold text-blue-600 uppercase mb-1">{f.label}{f.required && ' *'}</label>
+                      <input type="text" value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-none px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-bold bg-gray-50/50" />
                     </div>
                   ))}
                 </div>
@@ -353,8 +359,8 @@ export default function SettingsTab() {
                     { label: 'Bank Accounts', key: 'bankAccounts', placeholder: 'HDFC: XXX, SBI: YYY' }
                   ].map(f => (
                     <div key={f.key}>
-                      <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">{f.label}</label>
-                      <textarea value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-medium bg-gray-50/50 h-20" placeholder={f.placeholder} />
+                      <label className="block text-[9px] font-bold text-blue-600 uppercase mb-1">{f.label}</label>
+                      <textarea value={orgSettings[f.key] || ''} onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))} className="w-full border rounded-none px-3 py-2 focus:ring-1 focus:ring-indigo-500 outline-none font-medium bg-gray-50/50 h-20" placeholder={f.placeholder} />
                     </div>
                   ))}
                   <div>
@@ -362,7 +368,8 @@ export default function SettingsTab() {
                     <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 font-mono font-bold text-indigo-600 text-center select-all">{orgSettings.code}</div>
                   </div>
                 </div>
-                <button onClick={handleSaveOrg} disabled={saving} className={`w-full py-2.5 rounded-xl font-black transition-all shadow-md mt-2 ${saved ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+                {orgError && <div className="text-red-500 text-xs font-bold">{orgError}</div>}
+                <button onClick={handleSaveOrg} disabled={saving} className={`w-full py-2.5 rounded-none font-black transition-all shadow-md mt-2 ${saved ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
                   {saving ? 'SAVING...' : saved ? 'SAVED ✓' : 'SAVE ALL CHANGES'}
                 </button>
               </div>
@@ -663,16 +670,16 @@ export default function SettingsTab() {
           <div className="space-y-4 no-print">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black text-gray-800 uppercase">Shift Management</h3>
-              <button onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-[10px] shadow-lg">CREATE SHIFT</button>
+              <button onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">CREATE SHIFT</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {shifts.map(s => (
-                <div key={s.id} className="bg-white p-4 rounded-2xl border shadow-sm group relative">
+                <div key={s.id} className="bg-white p-4 rounded-none border shadow-sm group relative">
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-black text-gray-800 uppercase tracking-tight">{s.name}</h4>
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${s.isFlexible ? 'bg-purple-100 text-purple-600' : 'bg-indigo-50 text-indigo-600'}`}>{s.isFlexible ? 'FLEXIBLE' : s.type}</span>
+                    <span className={`px-1.5 py-0.5 rounded-none text-[8px] font-bold ${s.isFlexible ? 'bg-purple-100 text-purple-600' : 'bg-indigo-50 text-indigo-600'}`}>{s.isFlexible ? 'FLEXIBLE' : s.type || 'Day'}</span>
                   </div>
-                  <div className="text-[10px] font-bold text-gray-400">{s.isFlexible ? 'Anytime' : `${s.startTime} - ${s.endTime}`}</div>
+                  <div className="text-[10px] font-bold text-gray-400">{s.isFlexible ? 'Anytime' : `${s.startTime || '09:00'} - ${s.endTime || '18:00'}`}</div>
                   <div className="mt-3 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => { setEditingShift(s); setNewShift(s); setShowAddShift(true); }} className="text-indigo-600 font-black">Edit</button>
                     <button onClick={async () => { if (confirm('Delete shift?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'shifts', s.id)); setShifts(prev => prev.filter(x => x.id !== s.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
@@ -687,29 +694,59 @@ export default function SettingsTab() {
           <div className="space-y-6 no-print max-w-5xl">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Access Control</h3>
-              <button onClick={() => setShowAddRole(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-[10px] shadow-lg">+ CREATE NEW ROLE</button>
+              <button onClick={() => setShowAddRole(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">+ CREATE NEW ROLE</button>
             </div>
+            
+            {/* Standard Roles Creation */}
+            {roles.length === 0 && (
+              <div className="bg-white rounded-none border p-6 shadow-sm">
+                <h4 className="text-sm font-bold text-gray-800 mb-4">Create Standard Roles</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <button onClick={async () => {
+                    const adminPerms = {}
+                    modules.forEach(m => { adminPerms[m] = { view: true, create: true, edit: true, delete: true, approve: true, full: true } })
+                    await addDoc(collection(db, 'organisations', user.orgId, 'roles'), { name: 'Admin', permissions: adminPerms, createdAt: serverTimestamp() })
+                    setRoles(prev => [...prev, { id: 'temp', name: 'Admin', permissions: adminPerms }])
+                  }} className="py-3 px-4 bg-indigo-600 text-white font-bold rounded-none">Admin</button>
+                  <button onClick={async () => {
+                    const hrPerms = {}
+                    modules.forEach(m => { hrPerms[m] = { view: true, create: true, edit: true, delete: false, approve: true, full: false } })
+                    await addDoc(collection(db, 'organisations', user.orgId, 'roles'), { name: 'HR', permissions: hrPerms, createdAt: serverTimestamp() })
+                    setRoles(prev => [...prev, { id: 'temp', name: 'HR', permissions: hrPerms }])
+                  }} className="py-3 px-4 bg-blue-600 text-white font-bold rounded-none">HR</button>
+                  <button onClick={async () => {
+                    const empPerms = {}
+                    modules.forEach(m => { empPerms[m] = { view: true, create: false, edit: false, delete: false, approve: false, full: false } })
+                    await addDoc(collection(db, 'organisations', user.orgId, 'roles'), { name: 'Employee', permissions: empPerms, createdAt: serverTimestamp() })
+                    setRoles(prev => [...prev, { id: 'temp', name: 'Employee', permissions: empPerms }])
+                  }} className="py-3 px-4 bg-green-600 text-white font-bold rounded-none">Employee</button>
+                </div>
+                <p className="text-xs text-gray-400">Click to mt-3 create standard roles with default permissions</p>
+              </div>
+            )}
+
             {roles.map(role => (
-              <div key={role.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-10">
+              <div key={role.id} className="bg-white rounded-none border shadow-sm overflow-hidden mb-10">
                 <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
                   <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">{role.name} Permissions</h4>
                   <button onClick={async () => { if (confirm('Delete role?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="text-red-400 hover:text-red-600 font-bold text-[9px] uppercase tracking-tighter">Remove Role</button>
                 </div>
                 <div className="p-0">
                   <table className="w-full text-left text-[10px] permissions-table">
-                    <thead><tr><th className="px-6 py-3 w-1/4">Particulars</th><th className="px-4 py-3 text-center">Full</th>{permissionRights.map(r => (<th key={r} className="px-4 py-3 text-center capitalize">{r}</th>))}<th className="px-4 py-3 text-center">Assign Owner</th><th className="px-4 py-3 text-center">Others</th></tr></thead>
+                    <thead><tr><th className="px-6 py-3 w-1/4">Module</th><th className="px-4 py-3 text-center">View</th><th className="px-4 py-3 text-center">Edit</th><th className="px-4 py-3 text-center">Delete</th><th className="px-4 py-3 text-center">Create</th><th className="px-4 py-3 text-center">Approve</th></tr></thead>
                     <tbody>
                       {roleGroups.map(group => (
                         <tr key={group.title}>
-                          <td colSpan={permissionRights.length + 4} className="bg-gray-50/50 px-6 py-2"><h5 className="group-header">{group.title}</h5>
+                          <td colSpan={6} className="bg-gray-50/50 px-6 py-2"><h5 className="group-header">{group.title}</h5>
                             <table className="w-full">
                               <tbody>{group.modules.map(mod => (
                                 <tr key={mod.id} className="hover:bg-indigo-50/30 transition-colors">
                                   <td className="py-3 w-1/4 font-semibold text-gray-600">{mod.label}</td>
-                                  <td className="py-3 text-center w-[8%]"><input type="checkbox" checked={role.permissions?.[mod.id]?.full || false} onChange={() => togglePermission(role.id, mod.id, 'full')} className="w-4 h-4 rounded text-indigo-600 cursor-pointer border-gray-300" /></td>
-                                  {permissionRights.map(right => (<td key={right} className="py-3 text-center w-[8%]"><input type="checkbox" checked={role.permissions?.[mod.id]?.[right] || false} onChange={() => togglePermission(role.id, mod.id, right)} className="w-4 h-4 rounded text-indigo-600 cursor-pointer border-gray-300" /></td>))}
-                                  <td className="py-3 text-center w-[10%]"><input type="checkbox" className="w-4 h-4 rounded border-gray-200" disabled /></td>
-                                  <td className="py-3 text-center text-indigo-500 font-bold text-[9px] cursor-pointer hover:underline">More</td>
+                                  <td className="py-3 text-center"><input type="checkbox" checked={role.permissions?.[mod.id]?.view || false} onChange={() => togglePermission(role.id, mod.id, 'view')} className="w-4 h-4 rounded-none text-indigo-600 cursor-pointer border-gray-300" /></td>
+                                  <td className="py-3 text-center"><input type="checkbox" checked={role.permissions?.[mod.id]?.edit || false} onChange={() => togglePermission(role.id, mod.id, 'edit')} className="w-4 h-4 rounded-none text-indigo-600 cursor-pointer border-gray-300" /></td>
+                                  <td className="py-3 text-center"><input type="checkbox" checked={role.permissions?.[mod.id]?.delete || false} onChange={() => togglePermission(role.id, mod.id, 'delete')} className="w-4 h-4 rounded-none text-indigo-600 cursor-pointer border-gray-300" /></td>
+                                  <td className="py-3 text-center"><input type="checkbox" checked={role.permissions?.[mod.id]?.create || false} onChange={() => togglePermission(role.id, mod.id, 'create')} className="w-4 h-4 rounded-none text-indigo-600 cursor-pointer border-gray-300" /></td>
+                                  <td className="py-3 text-center"><input type="checkbox" checked={role.permissions?.[mod.id]?.approve || false} onChange={() => togglePermission(role.id, mod.id, 'approve')} className="w-4 h-4 rounded-none text-indigo-600 cursor-pointer border-gray-300" /></td>
                                 </tr>
                               ))}</tbody>
                             </table>
@@ -821,8 +858,8 @@ export default function SettingsTab() {
 
       {/* ADD NEW EMPLOYEE MODAL - Minimal, Clean Form */}
       <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add Employee">
-        <div className="flex flex-col h-[90vh] max-w-3xl mx-auto font-inter bg-white">
-          {/* Scrollable Form Body */}
+        <div className="flex flex-col h-[85vh] max-w-3xl mx-auto font-inter bg-white">
+          {/* Scrollable Form Body - Single scroll */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
 
             {/* Passport Photo + Name header */}
@@ -928,6 +965,20 @@ export default function SettingsTab() {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Emergency Contact No.</label>
                 <input type="tel" placeholder="+91 xxxxxxxxxx" value={newEmployee.emergencyContact}
                   onChange={e => setNewEmployee(s => ({ ...s, emergencyContact: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Contact No.</label>
+                <input type="tel" placeholder="+91 xxxxxxxxxx" value={newEmployee.contactNo}
+                  onChange={e => setNewEmployee(s => ({ ...s, contactNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">PF No.</label>
+                <input type="text" placeholder="PF Number" value={newEmployee.pfNo}
+                  onChange={e => setNewEmployee(s => ({ ...s, pfNo: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
               </div>
@@ -1081,12 +1132,30 @@ export default function SettingsTab() {
       {/* SHIFT & ROLE MODALS (SIMILAR STYLE) */}
       <Modal isOpen={showAddShift} onClose={() => setShowAddShift(false)} title={editingShift ? 'EDIT SHIFT' : 'NEW SHIFT'}>
         <div className="p-6 space-y-4 max-w-sm mx-auto">
-          <input type="text" placeholder="Shift Name" value={newShift.name} onChange={e => setNewShift(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-xl px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
-          <div className="flex items-center justify-between bg-purple-50 p-3 rounded-xl border border-purple-100">
-            <span className="text-[10px] font-black text-purple-700 uppercase">Flexible?</span>
-            <input type="checkbox" checked={newShift.isFlexible} onChange={e => setNewShift(s => ({ ...s, isFlexible: e.target.checked }))} className="w-5 h-5 rounded text-purple-600" />
+          <input type="text" placeholder="Shift Name" value={newShift.name} onChange={e => setNewShift(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-none px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
+          <div>
+            <label className="block text-[10px] font-bold text-blue-600 uppercase mb-2">Shift Type</label>
+            <select value={newShift.type} onChange={e => setNewShift(s => ({ ...s, type: e.target.value }))} className="w-full border rounded-none px-4 py-2.5 text-xs font-black bg-gray-50 outline-none">
+              <option value="Day">Day Shift</option>
+              <option value="Night">Night Shift</option>
+              <option value="General">General Shift</option>
+            </select>
           </div>
-          <button onClick={handleAddShift} className="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase text-[10px]">SAVE SHIFT</button>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-blue-600 uppercase mb-1">Start Time</label>
+              <input type="time" value={newShift.startTime} onChange={e => setNewShift(s => ({ ...s, startTime: e.target.value }))} className="w-full border rounded-none px-3 py-2 text-xs font-black bg-gray-50 outline-none" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-blue-600 uppercase mb-1">End Time</label>
+              <input type="time" value={newShift.endTime} onChange={e => setNewShift(s => ({ ...s, endTime: e.target.value }))} className="w-full border rounded-none px-3 py-2 text-xs font-black bg-gray-50 outline-none" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between bg-purple-50 p-3 rounded-none border border-purple-100">
+            <span className="text-[10px] font-black text-purple-700 uppercase">Flexible?</span>
+            <input type="checkbox" checked={newShift.isFlexible} onChange={e => setNewShift(s => ({ ...s, isFlexible: e.target.checked }))} className="w-5 h-5 rounded-none text-purple-600" />
+          </div>
+          <button onClick={handleAddShift} className="w-full bg-indigo-600 text-white font-black py-3 rounded-none uppercase text-[10px]">SAVE SHIFT</button>
         </div>
       </Modal>
 
