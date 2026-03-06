@@ -80,7 +80,7 @@ function getAvatarColor(id) {
 }
 
 // ─── Org Setup Modal ────────
-function OrgSetupModal({ user, onJoin, onCreate }) {
+function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   const [modalTab, setModalTab] = useState('join')
   const [orgCode, setOrgCode] = useState('')
   const [orgName, setOrgName] = useState('')
@@ -155,6 +155,16 @@ function OrgSetupModal({ user, onJoin, onCreate }) {
             <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Creating...' : 'Initialize Org'}</button>
           </form>
         )}
+
+        <div className="mt-6 pt-4 border-t border-gray-100">
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 uppercase text-[10px] font-bold tracking-widest font-inter"
+          >
+            <LogOut size={14} />
+            <span>Back to login</span>
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -243,7 +253,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-inter">
-      {user && !user.orgId && <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} />}
+      {user && !user.orgId && <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} onLogout={logout} />}
       {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-none h-14 shrink-0">
