@@ -6,6 +6,7 @@ import Spinner from '../ui/Spinner'
 import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X } from 'lucide-react'
 import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
+import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 
 export default function SummaryTab() {
   const { user } = useAuth()
@@ -527,13 +528,13 @@ export default function SummaryTab() {
                                     )}
                                   </td>
                                   <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
-                                    {isBeforeStart ? '-' : (att?.inTime || '-')}
+                                    {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
                                   </td>
                                   <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
-                                    {isBeforeStart ? '-' : (att?.outTime || '-')}
+                                    {isBeforeStart ? '-' : formatTimeTo12Hour(att?.outTime) || '-'}
                                   </td>
                                   <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
-                                    {isBeforeStart ? '-' : (att?.otHours || '-')}
+                                    {isBeforeStart ? '-' : formatTimeTo12Hour(att?.otHours) || '-'}
                                   </td>
                                 </>
                               )}

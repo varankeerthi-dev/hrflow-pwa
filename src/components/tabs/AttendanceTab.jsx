@@ -388,7 +388,7 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* In Time */}
-                    <td className="px-[10px] text-center">
+                    <td className="px-[10px] text-center border-l-2 border-emerald-400">
                       <div className="flex items-center justify-center relative">
                         <input
                           type="time"
@@ -414,7 +414,7 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* Out Time */}
-                    <td className="px-[10px] text-center">
+                    <td className="px-[10px] text-center border-l-2 border-rose-300">
                       <div className="flex items-center justify-center relative">
                         <input
                           type="time"

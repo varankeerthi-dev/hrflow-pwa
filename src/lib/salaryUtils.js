@@ -30,9 +30,9 @@ export function formatINR(amount) {
 export function formatTimeTo12Hour(time24) {
   if (!time24 || typeof time24 !== 'string' || !time24.includes(':')) return time24 || '-';
   const [h, m] = time24.split(':').map(Number);
-  const period = h >= 12 ? 'PM' : 'AM';
+  const period = h >= 12 ? 'p.m' : 'a.m';
   const h12 = h % 12 || 12;
-  return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
 export function parse12HourTo24(time12) {
