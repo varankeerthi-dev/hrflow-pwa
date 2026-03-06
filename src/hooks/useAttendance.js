@@ -27,9 +27,11 @@ export function useAttendance(orgId) {
   const upsertAttendance = async (rows) => {
     if (!orgId || !rows.length) return
     const batch = rows.map(row => {
-      const docId = attendanceDocId(row.date, row.employeeId)
-      return setDoc(attendanceDoc(orgId, row.date, row.employeeId), {
+      const rowDate = row.date || row.inDate
+      const docId = attendanceDocId(rowDate, row.employeeId)
+      return setDoc(attendanceDoc(orgId, rowDate, row.employeeId), {
         ...row,
+        date: rowDate,
         updatedAt: serverTimestamp(),
         updatedBy: user?.uid || 'system',
         updatedByName: user?.name || 'System'

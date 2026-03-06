@@ -153,6 +153,38 @@ export default function SummaryTab() {
     return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
   }
 
+  const getEmployeeColor = (index) => {
+    const colors = [
+      'text-indigo-600',
+      'text-emerald-600', 
+      'text-amber-600',
+      'text-rose-600',
+      'text-cyan-600',
+      'text-violet-600',
+      'text-orange-600',
+      'text-teal-600',
+      'text-pink-600',
+      'text-lime-600'
+    ]
+    return colors[index % colors.length]
+  }
+
+  const getEmployeeBorderColor = (index) => {
+    const colors = [
+      'border-indigo-300',
+      'border-emerald-300',
+      'border-amber-300',
+      'border-rose-300',
+      'border-cyan-300',
+      'border-violet-300',
+      'border-orange-300',
+      'border-teal-300',
+      'border-pink-300',
+      'border-lime-300'
+    ]
+    return colors[index % colors.length]
+  }
+
   const isNonWorkingDay = (day, holidays = []) => {
     const [year, month] = selectedMonth.split('-').map(Number)
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -423,10 +455,10 @@ export default function SummaryTab() {
                     <th className="px-1 py-2 text-center font-bold text-gray-600 border-b border-r border-gray-200 w-8 bg-gray-100" rowSpan={2}>
                       Date
                     </th>
-                    {monthlyViewData.employees?.map(emp => (
+                    {monthlyViewData.employees?.map((emp, idx) => (
                       <th 
                         key={emp.id} 
-                        className="px-1 py-2 text-center font-bold text-gray-700 border-b border-r border-gray-200 min-w-[60px] bg-gray-50"
+                        className={`px-1 py-2 text-center font-bold border-b border-r border-gray-200 min-w-[60px] bg-gray-50 ${getEmployeeColor(idx)}`}
                         colSpan={4}
                       >
                         <div className="text-[9px] truncate max-w-[80px] mx-auto">{emp.name}</div>
@@ -434,12 +466,12 @@ export default function SummaryTab() {
                     ))}
                   </tr>
                   <tr>
-                    {monthlyViewData.employees?.map(emp => (
+                    {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        <th className="px-0.5 py-1 text-[8px] font-medium text-gray-500 border-b border-r border-gray-200 text-center bg-gray-50">Shift</th>
-                        <th className="px-0.5 py-1 text-[8px] font-medium text-gray-500 border-b border-r border-gray-200 text-center bg-gray-50">In</th>
-                        <th className="px-0.5 py-1 text-[8px] font-medium text-gray-500 border-b border-r border-gray-200 text-center bg-gray-50">Out</th>
-                        <th className="px-0.5 py-1 text-[8px] font-medium text-gray-500 border-b border-r border-gray-200 text-center bg-gray-50">OT</th>
+                        <th className={`px-0.5 py-1 text-[8px] font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Shift</th>
+                        <th className={`px-0.5 py-1 text-[8px] font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>In</th>
+                        <th className={`px-0.5 py-1 text-[8px] font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Out</th>
+                        <th className={`px-0.5 py-1 text-[8px] font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>OT</th>
                       </React.Fragment>
                     ))}
                   </tr>
@@ -477,26 +509,34 @@ export default function SummaryTab() {
                           
                           return (
                             <React.Fragment key={emp.id}>
-                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 ${isAbsentOrNonWorking ? 'bg-red-50' : ''}`}>
-                                {isBeforeStart ? (
-                                  <span className="text-gray-200">-</span>
-                                ) : isAbsentOrNonWorking ? (
-                                  <span className={`text-[8px] font-bold ${status.color}`}>{status.text}</span>
-                                ) : shift ? (
-                                  <span className="text-[8px] font-medium text-gray-600">{shift.type || 'D'}</span>
-                                ) : (
-                                  <span className="text-gray-200">-</span>
-                                )}
-                              </td>
-                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${isAbsentOrNonWorking ? status.color : 'text-gray-600'}`}>
-                                {isBeforeStart ? '-' : (isAbsentOrNonWorking ? status.text : (att?.inTime || '-'))}
-                              </td>
-                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${isAbsentOrNonWorking ? status.color : 'text-gray-600'}`}>
-                                {isBeforeStart ? '-' : (isAbsentOrNonWorking ? status.text : (att?.outTime || '-'))}
-                              </td>
-                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${isAbsentOrNonWorking ? 'text-gray-200' : 'text-gray-600'}`}>
-                                {isBeforeStart ? '-' : (isAbsentOrNonWorking ? '' : (att?.otHours || '-'))}
-                              </td>
+                              {isAbsentOrNonWorking ? (
+                                <td colSpan={4} className={`px-0.5 py-1 text-center border-b border-r border-gray-50 ${isBeforeStart ? 'bg-gray-50' : 'bg-red-50'}`}>
+                                  <span className={`text-[10px] font-bold ${isBeforeStart ? 'text-gray-200' : status.color}`}>
+                                    {isBeforeStart ? '-' : status.text}
+                                  </span>
+                                </td>
+                              ) : (
+                                <>
+                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50">
+                                    {isBeforeStart ? (
+                                      <span className="text-gray-200">-</span>
+                                    ) : shift ? (
+                                      <span className="text-[8px] font-medium text-gray-600">{shift.type || 'D'}</span>
+                                    ) : (
+                                      <span className="text-gray-200">-</span>
+                                    )}
+                                  </td>
+                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
+                                    {isBeforeStart ? '-' : (att?.inTime || '-')}
+                                  </td>
+                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
+                                    {isBeforeStart ? '-' : (att?.outTime || '-')}
+                                  </td>
+                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
+                                    {isBeforeStart ? '-' : (att?.otHours || '-')}
+                                  </td>
+                                </>
+                              )}
                             </React.Fragment>
                           )
                         })}

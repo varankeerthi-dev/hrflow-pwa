@@ -6,9 +6,7 @@ import { db } from '../../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
-import { ChevronLeft, ChevronRight, Check, Copy, Calendar, Clock, X, Plus } from 'lucide-react'
-import { formatTimeTo12Hour } from '../../lib/salaryUtils'
-import TimePicker from '../ui/TimePicker'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 
 function getInitials(name) {
@@ -122,8 +120,6 @@ export default function AttendanceTab() {
 
   const [copyConfig, setCopyConfig] = useState({ inTime: false, outTime: true })
   const [selectedEmps, setSelectedEmps] = useState([])
-
-  const [activeTimePicker, setActiveTimePicker] = useState(null) // { empId, field, value }
 
   const activeEmployees = useMemo(() => employees.filter(e => e.status === 'Active'), [employees])
   const isSunday = new Date(selectedDate).getDay() === 0
@@ -361,81 +357,53 @@ export default function AttendanceTab() {
 
                     {/* In Date */}
                     <td className="px-[10px] text-center">
-                      <div className="flex items-center justify-center gap-1 relative">
-                        <span className="text-[12px] font-medium text-gray-600">{displayDate(row.inDate)}</span>
-                        <div className="relative w-[18px] h-[18px]">
-                          <Calendar size={13} className="text-gray-400 hover:text-indigo-500 transition-colors absolute top-0 left-0 pointer-events-none" />
-                          <input
-                            type="date"
-                            value={row.inDate || ''}
-                            disabled={row.isAbsent || row.status === 'SunHoliday'}
-                            onChange={e => updateRow(row.employeeId, 'inDate', e.target.value)}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
-                          />
-                        </div>
+                      <div className="flex items-center justify-center relative">
+                        <input
+                          type="date"
+                          value={row.inDate || ''}
+                          disabled={row.isAbsent || row.status === 'SunHoliday'}
+                          onChange={e => updateRow(row.employeeId, 'inDate', e.target.value)}
+                          className="text-[12px] font-medium text-gray-600 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
+                        />
                       </div>
                     </td>
 
                     {/* In Time */}
                     <td className="px-[10px] text-center">
-                      <div className="flex items-center justify-center gap-1 relative">
-                        <span className="text-[12px] font-bold text-gray-800">
-                          {row.inTime ? formatTimeTo12Hour(row.inTime) : '—'}
-                        </span>
-                        <button
+                      <div className="flex items-center justify-center relative">
+                        <input
+                          type="time"
+                          value={row.inTime || ''}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          onClick={(e) => { e.stopPropagation(); setActiveTimePicker({ empId: row.employeeId, field: 'inTime', value: row.inTime }); }}
-                          className="p-0.5 rounded hover:bg-indigo-50 disabled:opacity-20 transition-colors"
-                        >
-                          <Clock size={13} className="text-gray-400 hover:text-indigo-500" />
-                        </button>
-                        {activeTimePicker?.empId === row.employeeId && activeTimePicker?.field === 'inTime' && (
-                          <TimePicker
-                            value={activeTimePicker.value}
-                            onChange={(val) => updateRow(activeTimePicker.empId, activeTimePicker.field, val)}
-                            onClose={() => setActiveTimePicker(null)}
-                          />
-                        )}
+                          onChange={e => updateRow(row.employeeId, 'inTime', e.target.value)}
+                          className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
+                        />
                       </div>
                     </td>
 
                     {/* Out Date */}
                     <td className="px-[10px] text-center">
-                      <div className="flex items-center justify-center gap-1 relative">
-                        <span className="text-[12px] font-medium text-gray-600">{displayDate(row.outDate)}</span>
-                        <div className="relative w-[18px] h-[18px]">
-                          <Calendar size={13} className="text-gray-400 hover:text-indigo-500 transition-colors absolute top-0 left-0 pointer-events-none" />
-                          <input
-                            type="date"
-                            value={row.outDate || ''}
-                            disabled={row.isAbsent || row.status === 'SunHoliday'}
-                            onChange={e => updateRow(row.employeeId, 'outDate', e.target.value)}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
-                          />
-                        </div>
+                      <div className="flex items-center justify-center relative">
+                        <input
+                          type="date"
+                          value={row.outDate || ''}
+                          disabled={row.isAbsent || row.status === 'SunHoliday'}
+                          onChange={e => updateRow(row.employeeId, 'outDate', e.target.value)}
+                          className="text-[12px] font-medium text-gray-600 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
+                        />
                       </div>
                     </td>
 
                     {/* Out Time */}
                     <td className="px-[10px] text-center">
-                      <div className="flex items-center justify-center gap-1 relative">
-                        <span className="text-[12px] font-bold text-gray-800">
-                          {row.outTime ? formatTimeTo12Hour(row.outTime) : '—'}
-                        </span>
-                        <button
+                      <div className="flex items-center justify-center relative">
+                        <input
+                          type="time"
+                          value={row.outTime || ''}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          onClick={(e) => { e.stopPropagation(); setActiveTimePicker({ empId: row.employeeId, field: 'outTime', value: row.outTime }); }}
-                          className="p-0.5 rounded hover:bg-indigo-50 disabled:opacity-20 transition-colors"
-                        >
-                          <Clock size={13} className="text-gray-400 hover:text-indigo-500" />
-                        </button>
-                        {activeTimePicker?.empId === row.employeeId && activeTimePicker?.field === 'outTime' && (
-                          <TimePicker
-                            value={activeTimePicker.value}
-                            onChange={(val) => updateRow(activeTimePicker.empId, activeTimePicker.field, val)}
-                            onClose={() => setActiveTimePicker(null)}
-                          />
-                        )}
+                          onChange={e => updateRow(row.employeeId, 'outTime', e.target.value)}
+                          className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
+                        />
 
                         {/* DROPDOWN COPY PICKER INLINE */}
                         {showCopyModal && activeCopyEmpId === row.employeeId && (

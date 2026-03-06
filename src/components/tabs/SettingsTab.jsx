@@ -5,7 +5,7 @@ import { db, storage, auth, secondaryAuth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
@@ -37,6 +37,9 @@ export default function SettingsTab() {
   const [showAddEmployee, setShowAddEmployee] = useState(false)
   const [showAddRole, setShowAddRole] = useState(false)
   const [editingRole, setEditingRole] = useState(null)
+  const [showRowOrder, setShowRowOrder] = useState(false)
+  const [rowOrder, setRowOrder] = useState([])
+  const [draggedRowItem, setDraggedRowItem] = useState(null)
 
   const userPermissions = user?.permissions || {}
   const isAdmin = user?.role === 'admin'
@@ -261,6 +264,60 @@ export default function SettingsTab() {
     }
     fetchData()
   }, [user?.orgId])
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
+      if (snap.exists() && snap.data().employeeRowOrder) {
+        setRowOrder(snap.data().employeeRowOrder)
+      } else {
+        setRowOrder(employees.map(e => e.id))
+      }
+    })
+  }, [user?.orgId, employees])
+
+  const saveRowOrder = async () => {
+    if (!user?.orgId) return
+    try {
+      await setDoc(doc(db, 'organisations', user.orgId), { employeeRowOrder: rowOrder }, { merge: true })
+      alert('Row order saved!')
+      setShowRowOrder(false)
+    } catch (err) {
+      console.error('Save row order error:', err)
+      alert('Failed to save order')
+    }
+  }
+
+  const handleRowDragStart = (e, index) => {
+    setDraggedRowItem(index)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleRowDragOver = (e, index) => {
+    e.preventDefault()
+    if (draggedRowItem === null || draggedRowItem === index) return
+    const newOrder = [...rowOrder]
+    const [removed] = newOrder.splice(draggedRowItem, 1)
+    newOrder.splice(index, 0, removed)
+    setRowOrder(newOrder)
+    setDraggedRowItem(index)
+  }
+
+  const handleRowDragEnd = () => {
+    setDraggedRowItem(null)
+  }
+
+  const getOrderedEmployees = () => {
+    if (!rowOrder.length) return employees
+    return [...employees].sort((a, b) => {
+      const idxA = rowOrder.indexOf(a.id)
+      const idxB = rowOrder.indexOf(b.id)
+      if (idxA === -1 && idxB === -1) return 0
+      if (idxA === -1) return 1
+      if (idxB === -1) return -1
+      return idxA - idxB
+    })
+  }
 
   const logChange = async (type, targetId, details) => {
     try {
@@ -809,6 +866,14 @@ export default function SettingsTab() {
                   </div>
                   {/* Right: filters + add */}
                   <div className="flex items-center gap-2">
+                    {/* Row Order button */}
+                    <button 
+                      onClick={() => { setRowOrder(employees.map(e => e.id)); setShowRowOrder(true); }}
+                      className="h-[34px] px-3 flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[12px] font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all"
+                    >
+                      <Filter size={14} /> Row Order
+                    </button>
+
                     {/* Column picker toggle */}
                     <div className="relative group">
                       <button className="h-[34px] px-3 flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[12px] font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all">
@@ -864,7 +929,7 @@ export default function SettingsTab() {
                         <tr><td colSpan={20} className="text-center py-14"><Spinner /></td></tr>
                       ) : employees.length === 0 ? (
                         <tr><td colSpan={20} className="text-center py-16 text-gray-300 text-sm font-medium">No employees yet — click <span className="font-semibold text-gray-500">Add Employee</span> to get started</td></tr>
-                      ) : employees.map((emp, idx) => {
+                      ) : getOrderedEmployees().map((emp, idx) => {
                         // Department badge colors
                         const deptColors = [
                           'bg-violet-50 text-violet-700',
@@ -2071,6 +2136,56 @@ export default function SettingsTab() {
           index={viewerState.index}
           onClose={() => setViewerState(null)}
         />
+      )}
+
+      {/* Row Order Modal */}
+      {showRowOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="text-sm font-bold text-gray-800">Row Order</h3>
+              <button onClick={() => setShowRowOrder(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <p className="text-[11px] text-gray-500 mb-3">Drag and drop to reorder employees for attendance entry</p>
+              <div className="space-y-2">
+                {rowOrder.map((empId, index) => {
+                  const emp = employees.find(e => e.id === empId)
+                  if (!emp) return null
+                  return (
+                    <div
+                      key={empId}
+                      draggable
+                      onDragStart={(e) => handleRowDragStart(e, index)}
+                      onDragOver={(e) => handleRowDragOver(e, index)}
+                      onDragEnd={handleRowDragEnd}
+                      className={`flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 transition-colors ${draggedRowItem === index ? 'opacity-50' : ''}`}
+                    >
+                      <GripVertical size={16} className="text-gray-400" />
+                      <span className="text-[12px] font-medium text-gray-700">{emp.name}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 flex gap-2">
+              <button 
+                onClick={() => setShowRowOrder(false)}
+                className="flex-1 h-10 bg-gray-100 text-gray-600 rounded-lg text-[12px] font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveRowOrder}
+                className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-[12px] font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+              >
+                <Save size={14} /> Save Default
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
