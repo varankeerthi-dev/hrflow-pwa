@@ -243,9 +243,6 @@ export default function Login() {
           throw { code: 'auth/user-not-found' }
         }
         const data = snap.docs[0].data()
-        if (data.loginEnabled === false) {
-          throw new Error('Login is disabled for this employee.')
-        }
         await login(data.email, password)
       }
 
