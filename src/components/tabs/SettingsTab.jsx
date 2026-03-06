@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db, storage, auth } from '../../lib/firebase'
-import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link } from 'lucide-react'
@@ -276,11 +276,14 @@ export default function SettingsTab() {
       await updateEmployee(editingEmp, editForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
 
+      // Handle login enabled/disabled
       if (editForm.loginEnabled && editForm.email) {
-        const tempPassword = editForm.tempPassword || `HRFlow${Date.now()}`
+        // First check if user already exists in auth
+        const tempPassword = editForm.tempPassword ? editForm.tempPassword.trim() : ''
         
         try {
-          const cred = await createUserWithEmailAndPassword(auth, editForm.email, tempPassword)
+          // Try to create new user or update existing
+          const cred = await createUserWithEmailAndPassword(auth, editForm.email, tempPassword || `HRFlow${Date.now()}`)
           await updateProfile(cred.user, { displayName: editForm.name })
 
           await setDoc(
@@ -300,13 +303,46 @@ export default function SettingsTab() {
             { merge: true }
           )
           
-          alert(`Login enabled! Temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
+          if (tempPassword) {
+            alert(`Login enabled! Temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
+          }
         } catch (authErr) {
           if (authErr.code === 'auth/email-already-in-use') {
+            // User exists, just update their data
+            const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
+            if (!usersSnap.empty) {
+              const userDocId = usersSnap.docs[0].id
+              await setDoc(
+                doc(db, 'users', userDocId),
+                {
+                  email: editForm.email,
+                  name: editForm.name,
+                  orgId: user.orgId,
+                  role: (editForm.role || 'employee').toLowerCase(),
+                  employeeId: editingEmp,
+                  empCode: editForm.empCode,
+                  department: editForm.department || '',
+                  reportingManager: editForm.reportingManager || '',
+                  loginEnabled: true,
+                },
+                { merge: true }
+              )
+            }
             alert('Login enabled. Employee can login with their existing credentials.')
           } else {
             console.error('Auth error:', authErr)
           }
+        }
+      } else if (!editForm.loginEnabled && editForm.email) {
+        // Disable login - update user doc
+        const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
+        if (!usersSnap.empty) {
+          const userDocId = usersSnap.docs[0].id
+          await setDoc(
+            doc(db, 'users', userDocId),
+            { loginEnabled: false },
+            { merge: true }
+          )
         }
       }
 
@@ -951,7 +987,13 @@ export default function SettingsTab() {
                                   <Eye size={14} />
                                 </button>
                                 <button
-                                  onClick={() => { setEditingEmp(emp.id); setEditForm(emp) }}
+                                onClick={async () => { 
+                                  setEditingEmp(emp.id)
+                                  // Fetch loginEnabled status from users collection
+                                  const userDoc = await getDoc(doc(db, 'users', emp.id))
+                                  const userData = userDoc.exists() ? userDoc.data() : {}
+                                  setEditForm({ ...emp, loginEnabled: userData.loginEnabled || false, tempPassword: '' })
+                                }}
                                   title="Edit employee"
                                   className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
                                 >
@@ -1295,6 +1337,33 @@ export default function SettingsTab() {
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
               </div>
+
+              {/* Login Enabled Toggle */}
+              <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-lg p-3 col-span-2">
+                <div>
+                  <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
+                  <p className="text-[10px] text-indigo-500">Allow employee to access the system</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditForm(s => ({ ...s, loginEnabled: !s.loginEnabled }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.loginEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.loginEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {/* Password Field - Only shown when login is enabled */}
+              {editForm.loginEnabled && (
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password</label>
+                  <input type="text" placeholder="Enter new password to update" value={editForm.tempPassword || ''}
+                    onChange={e => setEditForm(s => ({ ...s, tempPassword: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Leave blank to keep existing password</p>
+                </div>
+              )}
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Emergency Contact No.</label>
                 <input type="tel" placeholder="+91 xxxxxxxxxx" value={editForm.emergencyContact || ''}
@@ -1342,6 +1411,26 @@ export default function SettingsTab() {
                 <select value={editForm.shiftId || ''} onChange={e => setEditForm(s => ({ ...s, shiftId: e.target.value }))} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
                   <option value="">Select Shift...</option>
                   {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
+                <select
+                  value={editForm.role || ''}
+                  onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  {roles.length > 0 ? roles.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  )) : (
+                    <>
+                      <option value="">Select Role...</option>
+                      <option>Admin</option>
+                      <option>HR</option>
+                      <option>Employee</option>
+                      <option>Manager</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div>
@@ -1574,9 +1663,16 @@ export default function SettingsTab() {
                   onChange={e => setNewEmployee(s => ({ ...s, role: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
-                  <option>Admin</option>
-                  <option>HR</option>
-                  <option>Employee</option>
+                  {roles.length > 0 ? roles.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  )) : (
+                    <>
+                      <option>Admin</option>
+                      <option>HR</option>
+                      <option>Employee</option>
+                      <option>Manager</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div>
@@ -1702,8 +1798,34 @@ export default function SettingsTab() {
                 onChange={e => setNewEmployee(s => ({ ...s, email: e.target.value }))}
                 className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
               />
-              <p className="text-[10px] text-gray-400 mt-1">Login access can be enabled after creating the employee</p>
             </div>
+
+            {/* Login Enabled Toggle */}
+            <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+              <div>
+                <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
+                <p className="text-[10px] text-indigo-500">Allow employee to access the system</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNewEmployee(s => ({ ...s, loginEnabled: !s.loginEnabled }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.loginEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.loginEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {/* Password Field - Only shown when login is enabled */}
+            {newEmployee.loginEnabled && (
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password *</label>
+                <input type="text" placeholder="Enter temporary password" value={newEmployee.tempPassword || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, tempPassword: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Share this password with the employee</p>
+              </div>
+            )}
 
             {/* Documents Upload Section */}
             <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
