@@ -95,7 +95,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
     e.preventDefault()
     if (!orgCode.trim()) { setError('Please enter code.'); return }
     setLoading(true); setError('')
-    try { await onJoin(orgCode.trim()) }
+    try { await onJoin(orgCode.trim().toLowerCase()) }
     catch (err) { setError(err.message); setLoading(false) }
   }
 
@@ -146,7 +146,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
           </div>
         ) : modalTab === 'join' ? (
           <form onSubmit={handleJoin} className="space-y-4 font-inter">
-            <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold uppercase tracking-widest bg-gray-50" />
+            <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold tracking-widest bg-gray-50" />
             <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Verifying...' : 'Join Organization'}</button>
           </form>
         ) : (
@@ -201,7 +201,7 @@ export default function Dashboard() {
   }, [user?.orgId, user?.role, user?.permissions])
 
   const allTabs = useMemo(() => [
-    { id: 'attendance', label: 'Home', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'Attendance' },
+    { id: 'attendance', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'Attendance' },
     
     { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
@@ -328,9 +328,9 @@ export default function Dashboard() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Modern Premium SaaS Sidebar */}
         <aside 
-          className={`bg-[#F9FAFB] border-r border-[#E5E7EB] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out font-inter group/sidebar overflow-hidden ${isCollapsed ? 'w-[64px]' : 'w-[260px]'}`}
+          className={`bg-white border-r border-[#E5E7EB] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out font-inter group/sidebar overflow-hidden ${isCollapsed ? 'w-[64px]' : 'w-[260px]'}`}
         >
-          <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto no-scrollbar">
             {sections.map(section => {
               const sectionTabs = allTabs.filter(t => {
                 if (!section.tabs.includes(t.id)) return false
@@ -344,7 +344,7 @@ export default function Dashboard() {
               return (
                 <div key={section.title} className="flex flex-col gap-1">
                   {!isCollapsed && (
-                    <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-[0.08em] px-3 mb-2 mt-1">
+                    <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em] px-3 mb-1 mt-1">
                       {section.title}
                     </p>
                   )}
@@ -358,16 +358,16 @@ export default function Dashboard() {
                           title={isCollapsed ? tab.label : ''}
                           className={`w-full group relative flex items-center h-10 rounded-[10px] transition-all duration-150 ${isCollapsed ? 'justify-center px-0' : 'px-3 gap-3'} ${
                             isActive 
-                              ? 'bg-[#EEF2FF] text-[#2563EB] font-semibold' 
-                              : 'text-[#334155] font-medium hover:bg-[#F1F5F9] hover:scale-[1.02]'
+                              ? 'bg-green-50 text-green-600 font-bold' 
+                              : 'text-[#334155] font-medium hover:bg-gray-50 hover:scale-[1.01]'
                           }`}
                         >
                           {/* Active Indicator bar */}
                           {isActive && !isCollapsed && (
-                            <div className="absolute left-[-12px] top-2 bottom-2 w-[3px] bg-[#2563EB] rounded-r-full" />
+                            <div className="absolute left-[-12px] top-2 bottom-2 w-[3px] bg-green-600 rounded-r-full" />
                           )}
                           
-                          <span className={`shrink-0 transition-colors ${isActive ? 'text-[#2563EB]' : 'text-inherit opacity-70 group-hover:opacity-100'}`}>
+                          <span className={`shrink-0 transition-colors ${isActive ? 'text-green-600' : 'text-inherit opacity-70 group-hover:opacity-100'}`}>
                             {tab.icon}
                           </span>
                           

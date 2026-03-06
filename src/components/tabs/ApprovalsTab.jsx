@@ -39,13 +39,25 @@ export default function ApprovalsTab() {
 
   const handleApproval = async (id, status) => {
     if (!user?.uid) return
-    await updateOTStatus(id, status, user.uid)
+    try {
+      await updateOTStatus(id, status, user.uid)
+      alert(`OT Request ${status === 'approved' ? 'Approved' : 'Rejected'} successfully!`)
+    } catch (err) {
+      console.error('Error updating OT status:', err)
+      alert('Failed to update status: ' + err.message)
+    }
   }
 
   const updateRequestStatus = async (id, status) => {
     if (!user?.orgId) return
-    await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), { status })
-    setEmpRequests(prev => prev.map(r => (r.id === id ? { ...r, status } : r)))
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), { status })
+      setEmpRequests(prev => prev.map(r => (r.id === id ? { ...r, status } : r)))
+      alert(`Request ${status} successfully!`)
+    } catch (err) {
+      console.error('Error updating request status:', err)
+      alert('Failed to update status: ' + err.message)
+    }
   }
 
   return (

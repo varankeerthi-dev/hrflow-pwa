@@ -24,7 +24,7 @@ export function useOTApprovals(orgId) {
   const submitOTApproval = async (payload, requestedByUid) => {
     const docRef = await addDoc(otApprovalsCol(orgId), {
       ...payload,
-      status: 'Pending',
+      status: 'pending',
       requestedBy: requestedByUid,
       createdAt: new Date(),
     })
@@ -36,6 +36,8 @@ export function useOTApprovals(orgId) {
       status,
       reviewedBy: reviewedByUid,
     })
+    // Update local state so UI reflects change immediately
+    setOTApprovals(prev => prev.map(a => a.id === approvalId ? { ...a, status, reviewedBy: reviewedByUid } : a))
   }
 
   useEffect(() => {

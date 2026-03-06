@@ -193,10 +193,17 @@ export default function SalarySlipTab() {
         backgroundColor: '#ffffff',
         logging: false,
         onclone: (clonedDoc) => {
-          // Remove any problematic styles from cloned document
           const elements = clonedDoc.querySelectorAll('*')
           elements.forEach(el => {
-            el.style.removeProperty('color')
+            const style = el.getAttribute('style') || ''
+            if (style.includes('oklch') || style.includes('oklab')) {
+              // Strip modern color functions from inline styles
+              el.style.color = ''
+              el.style.backgroundColor = ''
+              el.style.borderColor = ''
+              el.style.fill = ''
+              el.style.stroke = ''
+            }
           })
         }
       })
