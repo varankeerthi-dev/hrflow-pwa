@@ -110,9 +110,8 @@ export function AuthProvider({ children }) {
     const resolvedOrgId = orgId?.trim() || null
 
     if (resolvedOrgId) {
-      const q = query(collection(db, 'organisations'), where('code', '==', resolvedOrgId))
-      const snap = await getDocs(q)
-      if (snap.empty) throw new Error('Organisation code not found.')
+      const orgSnap = await getDoc(doc(db, 'organisations', resolvedOrgId))
+      if (!orgSnap.exists()) throw new Error('Organisation code not found.')
     }
 
     const userDoc = {
@@ -217,9 +216,8 @@ export function AuthProvider({ children }) {
       throw new Error('You are already part of an organisation. Please logout to join a different one.')
     }
 
-    const q = query(collection(db, 'organisations'), where('code', '==', code.trim()))
-    const snap = await getDocs(q)
-    if (snap.empty) throw new Error('Organisation not found.')
+    const orgSnap = await getDoc(doc(db, 'organisations', code.trim()))
+    if (!orgSnap.exists()) throw new Error('Organisation not found.')
 
     const updates = { orgId: code.trim(), role: 'employee' }
     await setDoc(doc(db, 'users', firebaseUser.uid), updates, { merge: true })

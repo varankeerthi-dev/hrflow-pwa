@@ -201,28 +201,32 @@ export default function Dashboard() {
   }, [user?.orgId, user?.role, user?.permissions])
 
   const allTabs = useMemo(() => [
-    { id: 'attendance', label: 'Attendance', icon: <Calendar size={16} />, module: 'Attendance' },
-    { id: 'correction', label: 'Correction', icon: <PencilLine size={16} />, module: 'Correction' },
-    { id: 'leave', label: 'Leave', icon: <Mail size={16} />, module: 'Leave' },
-    { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={16} />, badge: 'OT', module: 'Approvals' },
-    { id: 'letters', label: 'HR Letters', icon: <FileText size={16} />, module: 'HRLetters' },
-    { id: 'summary', label: 'Summary', icon: <BarChart3 size={16} />, module: 'Summary' },
+    { id: 'attendance', label: 'Home', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'Attendance' },
+    
+    { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
+    { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
+    { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
+    { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
+    { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
+    { id: 'summary', label: 'Summary', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Summary' },
 
-    { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={16} />, module: 'SalarySlip' },
-    { id: 'advance', label: 'Advance/Expense', icon: <Wallet size={16} />, module: 'AdvanceExpense' },
-    { id: 'fines', label: 'Fine Tab', icon: <Gavel size={16} />, module: 'Fine' },
+    { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'SalarySlip' },
+    { id: 'advance', label: 'Advances', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
+    { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
 
-    { id: 'engage', label: 'Engage', icon: <Handshake size={16} />, module: 'Engagement' },
-    { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={16} />, module: 'ShiftPlanning' },
-    { id: 'portal', label: 'My Portal', icon: <User size={16} />, module: 'EmployeePortal' },
-    { id: 'settings', label: 'Settings', icon: <Settings size={16} />, module: 'Settings' },
+    { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
+    { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
+    
+    { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
+    { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
   ], [])
 
   const sections = useMemo(() => [
-    { title: 'HRMS', modules: ['Attendance', 'Correction', 'Leave', 'Approvals', 'HRLetters', 'Summary'] },
-    { title: 'Payroll', modules: ['SalarySlip', 'AdvanceExpense', 'Fine'] },
-    { title: 'Engage', modules: ['Engagement', 'ShiftPlanning'] },
-    { title: 'System', modules: ['EmployeePortal', 'Settings'] }
+    { title: 'MAIN', tabs: ['attendance'] },
+    { title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'summary'] },
+    { title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
+    { title: 'WORKFORCE', tabs: ['engage', 'shift-planning'] },
+    { title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
   // Filter tabs based on role permissions
@@ -234,7 +238,8 @@ export default function Dashboard() {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'attendance': return <AttendanceTab />
+      case 'attendance':
+      case 'attendance-list': return <AttendanceTab />
       case 'correction': return <CorrectionTab />
       case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />
@@ -321,42 +326,80 @@ export default function Dashboard() {
       })()}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Modern Minimal Sidebar */}
-        <aside className={`${isCollapsed ? 'w-[64px]' : 'w-[240px]'} bg-[#fafafa] border-r border-[#e5e7eb] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out p-2`}>
-          <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
+        {/* Modern Premium SaaS Sidebar */}
+        <aside 
+          className={`bg-[#F9FAFB] border-r border-[#E5E7EB] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out font-inter group/sidebar overflow-hidden ${isCollapsed ? 'w-[64px]' : 'w-[260px]'}`}
+        >
+          <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto no-scrollbar">
             {sections.map(section => {
-              const sectionTabs = tabs.filter(t => section.modules.includes(t.module));
+              const sectionTabs = allTabs.filter(t => {
+                if (!section.tabs.includes(t.id)) return false
+                if (user?.role === 'admin') return true
+                if (!rolePermissions) return t.id === 'portal'
+                return rolePermissions[t.module]?.view || rolePermissions[t.module]?.full
+              });
+              
               if (sectionTabs.length === 0) return null;
+              
               return (
                 <div key={section.title} className="flex flex-col gap-1">
-                  {!isCollapsed && <p className="text-[11px] font-medium text-[#9ca3af] uppercase tracking-[0.05em] px-2 mb-1 mt-2 first:mt-0 font-inter">{section.title}</p>}
-                  <div className="space-y-0.5">
-                    {sectionTabs.map(tab => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        title={isCollapsed ? tab.label : ''}
-                        className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-2 px-2'} h-8 rounded text-[14px] font-medium transition-colors cursor-pointer font-inter ${activeTab === tab.id ? 'bg-[#e5e7eb] text-[#374151] font-semibold' : 'text-[#374151] hover:bg-[#f3f4f6]'}`}
-                      >
-                        <span className={`transition-colors ${activeTab === tab.id ? 'text-gray-900' : 'text-[#6b7280]'}`}>{tab.icon}</span>
-                        {!isCollapsed && <span className="flex-1 text-left truncate">{tab.label}</span>}
-                        {!isCollapsed && tab.badge && <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${activeTab === tab.id ? 'bg-white/50 text-gray-900' : 'bg-gray-100 text-gray-500'}`}>{tab.badge}</span>}
-                      </button>
-                    ))}
+                  {!isCollapsed && (
+                    <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-[0.08em] px-3 mb-2 mt-1">
+                      {section.title}
+                    </p>
+                  )}
+                  <div className="space-y-1">
+                    {sectionTabs.map(tab => {
+                      const isActive = activeTab === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          title={isCollapsed ? tab.label : ''}
+                          className={`w-full group relative flex items-center h-10 rounded-[10px] transition-all duration-150 ${isCollapsed ? 'justify-center px-0' : 'px-3 gap-3'} ${
+                            isActive 
+                              ? 'bg-[#EEF2FF] text-[#2563EB] font-semibold' 
+                              : 'text-[#334155] font-medium hover:bg-[#F1F5F9] hover:scale-[1.02]'
+                          }`}
+                        >
+                          {/* Active Indicator bar */}
+                          {isActive && !isCollapsed && (
+                            <div className="absolute left-[-12px] top-2 bottom-2 w-[3px] bg-[#2563EB] rounded-r-full" />
+                          )}
+                          
+                          <span className={`shrink-0 transition-colors ${isActive ? 'text-[#2563EB]' : 'text-inherit opacity-70 group-hover:opacity-100'}`}>
+                            {tab.icon}
+                          </span>
+                          
+                          {!isCollapsed && (
+                            <span className="flex-1 text-left text-[14px] truncate">
+                              {tab.label}
+                            </span>
+                          )}
+
+                          {tab.id === 'approvals' && (
+                            <span className={`absolute right-2 shrink-0 flex items-center justify-center bg-[#EF4444] text-white text-[10px] font-bold px-1.5 min-w-[18px] h-[18px] rounded-full shadow-sm ring-2 ring-white ${isCollapsed ? '-top-1 -right-1 group-hover:scale-110 transition-transform' : ''}`}>
+                              {tab.badge}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               );
             })}
           </nav>
 
-          {!isCollapsed && (
-            <div className="pt-4 border-t border-[#e5e7eb] mt-4 font-inter">
-              <div className="px-3 py-3 bg-white rounded-xl border border-gray-100 flex items-center gap-3 shadow-sm">
-                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-900 text-[10px] font-bold">PRO</div>
-                <div className="min-w-0"><p className="text-[11px] font-bold text-gray-800 truncate uppercase tracking-tight">Enterprise</p><p className="text-[9px] text-gray-400 font-medium uppercase tracking-tighter">Verified Plan</p></div>
-              </div>
-            </div>
-          )}
+          <div className="p-3 border-t border-[#E5E7EB] bg-[#F9FAFB]/80 backdrop-blur-sm">
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className={`w-full flex items-center h-9 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] transition-all ${isCollapsed ? 'justify-center' : 'px-3 gap-3'}`}
+            >
+              <PanelLeft size={18} strokeWidth={1.75} className={isCollapsed ? 'rotate-180 transition-transform' : ''} />
+              {!isCollapsed && <span className="text-[13px] font-medium">Collapse</span>}
+            </button>
+          </div>
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 bg-white">

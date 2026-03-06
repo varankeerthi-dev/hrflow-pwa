@@ -38,8 +38,11 @@ service cloud.firestore {
     
     // Organisations collection
     match /organisations/{orgId} {
-      // All org members can read
-      allow read: if request.auth != null && getUserOrgId() == orgId;
+      // Any authenticated user can 'get' an org (needed for invite verification)
+      allow get: if request.auth != null;
+      // Listing orgs is restricted to members
+      allow list: if request.auth != null && getUserOrgId() == orgId;
+      
       // Admin/HR can write OR user is creating their first org (no orgId yet)
       allow write: if (isAdminOrHR() && getUserOrgId() == orgId) || (request.auth != null && getUserOrgId() == null);
       
