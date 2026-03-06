@@ -174,21 +174,12 @@ export function AuthProvider({ children }) {
   }
 
   const createOrganisation = async (orgName) => {
-
     const firebaseUser = auth.currentUser
     if (!firebaseUser) throw new Error('Not authenticated.')
 
     const currentUser = await readUserDoc(firebaseUser.uid)
     if (currentUser?.orgId && currentUser?.role !== 'admin') {
       throw new Error('You are already part of an organisation.')
-    }
-
-    // Check if user's email is already registered as an employee in any organization
-    const usersQuery = query(collection(db, 'users'), where('email', '==', firebaseUser.email))
-    const usersSnap = await getDocs(usersQuery)
-    const existingUser = usersSnap.docs.find(d => d.id !== firebaseUser.uid && d.data().orgId)
-    if (existingUser) {
-      throw new Error('Your email is already registered in an organisation. Please contact your admin.')
     }
 
     const slug = orgName.trim().toLowerCase().replace(/\s+/g, '-')
@@ -205,9 +196,14 @@ export function AuthProvider({ children }) {
       orgId: currentUser?.orgId || code,
       role: 'admin',
     }
+
+    // Creating organization document first to satisfy firestore rules
+    // (Rules allow creation if user's current orgId is null)
+    await setDoc(doc(db, 'organisations', code), orgData)
+
+    // Then update the user document
     await setDoc(doc(db, 'users', firebaseUser.uid), updatedFields, { merge: true })
     setUser((prev) => ({ ...prev, ...updatedFields }))
-    await setDoc(doc(db, 'organisations', code), orgData)
 
     return code
   }
