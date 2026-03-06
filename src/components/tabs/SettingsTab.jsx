@@ -995,11 +995,14 @@ export default function SettingsTab() {
                                 </button>
                                 <button
                                   onClick={async () => {
+                                    // Set basic info immediately to avoid blank form
                                     setEditingEmp(emp.id)
-                                    // Fetch loginEnabled status from users collection
+                                    setEditForm({ ...emp, loginEnabled: false, tempPassword: '' })
+                                    
+                                    // Fetch additional login info in the background
                                     const userDoc = await getDoc(doc(db, 'users', emp.id))
                                     const userData = userDoc.exists() ? userDoc.data() : {}
-                                    setEditForm({ ...emp, loginEnabled: userData.loginEnabled || false, tempPassword: '' })
+                                    setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled || false }))
                                   }}
                                   title="Edit employee"
                                   className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
@@ -1240,7 +1243,11 @@ export default function SettingsTab() {
       </div>
 
       {/* COMPREHENSIVE EMPLOYEE EDITOR MODAL */}
-      <Modal isOpen={!!editingEmp} onClose={() => setEditingEmp(null)} title="EDIT EMPLOYEE">
+      <Modal 
+        isOpen={!!editingEmp} 
+        onClose={() => setEditingEmp(null)} 
+        title={`EDIT EMPLOYEE: ${editForm.name || ''}`}
+      >
         <div className="flex flex-col h-[85vh] max-w-3xl mx-auto font-inter bg-white">
           {/* Scrollable Form Body - Single scroll */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">

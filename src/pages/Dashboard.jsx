@@ -40,6 +40,7 @@ import EngagementTab from '../components/tabs/EngagementTab'
 import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
 import LeaveTab from '../components/tabs/LeaveTab'
 import HRLettersTab from '../components/tabs/HRLettersTab'
+import HomeTab from '../components/tabs/HomeTab'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
 class ErrorBoundary extends Component {
@@ -173,7 +174,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation } = useAuth()
-  const [activeTab, setActiveTab] = useState('attendance')
+  const [activeTab, setActiveTab] = useState('home')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
   const [showLog, setShowLog] = useState(false)
@@ -201,7 +202,8 @@ export default function Dashboard() {
   }, [user?.orgId, user?.role, user?.permissions])
 
   const allTabs = useMemo(() => [
-    { id: 'attendance', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'Attendance' },
+    { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'Attendance' },
+    { id: 'attendance', label: 'Attendance Records', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     
     { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
@@ -222,7 +224,7 @@ export default function Dashboard() {
   ], [])
 
   const sections = useMemo(() => [
-    { title: 'MAIN', tabs: ['attendance'] },
+    { title: 'MAIN', tabs: ['home', 'attendance'] },
     { title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'summary'] },
     { title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
     { title: 'WORKFORCE', tabs: ['engage', 'shift-planning'] },
@@ -238,6 +240,7 @@ export default function Dashboard() {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'home': return <HomeTab />
       case 'attendance':
       case 'attendance-list': return <AttendanceTab />
       case 'correction': return <CorrectionTab />

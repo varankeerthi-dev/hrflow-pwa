@@ -45,7 +45,6 @@ export default function SalarySlipTab() {
   }
 
   const handleGenerate = async () => {
-    console.log('handleGenerate: starting', { selectedEmp, selectedMonth, empCount: employees.length })
     if (!selectedEmp || !selectedMonth) return
     setLoading(true)
     setGenerateError('')
@@ -66,11 +65,9 @@ export default function SalarySlipTab() {
       const endDay = new Date(year, month, 0).getDate()
       const endDate = `${selectedMonth}-${endDay}`
 
-      // Fetch all attendance for employee, filter in JS (avoids index requirement)
       const attQ = query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp))
       const attSnap = await getDocs(attQ)
       const allAttData = attSnap.docs.map(d => d.data())
-      // Filter by date range in JavaScript
       const attData = allAttData.filter(a => a.date >= startDate && a.date <= endDate)
 
       const applicableIncrements = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))
@@ -149,7 +146,6 @@ export default function SalarySlipTab() {
       const otQ = query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))
       const otSnap = await getDocs(otQ)
       const allOT = otSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-      // Prioritize 'approved' status if multiple exist
       const existingOT = allOT.find(o => o.status === 'approved') || allOT[0] || null
       setOtRequest(existingOT)
 
@@ -159,7 +155,6 @@ export default function SalarySlipTab() {
       const basic = totalSalary * (activeSlab.basicPercent / 100) * (paidDays / endDay)
       const hra = totalSalary * (activeSlab.hraPercent / 100) * (paidDays / endDay)
       const grossEarnings = basic + hra + otPay
-
 
       const advQ = query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))
       const advSnap = await getDocs(advQ)
@@ -199,9 +194,6 @@ export default function SalarySlipTab() {
           const elements = clonedDoc.querySelectorAll('*')
           elements.forEach(el => {
             const computedStyle = window.getComputedStyle(el)
-            // Browsers return RGB for computed styles even if defined as oklch
-            // By force-setting the inline style to the computed RGB value, 
-            // we bypass the html2canvas oklch parsing bug
             el.style.color = computedStyle.color
             el.style.backgroundColor = computedStyle.backgroundColor
             el.style.borderColor = computedStyle.borderColor
@@ -221,23 +213,6 @@ export default function SalarySlipTab() {
     } catch (err) {
       console.error('PDF error:', err)
       alert('Failed to generate PDF: ' + err.message)
-    }
-  }
-
-  const handleSaveSlip = async () => {
-    if (!slipData) return
-    setLoading(true)
-    try {
-      const slipId = `${selectedEmp}_${selectedMonth}`
-      await setDoc(doc(db, 'organisations', user.orgId, 'salarySlips', slipId), {
-        ...slipData,
-        employee: { id: slipData.employee.id, name: slipData.employee.name, empCode: slipData.employee.empCode, department: slipData.employee.department },
-        status: 'saved',
-        generatedAt: serverTimestamp()
-      })
-      alert('Slip saved successfully.')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -283,7 +258,6 @@ export default function SalarySlipTab() {
 
   return (
     <div className="h-full flex flex-col font-inter space-y-6">
-      {/* Search Bar Card */}
       <div className="bg-white p-6 rounded-[12px] shadow-sm flex flex-wrap gap-6 items-end no-print border border-gray-100">
         <div className="flex-1 min-w-[240px]">
           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Select Employee</label>
@@ -307,6 +281,7 @@ export default function SalarySlipTab() {
           {loading ? 'Crunching...' : 'Generate Slip'}
         </button>
       </div>
+
       {generateError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2.5 rounded-xl text-[12px] font-semibold flex items-center gap-2">
           ⚠️ {generateError}
@@ -315,10 +290,8 @@ export default function SalarySlipTab() {
 
       {slipData && (
         <div className="flex-1 overflow-auto flex gap-8 pb-10">
-          {/* Payslip Card */}
           <div className="flex-1 max-w-4xl bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden relative mx-auto" style={{ minWidth: '850px' }}>
             <div className="flex justify-end gap-3 p-4 bg-gray-50/50 border-b border-gray-100 no-print">
-              <button onClick={handleSaveSlip} disabled={loading} className="h-[36px] bg-green-50 text-green-700 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-green-100 flex items-center gap-2"><Save size={14} /> Freeze Slip</button>
               <button onClick={handleDownloadPDF} className="h-[36px] bg-indigo-50 text-indigo-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-indigo-100 flex items-center gap-2"><Download size={14} /> PDF</button>
               <button onClick={() => window.print()} className="h-[36px] bg-purple-50 text-purple-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-purple-100 flex items-center gap-2"><Printer size={14} /> Print</button>
             </div>
@@ -354,7 +327,6 @@ export default function SalarySlipTab() {
                 </div>
               </div>
 
-              {/* Attendance Summary Grid */}
               <div className="mb-8">
                 <div className="grid grid-cols-7 gap-3">
                   <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
@@ -377,18 +349,17 @@ export default function SalarySlipTab() {
                     <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">OT</p>
                     <p className="text-2xl font-black text-amber-600">{slipData.autoOTHours.toFixed(1)}h</p>
                   </div>
-                  <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
+                  <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center overflow-hidden">
                     <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Advance</p>
-                    <p className="text-2xl font-black text-red-600">{formatINR(slipData.advanceDeduction || 0)}</p>
+                    <p className="text-xl font-black text-red-600 truncate" title={formatINR(slipData.advanceDeduction || 0)}>{formatINR(slipData.advanceDeduction || 0)}</p>
                   </div>
-                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-center">
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-center overflow-hidden">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Leave</p>
-                    <p className="text-2xl font-black text-gray-600">{slipData.lopDays}</p>
+                    <p className="text-xl font-black text-gray-600 truncate">{slipData.lopDays}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Mini Calendar Grid */}
               <div className="mb-10 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Attendance Visual Summary</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -438,7 +409,6 @@ export default function SalarySlipTab() {
             </div>
           </div>
 
-          {/* Control Panels */}
           <div className="w-[320px] flex flex-col gap-6 no-print">
             <div className="bg-gray-100 p-1 rounded-xl flex shadow-sm border border-gray-200">
               <button onClick={() => setActiveBottomTab('ot')} className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeBottomTab === 'ot' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>OT Review</button>
@@ -488,7 +458,7 @@ export default function SalarySlipTab() {
                         <span className="text-[10px] font-black uppercase text-gray-500">{a.type}</span>
                         <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${a.status === 'Recovered' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{a.status}</span>
                       </div>
-                      <p className="text-lg font-black text-gray-800">{formatINR(a.amount)}</p>
+                      <p className="text-lg font-black text-gray-800 truncate" title={formatINR(a.amount)}>{formatINR(a.amount)}</p>
                       <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{a.date}</p>
                     </div>
                   ))}
