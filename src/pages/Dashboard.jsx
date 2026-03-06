@@ -178,6 +178,14 @@ export default function Dashboard() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
   const [showLog, setShowLog] = useState(false)
+  const [orgSettings, setOrgSettings] = useState({})
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
+      if (snap.exists()) setOrgSettings(snap.data())
+    })
+  }, [user?.orgId])
 
   useEffect(() => {
     if (!user?.orgId || !user?.role) return
@@ -269,15 +277,18 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hidden md:block transition-all transition-colors"><PanelLeft size={18} /></button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center shadow-sm text-white"><Building2 size={16} /></div>
-              <span className="text-md font-bold text-gray-900 tracking-tight">HRFlow</span>
+              {orgSettings?.logoURL ? (
+                <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center shadow-sm text-white"><Building2 size={16} /></div>
+              )}
+              <span className="text-md font-black text-gray-900 tracking-tight">{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
             </div>
-            <span className="text-[11px] font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full hidden lg:inline-block uppercase tracking-wider ml-2 border border-gray-100">{user?.orgName || 'No Org'}</span>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex flex-col items-end text-right">
-              <span className="text-[13px] font-semibold text-gray-800 tracking-tight">{user?.name}</span>
+              <span className="text-[13px] font-bold text-gray-800 tracking-tight">{user?.name}</span>
               <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.role || 'Staff'}</span>
             </div>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
