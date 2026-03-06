@@ -488,7 +488,7 @@ export default function CorrectionTab() {
   const [showEditDrawer, setShowEditDrawer] = useState(false)
   const [drawerRow, setDrawerRow] = useState(null)
 
-  // Handle refresh
+  // Handle refresh - stable reference
   const handleRefresh = useCallback(async () => {
     if (!selectedDate || !user?.orgId) return
     setLoading(true)
@@ -516,10 +516,13 @@ export default function CorrectionTab() {
     }
   }, [selectedDate, user?.orgId, employees, fetchByDate])
 
-  // Load data
+  // Load data when date or org changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    handleRefresh()
-  }, [handleRefresh])
+    if (selectedDate && user?.orgId) {
+      handleRefresh()
+    }
+  }, [selectedDate, user?.orgId])
 
   const handleViewDay = () => {
     handleRefresh()
