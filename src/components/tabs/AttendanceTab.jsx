@@ -149,12 +149,28 @@ export default function AttendanceTab() {
         }
       }
     })
+  }, [user?.orgId])
+
+  useEffect(() => {
+    if (!user?.orgId || !selectedDate) return
     fetchByDate(selectedDate).then(records => {
       setExistingRecords(records)
-      if (records.length > 0) setRows(records)
-      else setRows([])
+      if (records.length > 0) {
+        const sortedRecords = [...records].sort((a, b) => {
+          if (!rowOrder.length) return 0
+          const idxA = rowOrder.indexOf(a.employeeId)
+          const idxB = rowOrder.indexOf(b.employeeId)
+          if (idxA === -1 && idxB === -1) return 0
+          if (idxA === -1) return 1
+          if (idxB === -1) return -1
+          return idxA - idxB
+        })
+        setRows(sortedRecords)
+      } else {
+        setRows([])
+      }
     })
-  }, [user?.orgId, selectedDate])
+  }, [user?.orgId, selectedDate, rowOrder])
 
   const handleGenerate = () => {
     if (!activeEmployees.length) return
@@ -375,7 +391,7 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* In Date */}
-                    <td className="px-[10px] text-center">
+                    <td className="px-[10px] text-center border-l-2 border-emerald-400">
                       <div className="flex items-center justify-center relative">
                         <input
                           type="date"
@@ -388,7 +404,7 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* In Time */}
-                    <td className="px-[10px] text-center border-l-2 border-emerald-400">
+                    <td className="px-[10px] text-center border-r-2 border-emerald-400">
                       <div className="flex items-center justify-center relative">
                         <input
                           type="time"
@@ -414,7 +430,7 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* Out Time */}
-                    <td className="px-[10px] text-center border-l-2 border-rose-300">
+                    <td className="px-[10px] text-center border-r-2 border-rose-300">
                       <div className="flex items-center justify-center relative">
                         <input
                           type="time"
