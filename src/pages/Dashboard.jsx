@@ -232,7 +232,7 @@ export default function Dashboard() {
   ], [])
 
   const sections = useMemo(() => [
-    { title: 'MAIN', tabs: ['home', 'attendance'] },
+    { title: 'MAIN', tabs: ['home'] },
     { title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'summary'] },
     { title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
     { title: 'WORKFORCE', tabs: ['engage', 'shift-planning'] },

@@ -210,7 +210,7 @@ export default function LeaveTab() {
             <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} className="w-full border border-gray-200 rounded-lg p-4 text-sm font-medium outline-none bg-gray-50 focus:ring-2 focus:ring-indigo-500 h-[100px] transition-all" placeholder="Provide detailed context for this request..." />
           </div>
           <button type="submit" className="w-full h-[44px] bg-indigo-600 text-white font-black py-3 rounded-lg shadow-xl hover:bg-indigo-700 transition-all uppercase tracking-[0.2em] text-[12px]">
-            Dispatch Request
+            Submit for Approval
           </button>
         </form>
       </Modal>

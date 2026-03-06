@@ -255,16 +255,10 @@ export default function EmployeePortalTab() {
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={handleCheckIn}
-                  className="h-[40px] px-4 rounded-lg bg-green-600 text-white text-[11px] font-black uppercase tracking-[0.16em]"
+                  onClick={() => setShowRequestModal(true)}
+                  className="h-[40px] px-4 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-[0.16em]"
                 >
-                  Check In
-                </button>
-                <button
-                  onClick={handleCheckOut}
-                  className="h-[40px] px-4 rounded-lg bg-gray-900 text-white text-[11px] font-black uppercase tracking-[0.16em]"
-                >
-                  Check Out
+                  Apply Leave
                 </button>
               </div>
             </div>
@@ -305,14 +299,29 @@ export default function EmployeePortalTab() {
 
               <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Pending Requests
+                  Approval Updates
                 </p>
-                <p className="text-2xl font-black text-gray-900">
-                  {requests.filter(r => r.status === 'Pending').length}
-                </p>
-                <p className="text-[12px] text-gray-500 mt-2">
-                  Leave, permission and advance requests awaiting HR approval.
-                </p>
+                <div className="space-y-2">
+                  {requests.filter(r => r.status === 'Approved').slice(0, 2).map(req => (
+                    <div key={req.id} className="flex items-center gap-2 text-[11px]">
+                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                      <span className="text-gray-700 font-medium">
+                        {req.type}: {req.status}
+                      </span>
+                    </div>
+                  ))}
+                  {requests.filter(r => r.status === 'Pending').length > 0 && (
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      <span className="text-gray-700 font-medium">
+                        {requests.filter(r => r.status === 'Pending').length} pending approval
+                      </span>
+                    </div>
+                  )}
+                  {requests.length === 0 && (
+                    <p className="text-[12px] text-gray-400">No recent updates.</p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -450,6 +459,9 @@ export default function EmployeePortalTab() {
                       OT
                     </th>
                     <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest text-center">
+                      Advance
+                    </th>
+                    <th className="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-widest text-center">
                       Status
                     </th>
                   </tr>
@@ -458,26 +470,57 @@ export default function EmployeePortalTab() {
                   {attendanceRows.map(r => {
                     const rec = r.record
                     const d = new Date(r.date)
+                    const dayOfWeek = d.getDay()
                     const label = d.toLocaleDateString(undefined, {
                       day: '2-digit',
                       month: 'short',
                     })
+                    const isOvernight = rec?.outTime && rec?.inDate && rec?.outDate && rec.outDate !== rec.inDate
                     return (
                       <tr key={r.date} className="h-[34px] hover:bg-gray-50/60">
-                        <td className="px-4 text-[12px] text-gray-700">{label}</td>
+                        <td className="px-4 text-[12px] text-gray-700">
+                          {label}
+                          {dayOfWeek === 0 && <span className="ml-2 text-[9px] font-bold text-orange-500 uppercase">Sun</span>}
+                        </td>
                         <td className="px-4 text-[12px] text-center text-gray-800">
                           {rec?.inTime ? formatTimeTo12Hour(rec.inTime) : '—'}
                         </td>
                         <td className="px-4 text-[12px] text-center text-gray-800">
-                          {rec?.outTime ? formatTimeTo12Hour(rec.outTime) : '—'}
+                          {rec?.outTime ? (
+                            <span className="inline-flex items-center gap-1">
+                              {isOvernight && <span className="text-[10px] text-indigo-500">→</span>}
+                              {formatTimeTo12Hour(rec.outTime)}
+                            </span>
+                          ) : '—'}
                         </td>
                         <td className="px-4 text-[12px] text-center text-gray-900 font-mono">
                           {rec?.otHours || '00:00'}
                         </td>
+                        <td className="px-4 text-[12px] text-center text-gray-500">
+                          {rec?.advanceAmount ? `₹${rec.advanceAmount}` : '—'}
+                        </td>
                         <td className="px-4 text-[11px] text-center">
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-gray-100 text-gray-600">
-                            {getStatusLabel(rec)}
-                          </span>
+                          {rec?.sundayWorked ? (
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-100 text-amber-700">
+                              Sun Worked
+                            </span>
+                          ) : rec?.sundayHoliday ? (
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-indigo-100 text-indigo-700">
+                              Sun Holiday
+                            </span>
+                          ) : rec?.isAbsent ? (
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-red-100 text-red-700">
+                              Absent
+                            </span>
+                          ) : rec?.inTime ? (
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-green-100 text-green-700">
+                              Present
+                            </span>
+                          ) : (
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-gray-100 text-gray-600">
+                              {getStatusLabel(rec)}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     )
@@ -485,7 +528,7 @@ export default function EmployeePortalTab() {
                   {attendanceRows.length === 0 && (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-4 py-8 text-center text-[12px] text-gray-300 font-medium uppercase tracking-widest"
                       >
                         No attendance records for this month
@@ -502,8 +545,8 @@ export default function EmployeePortalTab() {
           <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex justify-between items-center px-4">
               <div>
-                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Flow History</h3>
-                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-1">Leave and permission archival</p>
+                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">My Requests</h3>
+                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-1">Track your leave, permission and advance requests</p>
               </div>
               <button onClick={() => setShowRequestModal(true)} className="h-[44px] px-8 bg-indigo-600 text-white font-black rounded-xl shadow-xl shadow-indigo-900/10 hover:bg-indigo-700 transition-all uppercase tracking-[0.15em] text-[11px] flex items-center gap-3">
                 <Plus size={18} strokeWidth={3} /> Initialize Request
@@ -511,7 +554,23 @@ export default function EmployeePortalTab() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
-              {requests.map(req => (
+              {requests.filter(req => {
+                if (req.status === 'Pending') return true
+                if (req.status === 'Approved') {
+                  const today = new Date().toISOString().split('T')[0]
+                  if (req.type === 'Leave') {
+                    return req.toDate >= today || req.fromDate >= today
+                  }
+                  if (req.type === 'Permission') {
+                    return req.permissionDate >= today
+                  }
+                  if (req.type === 'Advance') {
+                    return true
+                  }
+                  return true
+                }
+                return true
+              }).map(req => (
                 <div key={req.id} className="bg-white p-8 rounded-[12px] border border-gray-100 shadow-sm flex flex-col relative overflow-hidden group hover:shadow-lg transition-all">
                   <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-xl text-[9px] font-black uppercase tracking-[0.2em] ${req.status === 'Approved' ? 'bg-green-100 text-green-700 border-l border-b border-green-200' : req.status === 'Rejected' ? 'bg-red-100 text-red-700 border-l border-b border-red-200' : 'bg-amber-50 text-amber-600 border-l border-b border-amber-100'}`}>
                     {req.status}
@@ -544,16 +603,47 @@ export default function EmployeePortalTab() {
                   
                   <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-[9px] font-black text-gray-300 uppercase">ID: {req.id.slice(-6)}</span>
-                    <button className="text-[9px] font-black text-red-400 uppercase hover:text-red-600">Withdraw</button>
+                    {req.status === 'Pending' && (
+                      <button className="text-[9px] font-black text-red-400 uppercase hover:text-red-600">Withdraw</button>
+                    )}
                   </div>
                 </div>
               ))}
-              {requests.length === 0 && (
+              {requests.filter(req => {
+                if (req.status === 'Pending') return true
+                if (req.status === 'Approved') {
+                  const today = new Date().toISOString().split('T')[0]
+                  if (req.type === 'Leave') {
+                    return req.toDate >= today || req.fromDate >= today
+                  }
+                  if (req.type === 'Permission') {
+                    return req.permissionDate >= today
+                  }
+                  if (req.type === 'Advance') {
+                    return true
+                  }
+                  return true
+                }
+                return true
+              }).length === 0 && (
                 <div className="col-span-full py-32 text-center">
                   <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-6 text-gray-200"><FileText size={40} /></div>
                   <p className="text-gray-300 font-medium uppercase tracking-[0.25em] text-xl italic opacity-40">No internal records found</p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activePortalTab === 'salary' && (
+          <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white rounded-[12px] p-12 border border-gray-100 shadow-sm text-center">
+              <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-6 text-gray-200">
+                <Hash size={40} />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Salary Slip</h3>
+              <p className="text-[13px] text-gray-400 font-medium uppercase tracking-widest">Not Generated</p>
+              <p className="text-[12px] text-gray-500 mt-4">Your salary slip will be available here once generated by HR.</p>
             </div>
           </div>
         )}
@@ -575,13 +665,18 @@ export default function EmployeePortalTab() {
                 <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
                   Leave Type
                 </label>
-                <input
-                  type="text"
+                <select
                   value={requestForm.leaveType}
                   onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
                   className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="Casual / Sick / Paid"
-                />
+                >
+                  <option value="">Select Leave Type</option>
+                  <option value="Casual">Casual Leave</option>
+                  <option value="Sick">Sick Leave</option>
+                  <option value="Paid">Paid Leave</option>
+                  <option value="Personal">Personal Leave</option>
+                  <option value="LOP">Loss of Pay (LOP)</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
@@ -670,7 +765,7 @@ export default function EmployeePortalTab() {
             <textarea value={requestForm.reason} onChange={e => setRequestForm(f => ({ ...f, reason: e.target.value }))} className="w-full border border-gray-200 rounded-xl p-5 text-sm font-medium outline-none bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 h-[120px] transition-all" placeholder="Briefly state the reason for this administrative request..." />
           </div>
           <button type="submit" disabled={loading} className="w-full h-[48px] bg-indigo-600 text-white font-black py-3 rounded-xl shadow-2xl shadow-indigo-900/20 hover:bg-indigo-700 transition-all uppercase tracking-[0.25em] text-[12px]">
-            Finalize & Dispatch
+            Submit for Approval
           </button>
         </form>
       </Modal>

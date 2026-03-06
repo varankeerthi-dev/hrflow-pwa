@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getDocs, query, where, setDoc, serverTimestamp } from 'firebase/firestore'
-import { attendanceCol, attendanceDoc, attendanceDocId } from '../lib/firestore'
+import { attendanceCol, attendanceDoc } from '../lib/firestore'
 import { useAuth } from './useAuth'
 
 export function useAttendance(orgId) {
@@ -9,7 +9,7 @@ export function useAttendance(orgId) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const fetchByDate = async (date) => {
+  const fetchByDate = useCallback(async (date) => {
     if (!orgId || !date) return []
     setLoading(true)
     try {
@@ -22,13 +22,12 @@ export function useAttendance(orgId) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [orgId])
 
-  const upsertAttendance = async (rows) => {
+  const upsertAttendance = useCallback(async (rows) => {
     if (!orgId || !rows.length) return
     const batch = rows.map(row => {
       const rowDate = row.date || row.inDate
-      const docId = attendanceDocId(rowDate, row.employeeId)
       return setDoc(attendanceDoc(orgId, rowDate, row.employeeId), {
         ...row,
         date: rowDate,
@@ -38,9 +37,9 @@ export function useAttendance(orgId) {
       }, { merge: true })
     })
     await Promise.all(batch)
-  }
+  }, [orgId, user])
 
-  const fetchMonthlySummary = async (yearMonth) => {
+  const fetchMonthlySummary = useCallback(async (yearMonth) => {
     if (!orgId || !yearMonth) return []
     setLoading(true)
     try {
@@ -70,7 +69,7 @@ export function useAttendance(orgId) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [orgId])
 
   return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary }
 }

@@ -296,6 +296,12 @@ export default function AttendanceTab() {
       setSaved(true)
       setShowWarning(false)
       setTimeout(() => setSaved(false), 3000)
+      // Refresh existing records after save
+      const updatedRecords = await fetchByDate(selectedDate)
+      setExistingRecords(updatedRecords)
+    } catch (error) {
+      console.error('Error saving attendance:', error)
+      alert('Failed to save attendance. Please try again.')
     } finally {
       setSaving(false)
     }

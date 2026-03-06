@@ -221,7 +221,7 @@ export default function AdvanceExpenseTab() {
           </div>
 
           <button type="submit" disabled={loading} className="w-full h-[44px] bg-indigo-600 text-white font-black rounded-lg shadow-xl hover:bg-indigo-700 transition-all text-[12px] uppercase tracking-[0.2em] mt-2">
-            Finalize Entry
+            Submit for Approval
           </button>
         </form>
       </Modal>
