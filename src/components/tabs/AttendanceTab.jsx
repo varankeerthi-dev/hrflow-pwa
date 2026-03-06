@@ -6,6 +6,7 @@ import { db } from '../../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import TimePicker from '../ui/TimePicker'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 
@@ -121,6 +122,8 @@ export default function AttendanceTab() {
 
   const [copyConfig, setCopyConfig] = useState({ inTime: false, outTime: true })
   const [selectedEmps, setSelectedEmps] = useState([])
+  const [showInTimePicker, setShowInTimePicker] = useState(null)
+  const [showOutTimePicker, setShowOutTimePicker] = useState(null)
 
   const sortedEmployees = useMemo(() => {
     const active = employees.filter(e => e.status === 'Active')
@@ -406,13 +409,25 @@ export default function AttendanceTab() {
                     {/* In Time */}
                     <td className="px-[10px] text-center border-r-2 border-emerald-400">
                       <div className="flex items-center justify-center relative">
-                        <input
-                          type="time"
-                          value={row.inTime || ''}
+                        <button
+                          onClick={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          onChange={e => updateRow(row.employeeId, 'inTime', e.target.value)}
                           className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
-                        />
+                        >
+                          {row.inTime ? (() => {
+                            const [h, m] = row.inTime.split(':').map(Number)
+                            const p = h >= 12 ? 'PM' : 'AM'
+                            const h12 = h % 12 || 12
+                            return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                          })() : '--:--'}
+                        </button>
+                        {showInTimePicker === row.employeeId && (
+                          <TimePicker
+                            value={row.inTime || '09:00'}
+                            onChange={(time) => updateRow(row.employeeId, 'inTime', time)}
+                            onClose={() => setShowInTimePicker(null)}
+                          />
+                        )}
                       </div>
                     </td>
 
@@ -432,13 +447,25 @@ export default function AttendanceTab() {
                     {/* Out Time */}
                     <td className="px-[10px] text-center border-r-2 border-rose-300">
                       <div className="flex items-center justify-center relative">
-                        <input
-                          type="time"
-                          value={row.outTime || ''}
+                        <button
+                          onClick={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          onChange={e => updateRow(row.employeeId, 'outTime', e.target.value)}
                           className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
-                        />
+                        >
+                          {row.outTime ? (() => {
+                            const [h, m] = row.outTime.split(':').map(Number)
+                            const p = h >= 12 ? 'PM' : 'AM'
+                            const h12 = h % 12 || 12
+                            return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                          })() : '--:--'}
+                        </button>
+                        {showOutTimePicker === row.employeeId && (
+                          <TimePicker
+                            value={row.outTime || '21:00'}
+                            onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
+                            onClose={() => setShowOutTimePicker(null)}
+                          />
+                        )}
 
                         {/* DROPDOWN COPY PICKER INLINE */}
                         {showCopyModal && activeCopyEmpId === row.employeeId && (

@@ -9,6 +9,7 @@ import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
+import TimePicker from '../ui/TimePicker'
 
 import SalarySlabSettings from './SalarySlabSettings'
 
@@ -63,6 +64,8 @@ export default function SettingsTab() {
   }, [userPermissions])
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false)
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false)
   const [newEmployee, setNewEmployee] = useState({
     name: '',
     empCode: '',
@@ -2046,11 +2049,49 @@ export default function SettingsTab() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-blue-600 uppercase mb-1">Start Time</label>
-              <input type="time" value={newShift.startTime} onChange={e => setNewShift(s => ({ ...s, startTime: e.target.value }))} className="w-full border rounded-none px-3 py-2 text-xs font-black bg-gray-50 outline-none" />
+              <div className="relative">
+                <button
+                  onClick={() => setShowStartTimePicker(!showStartTimePicker)}
+                  className="w-full border rounded-none px-3 py-2 text-xs font-black bg-gray-50 outline-none text-left flex items-center justify-between"
+                >
+                  <span>{newShift.startTime ? (() => {
+                    const [h, m] = newShift.startTime.split(':').map(Number)
+                    const p = h >= 12 ? 'PM' : 'AM'
+                    const h12 = h % 12 || 12
+                    return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                  })() : 'Select time'}</span>
+                </button>
+                {showStartTimePicker && (
+                  <TimePicker
+                    value={newShift.startTime || '09:00'}
+                    onChange={(time) => setNewShift(s => ({ ...s, startTime: time }))}
+                    onClose={() => setShowStartTimePicker(false)}
+                  />
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-blue-600 uppercase mb-1">End Time</label>
-              <input type="time" value={newShift.endTime} onChange={e => setNewShift(s => ({ ...s, endTime: e.target.value }))} className="w-full border rounded-none px-3 py-2 text-xs font-black bg-gray-50 outline-none" />
+              <div className="relative">
+                <button
+                  onClick={() => setShowEndTimePicker(!showEndTimePicker)}
+                  className="w-full border rounded-none px-3 py-2 text-xs font-black bg-gray-50 outline-none text-left flex items-center justify-between"
+                >
+                  <span>{newShift.endTime ? (() => {
+                    const [h, m] = newShift.endTime.split(':').map(Number)
+                    const p = h >= 12 ? 'PM' : 'AM'
+                    const h12 = h % 12 || 12
+                    return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                  })() : 'Select time'}</span>
+                </button>
+                {showEndTimePicker && (
+                  <TimePicker
+                    value={newShift.endTime || '18:00'}
+                    onChange={(time) => setNewShift(s => ({ ...s, endTime: time }))}
+                    onClose={() => setShowEndTimePicker(false)}
+                  />
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center justify-between bg-purple-50 p-3 rounded-none border border-purple-100">

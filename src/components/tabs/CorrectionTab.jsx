@@ -6,6 +6,7 @@ import { db } from '../../lib/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import TimePicker from '../ui/TimePicker'
 import { 
   Calendar, Search, FileText, Printer, ChevronLeft, ChevronRight, 
   Clock, Edit2, Save, X, Check, Square, Trash2, FileDown, 
@@ -128,6 +129,8 @@ function BulkCorrectionPanel({ isOpen, onClose, selectedRows, onBulkSave, saving
     site: '',
     status: '',
   })
+  const [showInTimePicker, setShowInTimePicker] = useState(false)
+  const [showOutTimePicker, setShowOutTimePicker] = useState(false)
 
   const handleApply = () => {
     const updates = {}
@@ -187,12 +190,26 @@ function BulkCorrectionPanel({ isOpen, onClose, selectedRows, onBulkSave, saving
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">In Time</label>
-              <input
-                type="time"
-                value={bulkForm.inTime}
-                onChange={e => setBulkForm(f => ({ ...f, inTime: e.target.value }))}
-                className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-              />
+              <div className="relative">
+                <button
+                  onClick={() => setShowInTimePicker(!showInTimePicker)}
+                  className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold text-left flex items-center justify-between"
+                >
+                  <span>{bulkForm.inTime ? (() => {
+                    const [h, m] = bulkForm.inTime.split(':').map(Number)
+                    const p = h >= 12 ? 'PM' : 'AM'
+                    const h12 = h % 12 || 12
+                    return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                  })() : 'Select time'}</span>
+                </button>
+                {showInTimePicker && (
+                  <TimePicker
+                    value={bulkForm.inTime || '09:00'}
+                    onChange={(time) => setBulkForm(f => ({ ...f, inTime: time }))}
+                    onClose={() => setShowInTimePicker(false)}
+                  />
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Out Date</label>
@@ -205,12 +222,26 @@ function BulkCorrectionPanel({ isOpen, onClose, selectedRows, onBulkSave, saving
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Out Time</label>
-              <input
-                type="time"
-                value={bulkForm.outTime}
-                onChange={e => setBulkForm(f => ({ ...f, outTime: e.target.value }))}
-                className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-              />
+              <div className="relative">
+                <button
+                  onClick={() => setShowOutTimePicker(!showOutTimePicker)}
+                  className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold text-left flex items-center justify-between"
+                >
+                  <span>{bulkForm.outTime ? (() => {
+                    const [h, m] = bulkForm.outTime.split(':').map(Number)
+                    const p = h >= 12 ? 'PM' : 'AM'
+                    const h12 = h % 12 || 12
+                    return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                  })() : 'Select time'}</span>
+                </button>
+                {showOutTimePicker && (
+                  <TimePicker
+                    value={bulkForm.outTime || '18:00'}
+                    onChange={(time) => setBulkForm(f => ({ ...f, outTime: time }))}
+                    onClose={() => setShowOutTimePicker(false)}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
@@ -286,6 +317,8 @@ function EditDrawer({ isOpen, onClose, row, onSave, saving }) {
   })()
   
   const [form, setForm] = useState(initialForm)
+  const [showInTimePicker, setShowInTimePicker] = useState(false)
+  const [showOutTimePicker, setShowOutTimePicker] = useState(false)
 
   const handleChange = (field, value) => {
     const updated = { ...form, [field]: value }
@@ -366,12 +399,26 @@ function EditDrawer({ isOpen, onClose, row, onSave, saving }) {
           </div>
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">In Time</label>
-            <input
-              type="time"
-              value={form.inTime}
-              onChange={e => handleChange('inTime', e.target.value)}
-              className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-            />
+            <div className="relative">
+              <button
+                onClick={() => setShowInTimePicker(!showInTimePicker)}
+                className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold text-left flex items-center justify-between"
+              >
+                <span>{form.inTime ? (() => {
+                  const [h, m] = form.inTime.split(':').map(Number)
+                  const p = h >= 12 ? 'PM' : 'AM'
+                  const h12 = h % 12 || 12
+                  return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                })() : 'Select time'}</span>
+              </button>
+              {showInTimePicker && (
+                <TimePicker
+                  value={form.inTime || '09:00'}
+                  onChange={(time) => handleChange('inTime', time)}
+                  onClose={() => setShowInTimePicker(false)}
+                />
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Out Date</label>
@@ -384,12 +431,26 @@ function EditDrawer({ isOpen, onClose, row, onSave, saving }) {
           </div>
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Out Time</label>
-            <input
-              type="time"
-              value={form.outTime}
-              onChange={e => handleChange('outTime', e.target.value)}
-              className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-            />
+            <div className="relative">
+              <button
+                onClick={() => setShowOutTimePicker(!showOutTimePicker)}
+                className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold text-left flex items-center justify-between"
+              >
+                <span>{form.outTime ? (() => {
+                  const [h, m] = form.outTime.split(':').map(Number)
+                  const p = h >= 12 ? 'PM' : 'AM'
+                  const h12 = h % 12 || 12
+                  return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                })() : 'Select time'}</span>
+              </button>
+              {showOutTimePicker && (
+                <TimePicker
+                  value={form.outTime || '18:00'}
+                  onChange={(time) => handleChange('outTime', time)}
+                  onClose={() => setShowOutTimePicker(false)}
+                />
+              )}
+            </div>
           </div>
         </div>
 
@@ -482,6 +543,8 @@ export default function CorrectionTab() {
   const [selectedRows, setSelectedRows] = useState([])
   const [inlineEditRow, setInlineEditRow] = useState(null)
   const [inlineForm, setInlineForm] = useState({})
+  const [showInlineInTimePicker, setShowInlineInTimePicker] = useState(false)
+  const [showInlineOutTimePicker, setShowInlineOutTimePicker] = useState(false)
   
   // Panels
   const [showBulkPanel, setShowBulkPanel] = useState(false)
@@ -883,12 +946,26 @@ export default function CorrectionTab() {
                     {/* In Time - Inline Edit */}
                     <td className="px-2 border-r border-gray-100 text-center no-print">
                       {inlineEditRow === row.id ? (
-                        <input
-                          type="time"
-                          value={inlineForm.inTime}
-                          onChange={e => setInlineForm(f => ({ ...f, inTime: e.target.value }))}
-                          className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold"
-                        />
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowInlineInTimePicker(!showInlineInTimePicker)}
+                            className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold text-left"
+                          >
+                            {inlineForm.inTime ? (() => {
+                              const [h, m] = inlineForm.inTime.split(':').map(Number)
+                              const p = h >= 12 ? 'PM' : 'AM'
+                              const h12 = h % 12 || 12
+                              return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                            })() : 'Select'}
+                          </button>
+                          {showInlineInTimePicker && (
+                            <TimePicker
+                              value={inlineForm.inTime || '09:00'}
+                              onChange={(time) => setInlineForm(f => ({ ...f, inTime: time }))}
+                              onClose={() => setShowInlineInTimePicker(false)}
+                            />
+                          )}
+                        </div>
                       ) : (
                         <span className="text-[10px] font-semibold text-gray-700">
                           {row.in === '-' ? '-' : formatTimeTo12Hour(row.in)}
@@ -913,12 +990,26 @@ export default function CorrectionTab() {
                     {/* Out Time - Inline Edit */}
                     <td className="px-2 border-r border-gray-100 text-center no-print">
                       {inlineEditRow === row.id ? (
-                        <input
-                          type="time"
-                          value={inlineForm.outTime}
-                          onChange={e => setInlineForm(f => ({ ...f, outTime: e.target.value }))}
-                          className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold"
-                        />
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowInlineOutTimePicker(!showInlineOutTimePicker)}
+                            className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold text-left"
+                          >
+                            {inlineForm.outTime ? (() => {
+                              const [h, m] = inlineForm.outTime.split(':').map(Number)
+                              const p = h >= 12 ? 'PM' : 'AM'
+                              const h12 = h % 12 || 12
+                              return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                            })() : 'Select'}
+                          </button>
+                          {showInlineOutTimePicker && (
+                            <TimePicker
+                              value={inlineForm.outTime || '18:00'}
+                              onChange={(time) => setInlineForm(f => ({ ...f, outTime: time }))}
+                              onClose={() => setShowInlineOutTimePicker(false)}
+                            />
+                          )}
+                        </div>
                       ) : (
                         <span className="text-[10px] font-semibold text-gray-700">
                           {row.out === '-' ? '-' : formatTimeTo12Hour(row.out)}

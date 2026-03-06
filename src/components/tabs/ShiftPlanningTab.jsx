@@ -5,6 +5,7 @@ import { db } from '../../lib/firebase'
 import { collection, addDoc, getDocs, query, doc, updateDoc, deleteDoc, serverTimestamp, orderBy } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import TimePicker from '../ui/TimePicker'
 import { 
   Calendar, Plus, Search, Edit2, Trash2, Eye, ChevronLeft, ChevronRight,
   Clock, MapPin, Users, FileText, Save, X, Check, Upload, Building2
@@ -65,6 +66,10 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
   const [uploading, setUploading] = useState(false)
   const [shiftTiming, setShiftTiming] = useState('day') // 'day' or 'night'
   const [defaultShiftTimes, setDefaultShiftTimes] = useState({ inTime: '09:00', outTime: '18:00' })
+  const [showDefaultInTimePicker, setShowDefaultInTimePicker] = useState(false)
+  const [showDefaultOutTimePicker, setShowDefaultOutTimePicker] = useState(false)
+  const [showShiftInTimePicker, setShowShiftInTimePicker] = useState(null)
+  const [showShiftOutTimePicker, setShowShiftOutTimePicker] = useState(null)
 
   // Update default times when shift timing changes
   useEffect(() => {
@@ -278,21 +283,49 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Starts</label>
-                    <input
-                      type="time"
-                      value={defaultShiftTimes.inTime}
-                      onChange={e => setDefaultShiftTimes(prev => ({ ...prev, inTime: e.target.value }))}
-                      className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold"
-                    />
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowDefaultInTimePicker(!showDefaultInTimePicker)}
+                        className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold text-left flex items-center justify-between"
+                      >
+                        <span>{defaultShiftTimes.inTime ? (() => {
+                          const [h, m] = defaultShiftTimes.inTime.split(':').map(Number)
+                          const p = h >= 12 ? 'PM' : 'AM'
+                          const h12 = h % 12 || 12
+                          return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                        })() : 'Select time'}</span>
+                      </button>
+                      {showDefaultInTimePicker && (
+                        <TimePicker
+                          value={defaultShiftTimes.inTime || '09:00'}
+                          onChange={(time) => setDefaultShiftTimes(prev => ({ ...prev, inTime: time }))}
+                          onClose={() => setShowDefaultInTimePicker(false)}
+                        />
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Ends</label>
-                    <input
-                      type="time"
-                      value={defaultShiftTimes.outTime}
-                      onChange={e => setDefaultShiftTimes(prev => ({ ...prev, outTime: e.target.value }))}
-                      className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold"
-                    />
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowDefaultOutTimePicker(!showDefaultOutTimePicker)}
+                        className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold text-left flex items-center justify-between"
+                      >
+                        <span>{defaultShiftTimes.outTime ? (() => {
+                          const [h, m] = defaultShiftTimes.outTime.split(':').map(Number)
+                          const p = h >= 12 ? 'PM' : 'AM'
+                          const h12 = h % 12 || 12
+                          return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                        })() : 'Select time'}</span>
+                      </button>
+                      {showDefaultOutTimePicker && (
+                        <TimePicker
+                          value={defaultShiftTimes.outTime || '18:00'}
+                          onChange={(time) => setDefaultShiftTimes(prev => ({ ...prev, outTime: time }))}
+                          onClose={() => setShowDefaultOutTimePicker(false)}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -328,20 +361,48 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
                           <td className="px-3 py-2 font-medium text-gray-600">{formatDateShort(shift.date)}</td>
                         )}
                         <td className="px-3 py-2">
-                          <input
-                            type="time"
-                            value={shift.inTime}
-                            onChange={e => updateShift(idx, 'inTime', e.target.value)}
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold"
-                          />
+                          <div className="relative">
+                            <button
+                              onClick={() => setShowShiftInTimePicker(showShiftInTimePicker === idx ? null : idx)}
+                              className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold text-left flex items-center justify-between min-w-[80px]"
+                            >
+                              <span>{shift.inTime ? (() => {
+                                const [h, m] = shift.inTime.split(':').map(Number)
+                                const p = h >= 12 ? 'PM' : 'AM'
+                                const h12 = h % 12 || 12
+                                return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                              })() : '--:--'}</span>
+                            </button>
+                            {showShiftInTimePicker === idx && (
+                              <TimePicker
+                                value={shift.inTime || '09:00'}
+                                onChange={(time) => updateShift(idx, 'inTime', time)}
+                                onClose={() => setShowShiftInTimePicker(null)}
+                              />
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2">
-                          <input
-                            type="time"
-                            value={shift.outTime}
-                            onChange={e => updateShift(idx, 'outTime', e.target.value)}
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold"
-                          />
+                          <div className="relative">
+                            <button
+                              onClick={() => setShowShiftOutTimePicker(showShiftOutTimePicker === idx ? null : idx)}
+                              className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold text-left flex items-center justify-between min-w-[80px]"
+                            >
+                              <span>{shift.outTime ? (() => {
+                                const [h, m] = shift.outTime.split(':').map(Number)
+                                const p = h >= 12 ? 'PM' : 'AM'
+                                const h12 = h % 12 || 12
+                                return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                              })() : '--:--'}</span>
+                            </button>
+                            {showShiftOutTimePicker === idx && (
+                              <TimePicker
+                                value={shift.outTime || '18:00'}
+                                onChange={(time) => updateShift(idx, 'outTime', time)}
+                                onClose={() => setShowShiftOutTimePicker(null)}
+                              />
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2">
                           <input
@@ -636,6 +697,8 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
   })
 
   const [shifts, setShifts] = useState(planning.shifts || [])
+  const [showShiftInTimePicker, setShowShiftInTimePicker] = useState(null)
+  const [showShiftOutTimePicker, setShowShiftOutTimePicker] = useState(null)
 
   const updateShift = (index, field, value) => {
     setShifts(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s))
@@ -769,20 +832,48 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
                         <td className="px-3 py-2 font-medium text-gray-600">{formatDateShort(shift.date)}</td>
                       )}
                       <td className="px-3 py-2">
-                        <input
-                          type="time"
-                          value={shift.inTime}
-                          onChange={e => updateShift(idx, 'inTime', e.target.value)}
-                          className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold"
-                        />
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowShiftInTimePicker(showShiftInTimePicker === `edit-${idx}` ? null : `edit-${idx}`)}
+                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold text-left flex items-center justify-between min-w-[80px]"
+                          >
+                            <span>{shift.inTime ? (() => {
+                              const [h, m] = shift.inTime.split(':').map(Number)
+                              const p = h >= 12 ? 'PM' : 'AM'
+                              const h12 = h % 12 || 12
+                              return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                            })() : '--:--'}</span>
+                          </button>
+                          {showShiftInTimePicker === `edit-${idx}` && (
+                            <TimePicker
+                              value={shift.inTime || '09:00'}
+                              onChange={(time) => updateShift(idx, 'inTime', time)}
+                              onClose={() => setShowShiftInTimePicker(null)}
+                            />
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2">
-                        <input
-                          type="time"
-                          value={shift.outTime}
-                          onChange={e => updateShift(idx, 'outTime', e.target.value)}
-                          className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold"
-                        />
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowShiftOutTimePicker(showShiftOutTimePicker === `edit-${idx}` ? null : `edit-${idx}`)}
+                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold text-left flex items-center justify-between min-w-[80px]"
+                          >
+                            <span>{shift.outTime ? (() => {
+                              const [h, m] = shift.outTime.split(':').map(Number)
+                              const p = h >= 12 ? 'PM' : 'AM'
+                              const h12 = h % 12 || 12
+                              return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                            })() : '--:--'}</span>
+                          </button>
+                          {showShiftOutTimePicker === `edit-${idx}` && (
+                            <TimePicker
+                              value={shift.outTime || '18:00'}
+                              onChange={(time) => updateShift(idx, 'outTime', time)}
+                              onClose={() => setShowShiftOutTimePicker(null)}
+                            />
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2">
                         <input

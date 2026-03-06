@@ -7,6 +7,7 @@ import { db } from '../../lib/firebase'
 import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import TimePicker from '../ui/TimePicker'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { User, Calendar, FileText, Plus, ArrowRight, ShieldCheck, Mail, Building, Landmark, Hash, Clock, LayoutDashboard } from 'lucide-react'
@@ -36,6 +37,7 @@ export default function EmployeePortalTab() {
     amount: '',
     reason: '',
   })
+  const [showTimePicker, setShowTimePicker] = useState(false)
   const [month, setMonth] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -625,12 +627,26 @@ export default function EmployeePortalTab() {
                 <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
                   Time
                 </label>
-                <input
-                  type="time"
-                  value={requestForm.time}
-                  onChange={e => setRequestForm(f => ({ ...f, time: e.target.value }))}
-                  className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
+                <div className="relative">
+                  <button
+                    onClick={() => setShowTimePicker(!showTimePicker)}
+                    className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none text-left flex items-center justify-between"
+                  >
+                    <span>{requestForm.time ? (() => {
+                      const [h, m] = requestForm.time.split(':').map(Number)
+                      const p = h >= 12 ? 'PM' : 'AM'
+                      const h12 = h % 12 || 12
+                      return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                    })() : 'Select time'}</span>
+                  </button>
+                  {showTimePicker && (
+                    <TimePicker
+                      value={requestForm.time || '09:00'}
+                      onChange={(time) => setRequestForm(f => ({ ...f, time }))}
+                      onClose={() => setShowTimePicker(false)}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           )}
