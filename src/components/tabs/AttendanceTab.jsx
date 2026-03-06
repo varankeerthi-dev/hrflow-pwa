@@ -117,18 +117,37 @@ export default function AttendanceTab() {
   const [copyData, setCopyData] = useState(null)
   const [showCopyModal, setShowCopyModal] = useState(false)
   const [activeCopyEmpId, setActiveCopyEmpId] = useState(null);
+  const [rowOrder, setRowOrder] = useState([])
 
   const [copyConfig, setCopyConfig] = useState({ inTime: false, outTime: true })
   const [selectedEmps, setSelectedEmps] = useState([])
 
-  const activeEmployees = useMemo(() => employees.filter(e => e.status === 'Active'), [employees])
+  const sortedEmployees = useMemo(() => {
+    const active = employees.filter(e => e.status === 'Active')
+    if (!rowOrder.length) return active
+    return [...active].sort((a, b) => {
+      const idxA = rowOrder.indexOf(a.id)
+      const idxB = rowOrder.indexOf(b.id)
+      if (idxA === -1 && idxB === -1) return 0
+      if (idxA === -1) return 1
+      if (idxB === -1) return -1
+      return idxA - idxB
+    })
+  }, [employees, rowOrder])
+
+  const activeEmployees = useMemo(() => sortedEmployees, [sortedEmployees])
   const isSunday = new Date(selectedDate).getDay() === 0
   const isDayShift = orgData?.shiftStrategy === 'Day'
 
   useEffect(() => {
     if (!user?.orgId || !selectedDate) return
     getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
-      if (snap.exists()) setOrgData(snap.data())
+      if (snap.exists()) {
+        setOrgData(snap.data())
+        if (snap.data().employeeRowOrder) {
+          setRowOrder(snap.data().employeeRowOrder)
+        }
+      }
     })
     fetchByDate(selectedDate).then(records => {
       setExistingRecords(records)

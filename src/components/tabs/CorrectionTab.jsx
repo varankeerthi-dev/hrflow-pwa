@@ -494,11 +494,18 @@ export default function CorrectionTab() {
     setLoading(true)
     try {
       const data = await fetchByDate(selectedDate)
-      const merged = employees.map(emp => {
-        const record = data.find(r => r.employeeId === emp.id)
+      const recordsWithData = data.filter(r => r.inTime || r.outTime || r.isAbsent)
+      
+      if (recordsWithData.length === 0) {
+        setResults([])
+        return
+      }
+      
+      const merged = recordsWithData.map(record => {
+        const emp = employees.find(e => e.id === record.employeeId)
         return {
-          id: emp.id,
-          name: emp.name,
+          id: record.employeeId,
+          name: emp?.name || 'Unknown',
           date: selectedDate,
           inDate: record?.inDate || selectedDate,
           in: record?.inTime || '-',
@@ -506,7 +513,7 @@ export default function CorrectionTab() {
           out: record?.outTime || '-',
           ot: record?.otHours || '-',
           site: record?.remarks || '-',
-          status: record ? (record.isAbsent ? 'ABSENT' : 'PRESENT') : 'NO DATA',
+          status: record.isAbsent ? 'ABSENT' : 'PRESENT',
           isAbsent: record?.isAbsent || false,
         }
       })
