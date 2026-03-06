@@ -63,6 +63,14 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
 
   const [shifts, setShifts] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [shiftTiming, setShiftTiming] = useState('day') // 'day' or 'night'
+
+  // Pre-defined shift times based on timing selection
+  const defaultShiftTimes = useMemo(() => {
+    return shiftTiming === 'day' 
+      ? { inTime: '09:00', outTime: '18:00' }
+      : { inTime: '14:00', outTime: '22:00' }
+  }, [shiftTiming])
 
   const filteredEmployees = useMemo(() => {
     let emps = employees
@@ -118,8 +126,8 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
         employeeId: emp.id,
         employeeName: emp.name,
         date: form.shiftDate,
-        inTime: '',
-        outTime: '',
+        inTime: defaultShiftTimes.inTime,
+        outTime: defaultShiftTimes.outTime,
         site: '',
         notes: ''
       }])
@@ -197,6 +205,40 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Day Planning - Shift Date at top */}
+          {type === PLANNING_TYPES.DAY && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Date *</label>
+                  <input
+                    type="date"
+                    value={form.shiftDate}
+                    onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))}
+                    className="w-full h-10 border border-indigo-200 rounded-lg px-3 text-xs font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Timing</label>
+                  <select
+                    value={shiftTiming}
+                    onChange={e => setShiftTiming(e.target.value)}
+                    className="w-full h-10 border border-indigo-200 rounded-lg px-3 text-xs font-semibold"
+                  >
+                    <option value="day">Day Shift (9AM - 6PM)</option>
+                    <option value="night">Night Shift (2PM - 10PM)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Default Times</label>
+                  <div className="h-10 flex items-center text-xs font-semibold text-indigo-700">
+                    {shiftTiming === 'day' ? '9:00 AM - 6:00 PM' : '2:00 PM - 10:00 PM'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Common Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -279,19 +321,7 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
             </div>
           </div>
 
-          {/* Type-specific date fields */}
-          {type === PLANNING_TYPES.DAY && (
-            <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Shift Date *</label>
-              <input
-                type="date"
-                value={form.shiftDate}
-                onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-              />
-            </div>
-          )}
-
+          {/* Type-specific date fields - Weekly and Next Few Days */}
           {type === PLANNING_TYPES.WEEKLY && (
             <div className="grid grid-cols-2 gap-4">
               <div>

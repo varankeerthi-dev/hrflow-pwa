@@ -350,17 +350,7 @@ export default function Dashboard() {
 
           <main className="flex-1 overflow-auto p-6 bg-[#f9fafb]/30">
             <div className="max-w-7xl mx-auto h-full flex flex-col">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900 tracking-tight font-inter">{activeTab.replace('-', ' ').toUpperCase()}</h1>
-                  <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest mt-0.5 font-inter">Management & Analytics Overview</p>
-                </div>
-              </div>
-              <div className="flex-1 min-h-0">
-                <ErrorBoundary key={activeTab}>
-                  {renderTabContent()}
-                </ErrorBoundary>
-              </div>
+              {renderTabContent()}
             </div>
           </main>
         </div>

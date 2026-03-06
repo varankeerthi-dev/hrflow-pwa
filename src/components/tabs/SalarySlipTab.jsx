@@ -187,7 +187,19 @@ export default function SalarySlipTab() {
       return
     }
     try {
-      const canvas = await html2canvas(slipRef.current, { scale: 2, useCORS: true })
+      const canvas = await html2canvas(slipRef.current, { 
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          // Remove any problematic styles from cloned document
+          const elements = clonedDoc.querySelectorAll('*')
+          elements.forEach(el => {
+            el.style.removeProperty('color')
+          })
+        }
+      })
       const imgData = canvas.toDataURL('image/png')
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pdfWidth = pdf.internal.pageSize.getWidth()
