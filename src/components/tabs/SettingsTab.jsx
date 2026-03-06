@@ -349,6 +349,7 @@ export default function SettingsTab() {
 
       setEditingEmp(null)
       setEditForm({})
+      alert('Employee details updated successfully!')
     } catch (err) {
       console.error('Error saving employee:', err)
       alert('Failed to save employee: ' + err.message)
@@ -441,6 +442,10 @@ export default function SettingsTab() {
         loginEnabled: false,
         tempPassword: '',
       })
+      alert('New employee created successfully!')
+    } catch (err) {
+      console.error('Error adding employee:', err)
+      alert('Failed to add employee: ' + err.message)
     } finally {
       setSaving(false)
     }
@@ -499,7 +504,8 @@ export default function SettingsTab() {
     try {
       await setDoc(doc(db, 'organisations', user.orgId), orgSettings, { merge: true })
       setSaved(true)
-
+      alert('Organisation settings saved successfully!')
+      
       // Refresh org settings from database
       const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
       if (orgSnap.exists()) {
@@ -587,7 +593,6 @@ export default function SettingsTab() {
                       const url = await handleFileUpload(e.target.files[0], `orgs/${user.orgId}/logo`)
                       if (url) {
                         setOrgSettings(s => ({ ...s, logoURL: url }))
-                        await setDoc(doc(db, 'organisations', user.orgId), { logoURL: url }, { merge: true })
                       }
                     }} />
                   </div>
