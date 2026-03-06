@@ -48,7 +48,20 @@ export default function EmployeeSalarySlipTab() {
 
   const handleDownloadPDF = async () => {
     if (!slipRef.current) return
-    const canvas = await html2canvas(slipRef.current, { scale: 2 })
+    const canvas = await html2canvas(slipRef.current, { 
+      scale: 2,
+      onclone: (clonedDoc) => {
+        const elements = clonedDoc.querySelectorAll('*')
+        elements.forEach(el => {
+          const computedStyle = window.getComputedStyle(el)
+          el.style.color = computedStyle.color
+          el.style.backgroundColor = computedStyle.backgroundColor
+          el.style.borderColor = computedStyle.borderColor
+          el.style.fill = computedStyle.fill
+          el.style.stroke = computedStyle.stroke
+        })
+      }
+    })
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()

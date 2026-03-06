@@ -101,8 +101,12 @@ export function calcOT(inTime, outTime, inDate, outDate, workHours) {
   const expectedMins = (parseFloat(workHours) || 9) * 60
 
   const otMins = Math.max(0, workedMins - expectedMins)
-  const otHrs = Math.floor(otMins / 60)
-  const otRemMins = otMins % 60
+  
+  // Round to next 5 minutes
+  const roundedOtMins = Math.ceil(otMins / 5) * 5
+  
+  const otHrs = Math.floor(roundedOtMins / 60)
+  const otRemMins = roundedOtMins % 60
 
   if (isNaN(otHrs) || isNaN(otRemMins)) return '00:00'
 

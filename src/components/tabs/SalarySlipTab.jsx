@@ -148,15 +148,18 @@ export default function SalarySlipTab() {
 
       const otQ = query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))
       const otSnap = await getDocs(otQ)
-      const existingOT = otSnap.docs[0] ? { id: otSnap.docs[0].id, ...otSnap.docs[0].data() } : null
+      const allOT = otSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      // Prioritize 'approved' status if multiple exist
+      const existingOT = allOT.find(o => o.status === 'approved') || allOT[0] || null
       setOtRequest(existingOT)
 
-      const finalOT = existingOT?.status === 'approved' ? existingOT.finalOTHours : autoOTHours
+      const finalOT = existingOT?.status === 'approved' ? Number(existingOT.finalOTHours) : autoOTHours
       const otPay = finalOT * otRate
 
       const basic = totalSalary * (activeSlab.basicPercent / 100) * (paidDays / endDay)
       const hra = totalSalary * (activeSlab.hraPercent / 100) * (paidDays / endDay)
       const grossEarnings = basic + hra + otPay
+
 
       const advQ = query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))
       const advSnap = await getDocs(advQ)
@@ -195,15 +198,15 @@ export default function SalarySlipTab() {
         onclone: (clonedDoc) => {
           const elements = clonedDoc.querySelectorAll('*')
           elements.forEach(el => {
-            const style = el.getAttribute('style') || ''
-            if (style.includes('oklch') || style.includes('oklab')) {
-              // Strip modern color functions from inline styles
-              el.style.color = ''
-              el.style.backgroundColor = ''
-              el.style.borderColor = ''
-              el.style.fill = ''
-              el.style.stroke = ''
-            }
+            const computedStyle = window.getComputedStyle(el)
+            // Browsers return RGB for computed styles even if defined as oklch
+            // By force-setting the inline style to the computed RGB value, 
+            // we bypass the html2canvas oklch parsing bug
+            el.style.color = computedStyle.color
+            el.style.backgroundColor = computedStyle.backgroundColor
+            el.style.borderColor = computedStyle.borderColor
+            el.style.fill = computedStyle.fill
+            el.style.stroke = computedStyle.stroke
           })
         }
       })
