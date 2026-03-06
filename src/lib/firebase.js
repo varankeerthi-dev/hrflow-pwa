@@ -12,7 +12,11 @@ const firebaseConfig = {
   appId: "1:583226584419:web:875278b298151a52ef7756",
 }
 
-export const app  = initializeApp(firebaseConfig)
+export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
-export const db   = getFirestore(app)
+export const db = getFirestore(app)
 export const storage = getStorage(app)
+
+// Secondary app for creating accounts without logging out the current admin
+const secondaryApp = initializeApp(firebaseConfig, 'SecondaryAccountCreator')
+export const secondaryAuth = getAuth(secondaryApp)

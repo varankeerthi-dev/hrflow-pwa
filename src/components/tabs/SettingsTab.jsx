@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
-import { db, storage, auth } from '../../lib/firebase'
+import { db, storage, auth, secondaryAuth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -272,7 +272,7 @@ export default function SettingsTab() {
     try {
       const empDoc = await getDoc(doc(db, 'organisations', user.orgId, 'employees', editingEmp))
       const empData = empDoc.exists() ? empDoc.data() : {}
-      
+
       await updateEmployee(editingEmp, editForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
 
@@ -280,10 +280,11 @@ export default function SettingsTab() {
       if (editForm.loginEnabled && editForm.email) {
         // First check if user already exists in auth
         const tempPassword = editForm.tempPassword ? editForm.tempPassword.trim() : ''
-        
+
         try {
           // Try to create new user or update existing
-          const cred = await createUserWithEmailAndPassword(auth, editForm.email, tempPassword || `HRFlow${Date.now()}`)
+          // Use secondaryAuth to avoid logging out the admin
+          const cred = await createUserWithEmailAndPassword(secondaryAuth, editForm.email, tempPassword || `HRFlow${Date.now()}`)
           await updateProfile(cred.user, { displayName: editForm.name })
 
           await setDoc(
@@ -302,7 +303,7 @@ export default function SettingsTab() {
             },
             { merge: true }
           )
-          
+
           if (tempPassword) {
             alert(`Login enabled! Temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
           }
@@ -385,7 +386,8 @@ export default function SettingsTab() {
 
       // 2) Optionally create login-enabled auth user
       if (employeeDoc.loginEnabled && employeeDoc.email && tempPassword) {
-        const cred = await createUserWithEmailAndPassword(auth, employeeDoc.email, tempPassword)
+        // Use secondaryAuth to avoid logging out the admin
+        const cred = await createUserWithEmailAndPassword(secondaryAuth, employeeDoc.email, tempPassword)
         await updateProfile(cred.user, { displayName: employeeDoc.name })
 
         await setDoc(
@@ -497,7 +499,7 @@ export default function SettingsTab() {
     try {
       await setDoc(doc(db, 'organisations', user.orgId), orgSettings, { merge: true })
       setSaved(true)
-      
+
       // Refresh org settings from database
       const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
       if (orgSnap.exists()) {
@@ -508,7 +510,7 @@ export default function SettingsTab() {
           name: data.name || prev.name
         }))
       }
-      
+
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       setOrgError(err.message || 'Save failed.')
@@ -569,7 +571,7 @@ export default function SettingsTab() {
               {/* Left Card - Organization Information */}
               <div className="bg-white rounded-2xl p-6 space-y-6" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
                 <h3 className="text-base font-bold text-gray-800">Organization Information</h3>
-                
+
                 {/* Logo Upload */}
                 <div className="flex flex-col items-center pb-6 border-b border-gray-100">
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden bg-gray-50 group hover:border-indigo-400 transition-all cursor-pointer" style={{ width: '90px', height: '90px' }}>
@@ -607,17 +609,17 @@ export default function SettingsTab() {
                     <div key={f.key}>
                       <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">{f.label}{f.required && <span className="text-red-500"> *</span>}</label>
                       {f.isTextarea ? (
-                        <textarea 
-                          value={orgSettings[f.key] || ''} 
+                        <textarea
+                          value={orgSettings[f.key] || ''}
                           onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))}
                           rows={3}
                           className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
                           style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
                         />
                       ) : (
-                        <input 
-                          type="text" 
-                          value={orgSettings[f.key] || ''} 
+                        <input
+                          type="text"
+                          value={orgSettings[f.key] || ''}
                           onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))}
                           className="w-full h-[42px] border rounded-lg px-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50"
                           style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
@@ -635,8 +637,8 @@ export default function SettingsTab() {
                 {/* Hierarchy Section */}
                 <div className="pb-5 border-b border-gray-100">
                   <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Hierarchy</label>
-                  <textarea 
-                    value={orgSettings.hierarchy || ''} 
+                  <textarea
+                    value={orgSettings.hierarchy || ''}
                     onChange={e => setOrgSettings(s => ({ ...s, hierarchy: e.target.value }))}
                     rows={2}
                     placeholder="CEO > Manager > Staff"
@@ -649,8 +651,8 @@ export default function SettingsTab() {
                 {/* Branches Section */}
                 <div className="pb-5 border-b border-gray-100">
                   <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Branches</label>
-                  <textarea 
-                    value={orgSettings.branches || ''} 
+                  <textarea
+                    value={orgSettings.branches || ''}
                     onChange={e => setOrgSettings(s => ({ ...s, branches: e.target.value }))}
                     rows={2}
                     placeholder="Chennai, Mumbai, Bangalore"
@@ -662,8 +664,8 @@ export default function SettingsTab() {
                 {/* Bank Accounts Section */}
                 <div className="pb-5 border-b border-gray-100">
                   <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Bank Accounts</label>
-                  <textarea 
-                    value={orgSettings.bankAccounts || ''} 
+                  <textarea
+                    value={orgSettings.bankAccounts || ''}
                     onChange={e => setOrgSettings(s => ({ ...s, bankAccounts: e.target.value }))}
                     rows={2}
                     placeholder="HDFC - 123456&#10;SBI - 987654"
@@ -679,7 +681,7 @@ export default function SettingsTab() {
                     <div className="flex-1 bg-gray-50 border rounded-lg px-3 py-2.5 font-mono text-sm text-indigo-600 select-all" style={{ borderColor: '#e4e6eb' }}>
                       {orgSettings.code || 'N/A'}
                     </div>
-                    <button 
+                    <button
                       onClick={() => navigator.clipboard.writeText(orgSettings.code)}
                       className="px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-all"
                     >
@@ -696,7 +698,7 @@ export default function SettingsTab() {
                     <div className="flex-1 bg-gray-50 border rounded-lg px-3 py-2.5 font-mono text-xs text-indigo-600 select-all break-all" style={{ borderColor: '#e4e6eb' }}>
                       {typeof window !== 'undefined' ? window.location.origin : ''}/login
                     </div>
-                    <button 
+                    <button
                       onClick={() => {
                         const link = `${window.location.origin}/login`
                         navigator.clipboard.writeText(link)
@@ -713,8 +715,8 @@ export default function SettingsTab() {
                 {orgError && <div className="text-red-500 text-sm font-medium">{orgError}</div>}
 
                 {/* Save Button */}
-                <button 
-                  onClick={handleSaveOrg} 
+                <button
+                  onClick={handleSaveOrg}
                   disabled={saving}
                   className={`w-full h-[46px] rounded-xl font-semibold text-white transition-all flex items-center justify-center ${saved ? 'bg-green-500' : 'hover:shadow-lg hover:-translate-y-0.5'}`}
                   style={{ background: saved ? '#22c55e' : 'linear-gradient(135deg,#6366f1,#4f46e5)' }}
@@ -987,13 +989,13 @@ export default function SettingsTab() {
                                   <Eye size={14} />
                                 </button>
                                 <button
-                                onClick={async () => { 
-                                  setEditingEmp(emp.id)
-                                  // Fetch loginEnabled status from users collection
-                                  const userDoc = await getDoc(doc(db, 'users', emp.id))
-                                  const userData = userDoc.exists() ? userDoc.data() : {}
-                                  setEditForm({ ...emp, loginEnabled: userData.loginEnabled || false, tempPassword: '' })
-                                }}
+                                  onClick={async () => {
+                                    setEditingEmp(emp.id)
+                                    // Fetch loginEnabled status from users collection
+                                    const userDoc = await getDoc(doc(db, 'users', emp.id))
+                                    const userData = userDoc.exists() ? userDoc.data() : {}
+                                    setEditForm({ ...emp, loginEnabled: userData.loginEnabled || false, tempPassword: '' })
+                                  }}
                                   title="Edit employee"
                                   className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
                                 >
@@ -1358,7 +1360,7 @@ export default function SettingsTab() {
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password</label>
                   <input type="text" placeholder="Enter new password to update" value={editForm.tempPassword || ''}
-                    onChange={e => setEditForm(s => ({ ...s, tempPassword: e.target.value }))}
+                    onChange={(e) => setEditForm(s => ({ ...s, tempPassword: e.target.value }))}
                     className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                   />
                   <p className="text-[10px] text-gray-400 mt-1">Leave blank to keep existing password</p>
@@ -1820,8 +1822,11 @@ export default function SettingsTab() {
             {newEmployee.loginEnabled && (
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password *</label>
-                <input type="text" placeholder="Enter temporary password" value={newEmployee.tempPassword || ''}
-                  onChange={e => setNewEmployee(s => ({ ...s, tempPassword: e.target.value }))}
+                <input
+                  type="text"
+                  placeholder="Enter temporary password"
+                  value={newEmployee.tempPassword || ''}
+                  onChange={(e) => setNewEmployee(s => ({ ...s, tempPassword: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
                 <p className="text-[10px] text-gray-400 mt-1">Share this password with the employee</p>
@@ -1970,21 +1975,21 @@ export default function SettingsTab() {
         <div className="p-6 space-y-5 max-w-md mx-auto">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Role Name *</label>
-            <input 
-              type="text" 
-              value={newRole.name} 
-              onChange={e => setNewRole(s => ({ ...s, name: e.target.value }))} 
-              className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none" 
-              placeholder="e.g. Manager, Supervisor" 
+            <input
+              type="text"
+              value={newRole.name}
+              onChange={e => setNewRole(s => ({ ...s, name: e.target.value }))}
+              className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+              placeholder="e.g. Manager, Supervisor"
             />
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
-            <textarea 
-              value={newRole.description || ''} 
-              onChange={e => setNewRole(s => ({ ...s, description: e.target.value }))} 
+            <textarea
+              value={newRole.description || ''}
+              onChange={e => setNewRole(s => ({ ...s, description: e.target.value }))}
               rows={2}
-              className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none" 
+              className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
               placeholder="Brief description of this role"
             />
           </div>
@@ -2016,16 +2021,16 @@ export default function SettingsTab() {
             </div>
           )}
           <div className="flex gap-3 pt-4">
-            <button 
+            <button
               type="button"
-              onClick={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }) }} 
+              onClick={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }) }}
               className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-50"
             >
               Cancel
             </button>
-            <button 
+            <button
               type="button"
-              onClick={handleAddRole} 
+              onClick={handleAddRole}
               className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700"
             >
               {editingRole ? 'Update Role' : 'Create Role'}
