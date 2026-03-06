@@ -64,12 +64,15 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
   const [shifts, setShifts] = useState([])
   const [uploading, setUploading] = useState(false)
   const [shiftTiming, setShiftTiming] = useState('day') // 'day' or 'night'
+  const [defaultShiftTimes, setDefaultShiftTimes] = useState({ inTime: '09:00', outTime: '18:00' })
 
-  // Pre-defined shift times based on timing selection
-  const defaultShiftTimes = useMemo(() => {
-    return shiftTiming === 'day' 
-      ? { inTime: '09:00', outTime: '18:00' }
-      : { inTime: '14:00', outTime: '22:00' }
+  // Update default times when shift timing changes
+  useEffect(() => {
+    if (shiftTiming === 'day') {
+      setDefaultShiftTimes({ inTime: '09:00', outTime: '18:00' })
+    } else {
+      setDefaultShiftTimes({ inTime: '14:00', outTime: '22:00' })
+    }
   }, [shiftTiming])
 
   const filteredEmployees = useMemo(() => {
@@ -205,41 +208,7 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Day Planning - Shift Date at top */}
-          {type === PLANNING_TYPES.DAY && (
-            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Date *</label>
-                  <input
-                    type="date"
-                    value={form.shiftDate}
-                    onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))}
-                    className="w-full h-10 border border-indigo-200 rounded-lg px-3 text-xs font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Timing</label>
-                  <select
-                    value={shiftTiming}
-                    onChange={e => setShiftTiming(e.target.value)}
-                    className="w-full h-10 border border-indigo-200 rounded-lg px-3 text-xs font-semibold"
-                  >
-                    <option value="day">Day Shift (9AM - 6PM)</option>
-                    <option value="night">Night Shift (2PM - 10PM)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Default Times</label>
-                  <div className="h-10 flex items-center text-xs font-semibold text-indigo-700">
-                    {shiftTiming === 'day' ? '9:00 AM - 6:00 PM' : '2:00 PM - 10:00 PM'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Common Fields */}
+          {/* Common Fields - Top */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Title *</label>
@@ -262,6 +231,150 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
             </div>
           </div>
 
+          {/* Employee Assignment - Right after title */}
+          <div className="border border-gray-200 rounded-xl p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-xs font-black text-gray-700 uppercase">Employee Shift Assignment</h4>
+              <div className="flex items-center gap-2">
+                <select
+                  onChange={e => {
+                    const emp = employees.find(emp => emp.id === e.target.value)
+                    if (emp) addEmployee(emp)
+                    e.target.value = ''
+                  }}
+                  className="h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                >
+                  <option value="">Add Employee...</option>
+                  {filteredEmployees.filter(e => !shifts.find(s => s.employeeId === e.id)).map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Day Planning Quick Add Row */}
+            {type === PLANNING_TYPES.DAY && (
+              <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 mb-4">
+                <div className="grid grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Date *</label>
+                    <input
+                      type="date"
+                      value={form.shiftDate}
+                      onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))}
+                      className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift</label>
+                    <select
+                      value={shiftTiming}
+                      onChange={e => setShiftTiming(e.target.value)}
+                      className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold"
+                    >
+                      <option value="day">Day</option>
+                      <option value="night">Night</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Starts</label>
+                    <input
+                      type="time"
+                      value={defaultShiftTimes.inTime}
+                      onChange={e => setDefaultShiftTimes(prev => ({ ...prev, inTime: e.target.value }))}
+                      className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Ends</label>
+                    <input
+                      type="time"
+                      value={defaultShiftTimes.outTime}
+                      onChange={e => setDefaultShiftTimes(prev => ({ ...prev, outTime: e.target.value }))}
+                      className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {shifts.length === 0 ? (
+              <div className="text-center py-8 text-gray-300 italic text-xs">
+                No employees added yet. Use the dropdown above to add employees.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[10px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Employee</th>
+                      {type === PLANNING_TYPES.WEEKLY && <th className="px-3 py-2 font-black text-gray-500 uppercase">Day</th>}
+                      {type === PLANNING_TYPES.NEXT_FEW && <th className="px-3 py-2 font-black text-gray-500 uppercase">Date</th>}
+                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift Start</th>
+                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift End</th>
+                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Site</th>
+                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Notes</th>
+                      <th className="px-3 py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {shifts.map((shift, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 font-semibold text-gray-700">{shift.employeeName}</td>
+                        {type === PLANNING_TYPES.WEEKLY && (
+                          <td className="px-3 py-2 font-medium text-gray-600">{shift.day}</td>
+                        )}
+                        {type === PLANNING_TYPES.NEXT_FEW && (
+                          <td className="px-3 py-2 font-medium text-gray-600">{formatDateShort(shift.date)}</td>
+                        )}
+                        <td className="px-3 py-2">
+                          <input
+                            type="time"
+                            value={shift.inTime}
+                            onChange={e => updateShift(idx, 'inTime', e.target.value)}
+                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="time"
+                            value={shift.outTime}
+                            onChange={e => updateShift(idx, 'outTime', e.target.value)}
+                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={shift.site}
+                            onChange={e => updateShift(idx, 'site', e.target.value)}
+                            placeholder="Office"
+                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold w-24"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={shift.notes}
+                            onChange={e => updateShift(idx, 'notes', e.target.value)}
+                            placeholder="Notes"
+                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold w-24"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <button onClick={() => removeShift(idx)} className="p-1 text-red-400 hover:text-red-600">
+                            <Trash2 size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Announcement Message */}
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Announcement Message</label>
             <textarea
@@ -368,101 +481,16 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
             </div>
           )}
 
-          {/* Employee Assignment */}
-          <div className="border border-gray-200 rounded-xl p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-xs font-black text-gray-700 uppercase">Employee Shift Assignment</h4>
-              <div className="flex items-center gap-2">
-                <select
-                  onChange={e => {
-                    const emp = employees.find(emp => emp.id === e.target.value)
-                    if (emp) addEmployee(emp)
-                    e.target.value = ''
-                  }}
-                  className="h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-                >
-                  <option value="">Add Employee...</option>
-                  {filteredEmployees.filter(e => !shifts.find(s => s.employeeId === e.id)).map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.name}</option>
-                  ))}
-                </select>
-              </div>
+          {/* Attachment */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Attachment</label>
+              <label className="flex items-center gap-2 h-10 border border-gray-200 rounded-lg px-3 cursor-pointer hover:bg-gray-50">
+                <Upload size={14} className="text-gray-400" />
+                <span className="text-xs text-gray-500 truncate">{form.attachmentName || 'Upload file...'}</span>
+                <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+              </label>
             </div>
-
-            {shifts.length === 0 ? (
-              <div className="text-center py-8 text-gray-300 italic text-xs">
-                No employees added yet. Use the dropdown above to add employees.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-[10px]">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Employee</th>
-                      {type === PLANNING_TYPES.WEEKLY && <th className="px-3 py-2 font-black text-gray-500 uppercase">Day</th>}
-                      {type === PLANNING_TYPES.NEXT_FEW && <th className="px-3 py-2 font-black text-gray-500 uppercase">Date</th>}
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift Start</th>
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift End</th>
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Site</th>
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Notes</th>
-                      <th className="px-3 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {shifts.map((shift, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-semibold text-gray-700">{shift.employeeName}</td>
-                        {type === PLANNING_TYPES.WEEKLY && (
-                          <td className="px-3 py-2 font-medium text-gray-600">{shift.day}</td>
-                        )}
-                        {type === PLANNING_TYPES.NEXT_FEW && (
-                          <td className="px-3 py-2 font-medium text-gray-600">{formatDateShort(shift.date)}</td>
-                        )}
-                        <td className="px-3 py-2">
-                          <input
-                            type="time"
-                            value={shift.inTime}
-                            onChange={e => updateShift(idx, 'inTime', e.target.value)}
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="time"
-                            value={shift.outTime}
-                            onChange={e => updateShift(idx, 'outTime', e.target.value)}
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="text"
-                            value={shift.site}
-                            onChange={e => updateShift(idx, 'site', e.target.value)}
-                            placeholder="Office"
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold w-24"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="text"
-                            value={shift.notes}
-                            onChange={e => updateShift(idx, 'notes', e.target.value)}
-                            placeholder="Notes"
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold w-24"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <button onClick={() => removeShift(idx)} className="p-1 text-red-400 hover:text-red-600">
-                            <Trash2 size={12} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
         </div>
 
