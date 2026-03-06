@@ -38,6 +38,27 @@ export default function SettingsTab() {
   const [showAddRole, setShowAddRole] = useState(false)
   const [editingRole, setEditingRole] = useState(null)
 
+  const userPermissions = user?.permissions || {}
+  const isAdmin = user?.role === 'admin'
+  const allSubTabs = [
+    { id: 'organization', label: 'Organization', module: 'Settings' },
+    { id: 'employee', label: 'Employees', module: 'Employees' },
+    { id: 'shift', label: 'Shifts', module: 'Shifts' },
+    { id: 'roles', label: 'Roles & Rights', module: 'Roles' },
+    { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
+    { id: 'advance_cat', label: 'Advance Cats', module: 'AdvanceExpense' },
+    { id: 'holidays', label: 'Holidays', module: 'Settings' }
+  ]
+  const visibleSubTabs = isAdmin 
+    ? allSubTabs 
+    : allSubTabs.filter(tab => userPermissions[tab.module]?.view || userPermissions[tab.module]?.full || userPermissions[tab.module]?.create)
+
+  useEffect(() => {
+    if (!visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {
+      setActiveSubTab(visibleSubTabs[0].id)
+    }
+  }, [userPermissions])
+
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [newEmployee, setNewEmployee] = useState({
     name: '',
@@ -543,15 +564,7 @@ export default function SettingsTab() {
 
       {/* Shadcn-style minimal tab navigation */}
       <div className="flex gap-0 mb-5 border-b border-gray-200 no-print">
-        {[
-          { id: 'organization', label: 'Organization' },
-          { id: 'employee', label: 'Employees' },
-          { id: 'shift', label: 'Shifts' },
-          { id: 'roles', label: 'Roles & Rights' },
-          { id: 'salary', label: 'Salary Slab' },
-          { id: 'advance_cat', label: 'Advance Cats' },
-          { id: 'holidays', label: 'Holidays' }
-        ].map(tab => (
+        {visibleSubTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id)}
