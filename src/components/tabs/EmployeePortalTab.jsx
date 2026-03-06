@@ -14,12 +14,12 @@ import { User, Calendar, FileText, Plus, ArrowRight, ShieldCheck, Mail, Building
 
 export default function EmployeePortalTab() {
   const { user } = useAuth()
-  const { employees } = useEmployees(user?.orgId)
+  const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
 
   const employee = useMemo(
-    () => employees.find(e => e.id === user?.employeeId || e.email === user?.email),
-    [employees, user?.employeeId, user?.email]
+    () => employees.find(e => e.email?.toLowerCase() === user?.email?.toLowerCase()),
+    [employees, user?.email]
   )
   const employeeId = employee?.id
 
@@ -46,12 +46,16 @@ export default function EmployeePortalTab() {
   const [todayRecord, setTodayRecord] = useState(null)
 
   useEffect(() => {
-    if (!user?.orgId || !employeeId) return
+    if (!user?.orgId || empLoading) return
+    if (!employeeId) {
+      console.log('EmployeePortalTab: No employee found for user', user?.email)
+      return
+    }
     fetchRequests()
-  }, [user?.orgId, employeeId])
+  }, [user?.orgId, employeeId, empLoading])
 
   useEffect(() => {
-    if (!user?.orgId || !employeeId || !month) return
+    if (!user?.orgId || empLoading || !employeeId || !month) return
 
     const loadMonth = async () => {
       const [year, mon] = month.split('-')
@@ -84,14 +88,14 @@ export default function EmployeePortalTab() {
   }, [user?.orgId, employeeId, month])
 
   useEffect(() => {
+    if (!user?.orgId || empLoading || !employeeId) return
     const loadToday = async () => {
-      if (!user?.orgId || !employeeId) return
       const today = new Date().toISOString().split('T')[0]
       const records = await fetchByDate(today)
       setTodayRecord(records.find(r => r.employeeId === employeeId) || null)
     }
     loadToday()
-  }, [user?.orgId, employeeId, fetchByDate])
+  }, [user?.orgId, employeeId, fetchByDate, empLoading])
 
   const fetchRequests = async () => {
     setLoading(true)

@@ -390,41 +390,50 @@ export default function SettingsTab() {
           }
         } catch (authErr) {
           if (authErr.code === 'auth/email-already-in-use') {
-            // User exists, just update their data
-            const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
-            if (!usersSnap.empty) {
-              const userDocId = usersSnap.docs[0].id
-              await setDoc(
-                doc(db, 'users', userDocId),
-                {
-                  email: editForm.email,
-                  name: editForm.name,
-                  orgId: user.orgId,
-                  role: (editForm.role || 'employee').toLowerCase(),
-                  employeeId: editingEmp,
-                  empCode: editForm.empCode,
-                  department: editForm.department || '',
-                  reportingManager: editForm.reportingManager || '',
-                  loginEnabled: true,
-                },
-                { merge: true }
-              )
+            // User exists, just update their data (may fail due to permissions)
+            try {
+              const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
+              if (!usersSnap.empty) {
+                const userDocId = usersSnap.docs[0].id
+                await setDoc(
+                  doc(db, 'users', userDocId),
+                  {
+                    email: editForm.email,
+                    name: editForm.name,
+                    orgId: user.orgId,
+                    role: (editForm.role || 'employee').toLowerCase(),
+                    employeeId: editingEmp,
+                    empCode: editForm.empCode,
+                    department: editForm.department || '',
+                    reportingManager: editForm.reportingManager || '',
+                    loginEnabled: true,
+                  },
+                  { merge: true }
+                )
+              }
+              alert('Login enabled. Employee can login with their existing credentials.')
+            } catch (userErr) {
+              console.warn('Could not update user document:', userErr.message)
+              alert('Employee saved but could not update login details. Please try again.')
             }
-            alert('Login enabled. Employee can login with their existing credentials.')
           } else {
             console.error('Auth error:', authErr)
           }
         }
       } else if (!editForm.loginEnabled && editForm.email) {
-        // Disable login - update user doc
-        const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
-        if (!usersSnap.empty) {
-          const userDocId = usersSnap.docs[0].id
-          await setDoc(
-            doc(db, 'users', userDocId),
-            { loginEnabled: false },
-            { merge: true }
-          )
+        // Disable login - update user doc (may fail due to permissions)
+        try {
+          const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
+          if (!usersSnap.empty) {
+            const userDocId = usersSnap.docs[0].id
+            await setDoc(
+              doc(db, 'users', userDocId),
+              { loginEnabled: false },
+              { merge: true }
+            )
+          }
+        } catch (userErr) {
+          console.warn('Could not update user login status:', userErr.message)
         }
       }
 

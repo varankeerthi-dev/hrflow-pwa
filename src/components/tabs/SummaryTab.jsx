@@ -8,6 +8,14 @@ import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp
 import { db } from '../../lib/firebase'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 
+function formatOTHours(otHours) {
+  if (!otHours) return '-'
+  const [h, m] = otHours.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return '-'
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
+}
+
 export default function SummaryTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -534,7 +542,7 @@ export default function SummaryTab() {
                                     {isBeforeStart ? '-' : formatTimeTo12Hour(att?.outTime) || '-'}
                                   </td>
                                   <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
-                                    {isBeforeStart ? '-' : formatTimeTo12Hour(att?.otHours) || '-'}
+                                    {isBeforeStart ? '-' : formatOTHours(att?.otHours)}
                                   </td>
                                 </>
                               )}
