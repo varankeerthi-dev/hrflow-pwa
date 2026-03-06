@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
 import Spinner from '../ui/Spinner'
-import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
-import { getDocs, collection, query, where } from 'firebase/firestore'
+import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X } from 'lucide-react'
+import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 
 export default function SummaryTab() {
@@ -21,6 +21,9 @@ export default function SummaryTab() {
   const [monthlyViewData, setMonthlyViewData] = useState([])
   const [shifts, setShifts] = useState([])
   const [pivotLoading, setPivotLoading] = useState(false)
+  const [showOrderModal, setShowOrderModal] = useState(false)
+  const [displayOrder, setDisplayOrder] = useState([])
+  const [draggedItem, setDraggedItem] = useState(null)
 
   useEffect(() => {
     if (!user?.orgId || !selectedMonth) return
@@ -34,18 +37,22 @@ export default function SummaryTab() {
     const fetchPivotData = async () => {
       setPivotLoading(true)
       try {
-        const [empSnap, attSnap, shiftSnap] = await Promise.all([
+        const [empSnap, attSnap, shiftSnap, orgSnap] = await Promise.all([
           getDocs(collection(db, 'organisations', user.orgId, 'employees')),
           getDocs(query(
             collection(db, 'organisations', user.orgId, 'attendance'),
             where('date', '>=', selectedMonth + '-01'),
             where('date', '<=', selectedMonth + '-31')
           )),
-          getDocs(collection(db, 'organisations', user.orgId, 'shifts'))
+          getDocs(collection(db, 'organisations', user.orgId, 'shifts')),
+          getDoc(doc(db, 'organisations', user.orgId))
         ])
 
         const shiftMap = {}
         shiftSnap.docs.forEach(d => { shiftMap[d.id] = d.data() })
+
+        const orgData = orgSnap.exists() ? orgSnap.data() : {}
+        const holidays = orgData.holidays || []
 
         const [year, month] = selectedMonth.split('-').map(Number)
         const daysInMonth = new Date(year, month, 0).getDate()
@@ -58,8 +65,6 @@ export default function SummaryTab() {
           attendanceMap[data.employeeId][day] = data
         })
 
-        const selectedMonthStart = new Date(year, month - 1, 1)
-        
         const filteredEmployees = empSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(emp => {
@@ -81,11 +86,24 @@ export default function SummaryTab() {
             return false
           })
 
+        const savedOrder = orgData.employeeOrder || []
+        const orderedEmployees = [...filteredEmployees].sort((a, b) => {
+          const idxA = savedOrder.indexOf(a.id)
+          const idxB = savedOrder.indexOf(b.id)
+          if (idxA === -1 && idxB === -1) return 0
+          if (idxA === -1) return 1
+          if (idxB === -1) return -1
+          return idxA - idxB
+        })
+
+        setDisplayOrder(orderedEmployees.map(e => e.id))
+
         setMonthlyViewData({
-          employees: filteredEmployees,
+          employees: orderedEmployees,
           attendanceMap,
           shiftMap,
-          daysInMonth
+          daysInMonth,
+          holidays
         })
       } catch (err) {
         console.error('Pivot fetch error:', err)
@@ -109,25 +127,104 @@ export default function SummaryTab() {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   }
 
-  const getStatusBadge = (att, day, emp) => {
-    if (!att) return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300' }
+  const getStatusBadge = (att, day, emp, holidays = []) => {
+    if (!att) return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
     
-    if (att.isAbsent) {
-      return { bg: 'bg-red-50', text: 'A', color: 'text-red-600' }
+    const [year, month] = selectedMonth.split('-').map(Number)
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const dayOfWeek = new Date(year, month - 1, day).getDay()
+    const isSunday = dayOfWeek === 0
+    const isHoliday = holidays.some(h => h.date === dateStr)
+    
+    if (att.isAbsent || isHoliday || isSunday) {
+      let label = 'Absent'
+      if (isHoliday && !att.isAbsent) label = 'Holiday'
+      if (isSunday && !att.isAbsent && !isHoliday) label = 'Sunday'
+      if (isSunday && isHoliday) label = 'Holiday'
+      return { bg: 'bg-red-50', text: label, color: 'text-red-600', type: isSunday ? 'sunday' : (isHoliday ? 'holiday' : 'absent') }
     }
     if (att.inTime) {
-      const isWeekend = (() => {
-        const [y, m] = selectedMonth.split('-').map(Number)
-        const d = new Date(y, m - 1, day)
-        return d.getDay() === 0 || d.getDay() === 6
-      })()
-      
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
       if (isWeekend) {
-        return { bg: 'bg-purple-50', text: 'W', color: 'text-purple-600' }
+        return { bg: 'bg-purple-50', text: 'W', color: 'text-purple-600', type: 'weekend' }
       }
-      return { bg: 'bg-green-50', text: 'P', color: 'text-green-600' }
+      return { bg: 'bg-green-50', text: 'P', color: 'text-green-600', type: 'present' }
     }
-    return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300' }
+    return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
+  }
+
+  const isNonWorkingDay = (day, holidays = []) => {
+    const [year, month] = selectedMonth.split('-').map(Number)
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const dayOfWeek = new Date(year, month - 1, day).getDay()
+    const isSunday = dayOfWeek === 0
+    const isHoliday = holidays.some(h => h.date === dateStr)
+    return isSunday || isHoliday
+  }
+
+  const exportPDF = () => {
+    const printContent = document.getElementById('monthly-pivot-table')
+    if (!printContent) return
+    
+    const printWindow = window.open('', '', 'width=1200,height=800')
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Monthly Attendance - ${formatMonth(selectedMonth)}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              table { font-size: 8px; }
+              th, td { padding: 2px !important; }
+            }
+          </style>
+        </head>
+        <body class="p-4">
+          <h1 class="text-center text-sm font-bold mb-2">Monthly Attendance - ${formatMonth(selectedMonth)}</h1>
+          ${printContent.outerHTML}
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.close()
+    }, 500)
+  }
+
+  const saveDisplayOrder = async () => {
+    if (!user?.orgId) return
+    try {
+      await setDoc(doc(db, 'organisations', user.orgId), { employeeOrder: displayOrder }, { merge: true })
+      alert('Display order saved!')
+      setShowOrderModal(false)
+      fetchPivotData()
+    } catch (err) {
+      console.error('Save order error:', err)
+      alert('Failed to save order')
+    }
+  }
+
+  const handleDragStart = (e, index) => {
+    setDraggedItem(index)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault()
+    if (draggedItem === null || draggedItem === index) return
+    
+    const newOrder = [...displayOrder]
+    const [removed] = newOrder.splice(draggedItem, 1)
+    newOrder.splice(index, 0, removed)
+    setDisplayOrder(newOrder)
+    setDraggedItem(index)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedItem(null)
   }
 
   const exportCSV = () => {
@@ -294,18 +391,33 @@ export default function SummaryTab() {
                 Daily Attendance Grid ({monthlyViewData.employees?.length || 0} Employees)
               </span>
             </div>
-            <div className="flex items-center gap-4 text-[10px]">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-50 border border-green-200 rounded"></span> Present</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-50 border border-red-200 rounded"></span> Absent</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-50 border border-purple-200 rounded"></span> Weekend</span>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setShowOrderModal(true)}
+                className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-medium text-gray-600 transition-all"
+              >
+                <Filter size={14} /> Display Order
+              </button>
+              <button 
+                onClick={exportPDF}
+                className="h-[36px] px-4 bg-indigo-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all"
+              >
+                <Download size={14} /> Export PDF
+              </button>
             </div>
+          </div>
+          <div className="px-4 pb-2 flex gap-4 text-[10px] border-b border-gray-100">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-50 border border-green-200 rounded"></span> Present</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-50 border border-red-200 rounded"></span> Absent</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-50 border border-purple-200 rounded"></span> Weekend</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-amber-50 border border-amber-200 rounded"></span> Holiday</span>
           </div>
           
           {pivotLoading ? (
             <div className="text-center py-20"><Spinner /></div>
           ) : (
             <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-              <table className="w-full text-left border-collapse text-[10px]">
+              <table id="monthly-pivot-table" className="w-full text-left border-collapse text-[10px]">
                 <thead className="sticky top-0 z-10 bg-gray-50">
                   <tr>
                     <th className="px-1 py-2 text-center font-bold text-gray-600 border-b border-r border-gray-200 w-8 bg-gray-100" rowSpan={2}>
@@ -338,11 +450,18 @@ export default function SummaryTab() {
                     const currentDate = new Date(year, month - 1, day)
                     const dayOfWeek = currentDate.getDay()
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+                    const isSunday = dayOfWeek === 0
+                    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                    const isHoliday = (monthlyViewData.holidays || []).some(h => h.date === dateStr)
+                    const isNonWorking = isSunday || isHoliday
                     const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' })
                     
+                    const rowClass = isSunday ? 'bg-red-25' : (isHoliday ? 'bg-amber-25' : (isWeekend ? 'bg-purple-25' : ''))
+                    const dateClass = isSunday ? 'bg-red-100 text-red-700' : (isHoliday ? 'bg-amber-100 text-amber-700' : (isWeekend ? 'bg-purple-50 text-purple-700' : 'bg-gray-50 text-gray-600'))
+                    
                     return (
-                      <tr key={day} className={isWeekend ? 'bg-purple-25' : ''}>
-                        <td className={`px-1 py-1 text-center font-bold border-b border-r border-gray-100 ${isWeekend ? 'bg-purple-50 text-purple-700' : 'bg-gray-50 text-gray-600'}`}>
+                      <tr key={day} className={rowClass}>
+                        <td className={`px-1 py-1 text-center font-bold border-b border-r border-gray-100 ${dateClass}`}>
                           <span className="text-[9px]">{day}</span>
                           <div className="text-[7px] opacity-60">{dayName}</div>
                         </td>
@@ -352,28 +471,31 @@ export default function SummaryTab() {
                           const isBeforeStart = empStartDate && new Date(empYear, empMonth - 1, day) < empStartDate
                           
                           const att = monthlyViewData.attendanceMap?.[emp.id]?.[day]
-                          const status = isBeforeStart ? null : getStatusBadge(att, day, emp)
+                          const status = isBeforeStart ? null : getStatusBadge(att, day, emp, monthlyViewData.holidays || [])
+                          const isAbsentOrNonWorking = status?.type === 'absent' || status?.type === 'sunday' || status?.type === 'holiday'
                           const shift = att?.shiftId ? monthlyViewData.shiftMap?.[att.shiftId] : null
                           
                           return (
                             <React.Fragment key={emp.id}>
-                              <td className="px-0.5 py-1 text-center border-b border-r border-gray-50">
+                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 ${isAbsentOrNonWorking ? 'bg-red-50' : ''}`}>
                                 {isBeforeStart ? (
                                   <span className="text-gray-200">-</span>
+                                ) : isAbsentOrNonWorking ? (
+                                  <span className={`text-[8px] font-bold ${status.color}`}>{status.text}</span>
                                 ) : shift ? (
                                   <span className="text-[8px] font-medium text-gray-600">{shift.type || 'D'}</span>
                                 ) : (
                                   <span className="text-gray-200">-</span>
                                 )}
                               </td>
-                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${status?.color}`}>
-                                {isBeforeStart ? '-' : (att?.inTime || '-')}
+                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${isAbsentOrNonWorking ? status.color : 'text-gray-600'}`}>
+                                {isBeforeStart ? '-' : (isAbsentOrNonWorking ? status.text : (att?.inTime || '-'))}
                               </td>
-                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${status?.color}`}>
-                                {isBeforeStart ? '-' : (att?.outTime || '-')}
+                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${isAbsentOrNonWorking ? status.color : 'text-gray-600'}`}>
+                                {isBeforeStart ? '-' : (isAbsentOrNonWorking ? status.text : (att?.outTime || '-'))}
                               </td>
-                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${status?.color}`}>
-                                {isBeforeStart ? '-' : (att?.otHours || '-')}
+                              <td className={`px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono ${isAbsentOrNonWorking ? 'text-gray-200' : 'text-gray-600'}`}>
+                                {isBeforeStart ? '-' : (isAbsentOrNonWorking ? '' : (att?.otHours || '-'))}
                               </td>
                             </React.Fragment>
                           )
@@ -385,6 +507,56 @@ export default function SummaryTab() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Display Order Modal */}
+      {showOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="text-sm font-bold text-gray-800">Display Order</h3>
+              <button onClick={() => setShowOrderModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <p className="text-[11px] text-gray-500 mb-3">Drag and drop to reorder employees</p>
+              <div className="space-y-2">
+                {displayOrder.map((empId, index) => {
+                  const emp = monthlyViewData.employees?.find(e => e.id === empId)
+                  if (!emp) return null
+                  return (
+                    <div
+                      key={empId}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 transition-colors ${draggedItem === index ? 'opacity-50' : ''}`}
+                    >
+                      <GripVertical size={16} className="text-gray-400" />
+                      <span className="text-[12px] font-medium text-gray-700">{emp.name}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 flex gap-2">
+              <button 
+                onClick={() => setShowOrderModal(false)}
+                className="flex-1 h-10 bg-gray-100 text-gray-600 rounded-lg text-[12px] font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveDisplayOrder}
+                className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-[12px] font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+              >
+                <Save size={14} /> Save Default
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

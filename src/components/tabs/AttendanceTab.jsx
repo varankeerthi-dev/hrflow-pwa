@@ -156,6 +156,7 @@ export default function AttendanceTab() {
       isAbsent: false,
       sundayWorked: false,
       sundayHoliday: false,
+      shiftType: 'Day',
       status: 'Present'
     }))
     setRows(newRows)
@@ -175,6 +176,7 @@ export default function AttendanceTab() {
       isAbsent: false,
       sundayWorked: false,
       sundayHoliday: false,
+      shiftType: 'Day',
       status: 'Present',
       isNew: true
     }
@@ -204,6 +206,7 @@ export default function AttendanceTab() {
         isAbsent: false,
         sundayWorked: false,
         sundayHoliday: false,
+        shiftType: 'Day',
         status: 'Present',
         isNew: false
       }
@@ -304,9 +307,10 @@ export default function AttendanceTab() {
             <thead>
               <tr className="h-[38px] bg-[#f9fafb] border-b border-gray-100">
                 <th className="px-[14px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider w-[18%]">Employee Name</th>
+                <th className="px-[8px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center w-[70px]">Shift</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">In Date</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">In Time</th>
-                <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Out Date</th>
+                <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wlder text-center">Out Date</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Out Time</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">OT</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Remarks</th>
@@ -316,7 +320,7 @@ export default function AttendanceTab() {
             </thead>
             <tbody className="divide-y divide-[#f1f5f9]">
               {empLoading ? (
-                <tr><td colSpan={9} className="text-center py-12"><Spinner /></td></tr>
+                <tr><td colSpan={10} className="text-center py-12"><Spinner /></td></tr>
               ) : rows.length === 0 ? (
                 <tr><td colSpan={9} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">Ready to generate attendance</td></tr>
               ) : (
@@ -340,6 +344,19 @@ export default function AttendanceTab() {
                           ))}
                         </select>
                       )}
+                    </td>
+
+                    {/* Shift Type */}
+                    <td className="px-[8px] text-center">
+                      <select
+                        value={row.shiftType || 'Day'}
+                        onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)}
+                        className="h-[28px] w-[65px] border border-gray-200 rounded-lg px-1 text-[10px] font-semibold bg-white focus:ring-2 focus:ring-indigo-500 outline-none text-center"
+                      >
+                        <option value="Day">Day</option>
+                        <option value="Night">Night</option>
+                        <option value="DN">DN</option>
+                      </select>
                     </td>
 
                     {/* In Date */}
