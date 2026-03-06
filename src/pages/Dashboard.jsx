@@ -204,7 +204,7 @@ export default function Dashboard() {
 
     { id: 'engage', label: 'Engage', icon: <Handshake size={16} />, module: 'Engagement' },
     { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={16} />, module: 'ShiftPlanning' },
-    { id: 'portal', label: 'Self Service', icon: <User size={16} />, module: 'EmployeePortal' },
+    { id: 'portal', label: 'My Portal', icon: <User size={16} />, module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: <Settings size={16} />, module: 'Settings' },
   ], [])
 
@@ -275,7 +275,8 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Quick Access Bar - sticky at top */}
+      {/* Quick Access Bar - only for Admin/HR */}
+      {user?.role === 'admin' || user?.role === 'HR' ? (
       <div className="sticky top-14 z-30 bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 shrink-0 overflow-x-auto">
         {[
           { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={15} /> },
@@ -297,6 +298,7 @@ export default function Dashboard() {
           </button>
         ))}
       </div>
+      ) : null}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Modern Minimal Sidebar */}
