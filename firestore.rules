@@ -30,7 +30,7 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['employee', 'Employee'];
     }
     
-    // Users collection - read/write own document
+    // Users collection - read/write own document (or create if no orgId yet)
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if request.auth != null && request.auth.uid == uid;
@@ -38,9 +38,10 @@ service cloud.firestore {
     
     // Organisations collection
     match /organisations/{orgId} {
-      // All org members can read, only admin/HR can write
+      // All org members can read
       allow read: if request.auth != null && getUserOrgId() == orgId;
-      allow write: if isAdminOrHR() && getUserOrgId() == orgId;
+      // Admin/HR can write OR user is creating their first org (no orgId yet)
+      allow write: if (isAdminOrHR() && getUserOrgId() == orgId) || (request.auth != null && getUserOrgId() == null);
       
       // Roles - read by all org members, write by admin/HR
       match /roles/{roleId} {
