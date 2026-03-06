@@ -1425,10 +1425,10 @@ export default function SettingsTab() {
                   )) : (
                     <>
                       <option value="">Select Role...</option>
-                      <option>Admin</option>
-                      <option>HR</option>
-                      <option>Employee</option>
-                      <option>Manager</option>
+                      <option value="Admin">Admin</option>
+                      <option value="HR">HR</option>
+                      <option value="Employee">Employee</option>
+                      <option value="Manager">Manager</option>
                     </>
                   )}
                 </select>
@@ -1667,10 +1667,11 @@ export default function SettingsTab() {
                     <option key={r.id} value={r.name}>{r.name}</option>
                   )) : (
                     <>
-                      <option>Admin</option>
-                      <option>HR</option>
-                      <option>Employee</option>
-                      <option>Manager</option>
+                      <option value="">Select Role...</option>
+                      <option value="Admin">Admin</option>
+                      <option value="HR">HR</option>
+                      <option value="Employee">Employee</option>
+                      <option value="Manager">Manager</option>
                     </>
                   )}
                 </select>
