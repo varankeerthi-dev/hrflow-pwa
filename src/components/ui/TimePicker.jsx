@@ -79,7 +79,7 @@ export default function TimePicker({ value, onChange, onClose }) {
   return (
     <div
       ref={pickerRef}
-      className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-[9999] bg-white rounded-[10px] shadow-[0_8px_24px_rgba(0,0,0,0.15)] border border-gray-100 font-inter animate-in fade-in slide-in-from-top-2 duration-150"
+      className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-[9999] bg-white rounded-[10px] shadow-[0_8px_24px_rgba(0,0,0,0.15)] border border-gray-100 font-['Roboto',sans-serif] animate-in fade-in slide-in-from-top-2 duration-150"
       style={{ width: '170px', minWidth: '170px' }}
       onClick={(e) => e.stopPropagation()}
     >

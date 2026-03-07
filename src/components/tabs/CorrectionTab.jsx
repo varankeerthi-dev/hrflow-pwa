@@ -554,6 +554,7 @@ export default function CorrectionTab() {
   // Handle refresh - stable reference
   const handleRefresh = useCallback(async () => {
     if (!selectedDate || !user?.orgId) return
+    if (!employees || employees.length === 0) return
     setLoading(true)
     try {
       const data = await fetchByDate(selectedDate)
@@ -577,7 +578,7 @@ export default function CorrectionTab() {
         }
         return {
           id: record.employeeId,
-          name: emp?.name || 'Unknown',
+          name: emp?.name || record.employeeName || 'Unknown',
           date: selectedDate,
           inDate: record?.inDate || selectedDate,
           in: record?.inTime || '-',
@@ -596,13 +597,12 @@ export default function CorrectionTab() {
     }
   }, [selectedDate, user?.orgId, employees, fetchByDate])
 
-  // Load data when date or org changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Load data when date or org or employees changes
   useEffect(() => {
-    if (selectedDate && user?.orgId) {
+    if (selectedDate && user?.orgId && employees?.length > 0) {
       handleRefresh()
     }
-  }, [selectedDate, user?.orgId])
+  }, [selectedDate, user?.orgId, handleRefresh])
 
   const handleViewDay = () => {
     handleRefresh()

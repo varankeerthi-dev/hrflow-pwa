@@ -330,18 +330,33 @@ export default function AttendanceTab() {
     <div className="flex flex-col h-full gap-2 font-inter">
       {/* Header Card */}
       <div className="bg-white px-5 py-3 rounded-[12px] shadow-sm flex justify-between items-center border border-gray-100/50">
-        <style>{`
-          input[type="date"]::-webkit-calendar-picker-indicator { display: none !important; }
-          input[type="date"] { -webkit-appearance: none; }
-        `}</style>
         <div className="flex items-center gap-4">
           <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer" />
+            <div className="relative">
+              <input 
+                type="date" 
+                value={selectedDate} 
+                onChange={e => setSelectedDate(e.target.value)} 
+                className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer opacity-0 absolute w-full left-0 top-0" 
+              />
+              <span 
+                className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none"
+                onClick={(e) => {
+                  const input = e.currentTarget.parentElement.querySelector('input[type="date"]');
+                  input?.showPicker?.();
+                }}
+              >
+                {new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
+            </div>
             <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
           </div>
           <div className="flex flex-col">
-            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-1">{formatDate(selectedDate)}</span>
+            <span className="text-[11px] font-black leading-none mb-1">
+              <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
+              <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
+            </span>
             {isSunday && <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest flex items-center gap-1">Sunday Routine</span>}
           </div>
         </div>
@@ -427,7 +442,7 @@ export default function AttendanceTab() {
                         <button
                           onClick={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
+                          className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif]"
                         >
                           {row.inTime ? (() => {
                             const [h, m] = row.inTime.split(':').map(Number)
@@ -465,7 +480,7 @@ export default function AttendanceTab() {
                         <button
                           onClick={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
+                          className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif]"
                         >
                           {row.outTime ? (() => {
                             const [h, m] = row.outTime.split(':').map(Number)
@@ -498,7 +513,7 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* OT */}
-                    <td className="px-[10px] text-center font-bold text-black text-[13px]" style={{ fontFamily: 'Roboto, sans-serif' }}>
+                    <td className="px-[10px] text-center font-bold text-black text-[13px] font-['Roboto',sans-serif]">
                       {(() => {
                         if (!row.otHours || row.otHours === '00:00') return ''
                         const [h, m] = row.otHours.split(':').map(Number)
