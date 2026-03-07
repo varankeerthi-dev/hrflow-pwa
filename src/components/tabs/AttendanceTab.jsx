@@ -160,10 +160,10 @@ export default function AttendanceTab() {
       setExistingRecords(records)
       if (records.length > 0) {
         const sortedRecords = [...records].sort((a, b) => {
-          if (!rowOrder.length) return 0
+          if (!rowOrder.length) return a.name.localeCompare(b.name)
           const idxA = rowOrder.indexOf(a.employeeId)
           const idxB = rowOrder.indexOf(b.employeeId)
-          if (idxA === -1 && idxB === -1) return 0
+          if (idxA === -1 && idxB === -1) return a.name.localeCompare(b.name)
           if (idxA === -1) return 1
           if (idxB === -1) return -1
           return idxA - idxB

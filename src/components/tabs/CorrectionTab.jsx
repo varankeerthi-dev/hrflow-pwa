@@ -817,7 +817,7 @@ export default function CorrectionTab() {
   }
 
   return (
-    <div className="h-full flex flex-col font-inter overflow-hidden bg-gray-50/50 p-6">
+    <div className="h-full flex flex-col font-['Roboto',sans-serif] overflow-hidden bg-gray-50/50 p-6">
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -831,8 +831,8 @@ export default function CorrectionTab() {
 
       {/* Page Header */}
       <div className="mb-4 no-print">
-        <h1 className="text-lg font-black text-gray-800 uppercase tracking-tight">Attendance Correction</h1>
-        <p className="text-xs text-gray-500 mt-0.5">Review and revise employee attendance records.</p>
+        <h1 className="text-lg font-black text-gray-800 uppercase tracking-tight font-['Roboto',sans-serif]">Attendance Correction</h1>
+        <p className="text-xs text-gray-500 mt-0.5 font-['Roboto',sans-serif]">Review and revise employee attendance records.</p>
       </div>
 
       {/* Filter Bar */}
@@ -887,7 +887,7 @@ export default function CorrectionTab() {
           {loading ? (
             <div className="flex justify-center py-20"><Spinner /></div>
           ) : (
-            <table className="w-full text-left border-collapse print-table">
+            <table className="w-full text-left border-collapse print-table font-['Roboto',sans-serif]">
               <thead className="sticky top-0 bg-gray-50/95 backdrop-blur z-10 border-b border-gray-200">
                 <tr className="h-[36px]">
                   <th className="w-[40px] px-3 border-r border-gray-200 no-print">

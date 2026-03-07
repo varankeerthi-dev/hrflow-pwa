@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, Component } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import {
@@ -174,11 +175,17 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation } = useAuth()
+  const { employees } = useEmployees(user?.orgId)
   const [activeTab, setActiveTab] = useState('home')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
+
+  const currentEmployee = useMemo(() => {
+    if (!employees.length || !user?.uid) return null
+    return employees.find(e => e.email === user.email || e.id === user.uid) || employees[0]
+  }, [employees, user])
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -291,7 +298,15 @@ export default function Dashboard() {
               <span className="text-[13px] font-bold text-gray-800 tracking-tight">{user?.name}</span>
               <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.role || 'Staff'}</span>
             </div>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
+            {currentEmployee?.photoURL ? (
+              <img 
+                src={currentEmployee.photoURL} 
+                alt="Profile" 
+                className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
+            )}
             <button
               onClick={() => setShowLog(s => !s)}
               title="Activity Log"
