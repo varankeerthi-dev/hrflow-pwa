@@ -69,9 +69,11 @@ service cloud.firestore {
       match /attendance/{attId} {
         // Admins/HR: full CRUD
         allow read, write: if isAdminOrHR() && getUserOrgId() == orgId;
-        // Employees: read own, write own only
+        // Employees: read own attendance, create own attendance
         allow read: if isEmployee() && getUserOrgId() == orgId;
-        allow write: if isEmployee() && getUserOrgId() == orgId && 
+        allow create: if isEmployee() && getUserOrgId() == orgId && 
+                     request.resource.data.employeeId == request.auth.uid;
+        allow update: if isEmployee() && getUserOrgId() == orgId && 
                      resource.data.employeeId == request.auth.uid;
       }
       
