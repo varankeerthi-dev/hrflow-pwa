@@ -566,6 +566,15 @@ export default function CorrectionTab() {
       
       const merged = recordsWithData.map(record => {
         const emp = employees.find(e => e.id === record.employeeId)
+        let clockStatus = null
+        if (record.clockStatus) {
+          clockStatus = record.clockStatus
+        } else if (record.isAbsent !== true && record.inTime) {
+          const [h] = record.inTime.split(':').map(Number)
+          if (h >= 9 && record.inTime > '09:30') clockStatus = 'late'
+          else if (record.outTime && record.outTime < '18:00') clockStatus = 'early'
+          else if ((!record.inTime || !record.outTime) && !record.isAbsent) clockStatus = 'partial'
+        }
         return {
           id: record.employeeId,
           name: emp?.name || 'Unknown',
@@ -578,6 +587,7 @@ export default function CorrectionTab() {
           site: record?.remarks || '-',
           status: record.isAbsent ? 'ABSENT' : 'PRESENT',
           isAbsent: record?.isAbsent || false,
+          clockStatus,
         }
       })
       setResults(merged)
@@ -890,6 +900,7 @@ export default function CorrectionTab() {
                   </th>
                   <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="w-[140px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider">Employee Name</th>
+                  <th className="w-[50px] px-2 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center" title="Clock In Status"><Clock size={12} className="mx-auto" /></th>
                   <th className="w-[90px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">In Date</th>
                   <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">In Time</th>
                   <th className="w-[90px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">Out Date</th>
@@ -903,12 +914,12 @@ export default function CorrectionTab() {
               <tbody className="divide-y divide-gray-100">
                 {results.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="text-center py-16 text-gray-300 italic text-xs font-medium">
+                    <td colSpan={12} className="text-center py-16 text-gray-300 italic text-xs font-medium">
                       No records found for this date
                     </td>
                   </tr>
                 ) : results.map((row, idx) => (
-                  <tr key={idx} className="h-[38px] hover:bg-gray-50/50 transition-colors group">
+                  <tr key={idx} className={`h-[38px] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-amber-50/30'}`}>
                     {/* Checkbox */}
                     <td className="px-3 border-r border-gray-100 no-print">
                       <input
@@ -927,6 +938,24 @@ export default function CorrectionTab() {
                     {/* Employee Name */}
                     <td className="px-3 border-r border-gray-100 text-[11px] font-black text-gray-800 uppercase truncate">
                       {row.name}
+                    </td>
+                    
+                    {/* Clock Status Indicator */}
+                    <td className="px-2 border-r border-gray-100 text-center">
+                      {row.clockStatus ? (
+                        <div className="flex justify-center">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                            row.clockStatus === 'late' ? 'bg-orange-100 text-orange-600' :
+                            row.clockStatus === 'early' ? 'bg-blue-100 text-blue-600' :
+                            row.clockStatus === 'partial' ? 'bg-purple-100 text-purple-600' :
+                            'bg-gray-100 text-gray-400'
+                          }`} title={row.clockStatus === 'late' ? 'Late Arrival' : row.clockStatus === 'early' ? 'Early Departure' : row.clockStatus === 'partial' ? 'Partial Day' : ''}>
+                            <Clock size={12} />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-200">-</span>
+                      )}
                     </td>
                     
                     {/* In Date - Inline Edit */}

@@ -23,9 +23,9 @@ function getAvatarColor(id) {
 
 function formatDate(date) {
   const d = new Date(date)
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${days[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`
+  const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+  return `${days[d.getDay()]} ${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
 function formatDateForInput(date) {
@@ -252,6 +252,11 @@ export default function AttendanceTab() {
       if (r.employeeId !== empId) return r
       const updated = { ...r, [field]: value }
       if (field === 'inDate' && isDayShift) updated.outDate = value
+      if (field === 'shiftType' && value === 'Night') {
+        const inDate = new Date(updated.inDate)
+        inDate.setDate(inDate.getDate() + 1)
+        updated.outDate = inDate.toISOString().split('T')[0]
+      }
       if (['inTime', 'outTime', 'inDate', 'outDate'].includes(field)) {
         updated.otHours = calcOT(updated.inTime, updated.outTime, updated.inDate, updated.outDate, r.workHours || 9)
         if (field === 'outTime' && value) {
@@ -325,10 +330,14 @@ export default function AttendanceTab() {
     <div className="flex flex-col h-full gap-2 font-inter">
       {/* Header Card */}
       <div className="bg-white px-5 py-3 rounded-[12px] shadow-sm flex justify-between items-center border border-gray-100/50">
+        <style>{`
+          input[type="date"]::-webkit-calendar-picker-indicator { display: none !important; }
+          input[type="date"] { -webkit-appearance: none; }
+        `}</style>
         <div className="flex items-center gap-4">
           <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px]" />
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer" />
             <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
           </div>
           <div className="flex flex-col">
@@ -438,7 +447,7 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* Out Date */}
-                    <td className="px-[10px] text-center">
+                    <td className="px-[20px] text-center border-l-4 border-amber-200">
                       <div className="flex items-center justify-center relative">
                         <input
                           type="date"
@@ -489,7 +498,14 @@ export default function AttendanceTab() {
                     </td>
 
                     {/* OT */}
-                    <td className="px-[10px] text-center font-bold text-black text-[13px]" style={{ fontFamily: 'Roboto, sans-serif' }}>{row.otHours || '00:00'}</td>
+                    <td className="px-[10px] text-center font-bold text-black text-[13px]" style={{ fontFamily: 'Roboto, sans-serif' }}>
+                      {(() => {
+                        if (!row.otHours || row.otHours === '00:00') return ''
+                        const [h, m] = row.otHours.split(':').map(Number)
+                        const totalMins = (h || 0) * 60 + (m || 0)
+                        return totalMins >= 30 ? row.otHours : ''
+                      })()}
+                    </td>
 
                     {/* Remarks */}
                     <td className="px-[10px]">
