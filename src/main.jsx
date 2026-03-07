@@ -5,17 +5,18 @@ import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 
 const UpdateChecker = () => {
-  const [updateStatus, setUpdateStatus] = useState(null)
-
   useEffect(() => {
     const performUpdate = async () => {
       try {
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-          const { CapacitorUpdater } = await import('@capgo/capacitor-updater')
-          const version = await CapacitorUpdater.download({
-            url: 'https://hrflow-pwa.vercel.app/releases/latest.zip',
-          })
-          await CapacitorUpdater.set(version)
+        if (typeof window !== 'undefined' && window.Capacitor) {
+          const CapUtils = window.Capacitor.Plugins
+          if (CapUtils && CapUtils.CapacitorUpdater) {
+            const { CapacitorUpdater } = await import('@capgo/capacitor-updater')
+            const version = await CapacitorUpdater.download({
+              url: 'https://hrflow-pwa.vercel.app/releases/latest.zip',
+            })
+            await CapacitorUpdater.set(version)
+          }
         }
       } catch (error) {
         console.log('Update check result:', error.message || 'No update available')
@@ -59,7 +60,6 @@ class GlobalErrorBoundary extends Component {
   }
 }
 
-// Global unhandled rejection listener
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled Rejection:', event.reason)
 })
