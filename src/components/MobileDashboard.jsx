@@ -29,8 +29,25 @@ import {
   Handshake,
   Settings,
   CheckCircle,
-  XOctagon
+  XOctagon,
+  ArrowLeft,
+  Menu
 } from 'lucide-react'
+
+import HomeTab from '../components/tabs/HomeTab'
+import AttendanceTab from '../components/tabs/AttendanceTab'
+import CorrectionTab from '../components/tabs/CorrectionTab'
+import LeaveTab from '../components/tabs/LeaveTab'
+import ApprovalsTab from '../components/tabs/ApprovalsTab'
+import HRLettersTab from '../components/tabs/HRLettersTab'
+import SummaryTab from '../components/tabs/SummaryTab'
+import SalarySlipTab from '../components/tabs/SalarySlipTab'
+import AdvanceExpenseTab from '../components/tabs/AdvanceExpenseTab'
+import FineTab from '../components/tabs/FineTab'
+import EngagementTab from '../components/tabs/EngagementTab'
+import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
+import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
+import SettingsTab from '../components/tabs/SettingsTab'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -79,12 +96,9 @@ export default function MobileDashboard() {
     absentToday: 0,
     pendingCorrections: 0
   })
-  const [activeSection, setActiveSection] = useState('dashboard')
-  const [attendanceRecords, setAttendanceRecords] = useState([])
-  const [corrections, setCorrections] = useState([])
+  const [activeTab, setActiveTab] = useState('home')
+  const [showMenu, setShowMenu] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  const [saving, setSaving] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
 
   const currentEmployee = useMemo(() => {
@@ -182,27 +196,7 @@ export default function MobileDashboard() {
     fetchStats()
   }, [user?.orgId])
 
-  useEffect(() => {
-    if (!user?.orgId || !selectedDate) return
-    
-    const fetchAttendance = async () => {
-      try {
-        const snapshot = await getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('date', '==', selectedDate)))
-        const records = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-        setAttendanceRecords(records)
-      } catch (err) {
-        const snapshot = await getDocs(collection(db, 'organisations', user.orgId, 'attendance'))
-        const records = snapshot.docs
-          .filter(d => d.id.includes(selectedDate))
-          .map(d => ({ id: d.id, ...d.data() }))
-        setAttendanceRecords(records)
-      }
-    }
-    
-    fetchAttendance()
-  }, [user?.orgId, selectedDate])
-
-  const renderDashboard = () => (
+  const renderHomeDashboard = () => (
     <div className="p-4 space-y-4">
       <div className="grid grid-cols-3 gap-2">
         <StatCard 
@@ -253,7 +247,7 @@ export default function MobileDashboard() {
               key={mod.id}
               icon={mod.icon}
               label={mod.label}
-              onClick={() => setActiveSection(mod.id)}
+              onClick={() => setActiveTab(mod.id)}
               color={mod.color}
             />
           ))}
@@ -262,292 +256,44 @@ export default function MobileDashboard() {
     </div>
   )
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case 'dashboard':
-        return renderDashboard()
-      case 'attendance':
-        return renderAttendance()
-      case 'correction':
-        return renderCorrections()
-      case 'summary':
-        return renderSummary()
-      case 'employees':
-        return renderEmployees()
-      case 'portal':
-        return renderPortal()
+  const renderTabContent = () => {
+    switch (activeTab) {
       case 'home':
-        return renderDashboard()
+        return renderHomeDashboard()
+      case 'attendance':
+        return <AttendanceTab />
+      case 'correction':
+        return <CorrectionTab />
+      case 'leave':
+        return <LeaveTab />
+      case 'approvals':
+        return <ApprovalsTab />
+      case 'letters':
+        return <HRLettersTab />
+      case 'summary':
+        return <SummaryTab />
+      case 'salary-slip':
+        return <SalarySlipTab />
+      case 'advance':
+        return <AdvanceExpenseTab />
+      case 'fines':
+        return <FineTab />
+      case 'engage':
+        return <EngagementTab />
+      case 'shift-planning':
+        return <ShiftPlanningTab />
+      case 'portal':
+        return <EmployeePortalTab />
+      case 'settings':
+        return <SettingsTab />
       default:
-        return (
-          <div className="p-4 text-center">
-            <div className="bg-white rounded-xl p-6 border border-gray-100">
-              <Settings size={48} className="text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">{activeSection} module</p>
-              <p className="text-xs text-gray-400 mt-2">This feature is available on web</p>
-            </div>
-          </div>
-        )
+        return renderHomeDashboard()
     }
   }
 
-  const renderCorrections = () => {
-    const pendingCount = stats.pendingCorrections
-    return (
-      <div className="space-y-2">
-        <h2 className="text-lg font-bold text-gray-800 mb-2">Time Corrections</h2>
-        {loading ? (
-          <div className="text-center py-8 text-gray-400">Loading...</div>
-        ) : pendingCount === 0 ? (
-          <div className="bg-white rounded-xl p-4 border border-gray-100">
-            <CheckCircle2 size={32} className="text-green-500 mx-auto mb-2" />
-            <p className="text-sm text-gray-500 text-center">No pending corrections</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl p-4 border border-gray-100">
-            <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
-            <p className="text-xs text-gray-500">Pending corrections</p>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const renderSummary = () => (
-    <div className="space-y-2">
-      <h2 className="text-lg font-bold text-gray-800 mb-2">Monthly Summary</h2>
-      <div className="bg-white rounded-xl p-4 border border-gray-100">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <p className="text-xl font-bold text-blue-600">{stats.totalEmployees}</p>
-            <p className="text-[10px] text-blue-400 font-bold uppercase">Total Staff</p>
-          </div>
-          <div className="bg-green-50 rounded-lg p-3 text-center">
-            <p className="text-xl font-bold text-green-600">{stats.presentToday}</p>
-            <p className="text-[10px] text-green-400 font-bold uppercase">Present Today</p>
-          </div>
-          <div className="bg-red-50 rounded-lg p-3 text-center">
-            <p className="text-xl font-bold text-red-600">{stats.absentToday}</p>
-            <p className="text-[10px] text-red-400 font-bold uppercase">Absent Today</p>
-          </div>
-          <div className="bg-orange-50 rounded-lg p-3 text-center">
-            <p className="text-xl font-bold text-orange-600">{stats.pendingCorrections}</p>
-            <p className="text-[10px] text-orange-400 font-bold uppercase">Pending Corrections</p>
-          </div>
-        </div>
-      </div>
-      <p className="text-xs text-gray-400 text-center mt-4">Summary for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-    </div>
-  )
-
-  const renderEmployees = () => (
-    <div className="space-y-2">
-      <h2 className="text-lg font-bold text-gray-800 mb-2">Employees</h2>
-      {loading ? (
-        <div className="text-center py-8 text-gray-400">Loading...</div>
-      ) : employees.length === 0 ? (
-        <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <Users size={32} className="text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-500 text-center">No employees found</p>
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {employees.filter(e => e.status === 'Active').map((emp) => (
-            <div key={emp.id} className="bg-white rounded-lg p-2 border border-gray-100 flex items-center gap-2">
-              {emp.photoURL ? (
-                <img src={emp.photoURL} alt="" className="w-8 h-8 rounded-full object-cover" />
-              ) : (
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                  style={{ backgroundColor: getAvatarColor(emp.id) }}
-                >
-                  {getInitials(emp.name)}
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-800 truncate">{emp.name}</p>
-                <p className="text-[10px] text-gray-400">{emp.designation || 'Staff'}</p>
-              </div>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                emp.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-              }`}>
-                {emp.status || 'Active'}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-
-  const renderPortal = () => (
-    <div className="space-y-3">
-      <h2 className="text-lg font-bold text-gray-800 mb-2">My Portal</h2>
-      <div className="bg-white rounded-xl p-4 border border-gray-100">
-        <div className="flex items-center gap-3 mb-4">
-          {currentEmployee?.photoURL ? (
-            <img src={currentEmployee.photoURL} alt="" className="w-14 h-14 rounded-full object-cover" />
-          ) : (
-            <div 
-              className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold"
-              style={{ backgroundColor: getAvatarColor(user?.uid) }}
-            >
-              {getInitials(user?.name)}
-            </div>
-          )}
-          <div>
-            <p className="text-base font-bold text-gray-800">{user?.name || 'User'}</p>
-            <p className="text-xs text-gray-400 uppercase">{user?.role || 'Staff'}</p>
-          </div>
-        </div>
-        <div className="space-y-2 border-t border-gray-100 pt-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Email</span>
-            <span className="text-gray-800 font-medium">{user?.email || '-'}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Organization</span>
-            <span className="text-gray-800 font-medium">{orgSettings?.name || '-'}</span>
-          </div>
-          {currentEmployee?.designation && (
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Designation</span>
-              <span className="text-gray-800 font-medium">{currentEmployee.designation}</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-
-  const renderAttendance = () => {
-    const handleMarkAttendance = async (empId, empName, status) => {
-      if (!user?.orgId) return
-      setSaving(true)
-      try {
-        await addDoc(collection(db, 'organisations', user.orgId, 'attendance'), {
-          employeeId: empId,
-          name: empName,
-          date: selectedDate,
-          inDate: selectedDate,
-          inTime: status === 'present' ? '09:00' : '',
-          outDate: selectedDate,
-          outTime: status === 'present' ? '18:00' : '',
-          status: status === 'present' ? 'Present' : 'Absent',
-          isAbsent: status === 'absent',
-          otHours: '00:00',
-          createdAt: new Date().toISOString()
-        })
-        setAttendanceRecords(prev => [...prev, { employeeId: empId, name: empName, status: status === 'present' ? 'Present' : 'Absent' }])
-      } catch (err) {
-        console.error('Error marking attendance:', err)
-      } finally {
-        setSaving(false)
-      }
-    }
-
-    const formatDate = (d) => {
-      const date = new Date(d)
-      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-    }
-
-    const changeDate = (days) => {
-      const d = new Date(selectedDate)
-      d.setDate(d.getDate() + days)
-      setSelectedDate(d.toISOString().split('T')[0])
-    }
-
-    const activeEmployees = employees.filter(e => e.status === 'Active')
-
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800">Attendance</h2>
-          <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 p-1">
-            <button onClick={() => changeDate(-1)} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft size={16} /></button>
-            <input 
-              type="date" 
-              value={selectedDate} 
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="text-xs font-bold bg-transparent border-none outline-none w-24 text-center"
-            />
-            <button onClick={() => changeDate(1)} className="p-1 hover:bg-gray-100 rounded"><ChevronRight size={16} /></button>
-          </div>
-        </div>
-        
-        <p className="text-xs text-gray-500">{formatDate(selectedDate)}</p>
-
-        {loading ? (
-          <div className="text-center py-8 text-gray-400">Loading...</div>
-        ) : activeEmployees.length === 0 ? (
-          <div className="bg-white rounded-xl p-4 border border-gray-100">
-            <Users size={32} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-500 text-center">No employees found</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {activeEmployees.map((emp) => {
-              const record = attendanceRecords.find(r => r.employeeId === emp.id)
-              const hasRecord = !!record
-              
-              return (
-                <div key={emp.id} className="bg-white rounded-lg border border-gray-100 overflow-hidden">
-                  <div className="flex items-center justify-between p-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {emp.photoURL ? (
-                        <img src={emp.photoURL} alt="" className="w-7 h-7 rounded-full object-cover" />
-                      ) : (
-                        <div 
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                          style={{ backgroundColor: getAvatarColor(emp.id) }}
-                        >
-                          {getInitials(emp.name)}
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-gray-800 truncate">{emp.name}</p>
-                        <p className="text-[10px] text-gray-400">{emp.designation || 'Staff'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {hasRecord ? (
-                        <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                          record.status === 'Present' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {record.status === 'Present' ? 'Present' : 'Absent'}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-gray-400">-</span>
-                      )}
-                    </div>
-                  </div>
-                  {!hasRecord && (
-                    <div className="flex border-t border-gray-100">
-                      <button 
-                        onClick={() => handleMarkAttendance(emp.id, emp.name, 'present')}
-                        disabled={saving}
-                        className="flex-1 py-1.5 text-[10px] font-bold text-green-600 bg-green-50 hover:bg-green-100 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <CheckCircle2 size={12} /> Present
-                      </button>
-                      <button 
-                        onClick={() => handleMarkAttendance(emp.id, emp.name, 'absent')}
-                        disabled={saving}
-                        className="flex-1 py-1.5 text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors border-l border-gray-100 flex items-center justify-center gap-1"
-                      >
-                        <XCircle size={12} /> Absent
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    )
+  const getCurrentModuleLabel = () => {
+    const mod = visibleModules.find(m => m.id === activeTab)
+    return mod?.label || 'Dashboard'
   }
 
   return (
@@ -555,6 +301,12 @@ export default function MobileDashboard() {
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-1 -ml-1 rounded-lg hover:bg-gray-100"
+            >
+              <Menu size={20} className="text-gray-600" />
+            </button>
             {orgSettings?.logoURL ? (
               <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
             ) : (
@@ -568,10 +320,6 @@ export default function MobileDashboard() {
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-gray-800">{user?.name}</p>
-              <p className="text-[10px] text-gray-400 font-medium uppercase">{user?.role || 'Staff'}</p>
-            </div>
             {currentEmployee?.photoURL ? (
               <img src={currentEmployee.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
             ) : (
@@ -586,49 +334,93 @@ export default function MobileDashboard() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-auto">
-        {activeSection === 'dashboard' || activeSection === 'home' ? renderDashboard() : (
-          <div className="p-4">
+      {showMenu && (
+        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setShowMenu(false)}>
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-800">Menu</h2>
+                <button onClick={() => setShowMenu(false)} className="p-1 rounded hover:bg-gray-100">
+                  <X size={20} className="text-gray-500" />
+                </button>
+              </div>
+            </div>
+            <div className="p-2 space-y-1 overflow-y-auto max-h-[calc(100vh-120px)]">
+              {visibleModules.map((mod) => (
+                <button
+                  key={mod.id}
+                  onClick={() => { setActiveTab(mod.id); setShowMenu(false) }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                    activeTab === mod.id 
+                      ? 'bg-indigo-50 text-indigo-700' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${mod.color}`}>
+                    {mod.icon}
+                  </div>
+                  <span className="text-sm font-medium">{mod.label}</span>
+                </button>
+              ))}
+              <div className="border-t border-gray-200 my-2"></div>
+              <button
+                onClick={() => { logout(); setShowMenu(false) }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-red-600 hover:bg-red-50"
+              >
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-50">
+                  <LogOut size={18} className="text-red-600" />
+                </div>
+                <span className="text-sm font-medium">Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-auto pb-16">
+        {activeTab !== 'home' && (
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-2 z-30 flex items-center gap-2">
             <button 
-              onClick={() => setActiveSection('dashboard')}
-              className="text-sm text-indigo-600 font-medium mb-3"
+              onClick={() => setActiveTab('home')}
+              className="p-1 rounded hover:bg-gray-100"
             >
-              ← Back to Dashboard
+              <ArrowLeft size={18} className="text-gray-600" />
             </button>
-            {renderContent()}
+            <span className="text-sm font-bold text-gray-800">{getCurrentModuleLabel()}</span>
           </div>
         )}
+        {renderTabContent()}
       </div>
 
-      <nav className="bg-white border-t border-gray-200 px-1 py-1">
+      <nav className="bg-white border-t border-gray-200 px-1 py-1 fixed bottom-0 w-full">
         <div className="flex justify-around">
           <button 
-            onClick={() => setActiveSection('dashboard')}
-            className={`flex flex-col items-center py-1.5 px-2 ${activeSection === 'dashboard' || activeSection === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}
+            onClick={() => setActiveTab('home')}
+            className={`flex flex-col items-center py-2 px-3 ${activeTab === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}
           >
-            <LayoutDashboard size={18} />
+            <LayoutDashboard size={20} />
             <span className="text-[9px] font-medium mt-0.5">Home</span>
           </button>
           <button 
-            onClick={() => setActiveSection('attendance')}
-            className={`flex flex-col items-center py-1.5 px-2 ${activeSection === 'attendance' ? 'text-indigo-600' : 'text-gray-400'}`}
+            onClick={() => setActiveTab('attendance')}
+            className={`flex flex-col items-center py-2 px-3 ${activeTab === 'attendance' ? 'text-indigo-600' : 'text-gray-400'}`}
           >
-            <Calendar size={18} />
+            <Calendar size={20} />
             <span className="text-[9px] font-medium mt-0.5">Attendance</span>
           </button>
           <button 
-            onClick={() => setActiveSection('portal')}
-            className={`flex flex-col items-center py-1.5 px-2 ${activeSection === 'portal' ? 'text-indigo-600' : 'text-gray-400'}`}
+            onClick={() => setActiveTab('portal')}
+            className={`flex flex-col items-center py-2 px-3 ${activeTab === 'portal' ? 'text-indigo-600' : 'text-gray-400'}`}
           >
-            <User size={18} />
+            <User size={20} />
             <span className="text-[9px] font-medium mt-0.5">Portal</span>
           </button>
           <button 
-            onClick={logout}
-            className="flex flex-col items-center py-1.5 px-2 text-gray-400"
+            onClick={() => setShowMenu(true)}
+            className={`flex flex-col items-center py-2 px-3 ${showMenu ? 'text-indigo-600' : 'text-gray-400'}`}
           >
-            <LogOut size={18} />
-            <span className="text-[9px] font-medium mt-0.5">Logout</span>
+            <Menu size={20} />
+            <span className="text-[9px] font-medium mt-0.5">More</span>
           </button>
         </div>
       </nav>
