@@ -3,21 +3,20 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
-import { Capacitor } from '@capacitor/core'
-import { CapacitorUpdater } from '@capgo/capacitor-updater'
 
 const UpdateChecker = () => {
   const [updateStatus, setUpdateStatus] = useState(null)
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return
-
     const performUpdate = async () => {
       try {
-        const version = await CapacitorUpdater.download({
-          url: 'https://hrflow-pwa.vercel.app/releases/latest.zip',
-        })
-        await CapacitorUpdater.set(version)
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+          const { CapacitorUpdater } = await import('@capgo/capacitor-updater')
+          const version = await CapacitorUpdater.download({
+            url: 'https://hrflow-pwa.vercel.app/releases/latest.zip',
+          })
+          await CapacitorUpdater.set(version)
+        }
       } catch (error) {
         console.log('Update check result:', error.message || 'No update available')
       }
