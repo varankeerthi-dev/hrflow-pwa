@@ -355,11 +355,11 @@ export default function Dashboard() {
       })()}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Modern Premium SaaS Sidebar */}
+        {/* Clean Sidebar */}
         <aside 
-          className={`bg-white border-r border-[#E5E7EB] hidden md:flex flex-col shrink-0 transition-all duration-300 ease-in-out font-inter group/sidebar overflow-hidden ${isCollapsed ? 'w-[64px]' : 'w-[260px]'}`}
+          className={`bg-white border-r border-gray-100 hidden md:flex flex-col shrink-0 transition-all duration-300 ${isCollapsed ? 'w-[70px]' : 'w-[240px]'}`}
         >
-          <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 px-3 py-4 space-y-1">
             {sections.map(section => {
               const sectionTabs = allTabs.filter(t => {
                 if (!section.tabs.includes(t.id)) return false
@@ -372,11 +372,6 @@ export default function Dashboard() {
               
               return (
                 <div key={section.title} className="flex flex-col gap-1">
-                  {!isCollapsed && (
-                    <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em] px-3 mb-1 mt-1">
-                      {section.title}
-                    </p>
-                  )}
                   <div className="space-y-1">
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id
@@ -385,29 +380,24 @@ export default function Dashboard() {
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id)}
                           title={isCollapsed ? tab.label : ''}
-                          className={`w-full group relative flex items-center h-10 rounded-[10px] transition-all duration-150 ${isCollapsed ? 'justify-center px-0' : 'px-3 gap-3'} ${
+                          className={`w-full flex items-center h-11 rounded-xl transition-all duration-200 ${isCollapsed ? 'justify-center px-0' : 'px-4 gap-3'} ${
                             isActive 
-                              ? 'bg-green-50 text-green-600 font-bold' 
-                              : 'text-[#334155] font-medium hover:bg-gray-50 hover:scale-[1.01]'
+                              ? 'bg-[#FFF7ED] text-amber-900 font-semibold' 
+                              : 'text-gray-600 font-medium hover:bg-gray-50'
                           }`}
                         >
-                          {/* Active Indicator bar */}
-                          {isActive && !isCollapsed && (
-                            <div className="absolute left-[-12px] top-2 bottom-2 w-[3px] bg-green-600 rounded-r-full" />
-                          )}
-                          
-                          <span className={`shrink-0 transition-colors ${isActive ? 'text-green-600' : 'text-inherit opacity-70 group-hover:opacity-100'}`}>
+                          <span className={`shrink-0 ${isActive ? 'text-amber-700' : 'text-gray-500'}`}>
                             {tab.icon}
                           </span>
                           
                           {!isCollapsed && (
-                            <span className="flex-1 text-left text-[14px] truncate">
+                            <span className="flex-1 text-left text-[14px]">
                               {tab.label}
                             </span>
                           )}
 
-                          {tab.id === 'approvals' && (
-                            <span className={`absolute right-2 shrink-0 flex items-center justify-center bg-[#EF4444] text-white text-[10px] font-bold px-1.5 min-w-[18px] h-[18px] rounded-full shadow-sm ring-2 ring-white ${isCollapsed ? '-top-1 -right-1 group-hover:scale-110 transition-transform' : ''}`}>
+                          {tab.id === 'approvals' && !isCollapsed && (
+                            <span className="shrink-0 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold px-1.5 min-w-[18px] h-[18px] rounded-full">
                               {tab.badge}
                             </span>
                           )}
@@ -420,13 +410,13 @@ export default function Dashboard() {
             })}
           </nav>
 
-          <div className="p-3 border-t border-[#E5E7EB] bg-[#F9FAFB]/80 backdrop-blur-sm">
+          <div className="p-3 border-t border-gray-100">
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className={`w-full flex items-center h-9 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] transition-all ${isCollapsed ? 'justify-center' : 'px-3 gap-3'}`}
+              className={`w-full flex items-center h-10 rounded-xl text-gray-500 hover:bg-gray-50 transition-all ${isCollapsed ? 'justify-center' : 'px-4 gap-3'}`}
             >
-              <PanelLeft size={18} strokeWidth={1.75} className={isCollapsed ? 'rotate-180 transition-transform' : ''} />
-              {!isCollapsed && <span className="text-[13px] font-medium">Collapse</span>}
+              <PanelLeft size={18} className={isCollapsed ? 'rotate-180' : ''} />
+              {!isCollapsed && <span className="text-[14px] font-medium">Collapse</span>}
             </button>
           </div>
         </aside>
