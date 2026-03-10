@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
-import { ChevronLeft, ChevronRight, Check, Copy, X, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 
 function getInitials(name) {
@@ -38,6 +38,14 @@ function displayDate(isoDate) {
   if (!isoDate) return ''
   const [y, m, d] = isoDate.split('-')
   return `${d}-${m}-${y}`
+}
+
+// Display date as Mmm Dd (e.g., "Mar 10")
+function displayShortDate(isoDate) {
+  if (!isoDate) return ''
+  const d = new Date(isoDate)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${months[d.getMonth()]} ${d.getDate()}`
 }
 
 // ─── Dropdown Copy Picker ───────────────────────────────────────────────────
@@ -370,11 +378,9 @@ export default function AttendanceTab() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="h-[38px] bg-[#f9fafb] border-b border-gray-100">
-                <th className="px-[14px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider w-[18%]">Employee Name</th>
-                <th className="px-[8px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center w-[70px]">Shift</th>
-                <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">In Date</th>
+                <th className="px-[14px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider w-[20%]">Employee Name</th>
+                <th className="px-[8px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center w-[80px]">Shift</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">In Time</th>
-                <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wlder text-center">Out Date</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Out Time</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">OT</th>
                 <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Remarks</th>
@@ -384,12 +390,12 @@ export default function AttendanceTab() {
             </thead>
             <tbody className="divide-y divide-[#f1f5f9]">
               {empLoading ? (
-                <tr><td colSpan={10} className="text-center py-12"><Spinner /></td></tr>
+                <tr><td colSpan={8} className="text-center py-12"><Spinner /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">Ready to generate attendance</td></tr>
+                <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">Ready to generate attendance</td></tr>
               ) : (
                 rows.map((row, idx) => (
-                  <tr key={row.employeeId || `new-${idx}`} className={`h-[46px] transition-colors hover:bg-[#f8fafc] ${row.isAbsent ? 'bg-red-50/20' : ''}`}>
+                  <tr key={row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-[#f8fafc] ${row.isAbsent ? 'bg-red-50/20' : ''} ${row.shiftType === 'Night' && row.outTime ? 'h-[58px]' : 'h-[46px]'}`}>
                     {/* Employee Name */}
                     <td className="px-[14px]">
                       {row.employeeId ? (
@@ -410,35 +416,26 @@ export default function AttendanceTab() {
                       )}
                     </td>
 
-                    {/* Shift Type */}
+                    {/* Shift Type - Toggle Slider */}
                     <td className="px-[8px] text-center">
-                      <select
-                        value={row.shiftType || 'Day'}
-                        onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)}
-                        className="h-[28px] w-[65px] border border-gray-200 rounded-lg px-1 text-[10px] font-semibold bg-white focus:ring-2 focus:ring-indigo-500 outline-none text-center"
-                      >
-                        <option value="Day">Day</option>
-                        <option value="Night">Night</option>
-                        <option value="DN">DN</option>
-                      </select>
-                    </td>
-
-                    {/* In Date */}
-                    <td className="px-[10px] text-center border-l-2 border-emerald-400">
-                      <div className="flex items-center justify-center relative">
-                        <input
-                          type="date"
-                          value={row.inDate || ''}
+                      <div className="flex items-center justify-center">
+                        <button
+                          onClick={() => updateRow(row.employeeId, 'shiftType', row.shiftType === 'Night' ? 'Day' : 'Night')}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          onChange={e => updateRow(row.employeeId, 'inDate', e.target.value)}
-                          className="text-[12px] font-medium text-gray-600 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
-                        />
+                          className={`relative w-[64px] h-[26px] rounded-full transition-all duration-200 disabled:cursor-not-allowed ${row.shiftType === 'Night' ? 'bg-indigo-600' : 'bg-green-500'}`}
+                        >
+                          <span className={`absolute top-[3px] text-[8px] font-bold transition-all duration-200 ${row.shiftType === 'Night' ? 'left-[6px] text-white' : 'right-[6px] text-white'}`}>DAY</span>
+                          <span className={`absolute top-[3px] text-[8px] font-bold transition-all duration-200 ${row.shiftType === 'Night' ? 'right-[6px] text-white' : 'left-[6px] text-white opacity-60'}`}>NIGHT</span>
+                          <span className={`absolute top-[3px] w-[22px] h-[20px] bg-white rounded-full shadow transition-all duration-200 ${row.shiftType === 'Night' ? 'right-[3px]' : 'left-[3px]'}`}></span>
+                        </button>
                       </div>
                     </td>
 
+                    
+
                     {/* In Time */}
                     <td className="px-[10px] text-center border-r-2 border-emerald-400">
-                      <div className="flex items-center justify-center relative">
+                      <div className="flex items-center justify-center relative py-1">
                         <button
                           onClick={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
@@ -461,53 +458,51 @@ export default function AttendanceTab() {
                       </div>
                     </td>
 
-                    {/* Out Date */}
-                    <td className="px-[20px] text-center border-l-4 border-amber-200">
-                      <div className="flex items-center justify-center relative">
-                        <input
-                          type="date"
-                          value={row.outDate || ''}
-                          disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          onChange={e => updateRow(row.employeeId, 'outDate', e.target.value)}
-                          className="text-[12px] font-medium text-gray-600 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full"
-                        />
-                      </div>
-                    </td>
+                    
 
                     {/* Out Time */}
                     <td className="px-[10px] text-center border-r-2 border-rose-300">
-                      <div className="flex items-center justify-center relative">
-                        <button
-                          onClick={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
-                          disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif]"
-                        >
-                          {row.outTime ? (() => {
-                            const [h, m] = row.outTime.split(':').map(Number)
-                            const p = h >= 12 ? 'PM' : 'AM'
-                            const h12 = h % 12 || 12
-                            return `${h12}:${String(m).padStart(2, '0')} ${p}`
-                          })() : '--:--'}
-                        </button>
-                        {showOutTimePicker === row.employeeId && (
-                          <TimePicker
-                            value={row.outTime || '21:00'}
-                            onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
-                            onClose={() => setShowOutTimePicker(null)}
-                          />
-                        )}
+                      <div className={`flex flex-col items-center justify-center py-1 ${row.shiftType === 'Night' && row.outTime ? 'gap-0.5' : ''}`}>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
+                            disabled={row.isAbsent || row.status === 'SunHoliday'}
+                            className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif]"
+                          >
+                            {row.outTime ? (() => {
+                              const [h, m] = row.outTime.split(':').map(Number)
+                              const p = h >= 12 ? 'PM' : 'AM'
+                              const h12 = h % 12 || 12
+                              return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                            })() : '--:--'}
+                          </button>
+                          {showOutTimePicker === row.employeeId && (
+                            <TimePicker
+                              value={row.outTime || '21:00'}
+                              onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
+                              onClose={() => setShowOutTimePicker(null)}
+                            />
+                          )}
 
-                        {/* DROPDOWN COPY PICKER INLINE */}
-                        {showCopyModal && activeCopyEmpId === row.employeeId && (
-                          <CopyToDropdown
-                            activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)}
-                            copyConfig={copyConfig}
-                            setCopyConfig={setCopyConfig}
-                            selectedEmps={selectedEmps}
-                            setSelectedEmps={setSelectedEmps}
-                            onApply={handleCopySubmit}
-                            onClose={() => { setShowCopyModal(false); setActiveCopyEmpId(null); }}
-                          />
+                          {/* DROPDOWN COPY PICKER INLINE */}
+                          {showCopyModal && activeCopyEmpId === row.employeeId && (
+                            <CopyToDropdown
+                              activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)}
+                              copyConfig={copyConfig}
+                              setCopyConfig={setCopyConfig}
+                              selectedEmps={selectedEmps}
+                              setSelectedEmps={setSelectedEmps}
+                              onApply={handleCopySubmit}
+                              onClose={() => { setShowCopyModal(false); setActiveCopyEmpId(null); }}
+                            />
+                          )}
+                        </div>
+                        {/* Overnight indicator for Night shift */}
+                        {row.shiftType === 'Night' && row.outTime && (
+                          <div className="flex items-center gap-0.5 text-[9px] font-medium text-indigo-600">
+                            <ArrowRight size={10} />
+                            <span>{displayShortDate(row.outDate)}</span>
+                          </div>
                         )}
                       </div>
                     </td>
