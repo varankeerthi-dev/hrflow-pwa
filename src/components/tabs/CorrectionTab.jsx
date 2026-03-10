@@ -10,7 +10,7 @@ import TimePicker from '../ui/TimePicker'
 import { 
   Calendar, Search, FileText, Printer, ChevronLeft, ChevronRight, 
   Clock, Edit2, Save, X, Check, Square, Trash2, FileDown, 
-  History, RefreshCw, ArrowLeft, ArrowRight, Plus
+  History, RefreshCw, ArrowLeft, ArrowRight, Plus, ArrowRight as ArrowRightIcon
 } from 'lucide-react'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 
@@ -20,6 +20,14 @@ function formatDateShort(isoDate) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const day = String(date.getDate()).padStart(2, '0')
   return `${day}-${months[date.getMonth()].slice(0, 3)}-${String(date.getFullYear()).slice(-2)}`
+}
+
+// Display date as Mmm Dd (e.g., "Mar 10")
+function displayShortDate(isoDate) {
+  if (!isoDate) return ''
+  const d = new Date(isoDate)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${months[d.getMonth()]} ${d.getDate()}`
 }
 
 function parseOT(ot) {
@@ -1055,11 +1063,27 @@ export default function CorrectionTab() {
                               onClose={() => setShowInlineOutTimePicker(false)}
                             />
                           )}
+                          {/* Overnight indicator for Night shift */}
+                          {inlineForm.shiftType === 'Night' && inlineForm.outDate && (
+                            <div className="flex items-center justify-center gap-1 mt-0.5">
+                              <ArrowRightIcon size={10} className="text-slate-400" />
+                              <span className="text-[8px] text-slate-500">{displayShortDate(inlineForm.outDate)}</span>
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <span className="text-[10px] font-semibold text-gray-700">
-                          {row.out === '-' ? '-' : formatTimeTo12Hour(row.out)}
-                        </span>
+                        <div>
+                          <span className="text-[10px] font-semibold text-gray-700">
+                            {row.out === '-' ? '-' : formatTimeTo12Hour(row.out)}
+                          </span>
+                          {/* Overnight indicator for Night shift */}
+                          {row.shiftType === 'Night' && row.outDate && (
+                            <div className="flex items-center justify-center gap-1 mt-0.5">
+                              <ArrowRightIcon size={10} className="text-slate-400" />
+                              <span className="text-[8px] text-slate-500">{displayShortDate(row.outDate)}</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </td>
                     
