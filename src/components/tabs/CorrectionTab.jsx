@@ -149,12 +149,15 @@ function BulkCorrectionPanel({ isOpen, onClose, selectedRows, onBulkSave, saving
       updates.outTime = ''
       updates.otHours = '00:00'
     } else if (updates.inTime || updates.outTime) {
+      const avgMinDailyHours = selectedRows?.length > 0 
+        ? Math.round(selectedRows.reduce((sum, r) => sum + (r.minDailyHours || 8), 0) / selectedRows.length)
+        : 8
       updates.otHours = calcOT(
         updates.inTime || '', 
         updates.outTime || '', 
         updates.inDate || bulkForm.inDate || selectedRows[0]?.date,
         updates.outDate || bulkForm.outDate || selectedRows[0]?.date,
-        9
+        avgMinDailyHours
       )
     }
     
@@ -338,7 +341,7 @@ function EditDrawer({ isOpen, onClose, row, onSave, saving }) {
         field === 'outTime' ? value : updated.outTime,
         field === 'inDate' ? value : updated.inDate,
         field === 'outDate' ? value : updated.outDate,
-        9
+        row?.minDailyHours || 8
       )
     }
     
@@ -530,6 +533,15 @@ function EditDrawer({ isOpen, onClose, row, onSave, saving }) {
 
 // ── MAIN CORRECTION TAB COMPONENT ───────────────────────────────────────
 export default function CorrectionTab() {
+  // Load Inter and Roboto fonts
+    useEffect(() => {
+      const link = document.createElement('link')
+      link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap'
+      link.rel = 'stylesheet'
+      document.head.appendChild(link)
+      return () => document.head.removeChild(link)
+    }, [])
+  
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
@@ -589,6 +601,8 @@ export default function CorrectionTab() {
           status: record.isAbsent ? 'ABSENT' : 'PRESENT',
           isAbsent: record?.isAbsent || false,
           clockStatus,
+          minDailyHours: emp?.minDailyHours || 8,
+          shiftType: record?.shiftType || 'Day',
         }
       })
       setResults(merged)
@@ -654,6 +668,8 @@ export default function CorrectionTab() {
       ot: row.ot === '-' ? '00:00' : row.ot,
       site: row.site === '-' ? '' : row.site,
       status: row.status === 'ABSENT' ? 'Absent' : row.status === 'NO DATA' ? 'Present' : 'Present',
+      shiftType: row.shiftType || 'Day',
+      minDailyHours: row.minDailyHours || 8,
     })
   }
 
@@ -676,7 +692,7 @@ export default function CorrectionTab() {
       }
       
       const isAbsent = inlineForm.status === 'Absent'
-      const otHours = isAbsent ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, 9)
+      const otHours = isAbsent ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, inlineForm.minDailyHours || 8)
       
       const rows = [{
         employeeId: row.id,
@@ -738,7 +754,7 @@ export default function CorrectionTab() {
         const outDate = updates.outDate || row.outDate
         const inTime = isAbsent ? '' : (updates.inTime || row.in)
         const outTime = isAbsent ? '' : (updates.outTime || row.out)
-        const otHours = isAbsent ? '00:00' : calcOT(inTime, outTime, inDate, outDate, 9)
+        const otHours = isAbsent ? '00:00' : calcOT(inTime, outTime, inDate, outDate, updates.minDailyHours || 8)
         
         const rows = [{
           employeeId: row.id,
@@ -900,10 +916,9 @@ export default function CorrectionTab() {
                   </th>
                   <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="w-[140px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider">Employee Name</th>
-                  <th className="w-[50px] px-2 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center" title="Clock In Status"><Clock size={12} className="mx-auto" /></th>
-                  <th className="w-[90px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">In Date</th>
+                  <th className="w-[50px] px-2 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center"><Clock size={12} className="mx-auto" /></th>
+                  <th className="w-[70px] px-2 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">Shift</th>
                   <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">In Time</th>
-                  <th className="w-[90px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">Out Date</th>
                   <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">Out Time</th>
                   <th className="w-[60px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">OT</th>
                   <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider">Site</th>
@@ -914,7 +929,7 @@ export default function CorrectionTab() {
               <tbody className="divide-y divide-gray-100">
                 {results.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="text-center py-16 text-gray-300 italic text-xs font-medium">
+                    <td colSpan={10} className="text-center py-16 text-gray-300 italic text-xs font-medium">
                       No records found for this date
                     </td>
                   </tr>
@@ -958,17 +973,33 @@ export default function CorrectionTab() {
                       )}
                     </td>
                     
-                    {/* In Date - Inline Edit */}
+                    {/* Shift Type - Toggle */}
                     <td className="px-2 border-r border-gray-100 text-center no-print">
                       {inlineEditRow === row.id ? (
-                        <input
-                          type="date"
-                          value={inlineForm.inDate}
-                          onChange={e => setInlineForm(f => ({ ...f, inDate: e.target.value }))}
-                          className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold"
-                        />
+                        <button
+                          onClick={() => {
+                            const newShift = inlineForm.shiftType === 'Day' ? 'Night' : 'Day'
+                            const newOutDate = newShift === 'Night' 
+                              ? new Date(new Date(inlineForm.inDate).getTime() + 86400000).toISOString().split('T')[0]
+                              : inlineForm.inDate
+                            setInlineForm(f => ({ 
+                              ...f, 
+                              shiftType: newShift,
+                              outDate: newOutDate,
+                              otHours: calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, newOutDate, inlineForm.minDailyHours || 8)
+                            }))
+                          }}
+                          className={`w-[70px] h-7 rounded-full p-[2px] flex items-center transition-all ${inlineForm.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-100'}`}
+                        >
+                          <span className={`text-[8px] font-bold ${inlineForm.shiftType === 'Night' ? 'text-slate-300 ml-1' : 'text-emerald-700 mr-1'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                            {inlineForm.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
+                          </span>
+                          <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-all ${inlineForm.shiftType === 'Night' ? 'ml-auto' : 'mr-auto'}`} />
+                        </button>
                       ) : (
-                        <span className="text-[10px] font-semibold text-gray-600">{formatDateShort(row.inDate)}</span>
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold ${row.shiftType === 'Night' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                          {row.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
+                        </div>
                       )}
                     </td>
                     
@@ -999,20 +1030,6 @@ export default function CorrectionTab() {
                         <span className="text-[10px] font-semibold text-gray-700">
                           {row.in === '-' ? '-' : formatTimeTo12Hour(row.in)}
                         </span>
-                      )}
-                    </td>
-                    
-                    {/* Out Date - Inline Edit */}
-                    <td className="px-2 border-r border-gray-100 text-center no-print">
-                      {inlineEditRow === row.id ? (
-                        <input
-                          type="date"
-                          value={inlineForm.outDate}
-                          onChange={e => setInlineForm(f => ({ ...f, outDate: e.target.value }))}
-                          className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold"
-                        />
-                      ) : (
-                        <span className="text-[10px] font-semibold text-gray-600">{formatDateShort(row.outDate)}</span>
                       )}
                     </td>
                     
