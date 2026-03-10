@@ -182,6 +182,16 @@ export default function Dashboard() {
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
 
+  // Load Inter and Roboto fonts
+  useEffect(() => {
+    if (document.getElementById('google-fonts')) return
+    const link = document.createElement('link')
+    link.id = 'google-fonts'
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap'
+    link.rel = 'stylesheet'
+    document.head.appendChild(link)
+  }, [])
+
   const currentEmployee = useMemo(() => {
     if (!employees.length || !user?.uid) return null
     return employees.find(e => e.email === user.email || e.id === user.uid) || employees[0]

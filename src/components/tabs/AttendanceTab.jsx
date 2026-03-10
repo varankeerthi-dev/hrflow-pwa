@@ -353,310 +353,283 @@ export default function AttendanceTab() {
   }
 
   return (
-    <>
-      {/* Add Google Fonts */}
-      <link 
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap" 
-        rel="stylesheet" 
-      />
-      <style>{`
-        .font-inter { font-family: 'Inter', sans-serif; }
-        .font-roboto { font-family: 'Roboto', sans-serif; }
-      `}</style>
-      
-      <div className="flex flex-col h-full gap-2 font-inter">
-        {/* Header Card */}
-        <div className="bg-white px-5 py-3 rounded-[12px] shadow-sm flex justify-between items-center border border-gray-100/50">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-              <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
-              <div className="relative">
-                <input 
-                  type="date" 
-                  value={selectedDate} 
-                  onChange={e => setSelectedDate(e.target.value)} 
-                  className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer opacity-0 absolute w-full left-0 top-0" 
-                />
-                <span 
-                  className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none"
-                  onClick={(e) => {
-                    const input = e.currentTarget.parentElement.querySelector('input[type="date"]');
-                    input?.showPicker?.();
-                  }}
-                >
-                  {new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
-              </div>
-              <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[11px] font-black leading-none mb-1">
-                <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
-                <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
-              </span>
-              {isSunday && <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest flex items-center gap-1">Sunday Routine</span>}
-            </div>
-          </div>
-          <button onClick={handleAddRow} className="h-[38px] px-[12px] bg-gray-100 text-gray-600 font-semibold rounded-[8px] text-[12px] shadow-sm hover:bg-gray-200 transition-all uppercase tracking-widest flex items-center gap-1.5"><Plus size={14} /> Add Row</button>
-            <button onClick={handleGenerate} className="h-[38px] px-[16px] bg-indigo-600 text-white font-semibold rounded-[8px] text-[12px] shadow-sm hover:bg-indigo-700 transition-all uppercase tracking-widest">Generate Active</button>
-        </div>
-
-        {/* Main Table Card */}
-        <div className="flex-1 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-visible flex flex-col">
-          <div className="overflow-x-visible">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="h-[38px] bg-[#f9fafb] border-b border-gray-100">
-                  <th className="px-[14px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider w-[20%]">Employee Name</th>
-                  <th className="px-[8px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center w-[80px]">Shift</th>
-                  <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">In Time</th>
-                  <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Out Time</th>
-                  <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">OT</th>
-                  <th className="px-[10px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">Remarks</th>
-                  <th className="px-[14px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">Status Multi-Toggle</th>
-                  <th className="px-[8px] text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider w-[40px]"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f1f5f9]">
-                {empLoading ? (
-                  <tr><td colSpan={8} className="text-center py-12"><Spinner /></td></tr>
-                ) : rows.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">Ready to generate attendance</td></tr>
-                ) : (
-                  rows.map((row, idx) => (
-                    <tr key={row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-[#f8fafc] ${row.isAbsent ? 'bg-red-50/20' : ''} ${row.shiftType === 'Night' && row.outTime ? 'h-[58px]' : 'h-[46px]'}`}>
-                      {/* Employee Name */}
-                      <td className="px-[14px]">
-                        {row.employeeId ? (
-                          <div className="flex items-center gap-2.5">
-                            <span className="font-semibold text-gray-700 text-[12px] truncate uppercase">{row.name}</span>
-                          </div>
-                        ) : (
-                          <select
-                            value=""
-                            onChange={(e) => handleEmployeeSelect(idx, e.target.value)}
-                            className="w-full h-[30px] border border-gray-200 rounded-lg px-3 text-[11px] font-semibold bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-                          >
-                            <option value="">Select Employee...</option>
-                            {employees.filter(e => !rows.some(r => r.employeeId === e.id)).map(e => (
-                              <option key={e.id} value={e.id}>{e.name}</option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
-
-                      {/* Shift Type - Toggle Slider */}
-                      <td className="px-[8px] text-center">
-                        <button
-                          onClick={() => updateRow(row.employeeId, 'shiftType', row.shiftType === 'Night' ? 'Day' : 'Night')}
-                          disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          className={`relative w-[70px] h-[26px] rounded-full transition-all duration-200 flex items-center justify-between px-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                            row.shiftType === 'Night' 
-                              ? 'bg-slate-800' 
-                              : 'bg-emerald-500'
-                          }`}
-                        >
-                          <span className={`text-[8px] font-bold uppercase tracking-wider z-10 ${row.shiftType === 'Day' ? 'text-white' : 'text-slate-400'}`}>DAY</span>
-                          <span className={`text-[8px] font-bold uppercase tracking-wider z-10 ${row.shiftType === 'Night' ? 'text-white' : 'text-emerald-200'}`}>NIGHT</span>
-                          <span 
-                            className={`absolute top-[2px] w-[22px] h-[22px] bg-white rounded-full shadow-md transition-all duration-200 ${
-                              row.shiftType === 'Night' ? 'left-[46px]' : 'left-[2px]'
-                            }`}
-                          />
-                        </button>
-                      </td>
-
-                      
-
-                      {/* In Time */}
-                      <td className="px-[10px] text-center border-r-2 border-emerald-400">
-                        <div className="flex items-center justify-center relative py-1">
-                          <button
-                            onClick={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
-                            disabled={row.isAbsent || row.status === 'SunHoliday'}
-                            className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif]"
-                          >
-                            {row.inTime ? (() => {
-                              const [h, m] = row.inTime.split(':').map(Number)
-                              const p = h >= 12 ? 'PM' : 'AM'
-                              const h12 = h % 12 || 12
-                              return `${h12}:${String(m).padStart(2, '0')} ${p}`
-                            })() : '--:--'}
-                          </button>
-                          {showInTimePicker === row.employeeId && (
-                            <TimePicker
-                              value={row.inTime || '09:00'}
-                              onChange={(time) => updateRow(row.employeeId, 'inTime', time)}
-                              onClose={() => setShowInTimePicker(null)}
-                            />
-                          )}
-                        </div>
-                      </td>
-
-                      
-
-                      {/* Out Time */}
-                      <td className="px-[10px] text-center border-r-2 border-rose-300">
-                        <div className={`flex flex-col items-center justify-center py-1 ${row.shiftType === 'Night' && row.outTime ? 'gap-0.5' : ''}`}>
-                          <div className="relative">
-                            <button
-                              onClick={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
-                              disabled={row.isAbsent || row.status === 'SunHoliday'}
-                              className="text-[12px] font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif]"
-                            >
-                              {row.outTime ? (() => {
-                                const [h, m] = row.outTime.split(':').map(Number)
-                                const p = h >= 12 ? 'PM' : 'AM'
-                                const h12 = h % 12 || 12
-                                return `${h12}:${String(m).padStart(2, '0')} ${p}`
-                              })() : '--:--'}
-                            </button>
-                            {showOutTimePicker === row.employeeId && (
-                              <TimePicker
-                                value={row.outTime || '21:00'}
-                                onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
-                                onClose={() => setShowOutTimePicker(null)}
-                              />
-                            )}
-
-                            {/* DROPDOWN COPY PICKER INLINE */}
-                            {showCopyModal && activeCopyEmpId === row.employeeId && (
-                              <CopyToDropdown
-                                activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)}
-                                copyConfig={copyConfig}
-                                setCopyConfig={setCopyConfig}
-                                selectedEmps={selectedEmps}
-                                setSelectedEmps={setSelectedEmps}
-                                onApply={handleCopySubmit}
-                                onClose={() => { setShowCopyModal(false); setActiveCopyEmpId(null); }}
-                              />
-                            )}
-                          </div>
-                          {/* Overnight indicator for Night shift */}
-                          {row.shiftType === 'Night' && row.outTime && (
-                            <div className="flex items-center gap-0.5 text-[9px] font-medium text-indigo-600">
-                              <ArrowRight size={10} />
-                              <span>{displayShortDate(row.outDate)}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* OT */}
-                      <td className="px-[10px] text-center font-bold text-black text-[13px] font-['Roboto',sans-serif]">
-                        {(() => {
-                          if (!row.otHours || row.otHours === '00:00') return ''
-                          const [h, m] = row.otHours.split(':').map(Number)
-                          const totalMins = (h || 0) * 60 + (m || 0)
-                          return totalMins >= 30 ? row.otHours : ''
-                        })()}
-                      </td>
-
-                      {/* Remarks */}
-                      <td className="px-[10px]">
-                        <span className="text-[12px] text-gray-400">
-                          {row.remarks ? (
-                            <input
-                              type="text"
-                              value={row.remarks || ''}
-                              onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
-                              className="border-none bg-transparent p-0 text-[12px] focus:ring-0 text-gray-500 w-full"
-                              placeholder="..."
-                            />
-                          ) : (
-                            <input
-                              type="text"
-                              value={row.remarks || ''}
-                              onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
-                              className="border-none bg-transparent p-0 text-[12px] focus:ring-0 text-gray-400 w-full placeholder-gray-300"
-                              placeholder="..."
-                            />
-                          )}
-                        </span>
-                      </td>
-
-                      {/* Status Multi-Toggle */}
-                      <td className="px-[14px]">
-                        <div className="flex items-center gap-1 justify-end">
-                          {[
-                            { id: 'Present', label: 'PRESENT', color: 'green' },
-                            { id: 'Absent', label: 'ABSENT', color: 'red' },
-                            ...(isSunday ? [
-                              { id: 'SunWorked', label: 'WORKED', color: 'amber' },
-                              { id: 'SunHoliday', label: 'HOLIDAY', color: 'indigo' }
-                            ] : [])
-                          ].map(st => (
-                            <button
-                              key={st.id}
-                              onClick={() => handleStatusChange(row.employeeId, st.id)}
-                              title={st.label}
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all tracking-tight
-                                ${row.status === st.id
-                                  ? st.color === 'green' ? 'bg-green-500 text-white border-green-500 shadow-sm'
-                                    : st.color === 'red' ? 'bg-red-100 text-red-400 border-red-200'
-                                      : st.color === 'amber' ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                                        : 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                  : st.id === 'Absent' ? 'bg-white text-gray-300 border-gray-200 hover:bg-gray-50'
-                                    : 'bg-white text-gray-300 border-gray-200 hover:bg-gray-50'
-                                }`}
-                            >
-                              {st.label}
-                            </button>
-                          ))}
-                        </div>
-                        </td>
-
-                      {/* Clear Row Button */}
-                      <td className="px-[8px] text-center">
-                        <button
-                          onClick={() => handleClearRow(row.employeeId)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
-                          title="Clear row"
-                        >
-                          <X size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Bottom Footer Card */}
-        <div className="bg-white p-4 rounded-[12px] border border-gray-100 shadow-sm flex justify-between items-center">
-          <div className="flex gap-8 px-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-sm"></div>
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday).length}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></div>
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Absent: {rows.filter(r => r.isAbsent).length}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {saved && <div className="flex items-center gap-1.5 text-green-600 text-[11px] font-bold uppercase tracking-widest animate-pulse"><Check size={14} strokeWidth={3} /> Changes Synced</div>}
-            <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-[40px] px-[24px] bg-indigo-600 text-white font-bold rounded-[8px] text-[13px] shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest disabled:opacity-50">
-              {saving ? 'Processing...' : 'Submit Records'}
-            </button>
-          </div>
-        </div>
-
-        {/* Warning Modal */}
-        <Modal isOpen={showWarning} onClose={() => setShowWarning(false)} title="Conflict Detected">
-          <div className="p-6 text-center">
-            <div className="text-4xl mb-4">⚠️</div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2 uppercase tracking-tight">Records Already Exist</h3>
-            <p className="text-[13px] text-gray-500 mb-8 leading-relaxed">Some employees already have attendance data for this specific date. Overwriting will replace their current logs. Do you wish to continue?</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowWarning(false)} className="flex-1 h-[40px] border border-gray-200 rounded-[8px] text-[12px] font-bold text-gray-400 uppercase tracking-widest hover:bg-gray-50 transition-all">Abort</button>
-              <button onClick={() => { setShowWarning(false); handleSubmit(); }} className="flex-1 h-[40px] bg-indigo-600 text-white rounded-[8px] text-[12px] font-bold shadow-xl uppercase tracking-widest hover:bg-indigo-700 transition-all">Overwrite</button>
-            </div>
-          </div>
-        </Modal>
+    <div className="flex flex-col h-full gap-4" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* Title Section */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-semibold text-gray-900" style={{ fontFamily: "'Inter', sans-serif" }}>Attendance Management</h1>
+        <p className="text-sm text-gray-500 mt-1" style={{ fontFamily: "'Inter', sans-serif" }}>Daily Attendance & Shift Tracking</p>
       </div>
-    </>
+
+      {/* Sticky Header Card */}
+      <div className="sticky top-0 z-20 bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
+            <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
+            <div className="relative">
+              <input 
+                type="date" 
+                value={selectedDate} 
+                onChange={e => setSelectedDate(e.target.value)} 
+                className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer opacity-0 absolute w-full left-0 top-0" 
+              />
+              <span 
+                className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none"
+                onClick={(e) => {
+                  const input = e.currentTarget.parentElement.querySelector('input[type="date"]');
+                  input?.showPicker?.();
+                }}
+              >
+                {new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
+            </div>
+            <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-black leading-none mb-1">
+              <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
+              <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
+            </span>
+            {isSunday && <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest flex items-center gap-1">Sunday Routine</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={handleAddRow} className="h-9 px-3 bg-gray-100 text-gray-600 font-medium rounded-lg text-xs shadow-sm hover:bg-gray-200 transition-all flex items-center gap-1.5" style={{ fontFamily: "'Inter', sans-serif" }}><Plus size={14} /> Add Row</button>
+          <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all" style={{ fontFamily: "'Inter', sans-serif" }}>Generate Active</button>
+        </div>
+      </div>
+
+      {/* Main Table Card */}
+      <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible flex flex-col">
+        <div className="overflow-x-visible">
+          <table className="w-full text-left border-collapse" style={{ fontFamily: "'Inter', sans-serif" }}>
+            <thead className="sticky top-[73px] z-10 bg-gray-50">
+              <tr className="h-10 bg-gray-50 border-b border-gray-200">
+                <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[20%]">Employee Name</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[80px]">Shift</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[90px]">In Time</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[90px]">Out Time</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[70px]">OT</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Remarks</th>
+                <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Status</th>
+                <th className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[40px]"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {empLoading ? (
+                <tr><td colSpan={8} className="text-center py-12"><Spinner /></td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium text-lg">Ready to generate attendance</td></tr>
+              ) : (
+                rows.map((row, idx) => (
+                  <tr key={row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${row.shiftType === 'Night' && row.outTime ? 'h-[48px]' : 'h-[40px]'}`}>
+                    {/* Employee Name */}
+                    <td className="px-4">
+                      {row.employeeId ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-800 text-sm" style={{ fontFamily: "'Inter', sans-serif" }}>{row.name}</span>
+                        </div>
+                      ) : (
+                        <select
+                          value=""
+                          onChange={(e) => handleEmployeeSelect(idx, e.target.value)}
+                          className="w-full h-8 border border-gray-200 rounded-lg px-2 text-xs font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          style={{ fontFamily: "'Inter', sans-serif" }}
+                        >
+                          <option value="">Select Employee...</option>
+                          {employees.filter(e => !rows.some(r => r.employeeId === e.id)).map(e => (
+                            <option key={e.id} value={e.id}>{e.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+
+                    {/* Shift Type - Toggle Slider */}
+                    <td className="px-3 text-center">
+                      <button
+                        onClick={() => updateRow(row.employeeId, 'shiftType', row.shiftType === 'Night' ? 'Day' : 'Night')}
+                        disabled={row.isAbsent || row.status === 'SunHoliday'}
+                        className={`relative w-[72px] h-7 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${row.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-500'}`}
+                      >
+                        <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-200 ${row.shiftType === 'Night' ? 'left-[44px]' : 'left-0.5'}`}></span>
+                        <span className={`absolute top-1 text-[8px] font-bold ${row.shiftType === 'Night' ? 'left-2 text-white' : 'right-2 text-white'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                          {row.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
+                        </span>
+                      </button>
+                    </td>
+
+                    {/* In Time */}
+                    <td className="px-3 text-center">
+                      <div className="flex items-center justify-center relative">
+                        <button
+                          onClick={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
+                          disabled={row.isAbsent || row.status === 'SunHoliday'}
+                          className="text-sm font-medium text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif] disabled:text-gray-300"
+                        >
+                          {row.inTime ? (() => {
+                            const [h, m] = row.inTime.split(':').map(Number)
+                            const p = h >= 12 ? 'PM' : 'AM'
+                            const h12 = h % 12 || 12
+                            return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                          })() : '--:--'}
+                        </button>
+                        {showInTimePicker === row.employeeId && (
+                          <TimePicker
+                            value={row.inTime || '09:00'}
+                            onChange={(time) => updateRow(row.employeeId, 'inTime', time)}
+                            onClose={() => setShowInTimePicker(null)}
+                          />
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Out Time */}
+                    <td className="px-3 text-center">
+                      <div className="flex items-center justify-center relative flex-col">
+                        <button
+                          onClick={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
+                          disabled={row.isAbsent || row.status === 'SunHoliday'}
+                          className="text-sm font-medium text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif] disabled:text-gray-300"
+                        >
+                          {row.outTime ? (() => {
+                            const [h, m] = row.outTime.split(':').map(Number)
+                            const p = h >= 12 ? 'PM' : 'AM'
+                            const h12 = h % 12 || 12
+                            return `${h12}:${String(m).padStart(2, '0')} ${p}`
+                          })() : '--:--'}
+                        </button>
+                        {row.shiftType === 'Night' && row.outTime && (
+                          <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
+                            <ArrowRight size={10} />
+                            <span style={{ fontFamily: "'Inter', sans-serif" }}>{displayShortDate(row.outDate)}</span>
+                          </div>
+                        )}
+                        {showOutTimePicker === row.employeeId && (
+                          <TimePicker
+                            value={row.outTime || '21:00'}
+                            onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
+                            onClose={() => setShowOutTimePicker(null)}
+                          />
+                        )}
+
+                        {/* DROPDOWN COPY PICKER INLINE */}
+                        {showCopyModal && activeCopyEmpId === row.employeeId && (
+                          <CopyToDropdown
+                            activeEmployees={activeEmployees.filter(e => e.id !== row.employeeId)}
+                            copyConfig={copyConfig}
+                            setCopyConfig={setCopyConfig}
+                            selectedEmps={selectedEmps}
+                            setSelectedEmps={setSelectedEmps}
+                            onApply={handleCopySubmit}
+                            onClose={() => { setShowCopyModal(false); setActiveCopyEmpId(null); }}
+                          />
+                        )}
+                      </div>
+                    </td>
+
+                    {/* OT */}
+                    <td className="px-3 text-center font-medium text-gray-900 text-sm" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                      {(() => {
+                        if (!row.otHours || row.otHours === '00:00') return ''
+                        const [h, m] = row.otHours.split(':').map(Number)
+                        const totalMins = (h || 0) * 60 + (m || 0)
+                        return totalMins >= 30 ? row.otHours : ''
+                      })()}
+                    </td>
+
+                    {/* Remarks */}
+                    <td className="px-3">
+                      <input
+                        type="text"
+                        value={row.remarks || ''}
+                        onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
+                        className="border-none bg-transparent p-0 text-xs focus:ring-0 text-gray-600 w-full placeholder-gray-300"
+                        placeholder="..."
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      />
+                    </td>
+
+                    {/* Status Pills */}
+                    <td className="px-4">
+                      <div className="flex items-center gap-2 justify-end">
+                        {[
+                          { id: 'Present', label: 'Present', color: 'green' },
+                          { id: 'Absent', label: 'Absent', color: 'red' },
+                          ...(isSunday ? [
+                            { id: 'SunWorked', label: 'Worked', color: 'amber' },
+                            { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }
+                          ] : [])
+                        ].map(st => (
+                          <button
+                            key={st.id}
+                            onClick={() => handleStatusChange(row.employeeId, st.id)}
+                            className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                              row.status === st.id
+                                ? st.color === 'green' ? 'bg-green-100 text-green-700 border border-green-200'
+                                  : st.color === 'red' ? 'bg-red-100 text-red-700 border border-red-200'
+                                    : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                                      : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                                : 'bg-gray-100 text-gray-400 border border-gray-200 hover:bg-gray-200'
+                            }`}
+                            style={{ fontFamily: "'Inter', sans-serif" }}
+                          >
+                            {row.status === st.id && st.color === 'green' && <span className="mr-1">✓</span>}
+                            {row.status === st.id && st.color === 'red' && <span className="mr-1">✕</span>}
+                            {st.label}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+
+                    {/* Clear Row Button */}
+                    <td className="px-2 text-center">
+                      <button
+                        onClick={() => handleClearRow(row.employeeId)}
+                        className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                        title="Clear row"
+                      >
+                        <X size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Bottom Footer Card */}
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center sticky bottom-0">
+        <div className="flex gap-6 px-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday).length}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Absent: {rows.filter(r => r.isAbsent).length}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          {saved && <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium" style={{ fontFamily: "'Inter', sans-serif" }}><Check size={14} /> Changes Synced</div>}
+          <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-10 px-6 bg-indigo-600 text-white font-medium rounded-lg text-sm shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50" style={{ fontFamily: "'Inter', sans-serif" }}>
+            {saving ? 'Processing...' : 'Submit Records'}
+          </button>
+        </div>
+      </div>
+
+      {/* Warning Modal */}
+      <Modal isOpen={showWarning} onClose={() => setShowWarning(false)} title="Conflict Detected">
+        <div className="p-6 text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Records Already Exist</h3>
+          <p className="text-sm text-gray-500 mb-6">Some employees already have attendance data for this date. Overwriting will replace their current logs.</p>
+          <div className="flex gap-3">
+            <button onClick={() => setShowWarning(false)} className="flex-1 h-10 border border-gray-200 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50">Abort</button>
+            <button onClick={() => { setShowWarning(false); handleSubmit(); }} className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-sm font-medium shadow-md hover:bg-indigo-700">Overwrite</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
   )
 }
