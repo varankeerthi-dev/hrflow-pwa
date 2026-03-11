@@ -488,10 +488,10 @@ export default function AttendanceTab() {
                       <button
                         onClick={() => updateRow(row.employeeId, 'shiftType', row.shiftType === 'Night' ? 'Day' : 'Night')}
                         disabled={row.isAbsent || row.status === 'SunHoliday'}
-                        className={`relative w-[72px] h-7 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${row.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-500'}`}
+                        className={`relative w-[58px] h-5 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${row.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-500'}`}
                       >
-                        <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-200 ${row.shiftType === 'Night' ? 'left-[44px]' : 'left-0.5'}`}></span>
-                        <span className={`absolute top-1 text-[8px] font-bold ${row.shiftType === 'Night' ? 'left-2 text-white' : 'right-2 text-white'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 ${row.shiftType === 'Night' ? 'left-[36px]' : 'left-0.5'}`}></span>
+                        <span className={`absolute top-0.5 text-[7px] font-bold ${row.shiftType === 'Night' ? 'left-2 text-white' : 'right-2 text-white'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
                           {row.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
                         </span>
                       </button>
