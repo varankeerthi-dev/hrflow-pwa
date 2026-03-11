@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getDocs, query, where, setDoc, serverTimestamp } from 'firebase/firestore'
+import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { attendanceCol, attendanceDoc } from '../lib/firestore'
 import { useAuth } from './useAuth'
 
@@ -71,7 +71,22 @@ export function useAttendance(orgId) {
     }
   }, [orgId])
 
-  return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary }
+  const deleteByDate = useCallback(async (date) => {
+    if (!orgId || !date) return
+    setLoading(true)
+    try {
+      const q = query(attendanceCol(orgId), where('date', '==', date))
+      const snapshot = await getDocs(q)
+      const batch = snapshot.docs.map(d => deleteDoc(attendanceDoc(orgId, date, d.data().employeeId)))
+      await Promise.all(batch)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [orgId])
+
+  return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary, deleteByDate }
 }
 
 export function calcOT(inTime, outTime, inDate, outDate, workHours) {

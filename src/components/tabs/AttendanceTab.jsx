@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
-import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2 } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 
 function getInitials(name) {
@@ -113,7 +113,7 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
 export default function AttendanceTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId, true)
-  const { fetchByDate, upsertAttendance, loading: attLoading } = useAttendance(user?.orgId)
+  const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading } = useAttendance(user?.orgId)
 
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
   const [rows, setRows] = useState([])
@@ -123,6 +123,7 @@ export default function AttendanceTab() {
   const [existingRecords, setExistingRecords] = useState([])
 
   const [showWarning, setShowWarning] = useState(false)
+  const [showResetWarning, setShowResetWarning] = useState(false)
   const [copyData, setCopyData] = useState(null)
   const [showCopyModal, setShowCopyModal] = useState(false)
   const [activeCopyEmpId, setActiveCopyEmpId] = useState(null);
@@ -352,16 +353,45 @@ export default function AttendanceTab() {
     setShowCopyModal(false); setSelectedEmps([]); setActiveCopyEmpId(null);
   }
 
+  // Handle Reset All
+  const handleResetAll = async () => {
+    if (!rows.length) {
+      setShowResetWarning(false)
+      return
+    }
+    setSaving(true)
+    try {
+      await deleteByDate(selectedDate)
+      await logActivity(user?.orgId, user, {
+        module: 'Attendance',
+        action: `All attendance records reset for ${selectedDate}`,
+        detail: `Deleted ${rows.length} records`
+      })
+      setRows([])
+      setExistingRecords([])
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (error) {
+      console.error('Error resetting attendance:', error)
+      alert('Failed to reset attendance. Please try again.')
+    } finally {
+      setSaving(false)
+      setShowResetWarning(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col h-full gap-4" style={{ fontFamily: "'Inter', sans-serif" }}>
-      {/* Title Section */}
-      <div className="mb-2">
-        <h1 className="text-2xl font-semibold text-gray-900" style={{ fontFamily: "'Inter', sans-serif" }}>Attendance Management</h1>
-        <p className="text-sm text-gray-500 mt-1" style={{ fontFamily: "'Inter', sans-serif" }}>Daily Attendance & Shift Tracking</p>
+    <div className="flex flex-col h-full gap-3" style={{ fontFamily: "'Roboto', sans-serif" }}>
+      {/* Title Header - Sticky */}
+      <div className="bg-white px-6 py-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance Management</h1>
+          <p className="text-sm text-gray-500 mt-1" style={{ fontFamily: "'Roboto', sans-serif" }}>Daily Attendance & Shift Tracking</p>
+        </div>
       </div>
 
-      {/* Sticky Header Card */}
-      <div className="sticky top-0 z-20 bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex justify-between items-center">
+      {/* Date & Action Bar */}
+      <div className="bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
@@ -385,32 +415,42 @@ export default function AttendanceTab() {
             <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
           </div>
           <div className="flex flex-col">
-            <span className="text-[11px] font-black leading-none mb-1">
+            <span className="text-xs font-semibold">
               <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
               <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
             </span>
-            {isSunday && <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest flex items-center gap-1">Sunday Routine</span>}
+            {isSunday && <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide flex items-center gap-1">Sunday Routine</span>}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={handleAddRow} className="h-9 px-3 bg-gray-100 text-gray-600 font-medium rounded-lg text-xs shadow-sm hover:bg-gray-200 transition-all flex items-center gap-1.5" style={{ fontFamily: "'Inter', sans-serif" }}><Plus size={14} /> Add Row</button>
-          <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all" style={{ fontFamily: "'Inter', sans-serif" }}>Generate Active</button>
+        
+        <div className="flex items-center gap-2">
+          {/* Reset All Button */}
+          <button 
+            onClick={() => setShowResetWarning(true)} 
+            disabled={!rows.length || saving}
+            className="h-9 px-3 bg-red-50 text-red-600 font-medium rounded-lg text-xs shadow-sm hover:bg-red-100 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed" 
+            style={{ fontFamily: "'Roboto', sans-serif" }}
+          >
+            <Trash2 size={14} /> Reset All
+          </button>
+          <button onClick={handleAddRow} className="h-9 px-3 bg-gray-100 text-gray-600 font-medium rounded-lg text-xs shadow-sm hover:bg-gray-200 transition-all flex items-center gap-1.5" style={{ fontFamily: "'Roboto', sans-serif" }}><Plus size={14} /> Add Row</button>
+          <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all" style={{ fontFamily: "'Roboto', sans-serif" }}>Generate Active</button>
         </div>
       </div>
 
       {/* Main Table Card */}
-      <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible flex flex-col">
+      <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
         <div className="overflow-x-visible">
-          <table className="w-full text-left border-collapse" style={{ fontFamily: "'Inter', sans-serif" }}>
+          <table className="w-full text-left border-collapse">
             <thead className="sticky top-[73px] z-10 bg-gray-50">
-              <tr className="h-10 bg-gray-50 border-b border-gray-200">
-                <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[20%]">Employee Name</th>
+              <tr className="h-10 border-b border-gray-200">
+                <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[22%]">Employee Name</th>
                 <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[80px]">Shift</th>
-                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[90px]">In Time</th>
-                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[90px]">Out Time</th>
-                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[70px]">OT</th>
-                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Remarks</th>
-                <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Status</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[100px]">In Time</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[100px]">Out Time</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[60px]">OT</th>
+                <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[15%]">Remarks</th>
+                <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right w-[120px]">Status</th>
                 <th className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[40px]"></th>
               </tr>
             </thead>
@@ -597,6 +637,37 @@ export default function AttendanceTab() {
           </table>
         </div>
       </div>
+
+      {/* Reset Warning Modal */}
+      <Modal isOpen={showResetWarning} onClose={() => setShowResetWarning(false)} title="⚠️ Reset All Records">
+        <div className="p-6">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={28} className="text-red-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Delete All Records?</h3>
+            <p className="text-sm text-gray-500">
+              This will permanently delete all {rows.length} attendance records for <strong>{formatDate(selectedDate)}</strong>.
+            </p>
+            <p className="text-xs text-red-500 mt-2 font-medium">This action cannot be undone.</p>
+          </div>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setShowResetWarning(false)} 
+              className="flex-1 h-10 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleResetAll} 
+              disabled={saving}
+              className="flex-1 h-10 bg-red-600 text-white rounded-lg text-sm font-medium shadow-md hover:bg-red-700 transition-all disabled:opacity-50"
+            >
+              {saving ? 'Deleting...' : 'Yes, Delete All'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Bottom Footer Card */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center sticky bottom-0">
