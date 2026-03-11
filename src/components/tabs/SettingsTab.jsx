@@ -1520,7 +1520,7 @@ export default function SettingsTab() {
                           <X size={13} />
                         </button>
                       </div>
-                    })}
+                    )})}
                   </div>
                 )}
 
