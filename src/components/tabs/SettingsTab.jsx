@@ -359,17 +359,16 @@ export default function SettingsTab() {
 
       // Handle login enabled/disabled
       if (editForm.loginEnabled && editForm.email) {
-        // First check if user already exists in auth
         const tempPassword = editForm.tempPassword ? editForm.tempPassword.trim() : ''
-
-        try {
-          // Try to create new user or update existing
-          // Use secondaryAuth to avoid logging out the admin
-          const cred = await createUserWithEmailAndPassword(secondaryAuth, editForm.email, tempPassword || `HRFlow${Date.now()}`)
-          await updateProfile(cred.user, { displayName: editForm.name })
-
+        
+        // Check if auth user already exists by looking up users collection
+        const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
+        
+        if (!usersSnap.empty) {
+          // User exists - just update the user document
+          const userDocId = usersSnap.docs[0].id
           await setDoc(
-            doc(db, 'users', cred.user.uid),
+            doc(db, 'users', userDocId),
             {
               email: editForm.email,
               name: editForm.name,
@@ -379,61 +378,62 @@ export default function SettingsTab() {
               empCode: editForm.empCode,
               department: editForm.department || '',
               reportingManager: editForm.reportingManager || '',
-              createdAt: serverTimestamp(),
               loginEnabled: true,
             },
             { merge: true }
           )
-
           if (tempPassword) {
-            alert(`Login enabled! Temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
+            alert(`Login details updated. New temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
           }
-        } catch (authErr) {
-          if (authErr.code === 'auth/email-already-in-use') {
-            // User exists, just update their data (may fail due to permissions)
-            try {
-              const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
-              if (!usersSnap.empty) {
-                const userDocId = usersSnap.docs[0].id
-                await setDoc(
-                  doc(db, 'users', userDocId),
-                  {
-                    email: editForm.email,
-                    name: editForm.name,
-                    orgId: user.orgId,
-                    role: (editForm.role || 'employee').toLowerCase(),
-                    employeeId: editingEmp,
-                    empCode: editForm.empCode,
-                    department: editForm.department || '',
-                    reportingManager: editForm.reportingManager || '',
-                    loginEnabled: true,
-                  },
-                  { merge: true }
-                )
-              }
-              alert('Login enabled. Employee can login with their existing credentials.')
-            } catch (userErr) {
-              console.warn('Could not update user document:', userErr.message)
-              alert('Employee saved but could not update login details. Please try again.')
+        } else {
+          // Create new auth user
+          try {
+            const cred = await createUserWithEmailAndPassword(secondaryAuth, editForm.email, tempPassword || `HRFlow${Date.now()}`)
+            await updateProfile(cred.user, { displayName: editForm.name })
+
+            await setDoc(
+              doc(db, 'users', cred.user.uid),
+              {
+                email: editForm.email,
+                name: editForm.name,
+                orgId: user.orgId,
+                role: (editForm.role || 'employee').toLowerCase(),
+                employeeId: editingEmp,
+                empCode: editForm.empCode,
+                department: editForm.department || '',
+                reportingManager: editForm.reportingManager || '',
+                createdAt: serverTimestamp(),
+                loginEnabled: true,
+              },
+              { merge: true }
+            )
+
+            if (tempPassword) {
+              alert(`Login enabled! Temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
+            } else {
+              alert(`Login enabled! A temporary password has been generated. Please reset the password to share with the employee.`)
             }
-          } else {
+          } catch (authErr) {
             console.error('Auth error:', authErr)
+            alert(`Employee saved but could not create login. Error: ${authErr.message}`)
           }
         }
       } else if (!editForm.loginEnabled && editForm.email) {
-        // Disable login - update user doc (may fail due to permissions)
+        // Disable login - update user doc
         try {
           const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
           if (!usersSnap.empty) {
             const userDocId = usersSnap.docs[0].id
             await setDoc(
               doc(db, 'users', userDocId),
-              { loginEnabled: false },
+              {
+                loginEnabled: false,
+              },
               { merge: true }
             )
           }
-        } catch (userErr) {
-          console.warn('Could not update user login status:', userErr.message)
+        } catch (err) {
+          console.warn('Could not disable login:', err)
         }
       }
 
@@ -667,7 +667,7 @@ export default function SettingsTab() {
                       <img src={orgSettings.logoURL} className="w-full h-full object-cover rounded-full" alt="Logo" />
                     ) : (
                       <div className="flex flex-col items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <svg className="w-8 h-8 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 12a8 8 0 018-8v8H4z" /></svg>
                         <span className="text-[9px] text-gray-400 font-medium">Upload</span>
                       </div>
                     )}
@@ -1192,7 +1192,7 @@ export default function SettingsTab() {
                   </button>
                   <button onClick={async () => {
                     const empPerms = {}
-                    modules.forEach(m => { empPerms[m] = { view: m === 'EmployeePortal' || m === 'Attendance' ? true : false, create: false, edit: false, delete: false, approve: false, export: false, full: false } })
+                    modules.forEach(m => { empPerms[m] = { view: m === 'EmployeePortal' || m === 'Attendance', create: false, edit: false, delete: false, approve: false, export: false, full: false } })
                     empPerms['EmployeePortal'] = { view: true, create: true, edit: true, delete: false, approve: false, export: true, full: false }
                     empPerms['Attendance'] = { view: true, create: true, edit: false, delete: false, approve: false, export: false, full: false }
                     await addDoc(collection(db, 'organisations', user.orgId, 'roles'), { name: 'Employee', description: 'Self service access', permissions: empPerms, createdAt: serverTimestamp() })
@@ -1460,59 +1460,62 @@ export default function SettingsTab() {
               {/* Password Field - Only shown when login is enabled */}
               {editForm.loginEnabled && (
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password</label>
-                  <input type="text" placeholder="Enter new password to update" value={editForm.tempPassword || ''}
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password *</label>
+                  <input
+                    type="text"
+                    placeholder="Enter temporary password"
+                    value={editForm.tempPassword || ''}
                     onChange={(e) => setEditForm(s => ({ ...s, tempPassword: e.target.value }))}
-                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Leave blank to keep existing password</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Share this password with the employee</p>
                 </div>
               )}
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Emergency Contact No.</label>
                 <input type="tel" placeholder="+91 xxxxxxxxxx" value={editForm.emergencyContact || ''}
                   onChange={e => setEditForm(s => ({ ...s, emergencyContact: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Contact No.</label>
                 <input type="tel" placeholder="+91 xxxxxxxxxx" value={editForm.contactNo || ''}
                   onChange={e => setEditForm(s => ({ ...s, contactNo: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">PF No.</label>
                 <input type="text" placeholder="PF Number" value={editForm.pfNo || ''}
                   onChange={e => setEditForm(s => ({ ...s, pfNo: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Bank Account No.</label>
                 <input type="text" placeholder="Account number" value={editForm.bankAccount || ''}
                   onChange={e => setEditForm(s => ({ ...s, bankAccount: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
-              <div>
+              <div className="col-span-2">
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Department</label>
                 <input type="text" placeholder="Department" value={editForm.department || ''}
                   onChange={e => setEditForm(s => ({ ...s, department: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Site Location</label>
                 <input type="text" placeholder="Site Location" value={editForm.site || ''}
                   onChange={e => setEditForm(s => ({ ...s, site: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Shift</label>
-                <select value={editForm.shiftId || ''} onChange={e => setEditForm(s => ({ ...s, shiftId: e.target.value }))} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                <select value={editForm.shiftId || ''} onChange={e => setEditForm(s => ({ ...s, shiftId: e.target.value }))} className="w-full border rounded-none px-4 py-2.5 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-gray-900 outline-none">
                   <option value="">Select Shift...</option>
                   {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -1811,60 +1814,6 @@ export default function SettingsTab() {
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Reporting Manager</label>
-                <input
-                  type="text"
-                  placeholder="Manager name"
-                  value={newEmployee.reportingManager}
-                  onChange={e => setNewEmployee(s => ({ ...s, reportingManager: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Marital Status</label>
-                <select value={newEmployee.maritalStatus} onChange={e => setNewEmployee(s => ({ ...s, maritalStatus: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                >
-                  <option value="">Select...</option>
-                  {['Single', 'Married', 'Divorced', 'Widowed'].map(ms => <option key={ms}>{ms}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Email</label>
-                <input type="email" placeholder="employee@email.com" value={newEmployee.email}
-                  onChange={e => setNewEmployee(s => ({ ...s, email: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Emergency Contact No.</label>
-                <input type="tel" placeholder="+91 xxxxxxxxxx" value={newEmployee.emergencyContact}
-                  onChange={e => setNewEmployee(s => ({ ...s, emergencyContact: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Contact No.</label>
-                <input type="tel" placeholder="+91 xxxxxxxxxx" value={newEmployee.contactNo}
-                  onChange={e => setNewEmployee(s => ({ ...s, contactNo: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">PF No.</label>
-                <input type="text" placeholder="PF Number" value={newEmployee.pfNo}
-                  onChange={e => setNewEmployee(s => ({ ...s, pfNo: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Bank Account No.</label>
-                <input type="text" placeholder="Account number" value={newEmployee.bankAccount}
-                  onChange={e => setNewEmployee(s => ({ ...s, bankAccount: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
-                />
-              </div>
-              <div className="col-span-2">
                 <label className="block text-[11px] font-bold text-gray-700 mb-2">Status</label>
                 <div className="flex gap-2">
                   {['Active', 'Inactive'].map(s => (
@@ -1892,7 +1841,7 @@ export default function SettingsTab() {
               <textarea placeholder="Full residential address" value={newEmployee.address}
                 onChange={e => setNewEmployee(s => ({ ...s, address: e.target.value }))}
                 rows={3}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-grayoutline-none focus:ring-2 focus-800 focus::ring-gray-900 focus:border-transparent bg-white resize-none"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
               />
             </div>
 
