@@ -5,7 +5,7 @@ import { db, storage, auth, secondaryAuth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
@@ -41,6 +41,8 @@ export default function SettingsTab() {
   const [showRowOrder, setShowRowOrder] = useState(false)
   const [rowOrder, setRowOrder] = useState([])
   const [draggedRowItem, setDraggedRowItem] = useState(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewEmpIndex, setPreviewEmpIndex] = useState(0)
 
   const userPermissions = user?.permissions || {}
   const isAdmin = user?.role === 'admin'
@@ -351,10 +353,12 @@ export default function SettingsTab() {
   const handleSaveEmployee = async () => {
     setSaving(true)
     try {
-      const empDoc = await getDoc(doc(db, 'organisations', user.orgId, 'employees', editingEmp))
-      const empData = empDoc.exists() ? empDoc.data() : {}
-
-      await updateEmployee(editingEmp, editForm)
+      // Prepare clean employee data - remove any undefined values
+      const cleanEditForm = Object.fromEntries(
+        Object.entries(editForm).filter(([_, v]) => v !== undefined && v !== null)
+      )
+      
+      await updateEmployee(editingEmp, cleanEditForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
 
       // Handle login enabled/disabled
@@ -664,7 +668,15 @@ export default function SettingsTab() {
                 <div className="flex flex-col items-center pb-6 border-b border-gray-100">
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden bg-gray-50 group hover:border-indigo-400 transition-all cursor-pointer" style={{ width: '90px', height: '90px' }}>
                     {orgSettings.logoURL ? (
-                      <img src={orgSettings.logoURL} className="w-full h-full object-cover rounded-full" alt="Logo" />
+                      <img 
+                        src={orgSettings.logoURL} 
+                        className="w-full h-full object-cover rounded-full" 
+                        alt="Logo" 
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
                     ) : (
                       <div className="flex flex-col items-center justify-center">
                         <svg className="w-8 h-8 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 12a8 8 0 018-8v8H4z" /></svg>
@@ -1438,12 +1450,12 @@ export default function SettingsTab() {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Email</label>
                 <input type="email" placeholder="employee@email.com" value={editForm.email || ''}
                   onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
 
               {/* Login Enabled Toggle */}
-              <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-lg p-3 col-span-2">
+              <div className="flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
                 <div>
                   <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
                   <p className="text-[10px] text-indigo-500">Allow employee to access the system</p>
@@ -1471,138 +1483,24 @@ export default function SettingsTab() {
                   <p className="text-[10px] text-gray-400 mt-1">Share this password with the employee</p>
                 </div>
               )}
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Emergency Contact No.</label>
-                <input type="tel" placeholder="+91 xxxxxxxxxx" value={editForm.emergencyContact || ''}
-                  onChange={e => setEditForm(s => ({ ...s, emergencyContact: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Contact No.</label>
-                <input type="tel" placeholder="+91 xxxxxxxxxx" value={editForm.contactNo || ''}
-                  onChange={e => setEditForm(s => ({ ...s, contactNo: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">PF No.</label>
-                <input type="text" placeholder="PF Number" value={editForm.pfNo || ''}
-                  onChange={e => setEditForm(s => ({ ...s, pfNo: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Bank Account No.</label>
-                <input type="text" placeholder="Account number" value={editForm.bankAccount || ''}
-                  onChange={e => setEditForm(s => ({ ...s, bankAccount: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Department</label>
-                <input type="text" placeholder="Department" value={editForm.department || ''}
-                  onChange={e => setEditForm(s => ({ ...s, department: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Site Location</label>
-                <input type="text" placeholder="Site Location" value={editForm.site || ''}
-                  onChange={e => setEditForm(s => ({ ...s, site: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Shift</label>
-                <select value={editForm.shiftId || ''} onChange={e => setEditForm(s => ({ ...s, shiftId: e.target.value }))} className="w-full border rounded-none px-4 py-2.5 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-gray-900 outline-none">
-                  <option value="">Select Shift...</option>
-                  {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
-                <select
-                  value={editForm.role || ''}
-                  onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                >
-                  {roles.length > 0 ? roles.map(r => (
-                    <option key={r.id} value={r.name}>{r.name}</option>
-                  )) : (
-                    <>
-                      <option value="">Select Role...</option>
-                      <option value="Admin">Admin</option>
-                      <option value="HR">HR</option>
-                      <option value="Employee">Employee</option>
-                      <option value="Manager">Manager</option>
-                    </>
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Perm. Hrs/Month</label>
-                <input type="number" placeholder="2" value={editForm.permissionHours || ''}
-                  onChange={e => setEditForm(s => ({ ...s, permissionHours: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Min Daily Hrs</label>
-                <input type="number" placeholder="8" value={editForm.minDailyHours || ''}
-                  onChange={e => setEditForm(s => ({ ...s, minDailyHours: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-[11px] font-bold text-gray-700 mb-2">Status</label>
-                <div className="flex gap-2">
-                  {['Active', 'Inactive'].map(s => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setEditForm(e => ({ ...e, status: s }))}
-                      className={`flex-1 h-10 rounded-lg text-sm font-semibold border transition-all ${editForm.status === s
-                        ? s === 'Active'
-                          ? 'bg-green-600 text-white border-green-600'
-                          : 'bg-red-500 text-white border-red-500'
-                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-                        }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
+
+              {/* Documents Upload Section */}
+              <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5"><Paperclip size={13} /> Documents</label>
+                  <span className="text-[10px] text-gray-400">{(editForm.documents || []).length} file(s)</span>
                 </div>
-              </div>
-            </div>
 
-            {/* Full-width Address */}
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Address</label>
-              <textarea placeholder="Full residential address" value={editForm.address || ''}
-                onChange={e => setEditForm(s => ({ ...s, address: e.target.value }))}
-                rows={3}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
-              />
-            </div>
-
-            {/* Documents Section */}
-            <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5"><Paperclip size={13} /> Documents</label>
-                <span className="text-[10px] text-gray-400">{(editForm.documents || []).length} file(s)</span>
-              </div>
-
-              {/* Existing uploaded docs list */}
-              {(editForm.documents || []).length > 0 && (
-                <div className="space-y-2 mb-3">
-                  {(editForm.documents || []).map((doc, i) => {
-                    const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(doc.url || '')
-                    return (
-                      <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100">
-                        {isImg
-                          ? <img src={doc.url} alt={doc.name} className="w-8 h-8 rounded object-cover border border-gray-200" />
-                          : <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center border border-indigo-100"><FileText size={14} className="text-indigo-400" /></div>
+                {/* Existing uploaded docs list */}
+                {(editForm.documents || []).length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {(editForm.documents || []).map((doc, i) => {
+                      const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(doc.url || '')
+                      return (
+                        <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100">
+                          {isImg
+                            ? <img src={doc.url} alt={doc.name} className="w-8 h-8 rounded object-cover border border-gray-200" />
+                            : <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center border border-indigo-100"><FileText size={14} className="text-indigo-400" /></div>
                         }
                         <span className="flex-1 text-[11px] font-medium text-gray-700 truncate">{doc.name}</span>
                         <button
@@ -1622,52 +1520,52 @@ export default function SettingsTab() {
                           <X size={13} />
                         </button>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                    })}
+                  </div>
+                )}
 
-              {/* Upload new document row */}
-              <div className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  placeholder="Document label (e.g. Aadhaar)"
-                  value={newDocUpload.name}
-                  onChange={e => setNewDocUpload(s => ({ ...s, name: e.target.value }))}
-                  className="flex-1 h-9 border border-gray-200 rounded-lg px-3 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-                <label className={`h-9 px-3 rounded-lg border text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-all ${newDocUpload.uploading
-                  ? 'bg-gray-100 text-gray-400 border-gray-200'
-                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
-                  }`}>
-                  {newDocUpload.uploading ? (
-                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
-                  ) : <Paperclip size={13} />}
-                  {newDocUpload.uploading ? 'Uploading...' : 'Attach'}
+                {/* Upload new document row */}
+                <div className="flex gap-2 items-center">
                   <input
-                    type="file"
-                    className="hidden"
-                    disabled={newDocUpload.uploading}
-                    onChange={async (e) => {
-                      const file = e.target.files[0]
-                      if (!file) return
-                      const label = newDocUpload.name.trim() || file.name
-                      setNewDocUpload(s => ({ ...s, uploading: true }))
-                      try {
-                        const url = await handleFileUpload(file, `employees/${editingEmp}/docs/${Date.now()}_${file.name}`)
-                        if (url) {
-                          setEditForm(s => ({
-                            ...s,
-                            documents: [...(s.documents || []), { name: label, url, type: file.type }]
-                          }))
-                        }
-                      } finally {
-                        setNewDocUpload({ name: '', file: null, uploading: false })
-                      }
-                      e.target.value = ''
-                    }}
+                    type="text"
+                    placeholder="Document label (e.g. Aadhaar)"
+                    value={newDocUpload.name}
+                    onChange={e => setNewDocUpload(s => ({ ...s, name: e.target.value }))}
+                    className="flex-1 h-9 border border-gray-200 rounded-lg px-3 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                   />
-                </label>
+                  <label className={`h-9 px-3 rounded-lg border text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-all ${newDocUpload.uploading
+                    ? 'bg-gray-100 text-gray-400 border-gray-200'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900'
+                    }`}>
+                    {newDocUpload.uploading ? (
+                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
+                    ) : <Paperclip size={13} />}
+                    {newDocUpload.uploading ? 'Uploading...' : 'Attach'}
+                    <input
+                      type="file"
+                      className="hidden"
+                      disabled={newDocUpload.uploading}
+                      onChange={async (e) => {
+                        const file = e.target.files[0]
+                        if (!file) return
+                        const label = newDocUpload.name.trim() || file.name
+                        setNewDocUpload(s => ({ ...s, uploading: true }))
+                        try {
+                          const url = await handleFileUpload(file, `employees/${editingEmp}/docs/${Date.now()}_${file.name}`)
+                          if (url) {
+                            setEditForm(s => ({
+                              ...s,
+                              documents: [...(s.documents || []), { name: label, url, type: file.type }]
+                            }))
+                          }
+                        } finally {
+                          setNewDocUpload({ name: '', file: null, uploading: false })
+                        }
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -1855,7 +1753,7 @@ export default function SettingsTab() {
             </div>
 
             {/* Login Enabled Toggle */}
-            <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+            <div className="flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
               <div>
                 <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
                 <p className="text-[10px] text-indigo-500">Allow employee to access the system</p>
@@ -2181,6 +2079,70 @@ export default function SettingsTab() {
                 className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-[12px] font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
               >
                 <Save size={14} /> Save Default
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Preview Modal */}
+      {showPreview && employees[previewEmpIndex] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800">Employee Preview</h3>
+              <button onClick={() => setShowPreview(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              {(() => {
+                const emp = employees[previewEmpIndex]
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+                      {emp.photoURL ? (
+                        <img src={emp.photoURL} alt={emp.name} className="w-20 h-20 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-xl font-bold" style={{ backgroundColor: getAvatarColor(emp.id) }}>
+                          {getInitials(emp.name)}
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-800">{emp.name}</h4>
+                        <p className="text-sm text-gray-500">{emp.designation || 'No designation'}</p>
+                        <p className="text-xs text-gray-400 mt-1">{emp.empCode || 'No code'}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><p className="text-xs text-gray-400">Department</p><p className="text-sm font-medium">{emp.department || '-'}</p></div>
+                      <div><p className="text-xs text-gray-400">Email</p><p className="text-sm font-medium">{emp.email || '-'}</p></div>
+                      <div><p className="text-xs text-gray-400">Phone</p><p className="text-sm font-medium">{emp.contactNo || '-'}</p></div>
+                      <div><p className="text-xs text-gray-400">Emergency</p><p className="text-sm font-medium">{emp.emergencyContact || '-'}</p></div>
+                      <div><p className="text-xs text-gray-400">Join Date</p><p className="text-sm font-medium">{emp.joinedDate || '-'}</p></div>
+                      <div><p className="text-xs text-gray-400">Status</p><p className="text-sm font-medium">{emp.status || '-'}</p></div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-xl">
+              <button 
+                onClick={() => setPreviewEmpIndex(i => Math.max(0, i - 1))}
+                disabled={previewEmpIndex === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+              <span className="text-sm text-gray-500">
+                {previewEmpIndex + 1} of {employees.length}
+              </span>
+              <button 
+                onClick={() => setPreviewEmpIndex(i => Math.min(employees.length - 1, i + 1))}
+                disabled={previewEmpIndex === employees.length - 1}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight size={16} />
               </button>
             </div>
           </div>
