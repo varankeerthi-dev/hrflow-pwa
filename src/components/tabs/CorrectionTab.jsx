@@ -951,12 +951,12 @@ export default function CorrectionTab() {
                     </td>
                     
                     {/* Date */}
-                    <td className="px-3 border-r border-gray-100 text-[10px] font-bold text-gray-500">
+                    <td className="px-3 border-r border-gray-100 text-[10px] font-bold text-gray-500" style={{ fontFamily: "'Roboto', sans-serif" }}>
                       {formatDateShort(row.date)}
                     </td>
                     
                     {/* Employee Name */}
-                    <td className="px-3 border-r border-gray-100 text-[11px] font-black text-gray-800 uppercase truncate">
+                    <td className="px-3 border-r border-gray-100 text-[11px] font-black text-gray-800 uppercase truncate" style={{ fontFamily: "'Roboto', sans-serif" }}>
                       {row.name}
                     </td>
                     
@@ -978,13 +978,13 @@ export default function CorrectionTab() {
                           }}
                           className={`w-[70px] h-7 rounded-full p-[2px] flex items-center transition-all ${inlineForm.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-100'}`}
                         >
-                          <span className={`text-[8px] font-bold ${inlineForm.shiftType === 'Night' ? 'text-slate-300 ml-1' : 'text-emerald-700 mr-1'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                          <span className={`text-[8px] font-bold ${inlineForm.shiftType === 'Night' ? 'text-slate-300 ml-1' : 'text-emerald-700 mr-1'}`} style={{ fontFamily: "'Roboto', sans-serif" }}>
                             {inlineForm.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
                           </span>
                           <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-all ${inlineForm.shiftType === 'Night' ? 'ml-auto' : 'mr-auto'}`} />
                         </button>
                       ) : (
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold ${row.shiftType === 'Night' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold ${row.shiftType === 'Night' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'}`} style={{ fontFamily: "'Roboto', sans-serif" }}>
                           {row.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
                         </div>
                       )}
@@ -997,6 +997,7 @@ export default function CorrectionTab() {
                           <button
                             onClick={() => setShowInlineInTimePicker(!showInlineInTimePicker)}
                             className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold text-left"
+                            style={{ fontFamily: "'Roboto', sans-serif" }}
                           >
                             {inlineForm.inTime ? (() => {
                               const [h, m] = inlineForm.inTime.split(':').map(Number)
@@ -1014,7 +1015,7 @@ export default function CorrectionTab() {
                           )}
                         </div>
                       ) : (
-                        <span className="text-[10px] font-semibold text-gray-700">
+                        <span className="text-[10px] font-semibold text-gray-700" style={{ fontFamily: "'Roboto', sans-serif" }}>
                           {row.in === '-' ? '-' : formatTimeTo12Hour(row.in)}
                         </span>
                       )}
@@ -1027,6 +1028,7 @@ export default function CorrectionTab() {
                           <button
                             onClick={() => setShowInlineOutTimePicker(!showInlineOutTimePicker)}
                             className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold text-left"
+                            style={{ fontFamily: "'Roboto', sans-serif" }}
                           >
                             {inlineForm.outTime ? (() => {
                               const [h, m] = inlineForm.outTime.split(':').map(Number)
@@ -1046,20 +1048,20 @@ export default function CorrectionTab() {
                           {inlineForm.shiftType === 'Night' && inlineForm.outDate && (
                             <div className="flex items-center justify-center gap-1 mt-0.5">
                               <ArrowRightIcon size={10} className="text-slate-400" />
-                              <span className="text-[8px] text-slate-500">{displayShortDate(inlineForm.outDate)}</span>
+                              <span className="text-[8px] text-slate-500" style={{ fontFamily: "'Roboto', sans-serif" }}>{displayShortDate(inlineForm.outDate)}</span>
                             </div>
                           )}
                         </div>
                       ) : (
                         <div>
-                          <span className="text-[10px] font-semibold text-gray-700">
+                          <span className="text-[10px] font-semibold text-gray-700" style={{ fontFamily: "'Roboto', sans-serif" }}>
                             {row.out === '-' ? '-' : formatTimeTo12Hour(row.out)}
                           </span>
                           {/* Overnight indicator for Night shift */}
                           {row.shiftType === 'Night' && row.outDate && (
                             <div className="flex items-center justify-center gap-1 mt-0.5">
                               <ArrowRightIcon size={10} className="text-slate-400" />
-                              <span className="text-[8px] text-slate-500">{displayShortDate(row.outDate)}</span>
+                              <span className="text-[8px] text-slate-500" style={{ fontFamily: "'Roboto', sans-serif" }}>{displayShortDate(row.outDate)}</span>
                             </div>
                           )}
                         </div>
@@ -1068,7 +1070,7 @@ export default function CorrectionTab() {
                     
                     {/* OT */}
                     <td className="px-3 border-r border-gray-100 text-center">
-                      <span className="text-[10px] font-black text-indigo-600 font-mono">
+                      <span className="text-[10px] font-black text-indigo-600" style={{ fontFamily: "'Roboto', sans-serif" }}>
                         {row.ot === '-' ? '-' : formatOTDisplay(row.ot)}
                       </span>
                     </td>
@@ -1081,10 +1083,11 @@ export default function CorrectionTab() {
                           value={inlineForm.site}
                           onChange={e => setInlineForm(f => ({ ...f, site: e.target.value }))}
                           className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold"
+                          style={{ fontFamily: "'Roboto', sans-serif" }}
                           placeholder="Site"
                         />
                       ) : (
-                        <span className="text-[10px] font-semibold text-gray-500 uppercase truncate">
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase truncate" style={{ fontFamily: "'Roboto', sans-serif" }}>
                           {row.site === '-' ? '-' : row.site}
                         </span>
                       )}
@@ -1097,6 +1100,7 @@ export default function CorrectionTab() {
                           value={inlineForm.status}
                           onChange={e => setInlineForm(f => ({ ...f, status: e.target.value }))}
                           className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold"
+                          style={{ fontFamily: "'Roboto', sans-serif" }}
                         >
                           <option value="Present">Present</option>
                           <option value="Absent">Absent</option>
@@ -1106,7 +1110,7 @@ export default function CorrectionTab() {
                           row.status === 'PRESENT' ? 'bg-green-100 text-green-600' :
                           row.status === 'ABSENT' ? 'bg-red-100 text-red-500' :
                           'bg-gray-100 text-gray-400'
-                        }`}>
+                        }`} style={{ fontFamily: "'Roboto', sans-serif" }}>
                           {row.status}
                         </span>
                       )}
