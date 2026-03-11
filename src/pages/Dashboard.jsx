@@ -179,6 +179,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('home')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
+  const [expandedGroups, setExpandedGroups] = useState(['main']) // Default expand Main group
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
 
@@ -365,50 +366,100 @@ export default function Dashboard() {
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Clean Sidebar */}
+        {/* Compact Zo Computer Style Sidebar */}
         <aside 
-          className={`bg-white border-r border-gray-100 hidden md:flex flex-col shrink-0 transition-all duration-300 ${isCollapsed ? 'w-[70px]' : 'w-[240px]'}`}
+          className={`bg-[#fafafa] border-r border-gray-200 hidden md:flex flex-col shrink-0 transition-all duration-200 ${isCollapsed ? 'w-[56px]' : 'w-[200px]'}`}
         >
-          <nav className="flex-1 px-3 py-4 space-y-1">
-            {sections.map(section => {
-              const sectionTabs = allTabs.filter(t => {
-                if (!section.tabs.includes(t.id)) return false
+          <nav className="flex-1 py-2 space-y-0.5 overflow-hidden">
+            {[
+              {
+                id: 'main',
+                label: 'Main',
+                items: allTabs.filter(t => ['home'].includes(t.id))
+              },
+              {
+                id: 'hr',
+                label: 'HR',
+                items: allTabs.filter(t => ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'summary'].includes(t.id))
+              },
+              {
+                id: 'payroll',
+                label: 'Payroll',
+                items: allTabs.filter(t => ['salary-slip', 'advance', 'fines'].includes(t.id))
+              },
+              {
+                id: 'workforce',
+                label: 'Workforce',
+                items: allTabs.filter(t => ['engage', 'shift-planning'].includes(t.id))
+              },
+              {
+                id: 'account',
+                label: 'Account',
+                items: allTabs.filter(t => ['portal', 'settings'].includes(t.id))
+              }
+            ].map(group => {
+              // Check if any item in this group is visible to user
+              const visibleItems = group.items.filter(item => {
                 if (user?.role === 'admin') return true
-                if (!rolePermissions) return t.id === 'portal'
-                return rolePermissions[t.module]?.view || rolePermissions[t.module]?.full
-              });
+                if (!rolePermissions) return item.id === 'portal'
+                return rolePermissions[item.module]?.view || rolePermissions[item.module]?.full
+              })
               
-              if (sectionTabs.length === 0) return null;
+              if (visibleItems.length === 0) return null
+              
+              // Check if any item in this group is active
+              const isGroupActive = visibleItems.some(item => item.id === activeTab)
               
               return (
-                <div key={section.title} className="flex flex-col gap-1">
-                  <div className="space-y-1">
-                    {sectionTabs.map(tab => {
-                      const isActive = activeTab === tab.id
+                <div key={group.id} className="px-2">
+                  {/* Section Header - Collapsible */}
+                  {!isCollapsed && (
+                    <button
+                      onClick={() => setExpandedGroups(prev => 
+                        prev.includes(group.id) 
+                          ? prev.filter(g => g !== group.id)
+                          : [...prev, group.id]
+                      )}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                        isGroupActive ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      <span>{group.label}</span>
+                      <ChevronRight 
+                        size={12} 
+                        className={`transition-transform duration-150 ${expandedGroups.includes(group.id) ? 'rotate-90' : ''}`}
+                      />
+                    </button>
+                  )}
+                  
+                  {/* Section Items */}
+                  <div className={`space-y-0.5 ${!isCollapsed && !expandedGroups.includes(group.id) && !isGroupActive ? 'hidden' : ''}`}>
+                    {visibleItems.map(item => {
+                      const isActive = activeTab === item.id
                       return (
                         <button
-                          key={tab.id}
-                          onClick={() => setActiveTab(tab.id)}
-                          title={isCollapsed ? tab.label : ''}
-                          className={`w-full flex items-center h-11 rounded-xl transition-all duration-200 ${isCollapsed ? 'justify-center px-0' : 'px-4 gap-3'} ${
+                          key={item.id}
+                          onClick={() => setActiveTab(item.id)}
+                          title={isCollapsed ? item.label : ''}
+                          className={`w-full flex items-center h-7 rounded-md transition-all duration-150 ${
+                            isCollapsed ? 'justify-center px-0' : 'px-2 gap-2'
+                          } ${
                             isActive 
-                              ? 'bg-[#FFF7ED] text-amber-900 font-semibold' 
-                              : 'text-gray-600 font-medium hover:bg-gray-50'
+                              ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200' 
+                              : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
                           }`}
                         >
-                          <span className={`shrink-0 ${isActive ? 'text-amber-700' : 'text-gray-500'}`}>
-                            {tab.icon}
+                          <span className={`shrink-0 ${isActive ? 'text-gray-700' : 'text-gray-400'}`}>
+                            {React.cloneElement(item.icon, { size: 16 })}
                           </span>
-                          
                           {!isCollapsed && (
-                            <span className="flex-1 text-left text-[14px]">
-                              {tab.label}
+                            <span className="flex-1 text-left text-[12px] truncate font-medium">
+                              {item.label}
                             </span>
                           )}
-
-                          {tab.id === 'approvals' && !isCollapsed && (
-                            <span className="shrink-0 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold px-1.5 min-w-[18px] h-[18px] rounded-full">
-                              {tab.badge}
+                          {item.badge && (
+                            <span className={`shrink-0 bg-red-500 text-white text-[9px] font-bold min-w-[14px] h-[14px] rounded-full flex items-center justify-center ${isCollapsed ? 'absolute -top-0.5 -right-0.5' : ''}`}>
+                              {item.badge}
                             </span>
                           )}
                         </button>
@@ -416,17 +467,18 @@ export default function Dashboard() {
                     })}
                   </div>
                 </div>
-              );
+              )
             })}
           </nav>
 
-          <div className="p-3 border-t border-gray-100">
+          {/* Collapse Toggle */}
+          <div className="p-2 border-t border-gray-200">
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className={`w-full flex items-center h-10 rounded-xl text-gray-500 hover:bg-gray-50 transition-all ${isCollapsed ? 'justify-center' : 'px-4 gap-3'}`}
+              className={`w-full flex items-center h-7 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all ${isCollapsed ? 'justify-center px-0' : 'px-2 gap-2'}`}
             >
-              <PanelLeft size={18} className={isCollapsed ? 'rotate-180' : ''} />
-              {!isCollapsed && <span className="text-[14px] font-medium">Collapse</span>}
+              <PanelLeft size={16} className={isCollapsed ? 'rotate-180' : ''} />
+              {!isCollapsed && <span className="text-[12px] font-medium">Collapse</span>}
             </button>
           </div>
         </aside>
