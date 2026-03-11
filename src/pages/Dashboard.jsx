@@ -301,6 +301,41 @@ export default function Dashboard() {
               )}
               <span className="text-md font-black text-gray-900 tracking-tight">{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
             </div>
+            
+            {/* Quick Access Bar - moved to header */}
+            {(() => {
+              const quickActions = [
+                { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={15} />, module: 'Attendance', right: 'create' },
+                { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
+                { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
+                { label: 'Make Correction', tab: 'correction', icon: <PencilLine size={15} />, module: 'Correction', right: 'create' },
+                { label: 'Full Summary', tab: 'summary', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
+              ].filter(item => {
+                if (user?.role === 'admin') return true
+                if (!rolePermissions) return false
+                return rolePermissions[item.module]?.[item.right] || rolePermissions[item.module]?.full
+              })
+
+              if (quickActions.length === 0) return null
+
+              return (
+                <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200">
+                  {quickActions.map(item => (
+                    <button
+                      key={item.tab}
+                      onClick={() => setActiveTab(item.tab)}
+                      className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-[11px] font-medium whitespace-nowrap transition-all ${activeTab === item.tab
+                        ? 'bg-gray-100 border-gray-400 text-gray-800'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
           </div>
 
           <div className="flex items-center gap-4">
@@ -328,41 +363,6 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
-
-      {/* Quick Access Bar - restricted by permissions */}
-      {(() => {
-        const quickActions = [
-          { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={15} />, module: 'Attendance', right: 'create' },
-          { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
-          { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
-          { label: 'Make Correction', tab: 'correction', icon: <PencilLine size={15} />, module: 'Correction', right: 'create' },
-          { label: 'Full Summary', tab: 'summary', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
-        ].filter(item => {
-          if (user?.role === 'admin') return true
-          if (!rolePermissions) return false
-          return rolePermissions[item.module]?.[item.right] || rolePermissions[item.module]?.full
-        })
-
-        if (quickActions.length === 0) return null
-
-        return (
-          <div className="sticky top-14 z-30 bg-white border-b border-gray-100 px-4 py-2 flex items-center gap-2 shrink-0 overflow-x-auto">
-            {quickActions.map(item => (
-              <button
-                key={item.tab}
-                onClick={() => setActiveTab(item.tab)}
-                className={`flex items-center gap-2 px-3 h-9 rounded-md border text-[12px] font-medium whitespace-nowrap transition-all ${activeTab === item.tab
-                  ? 'bg-gray-100 border-gray-400 text-gray-800'
-                  : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50'
-                  }`}
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        )
-      })()}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Clean Sidebar */}

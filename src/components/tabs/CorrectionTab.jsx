@@ -871,9 +871,7 @@ export default function CorrectionTab() {
       </div>
 
       {/* Summary Cards */}
-      <div className="no-print">
-        <AttendanceSummaryCards results={results} />
-      </div>
+      <AttendanceSummaryCards results={results} />
 
       {/* Main Content */}
       <div className="flex-1 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-0">
