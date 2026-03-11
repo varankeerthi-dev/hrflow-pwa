@@ -36,7 +36,18 @@ export default function SalarySlipTab() {
 
   const [activeBottomTab, setActiveBottomTab] = useState('ot') // 'ot' or 'advances'
   const [continuousLeaveRule, setContinuousLeaveRule] = useState(false)
+  const [orgLogo, setOrgLogo] = useState('')
   const slipRef = useRef(null)
+
+  // Fetch organization logo
+  useEffect(() => {
+    if (!user?.orgId) return
+    getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
+      if (snap.exists()) {
+        setOrgLogo(snap.data().logoURL || '')
+      }
+    })
+  }, [user?.orgId])
 
   const formatMonthYear = (monthStr) => {
     const [year, month] = monthStr.split('-')
@@ -298,9 +309,12 @@ export default function SalarySlipTab() {
 
             <div ref={slipRef} className="p-12 bg-white" style={{ fontFamily: 'Roboto, sans-serif' }}>
               <div className="border-b-4 border-gray-900 pb-6 mb-8 flex justify-between items-start">
-                <div>
-                  <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter leading-none">{user?.orgName || 'ORGANISATION'}</h1>
-                  <p className="text-[11px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-3">Personnel Remuneration Advice</p>
+                <div className="flex items-center gap-4">
+                  {orgLogo && <img src={orgLogo} alt="Logo" className="w-16 h-16 object-contain" />}
+                  <div>
+                    <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter leading-none">{user?.orgName || 'ORGANISATION'}</h1>
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-3">Personnel Remuneration Advice</p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <h2 className="text-xl font-black text-gray-800 tracking-tight uppercase">Monthly Payslip</h2>

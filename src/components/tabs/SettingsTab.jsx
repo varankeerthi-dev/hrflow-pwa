@@ -1087,12 +1087,12 @@ export default function SettingsTab() {
                                   onClick={async () => {
                                     // Set basic info immediately to avoid blank form
                                     setEditingEmp(emp.id)
-                                    setEditForm({ ...emp, loginEnabled: false, tempPassword: '' })
+                                    setEditForm({ ...emp, loginEnabled: emp.loginEnabled || false, tempPassword: '' })
                                     
                                     // Fetch additional login info in the background
                                     const userDoc = await getDoc(doc(db, 'users', emp.id))
                                     const userData = userDoc.exists() ? userDoc.data() : {}
-                                    setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled || false }))
+                                    setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : (emp.loginEnabled || false) }))
                                   }}
                                   title="Edit employee"
                                   className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
