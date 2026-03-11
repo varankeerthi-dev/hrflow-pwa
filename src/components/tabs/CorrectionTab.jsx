@@ -55,12 +55,12 @@ function AttendanceFilterBar({ selectedDate, setSelectedDate, onRefresh, onViewD
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => handleDateChange(-1)}
-          className="h-[38px] px-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-all flex items-center gap-1.5 text-[11px] font-semibold"
+          className="h-[34px] px-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-all flex items-center gap-1.5 text-[11px] font-semibold"
         >
           <ArrowLeft size={14} /> Previous Day
         </button>
         
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 h-[38px]">
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 h-[34px]">
           <Calendar size={14} className="text-indigo-500" />
           <input
             type="date"
@@ -72,14 +72,14 @@ function AttendanceFilterBar({ selectedDate, setSelectedDate, onRefresh, onViewD
 
         <button
           onClick={() => handleDateChange(1)}
-          className="h-[38px] px-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-all flex items-center gap-1.5 text-[11px] font-semibold"
+          className="h-[34px] px-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-all flex items-center gap-1.5 text-[11px] font-semibold"
         >
           Next Day <ArrowRight size={14} />
         </button>
 
         <button
           onClick={onViewDay}
-          className="h-[38px] px-5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all text-[11px] font-bold uppercase tracking-wider shadow-md"
+          className="h-[34px] px-5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all text-[11px] font-bold uppercase tracking-wider shadow-md"
         >
           View Day
         </button>
@@ -87,7 +87,7 @@ function AttendanceFilterBar({ selectedDate, setSelectedDate, onRefresh, onViewD
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="h-[38px] px-4 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all flex items-center gap-2 text-[11px] font-bold shadow-md disabled:opacity-50"
+          className="h-[34px] px-4 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all flex items-center gap-2 text-[11px] font-bold shadow-md disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
         </button>
@@ -939,7 +939,7 @@ export default function CorrectionTab() {
                     </td>
                   </tr>
                 ) : results.map((row, idx) => (
-                  <tr key={idx} className={`h-[38px] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-amber-50/30'}`}>
+                  <tr key={idx} className={`h-[34px] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-amber-50/30'}`}>
                     {/* Checkbox */}
                     <td className="px-3 border-r border-gray-100 no-print">
                       <input
@@ -976,12 +976,12 @@ export default function CorrectionTab() {
                               otHours: calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, newOutDate, inlineForm.minDailyHours || 8)
                             }))
                           }}
-                          className={`w-[70px] h-7 rounded-full p-[2px] flex items-center transition-all ${inlineForm.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-100'}`}
+                          className={`w-[60px] h-5 rounded-full p-[1px] flex items-center transition-all ${inlineForm.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-100'}`}
                         >
-                          <span className={`text-[8px] font-bold ${inlineForm.shiftType === 'Night' ? 'text-slate-300 ml-1' : 'text-emerald-700 mr-1'}`} style={{ fontFamily: "'Roboto', sans-serif" }}>
+                          <span className={`text-[7px] font-bold ${inlineForm.shiftType === 'Night' ? 'text-slate-300 ml-1' : 'text-emerald-700 mr-1'}`} style={{ fontFamily: "'Roboto', sans-serif" }}>
                             {inlineForm.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
                           </span>
-                          <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-all ${inlineForm.shiftType === 'Night' ? 'ml-auto' : 'mr-auto'}`} />
+                          <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-all ${inlineForm.shiftType === 'Night' ? 'ml-auto' : 'mr-auto'}`} />
                         </button>
                       ) : (
                         <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold ${row.shiftType === 'Night' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'}`} style={{ fontFamily: "'Roboto', sans-serif" }}>
