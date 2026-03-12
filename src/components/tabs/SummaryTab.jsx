@@ -457,7 +457,7 @@ export default function SummaryTab() {
           {pivotLoading ? (
             <div className="text-center py-20"><Spinner /></div>
           ) : (
-            <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+            <div className="overflow-x-auto max-h-[calc(100vh-200px)] flex-1 overflow-y-auto">
               <table id="monthly-pivot-table" className="w-full text-left border-collapse text-[10px]">
                 <thead className="sticky top-0 z-10 bg-gray-50">
                   <tr>
