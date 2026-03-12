@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
 import Spinner from '../ui/Spinner'
-import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X } from 'lucide-react'
+import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X, ArrowRight } from 'lucide-react'
 import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
@@ -530,7 +530,7 @@ export default function SummaryTab() {
                                     {isBeforeStart ? (
                                       <span className="text-gray-200">-</span>
                                     ) : shift ? (
-                                      <span className="text-[8px] font-medium text-gray-600">{shift.type || 'D'}</span>
+                                      <span className="text-[8px] font-medium text-gray-600">{shift.type === 'Night' ? 'N' : 'D'}</span>
                                     ) : (
                                       <span className="text-gray-200">-</span>
                                     )}
