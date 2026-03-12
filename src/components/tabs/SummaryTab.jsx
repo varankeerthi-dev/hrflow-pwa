@@ -468,7 +468,7 @@ export default function SummaryTab() {
                       <th 
                         key={emp.id} 
                         className={`px-1 py-2 text-center font-bold border-b border-r border-gray-200 min-w-[60px] bg-gray-50 ${getEmployeeColor(idx)}`}
-                        colSpan={4}
+                        colSpan={3}
                       >
                         <div className="text-[9px] font-inter truncate max-w-[80px] mx-auto">{emp.name}</div>
                       </th>
@@ -477,7 +477,6 @@ export default function SummaryTab() {
                   <tr>
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Shift</th>
                         <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>In</th>
                         <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Out</th>
                         <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>OT</th>
@@ -519,22 +518,13 @@ export default function SummaryTab() {
                           return (
                             <React.Fragment key={emp.id}>
                               {isAbsentOrNonWorking ? (
-                                <td colSpan={4} className={`px-0.5 py-1 text-center border-b border-r border-gray-50 ${isBeforeStart ? 'bg-gray-50' : 'bg-red-50'}`}>
+                                <td colSpan={3} className={`px-0.5 py-1 text-center border-b border-r border-gray-50 ${isBeforeStart ? 'bg-gray-50' : 'bg-red-50'}`}>
                                   <span className={`text-[10px] font-inter font-bold ${isBeforeStart ? 'text-gray-200' : status.color}`}>
                                     {isBeforeStart ? '-' : status.text}
                                   </span>
                                 </td>
                               ) : (
                                 <>
-                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50">
-                                    {isBeforeStart ? (
-                                      <span className="text-gray-200">-</span>
-                                    ) : shift ? (
-                                      <span className="text-[8px] font-inter font-medium text-gray-600">{shift.type === 'Night' ? 'N' : 'D'}</span>
-                                    ) : (
-                                      <span className="text-gray-200">-</span>
-                                    )}
-                                  </td>
                                   <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-inter font-mono text-gray-600">
                                     {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
                                   </td>
