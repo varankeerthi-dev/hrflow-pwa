@@ -360,7 +360,7 @@ export default function SummaryTab() {
           </div>
 
           {/* Detailed Report Table Card */}
-          <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-[#E8E8E8] rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-gray-50">
               <div className="flex items-center gap-2">
                 <FileSpreadsheet size={16} className="text-gray-400" />
@@ -539,7 +539,26 @@ export default function SummaryTab() {
                                     {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
                                   </td>
                                   <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
-                                    {isBeforeStart ? '-' : formatTimeTo12Hour(att?.outTime) || '-'}
+                                    {(() => {
+                                      if (isBeforeStart) return '-'
+                                      const time = formatTimeTo12Hour(att?.outTime)
+                                      if (!time) return '-'
+                                      const isOvernight = att?.shiftType === 'Night' && att?.outDate && att?.inDate && att.outDate !== att.inDate
+                                      if (isOvernight) {
+                                        const outDate = new Date(att.outDate)
+                                        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                                        const shortDate = `${months[outDate.getMonth()]} ${outDate.getDate()}`
+                                        return (
+                                          <div className="flex flex-col items-center leading-tight">
+                                            <span>{time}</span>
+                                            <span className="text-[7px] text-gray-500 flex items-center gap-0.5 mt-0.5">
+                                              <ArrowRight size={8} /> {shortDate}
+                                            </span>
+                                          </div>
+                                        )
+                                      }
+                                      return time
+                                    })()}
                                   </td>
                                   <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
                                     {isBeforeStart ? '-' : formatOTHours(att?.otHours)}
