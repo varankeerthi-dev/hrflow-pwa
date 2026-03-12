@@ -457,34 +457,34 @@ export default function SummaryTab() {
           {pivotLoading ? (
             <div className="text-center py-20"><Spinner /></div>
           ) : (
-            <div className="overflow-x-auto max-h-[calc(100vh-200px)] flex-1 overflow-y-auto">
-              <table id="monthly-pivot-table" className="w-full text-left border-collapse text-[10px] font-inter">
-                <thead className="sticky top-0 z-10 bg-gray-50">
+            <div className="overflow-x-auto max-h-[calc(100vh-200px)] flex-1 overflow-y-auto bg-[#E8E8E8]">
+              <table id="monthly-pivot-table" className="w-full border-separate border-spacing-0 text-[11px] font-inter">
+                <thead className="sticky top-0 z-10">
                   <tr>
-                    <th className="px-1 py-2 text-center font-bold text-gray-600 border-b border-r border-gray-200 w-8 bg-gray-100" rowSpan={2}>
-                      Date
+                    <th className="px-2 py-2 text-center font-bold text-gray-800 border border-gray-400 w-10 bg-gray-200" rowSpan={2}>
+                      <div className="text-[10px]">Date</div>
                     </th>
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <th 
                         key={emp.id} 
-                        className={`px-1 py-2 text-center font-bold border-b border-r border-gray-200 min-w-[60px] bg-gray-50 ${getEmployeeColor(idx)}`}
+                        className={`px-1 py-2 text-center font-bold border border-gray-400 min-w-[70px] bg-gray-100 text-gray-800`}
                         colSpan={3}
                       >
-                        <div className="text-[9px] font-inter truncate max-w-[80px] mx-auto">{emp.name}</div>
+                        <div className="text-[10px] font-inter font-semibold truncate max-w-[100px] mx-auto text-gray-900">{emp.name}</div>
                       </th>
                     ))}
                   </tr>
                   <tr>
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>In</th>
-                        <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Out</th>
-                        <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>OT</th>
+                        <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>In</th>
+                        <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>Out</th>
+                        <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>OT</th>
                       </React.Fragment>
                     ))}
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white">
                   {Array.from({ length: monthlyViewData.daysInMonth || 31 }, (_, i) => i + 1).map(day => {
                     const [year, month] = selectedMonth.split('-').map(Number)
                     const currentDate = new Date(year, month - 1, day)
@@ -497,13 +497,13 @@ export default function SummaryTab() {
                     const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' })
                     
                     const rowClass = isSunday ? 'bg-red-25' : (isHoliday ? 'bg-amber-25' : (isWeekend ? 'bg-purple-25' : ''))
-                    const dateClass = isSunday ? 'bg-red-100 text-red-700' : (isHoliday ? 'bg-amber-100 text-amber-700' : (isWeekend ? 'bg-purple-50 text-purple-700' : 'bg-gray-50 text-gray-600'))
+                    const dateClass = isSunday ? 'bg-red-100 text-red-800 border border-gray-400' : (isHoliday ? 'bg-amber-100 text-amber-800 border border-gray-400' : (isWeekend ? 'bg-purple-100 text-purple-800 border border-gray-400' : 'bg-gray-100 text-gray-900 border border-gray-400'))
                     
                     return (
                       <tr key={day} className={rowClass}>
-                        <td className={`px-1 py-1 text-center font-bold border-b border-r border-gray-100 ${dateClass}`}>
-                          <span className="text-[9px] font-inter">{day}</span>
-                          <div className="text-[7px] opacity-60">{dayName}</div>
+                        <td className={`px-2 py-1.5 text-center font-bold ${dateClass}`}>
+                          <span className="text-[10px] font-inter font-bold">{day}</span>
+                          <div className="text-[8px] font-semibold opacity-80">{dayName}</div>
                         </td>
                         {monthlyViewData.employees?.map(emp => {
                           const [empYear, empMonth] = selectedMonth.split('-').map(Number)
@@ -518,17 +518,17 @@ export default function SummaryTab() {
                           return (
                             <React.Fragment key={emp.id}>
                               {isAbsentOrNonWorking ? (
-                                <td colSpan={3} className={`px-0.5 py-1 text-center border-b border-r border-gray-50 ${isBeforeStart ? 'bg-gray-50' : 'bg-red-50'}`}>
-                                  <span className={`text-[10px] font-inter font-bold ${isBeforeStart ? 'text-gray-200' : status.color}`}>
+                                <td colSpan={3} className={`px-1 py-1.5 text-center border border-gray-400 ${isBeforeStart ? 'bg-gray-100' : status.bg}`}>
+                                  <span className={`text-[11px] font-inter font-bold ${isBeforeStart ? 'text-gray-400' : status.color}`}>
                                     {isBeforeStart ? '-' : status.text}
                                   </span>
                                 </td>
                               ) : (
                                 <>
-                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-inter font-mono text-gray-600">
+                                  <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
                                     {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
                                   </td>
-                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-inter font-mono text-gray-600">
+                                  <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
                                     {(() => {
                                       if (isBeforeStart) return '-'
                                       const time = formatTimeTo12Hour(att?.outTime)
@@ -540,17 +540,17 @@ export default function SummaryTab() {
                                         const shortDate = `${months[outDate.getMonth()]} ${outDate.getDate()}`
                                         return (
                                           <div className="flex flex-col items-center leading-tight">
-                                            <span>{time}</span>
-                                            <span className="text-[7px] text-gray-500 flex items-center gap-0.5 mt-0.5">
-                                              <ArrowRight size={8} /> {shortDate}
+                                            <span className="font-semibold">{time}</span>
+                                            <span className="text-[8px] text-gray-600 flex items-center gap-0.5 mt-0.5 font-medium">
+                                              <ArrowRight size={9} /> {shortDate}
                                             </span>
                                           </div>
                                         )
                                       }
-                                      return time
+                                      return <span className="font-semibold">{time}</span>
                                     })()}
                                   </td>
-                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-inter font-mono text-gray-600">
+                                  <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
                                     {isBeforeStart ? '-' : formatOTHours(att?.otHours)}
                                   </td>
                                 </>
