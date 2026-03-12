@@ -1388,6 +1388,26 @@ export default function SettingsTab() {
                     className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                   />
                 </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
+                  <select
+                    value={editForm.role || ''}
+                    onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  >
+                    {roles.length > 0 ? roles.map(r => (
+                      <option key={r.id} value={r.name}>{r.name}</option>
+                    )) : (
+                      <>
+                        <option value="">Select Role...</option>
+                        <option value="Admin">Admin</option>
+                        <option value="HR">HR</option>
+                        <option value="Employee">Employee</option>
+                        <option value="Manager">Manager</option>
+                      </>
+                    )}
+                  </select>
+                </div>
               </div>
             </div>
 
