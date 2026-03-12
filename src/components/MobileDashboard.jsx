@@ -7,6 +7,8 @@ import {
   Calendar,
   PencilLine,
   BarChart3,
+  Briefcase,
+  Folder,
   Users,
   User,
   LogOut,
