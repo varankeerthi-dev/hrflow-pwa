@@ -585,6 +585,18 @@ export default function SettingsTab() {
       }
 
       updateDoc(doc(db, 'organisations', user.orgId, 'roles', roleId), { permissions })
+      
+      // Critical: Find all employees with this role and update their user documents
+      // This ensures security rules are synced immediately
+      const affectedRole = roles.find(r => r.id === roleId)
+      if (affectedRole) {
+        employees.forEach(async (emp) => {
+          if (emp.role?.toLowerCase() === affectedRole.name.toLowerCase()) {
+            await setDoc(doc(db, 'users', emp.id), { permissions }, { merge: true })
+          }
+        })
+      }
+
       return { ...r, permissions }
     }))
   }

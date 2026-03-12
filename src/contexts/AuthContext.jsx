@@ -41,14 +41,22 @@ async function readUserDoc(uid) {
           userData.orgName = orgSnap.data().name
         }
         
-        // Cache role permissions on login
+        // Cache role permissions on login and sync to Firestore user doc for rules
         if (userData.role) {
-          const rolesQuery = query(collection(db, 'organisations', userData.orgId, 'roles'))
+          const rolesQuery = collection(db, 'organisations', userData.orgId, 'roles')
           const rolesSnap = await getDocs(rolesQuery)
           const roleDoc = rolesSnap.docs.find(d => d.data().name.toLowerCase() === userData.role.toLowerCase())
           if (roleDoc) {
-            userData.permissions = roleDoc.data().permissions || {}
+            const permissions = roleDoc.data().permissions || {}
+            userData.permissions = permissions
             console.log('readUserDoc: Cached permissions for role:', userData.role)
+            
+            // Critical: Update the user document in Firestore so security rules can read them
+            // We only update if it's different to save writes
+            if (JSON.stringify(snap.data().permissions) !== JSON.stringify(permissions)) {
+              await setDoc(userRef, { permissions }, { merge: true })
+              console.log('readUserDoc: Synced permissions to Firestore user doc')
+            }
           }
         }
       } catch (err) {

@@ -10,7 +10,28 @@ import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
-import { User, Calendar, FileText, Plus, ArrowRight, ShieldCheck, Mail, Building, Landmark, Hash, Clock, LayoutDashboard } from 'lucide-react'
+import { 
+  User, 
+  Calendar, 
+  FileText, 
+  Plus, 
+  ArrowRight, 
+  ShieldCheck, 
+  Mail, 
+  Building, 
+  Landmark, 
+  Hash, 
+  Clock, 
+  LayoutDashboard,
+  Phone,
+  MapPin,
+  Heart,
+  Users as UsersIcon,
+  Briefcase,
+  Map,
+  CreditCard,
+  Target
+} from 'lucide-react'
 
 export default function EmployeePortalTab() {
   const { user } = useAuth()
@@ -359,48 +380,191 @@ export default function EmployeePortalTab() {
         )}
 
         {activePortalTab === 'profile' && (
-          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Profile Hero Card */}
-            <div className="bg-white rounded-[12px] p-10 border border-gray-100 shadow-sm flex items-center gap-10">
-              <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-4xl font-black shadow-2xl ring-8 ring-indigo-50">
-                {user?.name?.[0]}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">{user?.name}</h2>
-                  <span className="bg-green-100 text-green-700 px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-200">Active Duty</span>
+          <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+            {/* Profile Header Card */}
+            <div className="bg-white rounded-3xl p-8 md:p-12 border border-gray-100 shadow-xl shadow-gray-200/20 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-indigo-100/50 transition-colors duration-1000"></div>
+              
+              <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+                <div className="relative">
+                  {employee?.photoURL ? (
+                    <img src={employee.photoURL} alt={user?.name} className="w-32 h-32 md:w-40 md:h-40 rounded-[40px] object-cover shadow-2xl ring-8 ring-indigo-50" />
+                  ) : (
+                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-[40px] bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center text-white text-5xl font-black shadow-2xl ring-8 ring-indigo-50">
+                      {user?.name?.[0]}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center text-indigo-600 border border-gray-50">
+                    <ShieldCheck size={24} />
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-6 mt-4">
-                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><ShieldCheck size={14} className="text-indigo-500" /> {user?.role || 'Employee'}</div>
-                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><Building size={14} className="text-indigo-500" /> {employee?.department || user?.department || 'Operations'}</div>
-                  <div className="flex items-center gap-2 text-gray-400 font-bold uppercase text-[10px] tracking-widest"><Clock size={14} className="text-indigo-500" /> Joined {employee?.joinedDate || 'N/A'}</div>
+
+                <div className="flex-1 text-center md:text-left">
+                  <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+                    <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">{user?.name}</h2>
+                    <span className={`w-fit mx-auto md:mx-0 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${employee?.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-red-600 border-rose-100'}`}>
+                      {employee?.status || 'Active'} Duty
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-8">
+                    <div className="flex items-center justify-center md:justify-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                        <Briefcase size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Designation</p>
+                        <p className="text-[13px] font-bold text-gray-700">{employee?.designation || 'Staff Member'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center md:justify-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600">
+                        <Building size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Department</p>
+                        <p className="text-[13px] font-bold text-gray-700">{employee?.department || 'General'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center md:justify-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                        <Hash size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Employee ID</p>
+                        <p className="text-[13px] font-bold text-gray-700">{employee?.empCode || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Data Grid Card */}
-            <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-50 bg-gray-50/30 flex justify-between items-center">
-                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Master File Attributes</span>
-                <button className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Request Update</button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-gray-50">
-                {[
-                  { label: 'Primary Email', value: user?.email, icon: <Mail size={16} /> },
-                  { label: 'Organisation', value: user?.orgName, icon: <Building size={16} /> },
-                  { label: 'Staff Identifier', value: employee?.empCode || user?.empCode || 'N/A', icon: <Hash size={16} /> },
-                  { label: 'Settlement Account', value: employee?.bankAccount || 'Not Configured', icon: <Landmark size={16} /> },
-                  { label: 'Permission Allowance', value: `${employee?.permissionHours || user?.permissionHours || 2}h Monthly`, icon: <Clock size={16} /> },
-                  { label: 'Internal Status', value: 'Permanent Employee', icon: <ShieldCheck size={16} /> }
-                ].map(info => (
-                  <div key={info.label} className="p-8 hover:bg-gray-50/50 transition-colors">
-                    <div className="flex items-center gap-3 text-indigo-500 mb-3">
-                      {info.icon}
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{info.label}</p>
-                    </div>
-                    <p className="text-[15px] font-black text-gray-800 uppercase tracking-tight">{info.value}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Personal Information */}
+              <div className="lg:col-span-2 space-y-8">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
+                    <UsersIcon size={18} className="text-indigo-600" />
+                    <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">Personal Identity Details</span>
                   </div>
-                ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-50">
+                    <div className="p-8 space-y-6">
+                      {[
+                        { label: 'Father\'s Name', value: employee?.fatherName, icon: <User size={14} /> },
+                        { label: 'Mother\'s Name', value: employee?.motherName, icon: <User size={14} /> },
+                        { label: 'Date of Birth', value: employee?.dob, icon: <Calendar size={14} /> }
+                      ].map(item => (
+                        <div key={item.label} className="flex items-start gap-4">
+                          <div className="mt-1 text-gray-300">{item.icon}</div>
+                          <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
+                            <p className="text-[14px] font-bold text-gray-700">{item.value || '—'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-8 space-y-6">
+                      {[
+                        { label: 'Blood Group', value: employee?.bloodGroup, icon: <Heart size={14} /> },
+                        { label: 'Marital Status', value: employee?.maritalStatus, icon: <UsersIcon size={14} /> },
+                        { label: 'Emergency Contact', value: employee?.emergencyContact, icon: <Phone size={14} /> }
+                      ].map(item => (
+                        <div key={item.label} className="flex items-start gap-4">
+                          <div className="mt-1 text-gray-300">{item.icon}</div>
+                          <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
+                            <p className="text-[14px] font-bold text-gray-700">{item.value || '—'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
+                    <MapPin size={18} className="text-indigo-600" />
+                    <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">Contact & Residence</span>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-6">
+                      <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Primary Email Address</p>
+                        <p className="text-[14px] font-bold text-indigo-600 lowercase tracking-tight underline underline-offset-4 decoration-indigo-100">{user?.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Mobile Number</p>
+                        <p className="text-[14px] font-bold text-gray-700">{employee?.contactNo || '—'}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Residential Address</p>
+                      <p className="text-[13px] font-medium text-gray-600 leading-relaxed max-w-xs">{employee?.address || 'Residential details not documented in master file.'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Professional & Banking */}
+              <div className="space-y-8">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
+                    <Target size={18} className="text-indigo-600" />
+                    <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">Work Profile</span>
+                  </div>
+                  <div className="p-8 space-y-6">
+                    {[
+                      { label: 'Date Joined', value: employee?.joinedDate, icon: <Calendar size={14} className="text-emerald-500" /> },
+                      { label: 'Employment Type', value: employee?.employmentType, icon: <Briefcase size={14} className="text-blue-500" /> },
+                      { label: 'Work Location / Site', value: employee?.site, icon: <Map size={14} className="text-orange-500" /> },
+                      { label: 'Shift Schedule', value: `${employee?.workHours || 9} Hours Daily`, icon: <Clock size={14} className="text-purple-500" /> },
+                      { label: 'Reporting Manager', value: employee?.reportingManager, icon: <UsersIcon size={14} className="text-indigo-500" /> }
+                    ].map(item => (
+                      <div key={item.label} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-gray-100"></div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{item.label}</p>
+                        </div>
+                        <p className="text-[12px] font-black text-gray-700 text-right">{item.value || 'N/A'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
+                    <CreditCard size={18} className="text-indigo-600" />
+                    <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">Banking & Statutory</span>
+                  </div>
+                  <div className="p-8 space-y-8">
+                    <div className="bg-indigo-50/30 p-5 rounded-2xl border border-indigo-100/50">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Landmark size={16} className="text-indigo-600" />
+                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none">Settlement Bank Account</p>
+                      </div>
+                      <p className="text-[16px] font-mono font-black text-indigo-900 tracking-wider">
+                        {employee?.bankAccount ? employee.bankAccount.replace(/\d(?=\d{4})/g, "•") : 'Not Configured'}
+                      </p>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <ShieldCheck size={16} className="text-gray-400" />
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Provident Fund (PF) No.</p>
+                      </div>
+                      <p className="text-[14px] font-bold text-gray-700 uppercase">{employee?.pfNo || 'UAN NOT REGISTERED'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-900 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 -mr-10 -mt-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40 mb-6">Support Center</h4>
+                  <p className="text-xs font-medium text-white/70 leading-relaxed mb-6">Need to update your master file details? Submit a request to the HR operations team.</p>
+                  <button className="w-full py-3 bg-white text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-lg">
+                    Contact Administrator
+                  </button>
+                </div>
               </div>
             </div>
           </div>
