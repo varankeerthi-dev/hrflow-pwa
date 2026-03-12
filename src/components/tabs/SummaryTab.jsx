@@ -222,7 +222,7 @@ export default function SummaryTab() {
           </style>
         </head>
         <body class="p-4">
-          <h1 class="text-center text-sm font-bold mb-2">Monthly Attendance - ${formatMonth(selectedMonth)}</h1>
+          <h1 class="text-center text-sm font-inter font-bold mb-2">Monthly Attendance - ${formatMonth(selectedMonth)}</h1>
           ${printContent.outerHTML}
         </body>
       </html>
@@ -292,13 +292,13 @@ export default function SummaryTab() {
       <div className="flex gap-0 border-b border-gray-200">
         <button
           onClick={() => setActiveSubTab('summary')}
-          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeSubTab === 'summary' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+          className={`px-4 py-2.5 text-sm font-inter font-medium transition-all border-b-2 -mb-px ${activeSubTab === 'summary' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
         >
           Summary
         </button>
         <button
           onClick={() => setActiveSubTab('monthlyView')}
-          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeSubTab === 'monthlyView' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+          className={`px-4 py-2.5 text-sm font-inter font-medium transition-all border-b-2 -mb-px ${activeSubTab === 'monthlyView' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
         >
           Monthly View
         </button>
@@ -308,7 +308,7 @@ export default function SummaryTab() {
       <div className="bg-white p-4 rounded-[12px] shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-3">
           <BarChart3 size={20} className="text-indigo-600" />
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-tight">
+          <h3 className="text-sm font-inter font-bold text-gray-800 uppercase tracking-tight">
             {activeSubTab === 'summary' ? 'Monthly Performance' : 'Monthly Attendance Pivot'}
           </h3>
         </div>
@@ -324,7 +324,7 @@ export default function SummaryTab() {
           
           <div className="flex items-center bg-gray-50 rounded-lg px-4 py-2 border border-gray-200 min-w-[180px] justify-center gap-2">
             <Calendar size={16} className="text-gray-400" />
-            <span className="text-[14px] font-bold text-gray-700">{formatMonth(selectedMonth)}</span>
+            <span className="text-[14px] font-inter font-bold text-gray-700">{formatMonth(selectedMonth)}</span>
           </div>
           
           <button 
@@ -336,7 +336,7 @@ export default function SummaryTab() {
         </div>
 
         {activeSubTab === 'summary' && (
-          <button onClick={exportCSV} className="h-[40px] px-4 bg-indigo-600 text-white rounded-lg text-[12px] font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-md">
+          <button onClick={exportCSV} className="h-[40px] px-4 bg-indigo-600 text-white rounded-lg text-[12px] font-inter font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-md">
             <Download size={14} /> Export CSV
           </button>
         )}
@@ -353,7 +353,7 @@ export default function SummaryTab() {
               { label: 'Total Absences', value: summaryData.reduce((acc, curr) => acc + curr.absent, 0), color: 'red' }
             ].map(stat => (
               <div key={stat.label} className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                <p className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
                 <p className={`text-2xl font-black text-${stat.color}-600 tracking-tighter`}>{stat.value}</p>
               </div>
             ))}
@@ -364,18 +364,18 @@ export default function SummaryTab() {
             <div className="p-6 border-b border-gray-50">
               <div className="flex items-center gap-2">
                 <FileSpreadsheet size={16} className="text-gray-400" />
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Granular Resource Report</span>
+                <span className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest">Granular Resource Report</span>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="h-[42px] bg-[#f9fafb]">
-                    <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Employee Name</th>
-                    <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Present</th>
-                    <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Absent</th>
-                    <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">OT Hours</th>
-                    <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">Reliability</th>
+                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider">Employee Name</th>
+                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider text-center">Present</th>
+                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider text-center">Absent</th>
+                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider text-center">OT Hours</th>
+                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider text-right">Reliability</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f1f5f9]">
@@ -392,13 +392,13 @@ export default function SummaryTab() {
                         <tr key={row.employeeId} className="h-[48px] hover:bg-[#f8fafc] transition-colors group">
                           <td className="px-[16px]">
                             <p className="text-[13px] font-bold text-gray-700 uppercase tracking-tight">{emp?.name || 'Deleted Account'}</p>
-                            <p className="text-[10px] text-gray-400 font-medium">{emp?.department || 'Operations'}</p>
+                            <p className="text-[10px] font-inter text-gray-400 font-medium">{emp?.department || 'Operations'}</p>
                           </td>
                           <td className="px-[16px] text-center">
-                            <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-md text-[11px] font-bold">{row.present}d</span>
+                            <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-md text-[11px] font-inter font-bold">{row.present}d</span>
                           </td>
                           <td className="px-[16px] text-center">
-                            <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-md text-[11px] font-bold">{row.absent}d</span>
+                            <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-md text-[11px] font-inter font-bold">{row.absent}d</span>
                           </td>
                           <td className="px-[16px] text-center">
                             <span className="font-mono font-bold text-gray-600 text-[13px]">{row.otHours.toFixed(1)}h</span>
@@ -408,7 +408,7 @@ export default function SummaryTab() {
                               <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                 <div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-indigo-500' : pct > 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div>
                               </div>
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{pct}%</span>
+                              <span className="text-[10px] font-inter font-black text-gray-400 uppercase tracking-widest">{pct}%</span>
                             </div>
                           </td>
                         </tr>
@@ -428,26 +428,26 @@ export default function SummaryTab() {
           <div className="p-4 border-b border-gray-100 flex justify-between items-center">
             <div className="flex items-center gap-2">
               <FileSpreadsheet size={16} className="text-gray-400" />
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+              <span className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest">
                 Daily Attendance Grid ({monthlyViewData.employees?.length || 0} Employees)
               </span>
             </div>
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setShowOrderModal(true)}
-                className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-medium text-gray-600 transition-all"
+                className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-inter font-medium text-gray-600 transition-all"
               >
                 <Filter size={14} /> Display Order
               </button>
               <button 
                 onClick={exportPDF}
-                className="h-[36px] px-4 bg-indigo-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all"
+                className="h-[36px] px-4 bg-indigo-600 text-white rounded-lg text-[11px] font-inter font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all"
               >
                 <Download size={14} /> Export PDF
               </button>
             </div>
           </div>
-          <div className="px-4 pb-2 flex gap-4 text-[10px] border-b border-gray-100">
+          <div className="px-4 pb-2 flex gap-4 text-[10px] font-inter border-b border-gray-100">
             <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-50 border border-green-200 rounded"></span> Present</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-50 border border-red-200 rounded"></span> Absent</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-50 border border-purple-200 rounded"></span> Weekend</span>
@@ -458,7 +458,7 @@ export default function SummaryTab() {
             <div className="text-center py-20"><Spinner /></div>
           ) : (
             <div className="overflow-x-auto max-h-[calc(100vh-200px)] flex-1 overflow-y-auto">
-              <table id="monthly-pivot-table" className="w-full text-left border-collapse text-[10px]">
+              <table id="monthly-pivot-table" className="w-full text-left border-collapse text-[10px] font-inter">
                 <thead className="sticky top-0 z-10 bg-gray-50">
                   <tr>
                     <th className="px-1 py-2 text-center font-bold text-gray-600 border-b border-r border-gray-200 w-8 bg-gray-100" rowSpan={2}>
@@ -470,17 +470,17 @@ export default function SummaryTab() {
                         className={`px-1 py-2 text-center font-bold border-b border-r border-gray-200 min-w-[60px] bg-gray-50 ${getEmployeeColor(idx)}`}
                         colSpan={4}
                       >
-                        <div className="text-[9px] truncate max-w-[80px] mx-auto">{emp.name}</div>
+                        <div className="text-[9px] font-inter truncate max-w-[80px] mx-auto">{emp.name}</div>
                       </th>
                     ))}
                   </tr>
                   <tr>
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        <th className={`px-0.5 py-1 text-[8px] font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Shift</th>
-                        <th className={`px-0.5 py-1 text-[8px] font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>In</th>
-                        <th className={`px-0.5 py-1 text-[8px] font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Out</th>
-                        <th className={`px-0.5 py-1 text-[8px] font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>OT</th>
+                        <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Shift</th>
+                        <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>In</th>
+                        <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>Out</th>
+                        <th className={`px-0.5 py-1 text-[8px] font-inter font-medium border-b border-r border-gray-200 text-center bg-gray-50 ${getEmployeeColor(idx)}`}>OT</th>
                       </React.Fragment>
                     ))}
                   </tr>
@@ -503,7 +503,7 @@ export default function SummaryTab() {
                     return (
                       <tr key={day} className={rowClass}>
                         <td className={`px-1 py-1 text-center font-bold border-b border-r border-gray-100 ${dateClass}`}>
-                          <span className="text-[9px]">{day}</span>
+                          <span className="text-[9px] font-inter">{day}</span>
                           <div className="text-[7px] opacity-60">{dayName}</div>
                         </td>
                         {monthlyViewData.employees?.map(emp => {
@@ -520,7 +520,7 @@ export default function SummaryTab() {
                             <React.Fragment key={emp.id}>
                               {isAbsentOrNonWorking ? (
                                 <td colSpan={4} className={`px-0.5 py-1 text-center border-b border-r border-gray-50 ${isBeforeStart ? 'bg-gray-50' : 'bg-red-50'}`}>
-                                  <span className={`text-[10px] font-bold ${isBeforeStart ? 'text-gray-200' : status.color}`}>
+                                  <span className={`text-[10px] font-inter font-bold ${isBeforeStart ? 'text-gray-200' : status.color}`}>
                                     {isBeforeStart ? '-' : status.text}
                                   </span>
                                 </td>
@@ -530,15 +530,15 @@ export default function SummaryTab() {
                                     {isBeforeStart ? (
                                       <span className="text-gray-200">-</span>
                                     ) : shift ? (
-                                      <span className="text-[8px] font-medium text-gray-600">{shift.type === 'Night' ? 'N' : 'D'}</span>
+                                      <span className="text-[8px] font-inter font-medium text-gray-600">{shift.type === 'Night' ? 'N' : 'D'}</span>
                                     ) : (
                                       <span className="text-gray-200">-</span>
                                     )}
                                   </td>
-                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
+                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-inter font-mono text-gray-600">
                                     {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
                                   </td>
-                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
+                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-inter font-mono text-gray-600">
                                     {(() => {
                                       if (isBeforeStart) return '-'
                                       const time = formatTimeTo12Hour(att?.outTime)
@@ -560,7 +560,7 @@ export default function SummaryTab() {
                                       return time
                                     })()}
                                   </td>
-                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-mono text-gray-600">
+                                  <td className="px-0.5 py-1 text-center border-b border-r border-gray-50 text-[9px] font-inter font-mono text-gray-600">
                                     {isBeforeStart ? '-' : formatOTHours(att?.otHours)}
                                   </td>
                                 </>
@@ -583,13 +583,13 @@ export default function SummaryTab() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-800">Display Order</h3>
+              <h3 className="text-sm font-inter font-bold text-gray-800">Display Order</h3>
               <button onClick={() => setShowOrderModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
                 <X size={18} className="text-gray-500" />
               </button>
             </div>
             <div className="flex-1 overflow-auto p-4">
-              <p className="text-[11px] text-gray-500 mb-3">Drag and drop to reorder employees</p>
+              <p className="text-[11px] font-inter text-gray-500 mb-3">Drag and drop to reorder employees</p>
               <div className="space-y-2">
                 {displayOrder.map((empId, index) => {
                   const emp = monthlyViewData.employees?.find(e => e.id === empId)
@@ -604,7 +604,7 @@ export default function SummaryTab() {
                       className={`flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 transition-colors ${draggedItem === index ? 'opacity-50' : ''}`}
                     >
                       <GripVertical size={16} className="text-gray-400" />
-                      <span className="text-[12px] font-medium text-gray-700">{emp.name}</span>
+                      <span className="text-[12px] font-inter font-medium text-gray-700">{emp.name}</span>
                     </div>
                   )
                 })}
@@ -613,13 +613,13 @@ export default function SummaryTab() {
             <div className="p-4 border-t border-gray-100 flex gap-2">
               <button 
                 onClick={() => setShowOrderModal(false)}
-                className="flex-1 h-10 bg-gray-100 text-gray-600 rounded-lg text-[12px] font-medium hover:bg-gray-200 transition-colors"
+                className="flex-1 h-10 bg-gray-100 text-gray-600 rounded-lg text-[12px] font-inter font-medium hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
               <button 
                 onClick={saveDisplayOrder}
-                className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-[12px] font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+                className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-[12px] font-inter font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
               >
                 <Save size={14} /> Save Default
               </button>
