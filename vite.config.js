@@ -4,6 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   base: './',
+  optimizeDeps: {
+    exclude: ['@capacitor/core', '@capgo/capacitor-updater']
+  },
   plugins: [
     react(),
     VitePWA({

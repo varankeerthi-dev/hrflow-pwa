@@ -11,11 +11,15 @@ const UpdateChecker = () => {
         if (typeof window !== 'undefined' && window.Capacitor) {
           const CapUtils = window.Capacitor.Plugins
           if (CapUtils && CapUtils.CapacitorUpdater) {
-            const { CapacitorUpdater } = await import('@capgo/capacitor-updater')
-            const version = await CapacitorUpdater.download({
-              url: 'https://hrflow-pwa.vercel.app/releases/latest.zip',
-            })
-            await CapacitorUpdater.set(version)
+            try {
+              const { CapacitorUpdater } = await import(/* @vite-ignore */ '@capgo/capacitor-updater')
+              const version = await CapacitorUpdater.download({
+                url: 'https://hrflow-pwa.vercel.app/releases/latest.zip',
+              })
+              await CapacitorUpdater.set(version)
+            } catch (importErr) {
+              console.log('Capacitor updater not available in web mode')
+            }
           }
         }
       } catch (error) {

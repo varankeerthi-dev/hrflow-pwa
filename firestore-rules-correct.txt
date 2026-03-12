@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to get user's orgId
+    function getUserOrgId() {
+      return request.auth != null ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId : null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user is HR
+    function isHR() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'HR';
+    }
+    
+    // Helper function to check if user is admin or HR
+    function isAdminOrHR() {
+      return isAdmin() || isHR();
+    }
+    
+    // Helper function to check if user belongs to an org
+    function isOrgMember() {
+      return request.auth != null && getUserOrgId() != null;
+    }
+    
+    // Users collection - read/write own document
+    match /users/{uid} {
+      allow read, create, update: if request.auth != null && request.auth.uid == uid;
+    }
+    
+    // Organisations collection
+    match /organisations/{orgId} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && getUserOrgId() == orgId;
+      allow write: if (isAdminOrHR() && getUserOrgId() == orgId) || (request.auth != null && getUserOrgId() == null);
+      
+      // Roles
+      match /roles/{roleId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow write, delete: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
+      // Employees
+      match /employees/{empId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow write, delete: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      // Shifts
+      match /shifts/{shiftId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow write: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      // ATTENDANCE - Document ID format: {date}_{empId} (e.g., "2024-03-15_emp123")
+      match /attendance/{attId} {
+        // Any org member can read/write attendance
+        allow read, write: if isOrgMember() && getUserOrgId() == orgId;
+        // Only admin/HR can delete
+        allow delete: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      // Corrections
+      match /corrections/{corrId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow create: if isOrgMember() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+        allow delete: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
+      // OT Approvals
+      match /otApprovals/{approvalId} {
+        allow read, create: if isOrgMember() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+        allow delete: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
+      // OT Requests
+      match /otRequests/{requestId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow create: if isOrgMember() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+        allow delete: if isAdmin() && getUserOrgId() == orgId;
+      }
+      
+      // Advances
+      match /advances/{advanceId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow create: if isOrgMember() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+        allow delete: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      // Leaves
+      match /leaves/{leaveId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow create: if isOrgMember() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+        allow delete: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      // Fines
+      match /fines/{fineId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow create: if isOrgMember() && getUserOrgId() == orgId;
+        allow update: if isAdminOrHR() && getUserOrgId() == orgId;
+        allow delete: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      // Activity Logs
+      match /activityLogs/{logId} {
+        allow read, create: if isOrgMember() && getUserOrgId() == orgId;
+      }
+      
+      // Logs
+      match /logs/{logId} {
+        allow read, create: if isOrgMember() && getUserOrgId() == orgId;
+      }
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

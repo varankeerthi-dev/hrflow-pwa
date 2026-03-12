@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HRFlow Attendance Tab - Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-roboto { font-family: 'Roboto', sans-serif; }
+    
+    /* Toggle Slider Styles */
+    .toggle-slider {
+      position: relative;
+      width: 80px;
+      height: 28px;
+      background: #e5e7eb;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      padding: 2px;
+    }
+    
+    .toggle-slider.day {
+      background: #10b981;
+    }
+    
+    .toggle-slider.night {
+      background: #4f46e5;
+    }
+    
+    .toggle-slider .thumb {
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .toggle-slider.day .thumb {
+      transform: translateX(4px);
+    }
+    
+    .toggle-slider.night .thumb {
+      transform: translateX(50px);
+    }
+    
+    .toggle-label {
+      position: absolute;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: opacity 0.3s ease;
+    }
+    
+    .toggle-slider.day .label-day {
+      opacity: 1;
+      right: 8px;
+      color: white;
+    }
+    
+    .toggle-slider.day .label-night {
+      opacity: 0;
+      left: 8px;
+      color: #6b7280;
+    }
+    
+    .toggle-slider.night .label-day {
+      opacity: 0;
+      right: 8px;
+      color: #6b7280;
+    }
+    
+    .toggle-slider.night .label-night {
+      opacity: 1;
+      left: 8px;
+      color: white;
+    }
+    
+    /* Overnight indicator */
+    .overnight-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: #6b7280;
+      margin-top: 2px;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Row transitions */
+    .attendance-row {
+      transition: height 0.3s ease, background-color 0.2s ease;
+    }
+    
+    .attendance-row:hover {
+      background-color: #f8fafc;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-8">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white px-5 py-3 rounded-xl shadow-sm flex justify-between items-center border border-gray-100/50 mb-4">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
+          <button class="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <div class="relative">
+            <span class="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none">
+              10 Mar 2025
+            </span>
+          </div>
+          <button class="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-[11px] font-black leading-none mb-1">
+            <span class="text-indigo-600">MONDAY</span>
+            <span class="text-gray-600"> 10 MAR 2025</span>
+          </span>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button class="h-[38px] px-[12px] bg-gray-100 text-gray-600 font-semibold rounded-lg text-xs shadow-sm hover:bg-gray-200 transition-all uppercase tracking-widest flex items-center gap-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          Add Row
+        </button>
+        <button class="h-[38px] px-4 bg-indigo-600 text-white font-semibold rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all uppercase tracking-widest">
+          Generate Active
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="h-[38px] bg-gray-50 border-b border-gray-100">
+              <th class="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-[20%]">Employee Name</th>
+              <th class="px-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center w-[100px]">Shift</th>
+              <th class="px-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center w-[100px]">In Time</th>
+              <th class="px-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center w-[120px]">Out Time</th>
+              <th class="px-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center w-[80px]">OT</th>
+              <th class="px-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Remarks</th>
+              <th class="px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-right">Status</th>
+              <th class="px-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-[50px]"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100" id="attendanceTable">
+            <!-- Rows will be generated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center mt-4">
+      <div class="flex gap-8 px-4">
+        <div class="flex items-center gap-2">
+          <div class="w-2.5 h-2.5 bg-green-500 rounded-full shadow-sm"></div>
+          <span class="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Present: <span id="presentCount">3</span></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></div>
+          <span class="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Absent: <span id="absentCount">1</span></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <button class="h-[40px] px-6 bg-indigo-600 text-white font-bold rounded-lg text-xs shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest">
+          Submit Records
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Demo data
+    const employees = [
+      { id: 1, name: 'Sarah Jenkins', shiftType: 'Day', inTime: '08:30', outTime: '17:00', otHours: '00:30', remarks: 'Site A', status: 'Present' },
+      { id: 2, name: 'Michael Chen', shiftType: 'Night', inTime: '18:00', outTime: '06:00', otHours: '00:00', remarks: 'Overnight shift', status: 'Present', isOvernight: true },
+      { id: 3, name: 'David Patel', shiftType: 'Day', inTime: '', outTime: '', otHours: '00:00', remarks: 'Sick leave', status: 'Absent' },
+      { id: 4, name: 'Emily White', shiftType: 'Day', inTime: '09:15', outTime: '18:45', otHours: '01:00', remarks: 'Approved OT', status: 'Present' }
+    ];
+
+    function formatTime(time24) {
+      if (!time24) return '--:--';
+      const [h, m] = time24.split(':').map(Number);
+      const period = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+    }
+
+    function getNextDayDate() {
+      const today = new Date('2025-03-10');
+      const nextDay = new Date(today);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${months[nextDay.getMonth()]} ${nextDay.getDate()}`;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('attendanceTable');
+      tbody.innerHTML = '';
+
+      employees.forEach(emp => {
+        const isNight = emp.shiftType === 'Night';
+        const rowHeight = isNight && emp.outTime ? '58px' : '46px';
+        const isAbsent = emp.status === 'Absent';
+        
+        const tr = document.createElement('tr');
+        tr.className = `attendance-row ${isAbsent ? 'bg-red-50/20' : ''}`;
+        tr.style.height = rowHeight;
+
+        tr.innerHTML = `
+          <!-- Employee Name -->
+          <td class="px-4">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" style="background: hsl(${emp.id * 60}, 70%, 50%)">
+                ${emp.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <span class="font-semibold text-gray-700 text-xs truncate uppercase">${emp.name}</span>
+            </div>
+          </td>
+
+          <!-- Shift Toggle -->
+          <td class="px-2 text-center">
+            <div class="toggle-slider ${emp.shiftType.toLowerCase()}" onclick="toggleShift(${emp.id})">
+              <span class="toggle-label label-day">DAY</span>
+              <span class="toggle-label label-night">NIGHT</span>
+              <div class="thumb"></div>
+            </div>
+          </td>
+
+          <!-- In Time -->
+          <td class="px-3 text-center border-r-2 border-emerald-400">
+            <button class="text-xs font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer text-center w-full font-roboto ${isAbsent ? 'opacity-50 cursor-not-allowed' : ''}" ${isAbsent ? 'disabled' : ''}>
+              ${formatTime(emp.inTime)}
+            </button>
+          </td>
+
+          <!-- Out Time with Overnight Indicator -->
+          <td class="px-3 text-center border-r-2 border-rose-300">
+            <div class="flex flex-col items-center justify-center">
+              <button class="text-xs font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer text-center w-full font-roboto ${isAbsent ? 'opacity-50 cursor-not-allowed' : ''}" ${isAbsent ? 'disabled' : ''}>
+                ${formatTime(emp.outTime)}
+              </button>
+              ${isNight && emp.outTime ? `
+                <div class="overnight-indicator">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  <span>${getNextDayDate()}</span>
+                </div>
+              ` : ''}
+            </div>
+          </td>
+
+          <!-- OT -->
+          <td class="px-3 text-center font-bold text-black text-sm font-roboto">
+            ${emp.otHours !== '00:00' ? emp.otHours : ''}
+          </td>
+
+          <!-- Remarks -->
+          <td class="px-3">
+            <span class="text-xs text-gray-400">${emp.remarks}</span>
+          </td>
+
+          <!-- Status -->
+          <td class="px-4">
+            <div class="flex items-center gap-1 justify-end">
+              <button onclick="setStatus(${emp.id}, 'Present')" class="px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all tracking-tight ${emp.status === 'Present' ? 'bg-green-500 text-white border-green-500 shadow-sm' : 'bg-white text-gray-300 border-gray-200 hover:bg-gray-50'}">
+                PRESENT
+              </button>
+              <button onclick="setStatus(${emp.id}, 'Absent')" class="px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all tracking-tight ${emp.status === 'Absent' ? 'bg-red-100 text-red-400 border-red-200' : 'bg-white text-gray-300 border-gray-200 hover:bg-gray-50'}">
+                ABSENT
+              </button>
+            </div>
+          </td>
+
+          <!-- Clear -->
+          <td class="px-2 text-center">
+            <button class="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors" title="Clear row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      updateCounts();
+    }
+
+    function toggleShift(id) {
+      const emp = employees.find(e => e.id === id);
+      if (emp) {
+        emp.shiftType = emp.shiftType === 'Day' ? 'Night' : 'Day';
+        if (emp.shiftType === 'Night' && emp.outTime) {
+          emp.isOvernight = true;
+        } else {
+          emp.isOvernight = false;
+        }
+        renderTable();
+      }
+    }
+
+    function setStatus(id, status) {
+      const emp = employees.find(e => e.id === id);
+      if (emp) {
+        emp.status = status;
+        if (status === 'Absent') {
+          emp.inTime = '';
+          emp.outTime = '';
+          emp.otHours = '00:00';
+        }
+        renderTable();
+      }
+    }
+
+    function updateCounts() {
+      const present = employees.filter(e => e.status === 'Present').length;
+      const absent = employees.filter(e => e.status === 'Absent').length;
+      document.getElementById('presentCount').textContent = present;
+      document.getElementById('absentCount').textContent = absent;
+    }
+
+    // Initial render
+    renderTable();
+  </script>
+</body>
+</html>
