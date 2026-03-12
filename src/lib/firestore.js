@@ -32,3 +32,21 @@ export const activityLogsCol = (orgId) =>
 
 export const salarySlipWindowsCol = (orgId) =>
   collection(db, 'organisations', orgId, 'salarySlipWindows')
+
+export const jobsCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'jobs')
+
+export const jobDoc = (orgId, jobId) =>
+  doc(db, 'organisations', orgId, 'jobs', jobId)
+
+export const applicantsCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'applicants')
+
+export const applicantDoc = (orgId, applicantId) =>
+  doc(db, 'organisations', orgId, 'applicants', applicantId)
+
+export const documentsCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'documents')
+
+export const documentDoc = (orgId, docId) =>
+  doc(db, 'organisations', orgId, 'documents', docId)

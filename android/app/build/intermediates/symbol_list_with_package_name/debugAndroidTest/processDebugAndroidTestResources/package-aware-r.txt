@@ -1,0 +1,3 @@
+com.onwell.app.test
+style WhiteBackgroundDialogTheme
+style WhiteBackgroundTheme

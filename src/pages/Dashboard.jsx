@@ -41,6 +41,8 @@ import EngagementTab from '../components/tabs/EngagementTab'
 import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
 import LeaveTab from '../components/tabs/LeaveTab'
 import HRLettersTab from '../components/tabs/HRLettersTab'
+import RecruitmentTab from '../components/tabs/RecruitmentTab'
+import DocumentsTab from '../components/tabs/DocumentsTab'
 import HomeTab from '../components/tabs/HomeTab'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
@@ -111,7 +113,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-sm p-8 mx-4 border border-gray-100">
         <div className="flex flex-col items-center mb-6">
           <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mb-4 shadow-xl">
             <span className="text-white text-3xl">🏢</span>
@@ -236,6 +238,8 @@ export default function Dashboard() {
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
+    { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={18} strokeWidth={1.75} />, module: 'Recruitment' },
+    { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
     { id: 'summary', label: 'Summary', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Summary' },
 
     { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'SalarySlip' },
@@ -251,7 +255,7 @@ export default function Dashboard() {
 
   const sections = useMemo(() => [
     { id: 'main', title: 'MAIN', tabs: ['home'] },
-    { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'summary'] },
+    { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'recruitment', 'documents', 'summary'] },
     { id: 'payroll', title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
     { id: 'workforce', title: 'WORKFORCE', tabs: ['engage', 'shift-planning'] },
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
@@ -273,6 +277,8 @@ export default function Dashboard() {
       case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />
       case 'letters': return <HRLettersTab />
+      case 'recruitment': return <RecruitmentTab />
+      case 'documents': return <DocumentsTab />
       case 'summary': return <SummaryTab />
       case 'salary-slip': return <SalarySlipTab />
       case 'advance': return <AdvanceExpenseTab />

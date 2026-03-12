@@ -1,0 +1,12 @@
+{
+	"appId": "com.onwell.app",
+	"appName": "onWell",
+	"webDir": "dist",
+	"plugins": {
+		"CapacitorUpdater": {
+			"autoUpdate": true,
+			"stats": true,
+			"resetWhenError": true
+		}
+	}
+}

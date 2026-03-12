@@ -1,0 +1,10 @@
+{
+	"appId": "com.onwell.app",
+	"appName": "onWell",
+	"webDir": "dist",
+	"server": {
+		"url": "http://10.140.13.249:5173",
+		"cleartext": true
+	},
+	"packageClassList": []
+}
