@@ -35,7 +35,7 @@ export default function RecruitmentTab() {
     addApplicant, 
     updateApplicant, 
     deleteApplicant 
-  } = useRecruitment(user?.orgId)
+  } = useRecruitment(user?.orgId, user)
 
   const [activeSub, setActiveSub] = useState('jobs')
   const [searchTerm, setSearchTerm] = useState('')

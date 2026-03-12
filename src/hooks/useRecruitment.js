@@ -1,38 +1,50 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore'
 import { jobsCol, jobDoc, applicantsCol, applicantDoc } from '../lib/firestore'
 
-export function useRecruitment(orgId) {
+export function useRecruitment(orgId, user) {
   const [jobs, setJobs] = useState([])
   const [applicants, setApplicants] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  const hasAccess = useMemo(() => {
+    if (!user) return false
+    if (user.role === 'admin' || user.role === 'Admin') return true
+    const perms = user.permissions?.['Recruitment'] || {}
+    return perms.view || perms.full
+  }, [user])
+
   const fetchJobs = async () => {
-    if (!orgId) return
+    if (!orgId || !hasAccess) return
     try {
       const q = query(jobsCol(orgId), orderBy('createdAt', 'desc'))
       const snapshot = await getDocs(q)
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
       setJobs(data)
     } catch (e) {
-      console.error('Fetch jobs error:', e)
+      if (e.code !== 'permission-denied') {
+        console.error('Fetch jobs error:', e)
+      }
     }
   }
 
   const fetchApplicants = async () => {
-    if (!orgId) return
+    if (!orgId || !hasAccess) return
     try {
       const q = query(applicantsCol(orgId), orderBy('createdAt', 'desc'))
       const snapshot = await getDocs(q)
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
       setApplicants(data)
     } catch (e) {
-      console.error('Fetch applicants error:', e)
+      if (e.code !== 'permission-denied') {
+        console.error('Fetch applicants error:', e)
+      }
     }
   }
 
   const fetchData = async () => {
+    if (!hasAccess) return
     setLoading(true)
     await Promise.all([fetchJobs(), fetchApplicants()])
     setLoading(false)
@@ -87,8 +99,10 @@ export function useRecruitment(orgId) {
   }
 
   useEffect(() => {
-    fetchData()
-  }, [orgId])
+    if (orgId && hasAccess) {
+      fetchData()
+    }
+  }, [orgId, hasAccess])
 
   return { 
     jobs, 

@@ -25,7 +25,7 @@ import Modal from '../ui/Modal'
 
 export default function DocumentsTab() {
   const { user } = useAuth()
-  const { documents, loading, addDocument, deleteDocument } = useDocuments(user?.orgId)
+  const { documents, loading, addDocument, deleteDocument } = useDocuments(user?.orgId, user)
   const { employees } = useEmployees(user?.orgId)
   
   const [activeSub, setActiveSub] = useState('org')

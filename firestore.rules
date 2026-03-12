@@ -8,110 +8,120 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function getRoleData(orgId, roleName) {
-      // Note: This assumes roles are stored in /organisations/{orgId}/roles/{roleId} 
-      // and we need to find the one where data.name == roleName.
-      // Firestore rules don't support collection group queries or filtering well inside 'get'.
-      // Better approach: Check if user is admin OR check specific module right.
-      return getUserData().role;
-    }
-
     function isAdmin() {
-      return request.auth != null && getUserData().role == 'admin';
-    }
-
-    // New Dynamic Permission Check
-    // Checks if the user's role has 'full' or a specific right for a module
-    function hasModuleRight(orgId, module, right) {
-      let user = getUserData();
-      if (user.role == 'admin') return true;
-      
-      // Since we can't easily iterate collections in rules to find a role by name,
-      // and permissions are usually cached in the user doc for performance:
-      return user.permissions[module][right] == true || user.permissions[module].full == true;
+      let userData = getUserData();
+      return request.auth != null && (userData.role == 'admin' || userData.role == 'Admin');
     }
 
     function isOrgMember(orgId) {
-      return request.auth != null && getUserData().orgId == orgId;
+      let userData = getUserData();
+      return request.auth != null && userData.orgId == orgId;
     }
 
-    // ─── Collection Rules ─────────────────────────────────────────────────────
+    // Safer Dynamic Permission Check
+    function hasModuleRight(module, right) {
+      let user = getUserData();
+      if (user.role == 'admin' || user.role == 'Admin') return true;
+      
+      // Use get() with default value to avoid errors if permissions map is incomplete
+      let perms = user.get('permissions', {});
+      let modPerms = perms.get(module, {});
+      return modPerms.get(right, false) == true || modPerms.get('full', false) == true;
+    }
+
+    // ─── User Rules ───────────────────────────────────────────────────────────
 
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      // Users can read/write their own data
+      // Admins can read/write users in their own organization
+      allow read: if request.auth != null && (
+        request.auth.uid == uid || 
+        (isAdmin() && getUserData().orgId == get(/databases/$(database)/documents/users/$(uid)).data.orgId)
+      );
+      allow write: if request.auth != null && (
+        request.auth.uid == uid || 
+        (isAdmin() && getUserData().orgId == get(/databases/$(database)/documents/users/$(uid)).data.orgId)
+      );
     }
     
+    // ─── Organization Rules ───────────────────────────────────────────────────
+
     match /organisations/{orgId} {
       allow get: if request.auth != null;
       allow list: if isOrgMember(orgId);
-      allow write: if isAdmin() || (request.auth != null && getUserData().orgId == null);
+      allow write: if isAdmin() || (request.auth != null && !getUserData().keys().contains('orgId'));
       
-      // Dynamic Modules
+      // Subcollections
       match /attendance/{attId} {
-        allow read: if isOrgMember(orgId) && hasModuleRight(orgId, 'Attendance', 'view');
-        allow create: if isOrgMember(orgId) && hasModuleRight(orgId, 'Attendance', 'create');
-        allow update: if isOrgMember(orgId) && hasModuleRight(orgId, 'Attendance', 'edit');
-        allow delete: if isOrgMember(orgId) && hasModuleRight(orgId, 'Attendance', 'delete');
+        allow read: if isOrgMember(orgId) && hasModuleRight('Attendance', 'view');
+        allow create: if isOrgMember(orgId) && hasModuleRight('Attendance', 'create');
+        allow update: if isOrgMember(orgId) && hasModuleRight('Attendance', 'edit');
+        allow delete: if isOrgMember(orgId) && hasModuleRight('Attendance', 'delete');
       }
 
       match /employees/{empId} {
-        allow read: if isOrgMember(orgId) && (hasModuleRight(orgId, 'Employees', 'view') || request.auth.uid == empId);
-        allow write: if isOrgMember(orgId) && hasModuleRight(orgId, 'Employees', 'create');
-        allow update: if isOrgMember(orgId) && hasModuleRight(orgId, 'Employees', 'edit');
-        allow delete: if isOrgMember(orgId) && hasModuleRight(orgId, 'Employees', 'delete');
+        allow read: if isOrgMember(orgId) && (hasModuleRight('Employees', 'view') || request.auth.uid == empId);
+        allow create: if isOrgMember(orgId) && hasModuleRight('Employees', 'create');
+        allow update: if isOrgMember(orgId) && hasModuleRight('Employees', 'edit');
+        allow delete: if isOrgMember(orgId) && hasModuleRight('Employees', 'delete');
       }
 
       match /shifts/{shiftId} {
         allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && hasModuleRight(orgId, 'ShiftPlanning', 'full');
+        allow write: if isOrgMember(orgId) && hasModuleRight('Shifts', 'full');
+      }
+
+      match /roles/{roleId} {
+        allow read: if isOrgMember(orgId);
+        allow write: if isOrgMember(orgId) && (isAdmin() || hasModuleRight('Roles', 'full'));
       }
 
       match /corrections/{corrId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId); 
-        allow update: if isOrgMember(orgId) && hasModuleRight(orgId, 'Correction', 'edit');
-        allow delete: if isOrgMember(orgId) && hasModuleRight(orgId, 'Correction', 'delete');
+        allow update: if isOrgMember(orgId) && hasModuleRight('Correction', 'edit');
+        allow delete: if isOrgMember(orgId) && hasModuleRight('Correction', 'delete');
       }
 
       match /leaves/{leaveId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId);
-        allow update: if isOrgMember(orgId) && hasModuleRight(orgId, 'Leave', 'edit');
+        allow update: if isOrgMember(orgId) && hasModuleRight('Leave', 'edit');
       }
 
       match /salarySlips/{slipId} {
-        allow read: if isOrgMember(orgId) && (hasModuleRight(orgId, 'SalarySlip', 'view') || resource.data.employeeId == request.auth.uid);
-        allow write: if isOrgMember(orgId) && hasModuleRight(orgId, 'SalarySlip', 'create');
+        allow read: if isOrgMember(orgId) && (hasModuleRight('SalarySlip', 'view') || resource.data.employeeId == request.auth.uid);
+        allow write: if isOrgMember(orgId) && hasModuleRight('SalarySlip', 'create');
       }
 
       match /jobs/{jobId} {
         allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && hasModuleRight(orgId, 'Recruitment', 'create');
+        allow write: if isOrgMember(orgId) && hasModuleRight('Recruitment', 'create');
       }
 
       match /applicants/{appId} {
         allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && hasModuleRight(orgId, 'Recruitment', 'edit');
+        allow write: if isOrgMember(orgId) && hasModuleRight('Recruitment', 'edit');
       }
 
       match /documents/{docId} {
         allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && hasModuleRight(orgId, 'DocumentManagement', 'create');
+        allow write: if isOrgMember(orgId) && hasModuleRight('DocumentManagement', 'create');
       }
 
       match /requests/{reqId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId);
-        allow update: if isOrgMember(orgId) && (hasModuleRight(orgId, 'Approvals', 'approve') || resource.data.employeeId == request.auth.uid);
+        allow update: if isOrgMember(orgId) && (hasModuleRight('Approvals', 'approve') || resource.data.employeeId == request.auth.uid);
       }
 
-      // Allow reading roles for login/permission check
-      match /roles/{roleId} {
-        allow read: if isOrgMember(orgId);
-        allow write: if isAdmin();
+      match /logs/{logId} {
+        allow read: if isOrgMember(orgId) && isAdmin();
+        allow create: if isOrgMember(orgId);
       }
     }
 
+    // Global Deny
     match /{document=**} {
       allow read, write: if false;
     }

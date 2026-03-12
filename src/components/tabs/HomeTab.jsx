@@ -28,8 +28,8 @@ export default function HomeTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const { fetchByDate, loading: attLoading } = useAttendance(user?.orgId)
-  const { jobs, applicants, loading: recLoading } = useRecruitment(user?.orgId)
-  const { documents, loading: docLoading } = useDocuments(user?.orgId)
+  const { jobs, applicants, loading: recLoading } = useRecruitment(user?.orgId, user)
+  const { documents, loading: docLoading } = useDocuments(user?.orgId, user)
   
   const [todayRecords, setTodayRecords] = useState([])
   const today = new Date().toISOString().split('T')[0]
