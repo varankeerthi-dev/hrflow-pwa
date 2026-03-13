@@ -44,10 +44,11 @@ export default function EmployeePortalTab() {
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
 
-  const employee = useMemo(
-    () => employees.find(e => e.email?.toLowerCase() === user?.email?.toLowerCase()),
-    [employees, user?.email]
-  )
+  const employee = useMemo(() => {
+    if (!user?.email || !employees.length) return null
+    return employees.find(e => e.email?.toLowerCase() === user.email.toLowerCase())
+  }, [employees, user?.email])
+
   const employeeId = employee?.id
 
   const [activePortalTab, setActivePortalTab] = useState('dashboard')
@@ -74,13 +75,15 @@ export default function EmployeePortalTab() {
   const [viewerState, setViewerState] = useState(null) // { docs, index }
 
   useEffect(() => {
-    if (!user?.orgId || empLoading) return
-    if (!employeeId) {
-      console.log('EmployeePortalTab: No employee found for user', user?.email)
+    if (!user?.orgId || empLoading || !user?.email) return
+    if (!employeeId && employees.length > 0) {
+      console.log('EmployeePortalTab: No employee found for user', user.email)
       return
     }
-    fetchRequests()
-  }, [user?.orgId, employeeId, empLoading])
+    if (employeeId) {
+      fetchRequests()
+    }
+  }, [user?.orgId, employeeId, empLoading, user?.email, employees.length])
 
   useEffect(() => {
     if (!user?.orgId || empLoading || !employeeId || !month) return
@@ -238,6 +241,65 @@ export default function EmployeePortalTab() {
     if (rec.inTime && !rec.outTime) return 'Pending Checkout'
     if (rec.isAbsent) return 'Absent'
     return 'Present'
+  }
+
+  if (empLoading || !user) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Spinner />
+          <p className="text-gray-400 text-sm font-medium">Loading your profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user.email) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        <div className="max-w-md w-full bg-white rounded-2xl p-10 border border-gray-100 shadow-xl text-center space-y-6">
+          <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto border border-amber-100">
+            <Lock className="text-amber-500" size={32} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">Authentication Issue</h3>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              Your user account does not have an email associated with it. 
+              Please contact support or re-login.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!employeeId && employees.length > 0) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        <div className="max-w-md w-full bg-white rounded-2xl p-10 border border-gray-100 shadow-xl text-center space-y-6">
+          <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto border border-amber-100">
+            <User className="text-amber-500" size={32} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">Employee Record Not Found</h3>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              We couldn&apos;t find an employee record associated with <span className="font-bold text-gray-900">{user.email}</span>.
+            </p>
+          </div>
+          <div className="pt-4 border-t border-gray-50 space-y-4">
+            <div className="bg-gray-50 p-4 rounded-xl text-left flex gap-3">
+              <Info size={18} className="text-indigo-500 shrink-0 mt-0.5" />
+              <p className="text-[12px] text-gray-600 leading-relaxed">
+                Please contact your HR administrator to ensure your email is correctly registered in the system.
+              </p>
+            </div>
+            <p className="text-[11px] text-gray-400 uppercase tracking-widest font-bold">
+              Org ID: {user.orgId || 'None'}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
