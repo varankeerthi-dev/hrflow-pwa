@@ -45,12 +45,34 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
 
   const employee = useMemo(() => {
-    if (!user?.email || !employees.length) return null
+    if (!user?.email || !employees.length) {
+      console.log('[DEBUG] Employee lookup failed:', { userEmail: user?.email, employeesCount: employees.length })
+      return null
+    }
     const normalizedUserEmail = user.email.toLowerCase().trim()
-    return employees.find(e => {
+    console.log('[DEBUG] Looking for employee with email:', normalizedUserEmail)
+    console.log('[DEBUG] Total employees:', employees.length)
+    
+    const found = employees.find(e => {
       const empEmail = (e.email || '').toLowerCase().trim()
-      return empEmail === normalizedUserEmail
+      const empName = e.name || 'Unknown'
+      const match = empEmail === normalizedUserEmail
+      if (e.email) {
+        console.log(`[DEBUG] Comparing: ${empEmail} === ${normalizedUserEmail} => ${match} (Employee: ${empName})`)
+      }
+      return match
     })
+    
+    if (!found) {
+      console.log('[DEBUG] No employee found. All employee emails:')
+      employees.forEach((e, i) => {
+        console.log(`  ${i+1}. ${e.name}: email='${e.email || 'NULL'}' (id: ${e.id})`)
+      })
+    } else {
+      console.log('[DEBUG] Found employee:', found.name, found.id)
+    }
+    
+    return found
   }, [employees, user?.email])
 
   const employeeId = employee?.id
