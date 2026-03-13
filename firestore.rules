@@ -9,7 +9,14 @@ service cloud.firestore {
 
     // Users can read/write their own user document
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Organisations creation and access
+    match /organisations/{orgId} {
+      allow create: if request.auth != null;
+      allow read, write: if isOrgMember(orgId);
     }
 
     // All documents under an organisation are accessible to members of that org

@@ -200,7 +200,7 @@ export function AuthProvider({ children }) {
     }
 
     const updatedFields = {
-      orgId: currentUser?.orgId || code,
+      orgId: code,
       role: 'admin',
     }
 
