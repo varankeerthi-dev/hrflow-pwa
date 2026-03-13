@@ -207,11 +207,11 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      console.log('createOrganisation: Attempting to create org document...')
+      console.log('createOrganisation: Attempting to create org document for code:', code)
       await setDoc(doc(db, 'organisations', code), orgData)
       console.log('createOrganisation: Org document created successfully')
       
-      console.log('createOrganisation: Attempting to update user document...')
+      console.log('createOrganisation: Attempting to update user doc for uid:', firebaseUser.uid)
       await setDoc(doc(db, 'users', firebaseUser.uid), updatedFields, { merge: true })
       console.log('createOrganisation: User document updated successfully')
       
@@ -219,7 +219,9 @@ export function AuthProvider({ children }) {
       // to update the local state. If we call setUser here, the modal might unmount before showing the code.
       return code
     } catch (err) {
-      console.error('createOrganisation: Error during creation process:', err)
+      console.error('createOrganisation: Permission or system error during creation process:', err)
+      // If it failed at the second step, the first might have succeeded.
+      // We log the specifics to help identifying which step failed.
       throw err
     }
   }
