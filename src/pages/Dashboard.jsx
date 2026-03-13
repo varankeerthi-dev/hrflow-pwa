@@ -214,25 +214,7 @@ export default function Dashboard() {
   }, [user?.orgId])
 
   useEffect(() => {
-    if (!user?.orgId || !user?.role) return
-    
-    // Use cached permissions if available (from login)
-    if (user.permissions && Object.keys(user.permissions).length > 0) {
-      setRolePermissions(user.permissions)
-      return
-    }
-    
-    const fetchRole = async () => {
-      try {
-        const q = collection(db, 'organisations', user.orgId, 'roles')
-        const snap = await getDocs(q)
-        const myRole = snap.docs.find(d => d.data().name.toLowerCase() === (user.role || 'employee').toLowerCase())
-        if (myRole) setRolePermissions(myRole.data().permissions || {})
-      } catch (err) {
-        console.error('Role fetch error:', err)
-      }
-    }
-    fetchRole()
+    setRolePermissions(null)
   }, [user?.orgId, user?.role, user?.permissions])
 
   const allTabs = useMemo(() => [
@@ -267,10 +249,8 @@ export default function Dashboard() {
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
-  // Filter tabs based on role permissions
-  const tabs = useMemo(() => {
-    return allTabs
-  }, [allTabs])
+  // RBAC disabled: show all tabs
+  const tabs = useMemo(() => allTabs, [allTabs])
 
   const renderTabContent = () => {
     switch (activeTab) {

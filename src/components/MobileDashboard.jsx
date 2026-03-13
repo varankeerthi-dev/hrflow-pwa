@@ -129,11 +129,7 @@ export default function MobileDashboard() {
     { id: 'settings', label: 'Settings', icon: <Settings size={20} className="text-gray-600" />, module: 'Settings', color: 'bg-gray-50' },
   ], [])
 
-  const visibleModules = useMemo(() => {
-    if (user?.role === 'admin') return allModules
-    if (!rolePermissions) return allModules.filter(m => m.module === 'EmployeePortal')
-    return allModules.filter(m => rolePermissions[m.module]?.view || rolePermissions[m.module]?.full || m.module === 'EmployeePortal')
-  }, [allModules, rolePermissions, user])
+  const visibleModules = useMemo(() => allModules, [allModules])
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -143,22 +139,7 @@ export default function MobileDashboard() {
   }, [user?.orgId])
 
   useEffect(() => {
-    if (!user?.orgId || !user?.role) return
-    if (user.permissions && Object.keys(user.permissions).length > 0) {
-      setRolePermissions(user.permissions)
-      return
-    }
-    const fetchRole = async () => {
-      try {
-        const q = collection(db, 'organisations', user.orgId, 'roles')
-        const snap = await getDocs(q)
-        const myRole = snap.docs.find(d => d.data().name.toLowerCase() === (user.role || 'employee').toLowerCase())
-        if (myRole) setRolePermissions(myRole.data().permissions || {})
-      } catch (err) {
-        console.error('Role fetch error:', err)
-      }
-    }
-    fetchRole()
+    setRolePermissions(null)
   }, [user?.orgId, user?.role, user?.permissions])
 
   useEffect(() => {

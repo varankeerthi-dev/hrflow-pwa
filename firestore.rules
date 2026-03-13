@@ -1,144 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ─── Helper Functions ─────────────────────────────────────────────────────
-    
-    // Helper function to get user's orgId and data efficiently
-    function getUserOrgId() {
-      return request.auth != null ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId : null;
-    }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isAdmin() {
-      let user = getUserData();
-      return request.auth != null && (user.role == 'admin' || user.role == 'Admin');
-    }
-
+    // Basic org membership check
     function isOrgMember(orgId) {
-      return request.auth != null && getUserOrgId() == orgId;
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
     }
 
-    // Safer Dynamic Permission Check
-    function hasModuleRight(module, right) {
-      let user = getUserData();
-      if (user.role == 'admin' || user.role == 'Admin') return true;
-      
-      let perms = user.get('permissions', {});
-      let modPerms = perms.get(module, {});
-      return modPerms.get(right, false) == true || modPerms.get('full', false) == true;
-    }
-
-    // ─── User Rules ───────────────────────────────────────────────────────────
-
+    // Users can read/write their own user document
     match /users/{uid} {
-      // Allow individual document read if self OR if requester is admin from same org
-      allow get: if request.auth != null && (
-        request.auth.uid == uid || 
-        (isAdmin() && resource != null && getUserOrgId() == resource.data.orgId)
-      );
-
-      // Allow collection listing for admins, but ONLY if they filter by their own orgId
-      // Firestore requires queries to match these constraints
-      allow list: if request.auth != null && (
-        (isAdmin() && request.query.limit <= 100 && request.query.filters.orgId == getUserOrgId()) ||
-        (request.auth.uid == uid)
-      );
-      
-      // Allow write if self OR if requester is admin from same org
-      allow write: if request.auth != null && (
-        request.auth.uid == uid || 
-        (isAdmin() && (
-          // Case 1: Updating existing user in same org
-          (resource != null && getUserOrgId() == resource.data.orgId) ||
-          // Case 2: Creating new user with same orgId
-          (resource == null && getUserOrgId() == request.resource.data.orgId)
-        ))
-      );
-    }
-    
-    // ─── Organization Rules ───────────────────────────────────────────────────
-
-    match /organisations/{orgId} {
-      allow get: if request.auth != null;
-      allow list: if isOrgMember(orgId);
-      
-      // ONLY allow create if user has no org yet. Update/Delete requires Admin role.
-      allow create: if request.auth != null && getUserOrgId() == null;
-      allow update, delete: if isAdmin() && isOrgMember(orgId);
-      
-      match /attendance/{attId} {
-        allow read: if isOrgMember(orgId) && (hasModuleRight('Attendance', 'view') || hasModuleRight('Attendance', 'full'));
-        allow create: if isOrgMember(orgId) && (hasModuleRight('Attendance', 'create') || hasModuleRight('Attendance', 'full'));
-        allow update: if isOrgMember(orgId) && (hasModuleRight('Attendance', 'edit') || hasModuleRight('Attendance', 'full'));
-        allow delete: if isOrgMember(orgId) && (hasModuleRight('Attendance', 'delete') || hasModuleRight('Attendance', 'full'));
-      }
-
-      match /employees/{empId} {
-        allow read: if isOrgMember(orgId) && (hasModuleRight('Employees', 'view') || request.auth.uid == empId);
-        allow create: if isOrgMember(orgId) && hasModuleRight('Employees', 'create');
-        allow update: if isOrgMember(orgId) && hasModuleRight('Employees', 'edit');
-        allow delete: if isOrgMember(orgId) && hasModuleRight('Employees', 'delete');
-      }
-
-      match /shifts/{shiftId} {
-        allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && hasModuleRight('Shifts', 'full');
-      }
-
-      match /roles/{roleId} {
-        allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && (isAdmin() || hasModuleRight('Roles', 'full'));
-      }
-
-      match /corrections/{corrId} {
-        allow read: if isOrgMember(orgId);
-        allow create: if isOrgMember(orgId); 
-        allow update: if isOrgMember(orgId) && hasModuleRight('Correction', 'edit');
-        allow delete: if isOrgMember(orgId) && hasModuleRight('Correction', 'delete');
-      }
-
-      match /leaves/{leaveId} {
-        allow read: if isOrgMember(orgId);
-        allow create: if isOrgMember(orgId);
-        allow update: if isOrgMember(orgId) && hasModuleRight('Leave', 'edit');
-      }
-
-      match /salarySlips/{slipId} {
-        allow read: if isOrgMember(orgId) && (hasModuleRight('SalarySlip', 'view') || (resource != null && resource.data.employeeId == request.auth.uid));
-        allow write: if isOrgMember(orgId) && (hasModuleRight('SalarySlip', 'create') || hasModuleRight('SalarySlip', 'full'));
-      }
-
-      match /jobs/{jobId} {
-        allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && (hasModuleRight('Recruitment', 'create') || hasModuleRight('Recruitment', 'full'));
-      }
-
-      match /applicants/{appId} {
-        allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && (hasModuleRight('Recruitment', 'edit') || hasModuleRight('Recruitment', 'full'));
-      }
-
-      match /documents/{docId} {
-        allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && hasModuleRight('DocumentManagement', 'create');
-      }
-
-      match /requests/{reqId} {
-        allow read: if isOrgMember(orgId);
-        allow create: if isOrgMember(orgId);
-        allow update: if isOrgMember(orgId) && (hasModuleRight('Approvals', 'approve') || (resource != null && resource.data.employeeId == request.auth.uid));
-      }
-
-      match /logs/{logId} {
-        allow read: if isOrgMember(orgId) && isAdmin();
-        allow create: if isOrgMember(orgId);
-      }
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // All documents under an organisation are accessible to members of that org
+    match /organisations/{orgId}/{document=**} {
+      allow read, write: if isOrgMember(orgId);
+    }
+
+    // Deny everything else
     match /{document=**} {
       allow read, write: if false;
     }

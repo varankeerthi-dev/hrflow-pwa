@@ -50,7 +50,6 @@ export default function SettingsTab() {
     { id: 'organization', label: 'Organization', module: 'Settings' },
     { id: 'employee', label: 'Employees', module: 'Employees' },
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
-    { id: 'roles', label: 'Roles & Rights', module: 'Roles' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
     { id: 'advance_cat', label: 'Advance Cats', module: 'AdvanceExpense' },
     { id: 'holidays', label: 'Holidays', module: 'Settings' }
@@ -180,58 +179,7 @@ export default function SettingsTab() {
   const permissionRights = ['view', 'create', 'edit', 'delete', 'approve', 'export']
 
   // Role Groups & Rights
-  const roleGroups = [
-    {
-      title: 'HRMS',
-      modules: [
-        { id: 'Attendance', label: 'Attendance' },
-        { id: 'Correction', label: 'Correction' },
-        { id: 'Leave', label: 'Leave' },
-        { id: 'Approvals', label: 'Approvals' },
-        { id: 'Summary', label: 'Summary' },
-        { id: 'HRLetters', label: 'HR Letters' }
-      ]
-    },
-    {
-      title: 'Payroll',
-      modules: [
-        { id: 'SalarySlip', label: 'Salary Slip' },
-        { id: 'AdvanceExpense', label: 'Advances & Expenses' },
-        { id: 'Fine', label: 'Penalties & Fines' }
-      ]
-    },
-    {
-      title: 'Engage',
-      modules: [
-        { id: 'Engagement', label: 'Engagement' },
-        { id: 'Birthday', label: 'Birthday' }
-      ]
-    },
-    {
-      title: 'System',
-      modules: [
-        { id: 'Employees', label: 'Employees' },
-        { id: 'Shifts', label: 'Shifts' },
-        { id: 'Roles', label: 'Roles' },
-        { id: 'EmployeePortal', label: 'Self Service' },
-        { id: 'Settings', label: 'Settings' }
-      ]
-    },
-    {
-      title: 'Future',
-      modules: [
-        { id: 'Recruitment', label: 'Recruitment' },
-        { id: 'AssetManagement', label: 'Asset Management' },
-        { id: 'PerformanceReview', label: 'Performance Review' },
-        { id: 'Training', label: 'Training' },
-        { id: 'ExitManagement', label: 'Exit Management' },
-        { id: 'DocumentManagement', label: 'Document Management' },
-        { id: 'Helpdesk', label: 'Helpdesk' },
-        { id: 'Projects', label: 'Projects' },
-        { id: 'TimeTracking', label: 'Time Tracking' }
-      ]
-    }
-  ]
+  const roleGroups = []
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -241,8 +189,7 @@ export default function SettingsTab() {
         const shiftsSnap = await getDocs(collection(db, 'organisations', user.orgId, 'shifts'))
         setShifts(shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
 
-        const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
-        setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        // RBAC disabled: skip roles fetch
 
         const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
         if (orgSnap.exists()) {
@@ -353,8 +300,8 @@ export default function SettingsTab() {
   const handleSaveEmployee = async () => {
     setSaving(true)
     try {
-      const selectedRoleName = (editForm.role || 'employee').toLowerCase()
-      const selectedRolePerms = roles.find(r => r.name?.toLowerCase() === selectedRoleName)?.permissions || {}
+      const selectedRoleName = 'employee'
+      const selectedRolePerms = {}
       // Prepare clean employee data - remove any undefined values and include orgId
       const cleanEditForm = {
         ...Object.fromEntries(
@@ -488,10 +435,10 @@ export default function SettingsTab() {
       const empCode = newEmployee.empCode?.trim() ||
         `EMP-${Date.now().toString(36).toUpperCase().slice(-4)}`
 
-      const payload = { ...newEmployee, empCode, orgId: user.orgId }
+      const payload = { ...newEmployee, empCode, orgId: user.orgId, role: 'Employee' }
       const { tempPassword, ...employeeDoc } = payload
-      const roleName = (employeeDoc.role || 'Employee').toLowerCase()
-      const rolePermissions = roles.find(r => r.name?.toLowerCase() === roleName)?.permissions || {}
+      const roleName = 'employee'
+      const rolePermissions = {}
 
       // 1) Create employee master
       const empId = await addEmployee(employeeDoc)
@@ -564,67 +511,9 @@ export default function SettingsTab() {
     }
   }
 
-  const handleAddRole = async () => {
-    if (!newRole.name.trim()) {
-      alert('Role name is required')
-      return
-    }
-    if (editingRole) {
-      await updateDoc(doc(db, 'organisations', user.orgId, 'roles', editingRole.id), {
-        name: newRole.name,
-        description: newRole.description,
-        permissions: editingRole.permissions
-      })
-      setRoles(prev => prev.map(r => r.id === editingRole.id ? { ...r, name: newRole.name, description: newRole.description } : r))
-    } else {
-      const defaultPerms = {}
-      modules.forEach(m => { defaultPerms[m] = { view: false, create: false, edit: false, delete: false, approve: false, export: false, full: false } })
-      const roleData = { name: newRole.name, description: newRole.description, permissions: defaultPerms, createdAt: serverTimestamp() }
-      const docRef = await addDoc(collection(db, 'organisations', user.orgId, 'roles'), roleData)
-      setRoles(prev => [...prev, { id: docRef.id, ...roleData }])
-    }
-    setShowAddRole(false)
-    setNewRole({ name: '', description: '', permissions: {} })
-    setEditingRole(null)
-  }
+  const handleAddRole = async () => {}
 
-  const togglePermission = async (roleId, module, right) => {
-    setRoles(prev => prev.map(r => {
-      if (r.id !== roleId) return r
-      const permissions = { ...r.permissions }
-      if (!permissions[module]) permissions[module] = {}
-
-      if (right === 'full') {
-        const isCurrentlyFull = permissionRights.every(pr => permissions[module][pr])
-        permissionRights.forEach(pr => permissions[module][pr] = !isCurrentlyFull)
-        permissions[module].full = !isCurrentlyFull
-      } else {
-        permissions[module][right] = !permissions[module][right]
-        permissions[module].full = permissionRights.every(pr => permissions[module][pr])
-      }
-
-      updateDoc(doc(db, 'organisations', user.orgId, 'roles', roleId), { permissions })
-      
-      // Critical: sync permissions to user documents with this role inside the same org
-      const affectedRole = roles.find(r => r.id === roleId)
-      if (affectedRole) {
-        (async () => {
-          try {
-            const usersSnap = await getDocs(query(
-              collection(db, 'users'),
-              where('orgId', '==', user.orgId),
-              where('role', '==', affectedRole.name.toLowerCase())
-            ))
-            await Promise.all(usersSnap.docs.map(u => setDoc(doc(db, 'users', u.id), { permissions }, { merge: true })))
-          } catch (err) {
-            console.error('Failed to sync role permissions to users:', err)
-          }
-        })()
-      }
-
-      return { ...r, permissions }
-    }))
-  }
+  const togglePermission = async () => {}
 
   const handleSaveOrg = async () => {
     if (!user?.orgId) { setOrgError('No organisation ID found.'); return }
@@ -1425,26 +1314,7 @@ export default function SettingsTab() {
                     className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                   />
                 </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
-                  <select
-                    value={editForm.role || ''}
-                    onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))}
-                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                  >
-                    {roles.length > 0 ? roles.map(r => (
-                      <option key={r.id} value={r.name}>{r.name}</option>
-                    )) : (
-                      <>
-                        <option value="">Select Role...</option>
-                        <option value="Admin">Admin</option>
-                        <option value="HR">HR</option>
-                        <option value="Employee">Employee</option>
-                        <option value="Manager">Manager</option>
-                      </>
-                    )}
-                  </select>
-                </div>
+                <input type="hidden" value="Employee" />
               </div>
             </div>
 
