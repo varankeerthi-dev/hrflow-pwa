@@ -453,13 +453,25 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         )}
 
         {activePortalTab === 'profile' && (
-          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+          <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10 md:pb-20 px-4 md:px-0">
+            
+            {/* Profile Details Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+                <User size={20} />
+              </div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-black text-gray-900">Profile Details</h2>
+                <p className="text-xs text-gray-500">Complete employee information and records</p>
+              </div>
+            </div>
+
             {/* ── Modern Profile Header ─────────────────────────────────── */}
             <div className="relative group">
               {/* Decorative Background Elements */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-700 to-fuchsia-800 rounded-[40px] opacity-[0.03] -z-10 blur-3xl transform group-hover:scale-105 transition-transform duration-1000"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-700 to-fuchsia-800 rounded-[24px] md:rounded-[40px] opacity-[0.03] -z-10 blur-3xl transform group-hover:scale-105 transition-transform duration-1000"></div>
               
-              <div className="bg-white rounded-[40px] p-8 md:p-12 border border-gray-100 shadow-2xl shadow-gray-200/40 relative overflow-hidden">
+              <div className="bg-white rounded-[24px] md:rounded-[40px] p-6 md:p-8 lg:p-12 border border-gray-100 shadow-xl md:shadow-2xl shadow-gray-200/40 relative overflow-hidden">
                 {/* Abstract Header Pattern */}
                 <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-50/40 to-fuchsia-50/40 rounded-full -mr-48 -mt-48 blur-3xl group-hover:from-indigo-100/40 transition-colors duration-1000"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-50/20 rounded-full -ml-32 -mb-32 blur-3xl"></div>
