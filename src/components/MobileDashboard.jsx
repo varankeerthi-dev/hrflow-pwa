@@ -91,8 +91,8 @@ function MenuCard({ icon, label, onClick, color }) {
 }
 
 export default function MobileDashboard() {
-  const { user, logout } = useAuth()
-  const { employees } = useEmployees(user?.orgId)
+  const { user, logout, loading: authLoading } = useAuth()
+  const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const [orgSettings, setOrgSettings] = useState({})
   const [stats, setStats] = useState({
     totalEmployees: 0,
@@ -182,6 +182,17 @@ export default function MobileDashboard() {
     
     fetchStats()
   }, [user?.orgId])
+
+  if (authLoading || empLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-600 font-medium">Loading your dashboard...</p>
+      </div>
+    )
+  }
+
+  if (!user) return null
 
   const renderHomeDashboard = () => (
     <div className="p-4 space-y-4">

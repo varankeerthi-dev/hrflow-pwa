@@ -199,6 +199,15 @@ export default function AttendanceTab() {
     }
   }, [])
 
+  if (empLoading || attLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <Spinner size="lg" />
+        <p className="mt-4 text-gray-500 font-medium">Loading attendance data...</p>
+      </div>
+    )
+  }
+
   const handleGenerate = () => {
     if (!activeEmployees.length) return
     const newRows = activeEmployees.map(emp => ({

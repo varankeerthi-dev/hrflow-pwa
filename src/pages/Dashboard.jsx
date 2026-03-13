@@ -178,8 +178,8 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { user, logout, joinOrganisation, createOrganisation } = useAuth()
-  const { employees } = useEmployees(user?.orgId)
+  const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
+  const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const [activeTab, setActiveTab] = useState('attendance')
   const [summarySubTab, setSummarySubTab] = useState('summary')
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -274,6 +274,18 @@ export default function Dashboard() {
       case 'settings': return <SettingsTab />
       default: return <EmployeePortalTab />
     }
+  }
+
+  if (authLoading || (user?.orgId && empLoading)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 mb-6 flex items-center justify-center shadow-lg animate-pulse">
+          <span className="text-white text-3xl font-bold">H</span>
+        </div>
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-600 font-bold uppercase tracking-widest text-[10px]">Synchronizing Dashboard...</p>
+      </div>
+    )
   }
 
   return (

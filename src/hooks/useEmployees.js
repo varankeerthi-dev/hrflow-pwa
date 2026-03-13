@@ -8,7 +8,10 @@ export function useEmployees(orgId, activeOnly = false) {
   const [error, setError] = useState(null)
 
   const fetchEmployees = async () => {
-    if (!orgId) return
+    if (!orgId) {
+      setLoading(true)
+      return
+    }
     setLoading(true)
     try {
       let q = employeesCol(orgId)
