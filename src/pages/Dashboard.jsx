@@ -180,7 +180,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
 export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const [activeTab, setActiveTab] = useState('home')
+  const [activeTab, setActiveTab] = useState('attendance')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
   const [expandedGroups, setExpandedGroups] = useState({ main: true, hr: true, payroll: true, workforce: true, account: true }) // Default expand all groups

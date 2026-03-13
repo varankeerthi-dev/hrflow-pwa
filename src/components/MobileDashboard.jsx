@@ -100,7 +100,7 @@ export default function MobileDashboard() {
     absentToday: 0,
     pendingCorrections: 0
   })
-  const [activeTab, setActiveTab] = useState('home')
+  const [activeTab, setActiveTab] = useState('attendance')
   const [showMenu, setShowMenu] = useState(false)
   const [loading, setLoading] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
