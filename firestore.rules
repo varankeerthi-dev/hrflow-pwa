@@ -4,18 +4,22 @@ service cloud.firestore {
     
     // ─── Helper Functions ─────────────────────────────────────────────────────
     
+    // Helper function to get user's orgId and data efficiently
+    function getUserOrgId() {
+      return request.auth != null ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId : null;
+    }
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      let userData = getUserData();
-      return request.auth != null && (userData.role == 'admin' || userData.role == 'Admin');
+      let user = getUserData();
+      return request.auth != null && (user.role == 'admin' || user.role == 'Admin');
     }
 
     function isOrgMember(orgId) {
-      let userData = getUserData();
-      return request.auth != null && userData.orgId == orgId;
+      return request.auth != null && getUserOrgId() == orgId;
     }
 
     // Safer Dynamic Permission Check
@@ -23,7 +27,6 @@ service cloud.firestore {
       let user = getUserData();
       if (user.role == 'admin' || user.role == 'Admin') return true;
       
-      // Use get() with default value to avoid errors if permissions map is incomplete
       let perms = user.get('permissions', {});
       let modPerms = perms.get(module, {});
       return modPerms.get(right, false) == true || modPerms.get('full', false) == true;
@@ -32,15 +35,21 @@ service cloud.firestore {
     // ─── User Rules ───────────────────────────────────────────────────────────
 
     match /users/{uid} {
-      // Users can read/write their own data
-      // Admins can read/write users in their own organization
+      // Allow read if self OR if requester is admin from same org
       allow read: if request.auth != null && (
         request.auth.uid == uid || 
-        (isAdmin() && getUserData().orgId == get(/databases/$(database)/documents/users/$(uid)).data.orgId)
+        (isAdmin() && resource != null && getUserOrgId() == resource.data.orgId)
       );
+      
+      // Allow write if self OR if requester is admin from same org
       allow write: if request.auth != null && (
         request.auth.uid == uid || 
-        (isAdmin() && getUserData().orgId == get(/databases/$(database)/documents/users/$(uid)).data.orgId)
+        (isAdmin() && (
+          // Case 1: Updating existing user in same org
+          (resource != null && getUserOrgId() == resource.data.orgId) ||
+          // Case 2: Creating new user with same orgId
+          (resource == null && getUserOrgId() == request.resource.data.orgId)
+        ))
       );
     }
     
@@ -49,14 +58,16 @@ service cloud.firestore {
     match /organisations/{orgId} {
       allow get: if request.auth != null;
       allow list: if isOrgMember(orgId);
-      allow write: if isAdmin() || (request.auth != null && !getUserData().keys().contains('orgId'));
       
-      // Subcollections
+      // ONLY allow create if user has no org yet. Update/Delete requires Admin role.
+      allow create: if request.auth != null && getUserOrgId() == null;
+      allow update, delete: if isAdmin() && isOrgMember(orgId);
+      
       match /attendance/{attId} {
-        allow read: if isOrgMember(orgId) && hasModuleRight('Attendance', 'view');
-        allow create: if isOrgMember(orgId) && hasModuleRight('Attendance', 'create');
-        allow update: if isOrgMember(orgId) && hasModuleRight('Attendance', 'edit');
-        allow delete: if isOrgMember(orgId) && hasModuleRight('Attendance', 'delete');
+        allow read: if isOrgMember(orgId) && (hasModuleRight('Attendance', 'view') || hasModuleRight('Attendance', 'full'));
+        allow create: if isOrgMember(orgId) && (hasModuleRight('Attendance', 'create') || hasModuleRight('Attendance', 'full'));
+        allow update: if isOrgMember(orgId) && (hasModuleRight('Attendance', 'edit') || hasModuleRight('Attendance', 'full'));
+        allow delete: if isOrgMember(orgId) && (hasModuleRight('Attendance', 'delete') || hasModuleRight('Attendance', 'full'));
       }
 
       match /employees/{empId} {
@@ -90,18 +101,18 @@ service cloud.firestore {
       }
 
       match /salarySlips/{slipId} {
-        allow read: if isOrgMember(orgId) && (hasModuleRight('SalarySlip', 'view') || resource.data.employeeId == request.auth.uid);
-        allow write: if isOrgMember(orgId) && hasModuleRight('SalarySlip', 'create');
+        allow read: if isOrgMember(orgId) && (hasModuleRight('SalarySlip', 'view') || (resource != null && resource.data.employeeId == request.auth.uid));
+        allow write: if isOrgMember(orgId) && (hasModuleRight('SalarySlip', 'create') || hasModuleRight('SalarySlip', 'full'));
       }
 
       match /jobs/{jobId} {
         allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && hasModuleRight('Recruitment', 'create');
+        allow write: if isOrgMember(orgId) && (hasModuleRight('Recruitment', 'create') || hasModuleRight('Recruitment', 'full'));
       }
 
       match /applicants/{appId} {
         allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId) && hasModuleRight('Recruitment', 'edit');
+        allow write: if isOrgMember(orgId) && (hasModuleRight('Recruitment', 'edit') || hasModuleRight('Recruitment', 'full'));
       }
 
       match /documents/{docId} {
@@ -112,7 +123,7 @@ service cloud.firestore {
       match /requests/{reqId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId);
-        allow update: if isOrgMember(orgId) && (hasModuleRight('Approvals', 'approve') || resource.data.employeeId == request.auth.uid);
+        allow update: if isOrgMember(orgId) && (hasModuleRight('Approvals', 'approve') || (resource != null && resource.data.employeeId == request.auth.uid));
       }
 
       match /logs/{logId} {
@@ -121,7 +132,6 @@ service cloud.firestore {
       }
     }
 
-    // Global Deny
     match /{document=**} {
       allow read, write: if false;
     }

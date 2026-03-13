@@ -353,10 +353,13 @@ export default function SettingsTab() {
   const handleSaveEmployee = async () => {
     setSaving(true)
     try {
-      // Prepare clean employee data - remove any undefined values
-      const cleanEditForm = Object.fromEntries(
-        Object.entries(editForm).filter(([_, v]) => v !== undefined && v !== null)
-      )
+      // Prepare clean employee data - remove any undefined values and include orgId
+      const cleanEditForm = {
+        ...Object.fromEntries(
+          Object.entries(editForm).filter(([_, v]) => v !== undefined && v !== null)
+        ),
+        orgId: user.orgId // Ensure orgId is present for security rules
+      }
       
       await updateEmployee(editingEmp, cleanEditForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
@@ -376,7 +379,7 @@ export default function SettingsTab() {
             {
               email: editForm.email,
               name: editForm.name,
-              orgId: user.orgId,
+              orgId: user.orgId, // Critical for rules
               role: (editForm.role || 'employee').toLowerCase(),
               employeeId: editingEmp,
               empCode: editForm.empCode,
@@ -400,7 +403,7 @@ export default function SettingsTab() {
               {
                 email: editForm.email,
                 name: editForm.name,
-                orgId: user.orgId,
+                orgId: user.orgId, // Critical for rules
                 role: (editForm.role || 'employee').toLowerCase(),
                 employeeId: editingEmp,
                 empCode: editForm.empCode,
@@ -431,6 +434,7 @@ export default function SettingsTab() {
             await setDoc(
               doc(db, 'users', userDocId),
               {
+                orgId: user.orgId, // Critical for rules
                 loginEnabled: false,
               },
               { merge: true }
@@ -472,7 +476,7 @@ export default function SettingsTab() {
       const empCode = newEmployee.empCode?.trim() ||
         `EMP-${Date.now().toString(36).toUpperCase().slice(-4)}`
 
-      const payload = { ...newEmployee, empCode }
+      const payload = { ...newEmployee, empCode, orgId: user.orgId }
       const { tempPassword, ...employeeDoc } = payload
 
       // 1) Create employee master
