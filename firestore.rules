@@ -2,17 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isOrgMember(orgId) {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
     }
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
-    match /organisations/{orgId} {
-      allow get: if request.auth != null;
-      allow update, delete, list: if isOrgMember(orgId);
-      match /{allChildren=**} {
-        allow read, write: if isOrgMember(orgId);
-      }
+    match /organisations/{orgId}/{document=**} {
+      allow read, write: if isOrgMember(orgId);
     }
     match /{document=**} {
       allow read, write: if false;
