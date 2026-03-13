@@ -369,7 +369,11 @@ export default function SettingsTab() {
         const tempPassword = editForm.tempPassword ? editForm.tempPassword.trim() : ''
         
         // Check if auth user already exists by looking up users collection
-        const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
+        const usersSnap = await getDocs(query(
+          collection(db, 'users'), 
+          where('orgId', '==', user.orgId),
+          where('email', '==', editForm.email)
+        ))
         
         if (!usersSnap.empty) {
           // User exists - just update the user document
@@ -428,7 +432,11 @@ export default function SettingsTab() {
       } else if (!editForm.loginEnabled && editForm.email) {
         // Disable login - update user doc
         try {
-          const usersSnap = await getDocs(query(collection(db, 'users'), where('email', '==', editForm.email)))
+          const usersSnap = await getDocs(query(
+            collection(db, 'users'), 
+            where('orgId', '==', user.orgId),
+            where('email', '==', editForm.email)
+          ))
           if (!usersSnap.empty) {
             const userDocId = usersSnap.docs[0].id
             await setDoc(

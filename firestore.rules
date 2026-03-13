@@ -35,10 +35,17 @@ service cloud.firestore {
     // ─── User Rules ───────────────────────────────────────────────────────────
 
     match /users/{uid} {
-      // Allow read if self OR if requester is admin from same org
-      allow read: if request.auth != null && (
+      // Allow individual document read if self OR if requester is admin from same org
+      allow get: if request.auth != null && (
         request.auth.uid == uid || 
         (isAdmin() && resource != null && getUserOrgId() == resource.data.orgId)
+      );
+
+      // Allow collection listing for admins, but ONLY if they filter by their own orgId
+      // Firestore requires queries to match these constraints
+      allow list: if request.auth != null && (
+        (isAdmin() && request.query.limit <= 100 && request.query.filters.orgId == getUserOrgId()) ||
+        (request.auth.uid == uid)
       );
       
       // Allow write if self OR if requester is admin from same org
