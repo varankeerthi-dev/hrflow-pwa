@@ -43,9 +43,12 @@ function OrgSetupModal({ user, onJoin, onCreate, onNavigate }) {
     if (!orgName.trim()) { setError('Please enter an organisation name.'); return }
     setLoading(true); setError('')
     try {
+      console.log('OrgSetupModal (Login): Calling onCreate...')
       const code = await onCreate(orgName.trim())
+      console.log('OrgSetupModal (Login): onCreate success, code=', code)
       setCreatedCode(code); setLoading(false)
     } catch (err) {
+      console.error('OrgSetupModal (Login): onCreate error=', err)
       setError(err.message); setLoading(false)
     }
   }

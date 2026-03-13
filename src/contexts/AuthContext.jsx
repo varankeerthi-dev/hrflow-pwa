@@ -185,12 +185,14 @@ export function AuthProvider({ children }) {
     if (!firebaseUser) throw new Error('Not authenticated.')
 
     const currentUser = await readUserDoc(firebaseUser.uid)
+    console.log('createOrganisation: currentUser=', currentUser)
     if (currentUser?.orgId && currentUser?.role !== 'admin') {
       throw new Error('You are already part of an organisation.')
     }
 
     const slug = orgName.trim().toLowerCase().replace(/\s+/g, '-')
     const code = `${slug}-${Date.now().toString(36)}`
+    console.log('createOrganisation: generated code=', code)
 
     const orgData = {
       name: orgName.trim(),
@@ -204,15 +206,22 @@ export function AuthProvider({ children }) {
       role: 'admin',
     }
 
-    // Creating organization document first to satisfy firestore rules
-    // (Rules allow creation if user's current orgId is null)
-    await setDoc(doc(db, 'organisations', code), orgData)
-
-    // Then update the user document
-    await setDoc(doc(db, 'users', firebaseUser.uid), updatedFields, { merge: true })
-    setUser((prev) => ({ ...prev, ...updatedFields }))
-
-    return code
+    try {
+      console.log('createOrganisation: Attempting to create org document...')
+      await setDoc(doc(db, 'organisations', code), orgData)
+      console.log('createOrganisation: Org document created successfully')
+      
+      console.log('createOrganisation: Attempting to update user document...')
+      await setDoc(doc(db, 'users', firebaseUser.uid), updatedFields, { merge: true })
+      console.log('createOrganisation: User document updated successfully')
+      
+      // We return the code first; the modal should trigger a refresh or user can click 'Get Started'
+      // to update the local state. If we call setUser here, the modal might unmount before showing the code.
+      return code
+    } catch (err) {
+      console.error('createOrganisation: Error during creation process:', err)
+      throw err
+    }
   }
 
   const joinOrganisation = async (code) => {
@@ -224,12 +233,24 @@ export function AuthProvider({ children }) {
       throw new Error('You are already part of an organisation. Please logout to join a different one.')
     }
 
-    const orgSnap = await getDoc(doc(db, 'organisations', code.trim()))
-    if (!orgSnap.exists()) throw new Error('Organisation not found.')
+    try {
+      console.log('joinOrganisation: Attempting to find organisation...')
+      const orgSnap = await getDoc(doc(db, 'organisations', code.trim()))
+      if (!orgSnap.exists()) throw new Error('Organisation not found.')
 
-    const updates = { orgId: code.trim(), role: 'employee' }
-    await setDoc(doc(db, 'users', firebaseUser.uid), updates, { merge: true })
-    setUser((prev) => ({ ...prev, ...updates }))
+      const updates = { orgId: code.trim(), role: 'employee' }
+      console.log('joinOrganisation: Attempting to update user document...')
+      await setDoc(doc(db, 'users', firebaseUser.uid), updates, { merge: true })
+      console.log('joinOrganisation: User document updated successfully')
+      
+      // Similarly to createOrganisation, return success instead of updating setUser immediately
+      // if we want to show success UI first. If not, setUser is fine. 
+      // Most of the time joinOrganisation doesn't have its own success screen.
+      setUser((prev) => ({ ...prev, ...updates }))
+    } catch (err) {
+      console.error('joinOrganisation: Error joining organisation:', err)
+      throw err
+    }
   }
 
   const logout = () => signOut(auth)

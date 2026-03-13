@@ -109,8 +109,18 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
     e.preventDefault()
     if (!orgName.trim()) { setError('Please enter name.'); return }
     setLoading(true); setError('')
-    try { const code = await onCreate(orgName.trim()); setCreatedCode(code); setLoading(false) }
-    catch (err) { setError(err.message); setLoading(false) }
+    try { 
+      console.log('OrgSetupModal: Calling onCreate...')
+      const code = await onCreate(orgName.trim()); 
+      console.log('OrgSetupModal: onCreate success, code=', code)
+      setCreatedCode(code); 
+      setLoading(false) 
+    }
+    catch (err) { 
+      console.error('OrgSetupModal: onCreate error=', err)
+      setError(err.message); 
+      setLoading(false) 
+    }
   }
 
   return (
