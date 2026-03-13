@@ -54,9 +54,7 @@ export default function SettingsTab() {
     { id: 'advance_cat', label: 'Advance Cats', module: 'AdvanceExpense' },
     { id: 'holidays', label: 'Holidays', module: 'Settings' }
   ]
-  const visibleSubTabs = isAdmin 
-    ? allSubTabs 
-    : allSubTabs.filter(tab => userPermissions[tab.module]?.view || userPermissions[tab.module]?.full || userPermissions[tab.module]?.create)
+  const visibleSubTabs = allSubTabs
 
   useEffect(() => {
     if (!visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {

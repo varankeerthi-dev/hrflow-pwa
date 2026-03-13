@@ -203,6 +203,7 @@ export default function MobileDashboard() {
     pendingCorrections: 0
   })
   const [activeTab, setActiveTab] = useState('attendance')
+  const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [showMenu, setShowMenu] = useState(false)
   const [loading, setLoading] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
@@ -399,7 +400,7 @@ export default function MobileDashboard() {
       case 'shift-planning':
         return <ShiftPlanningTab />
       case 'portal':
-        return <EmployeePortalTab />
+        return <EmployeePortalTab portalSubTab={portalSubTab} />
       case 'settings':
         return <SettingsTab />
       default:
@@ -436,16 +437,18 @@ export default function MobileDashboard() {
           </div>
           
           <div className="flex items-center gap-3">
-            {currentEmployee?.photoURL ? (
-              <img src={currentEmployee.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
-            ) : (
-              <div 
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                style={{ backgroundColor: getAvatarColor(user?.uid) }}
-              >
-                {getInitials(user?.name)}
-              </div>
-            )}
+            <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="flex items-center">
+              {currentEmployee?.photoURL ? (
+                <img src={currentEmployee.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+              ) : (
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                  style={{ backgroundColor: getAvatarColor(user?.uid) }}
+                >
+                  {getInitials(user?.name)}
+                </div>
+              )}
+            </button>
           </div>
         </div>
       </header>

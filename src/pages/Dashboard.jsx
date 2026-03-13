@@ -408,12 +408,7 @@ export default function Dashboard() {
         >
           <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
             {sections.map(section => {
-              const sectionTabs = allTabs.filter(t => {
-                if (!section.tabs.includes(t.id)) return false
-                if (user?.role === 'admin') return true
-                if (!rolePermissions) return t.id === 'portal'
-                return rolePermissions[t.module]?.view || rolePermissions[t.module]?.full
-              });
+              const sectionTabs = allTabs.filter(t => section.tabs.includes(t.id));
               
               if (sectionTabs.length === 0) return null;
               
