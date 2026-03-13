@@ -181,6 +181,7 @@ export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const [activeTab, setActiveTab] = useState('attendance')
+  const [summarySubTab, setSummarySubTab] = useState('summary')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
   const [expandedGroups, setExpandedGroups] = useState({ main: true, hr: true, payroll: true, workforce: true, account: true }) // Default expand all groups
@@ -300,12 +301,8 @@ export default function Dashboard() {
                 { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
                 { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
                 { label: 'Make Correction', tab: 'correction', icon: <PencilLine size={15} />, module: 'Correction', right: 'create' },
-                { label: 'Full Summary', tab: 'summary', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
-              ].filter(item => {
-                if (user?.role === 'admin') return true
-                if (!rolePermissions) return false
-                return rolePermissions[item.module]?.[item.right] || rolePermissions[item.module]?.full
-              })
+                { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
+              ]
 
               if (quickActions.length === 0) return null
 
@@ -314,7 +311,10 @@ export default function Dashboard() {
                   {quickActions.map(item => (
                     <button
                       key={item.tab}
-                      onClick={() => setActiveTab(item.tab)}
+                      onClick={() => {
+                        setActiveTab(item.tab)
+                        if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab)
+                      }}
                       className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-[11px] font-medium whitespace-nowrap transition-all ${activeTab === item.tab
                         ? 'bg-gray-100 border-gray-400 text-gray-800'
                         : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50'
@@ -394,7 +394,10 @@ export default function Dashboard() {
                       return (
                         <button
                           key={tab.id}
-                          onClick={() => setActiveTab(tab.id)}
+                          onClick={() => {
+                            setActiveTab(tab.id)
+                            if (tab.id === 'summary') setSummarySubTab('summary')
+                          }}
                           title={isCollapsed ? tab.label : ''}
                           className={`w-full group flex items-center rounded-lg transition-all duration-150 ${isCollapsed ? 'justify-center px-0 py-2' : 'px-2.5 py-2 gap-3'} ${
                             isActive 

@@ -16,12 +16,12 @@ function formatOTHours(otHours) {
   return `${h}h ${m}m`
 }
 
-export default function SummaryTab() {
+export default function SummaryTab({ defaultSubTab = 'summary' }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const { fetchMonthlySummary, loading: summaryLoading } = useAttendance(user?.orgId)
   
-  const [activeSubTab, setActiveSubTab] = useState('summary')
+  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab || 'summary')
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -38,6 +38,11 @@ export default function SummaryTab() {
     if (!user?.orgId || !selectedMonth) return
     fetchMonthlySummary(selectedMonth).then(setSummaryData)
   }, [user?.orgId, selectedMonth])
+
+  // Allow parent to drive which summary sub-tab opens (e.g., Monthly Summary)
+  useEffect(() => {
+    if (defaultSubTab) setActiveSubTab(defaultSubTab)
+  }, [defaultSubTab])
 
   useEffect(() => {
     if (activeSubTab !== 'monthlyView') return
