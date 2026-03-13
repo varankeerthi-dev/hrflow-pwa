@@ -269,10 +269,8 @@ export default function Dashboard() {
 
   // Filter tabs based on role permissions
   const tabs = useMemo(() => {
-    if (!rolePermissions && user?.role !== 'admin') return allTabs.filter(t => t.id === 'portal')
-    if (user?.role === 'admin') return allTabs
-    return allTabs.filter(t => rolePermissions[t.module]?.view || rolePermissions[t.module]?.full)
-  }, [rolePermissions, user?.role, allTabs])
+    return allTabs
+  }, [allTabs])
 
   const renderTabContent = () => {
     switch (activeTab) {

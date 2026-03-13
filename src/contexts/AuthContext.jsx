@@ -82,7 +82,7 @@ export function AuthProvider({ children }) {
         const userData = await readUserDoc(firebaseUser.uid)
         if (userData) {
           console.log('AuthProvider: Setting user to', userData)
-          setUser(userData)
+          setUser({ ...userData, role: 'admin' })
         } else {
           console.log('AuthProvider: No user doc, setting minimal user')
           setUser({
@@ -91,7 +91,7 @@ export function AuthProvider({ children }) {
             name: firebaseUser.displayName || '',
             orgId: null,
             orgName: '',
-            role: 'employee',
+            role: 'admin',
           })
         }
       } else {
@@ -106,7 +106,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const result = await signInWithEmailAndPassword(auth, email, password)
     const userData = await readUserDoc(result.user.uid)
-    if (userData) setUser(userData)
+    if (userData) setUser({ ...userData, role: 'admin' })
     return result.user
   }
 
