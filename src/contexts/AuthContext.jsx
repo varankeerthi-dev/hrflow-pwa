@@ -78,6 +78,7 @@ export function AuthProvider({ children }) {
     console.log('AuthProvider: Setting up onAuthStateChanged')
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('AuthProvider: onAuthStateChanged firebaseUser=', firebaseUser?.uid)
+      setLoading(true) // Ensure loading is true while we fetch userData
       if (firebaseUser) {
         const userData = await readUserDoc(firebaseUser.uid)
         if (userData) {
@@ -208,6 +209,9 @@ export function AuthProvider({ children }) {
 
     try {
       console.log('createOrganisation: Attempting to create org document for code:', code)
+      // Check for current user auth state explicitly
+      if (!auth.currentUser) throw new Error('Session expired. Please log in again.')
+      
       await setDoc(doc(db, 'organisations', code), orgData)
       console.log('createOrganisation: Org document created successfully')
       
@@ -215,13 +219,16 @@ export function AuthProvider({ children }) {
       await setDoc(doc(db, 'users', firebaseUser.uid), updatedFields, { merge: true })
       console.log('createOrganisation: User document updated successfully')
       
+      // Update local state to reflect new org and role 'admin'
+      setUser(prev => ({ ...prev, ...updatedFields }))
+      
       // We return the code first; the modal should trigger a refresh or user can click 'Get Started'
-      // to update the local state. If we call setUser here, the modal might unmount before showing the code.
       return code
     } catch (err) {
       console.error('createOrganisation: Permission or system error during creation process:', err)
-      // If it failed at the second step, the first might have succeeded.
-      // We log the specifics to help identifying which step failed.
+      if (err.code === 'permission-denied') {
+        throw new Error('Permission denied. Please ensure you are logged in correctly and have rights to create an organisation.')
+      }
       throw err
     }
   }

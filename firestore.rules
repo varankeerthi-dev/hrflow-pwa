@@ -9,10 +9,19 @@ service cloud.firestore {
              userDoc.data.get('orgId', null) == orgId;
     }
 
+    // Helper for admin check
+    function isOrgAdmin(targetOrgId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return request.auth != null && 
+             userDoc != null && 
+             userDoc.data.get('orgId', null) == targetOrgId &&
+             userDoc.data.get('role', null) == 'admin';
+    }
+
     // Users can read/write their own user document
     match /users/{uid} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && (request.auth.uid == uid || isOrgAdmin(get(/databases/$(database)/documents/users/$(uid)).data.get('orgId', null)));
     }
 
     // Organisations creation and access

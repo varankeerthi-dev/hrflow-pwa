@@ -189,7 +189,11 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
-  const { employees, loading: empLoading } = useEmployees(user?.orgId)
+  
+  // Requirement: Delay employee lookup until auth user and orgId are available
+  const canFetchEmployees = !!user?.orgId
+  const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
+  
   const [activeTab, setActiveTab] = useState('attendance')
   const [summarySubTab, setSummarySubTab] = useState('summary')
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -298,9 +302,13 @@ export default function Dashboard() {
     )
   }
 
+  // Requirement: Force org creation modal and block navigation if user has no org and no role
+  const isMissingOrg = user && !user.orgId && !user.role;
+  const showOrgModal = isMissingOrg || (user && !user.orgId);
+
   return (
     <div className="min-h-screen bg-white flex flex-col font-inter">
-      {user && !user.orgId && <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} onLogout={logout} />}
+      {showOrgModal && <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} onLogout={logout} />}
       {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-none h-14 shrink-0">

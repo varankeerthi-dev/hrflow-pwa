@@ -9,7 +9,8 @@ export function useEmployees(orgId, activeOnly = false) {
 
   const fetchEmployees = async () => {
     if (!orgId) {
-      setLoading(true)
+      setEmployees([])
+      setLoading(false)
       return
     }
     setLoading(true)
