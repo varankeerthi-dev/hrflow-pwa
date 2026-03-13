@@ -39,7 +39,7 @@ import {
   Info
 } from 'lucide-react'
 
-export default function EmployeePortalTab() {
+export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashboard' }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
@@ -55,7 +55,7 @@ export default function EmployeePortalTab() {
 
   const employeeId = employee?.id
 
-  const [activePortalTab, setActivePortalTab] = useState('dashboard')
+  const [activePortalTab, setActivePortalTab] = useState(initialSubTab)
   const [loading, setLoading] = useState(false)
   const [requests, setRequests] = useState([])
   const [showRequestModal, setShowRequestModal] = useState(false)
@@ -859,7 +859,7 @@ export default function EmployeePortalTab() {
             <div className="flex justify-between items-center px-4">
               <div>
                 <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">My Requests</h3>
-                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-1">Track your leave, permission and advance requests</p>
+                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-widest mt-1">Track your leave, permission and advance requests</p>
               </div>
               <button onClick={() => setShowRequestModal(true)} className="h-[44px] px-8 bg-indigo-600 text-white font-black rounded-xl shadow-xl shadow-indigo-900/10 hover:bg-indigo-700 transition-all uppercase tracking-[0.15em] text-[11px] flex items-center gap-3">
                 <Plus size={18} strokeWidth={3} /> Initialize Request

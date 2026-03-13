@@ -195,6 +195,7 @@ export default function Dashboard() {
   const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
   
   const [activeTab, setActiveTab] = useState('attendance')
+  const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [summarySubTab, setSummarySubTab] = useState('summary')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
@@ -284,9 +285,9 @@ export default function Dashboard() {
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
       case 'shift-planning': return <ShiftPlanningTab />
-      case 'portal': return <EmployeePortalTab />
+      case 'portal': return <EmployeePortalTab portalSubTab={portalSubTab} />
       case 'settings': return <SettingsTab />
-      default: return <EmployeePortalTab />
+      default: return <EmployeePortalTab portalSubTab={portalSubTab} />
     }
   }
 
@@ -360,19 +361,27 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex flex-col items-end text-right">
-              <span className="text-[13px] font-bold text-gray-800 tracking-tight">{user?.name}</span>
-              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.role || 'Staff'}</span>
-            </div>
-            {currentEmployee?.photoURL ? (
-              <img 
-                src={currentEmployee.photoURL} 
-                alt="Profile" 
-                className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
-            )}
+            <button
+              onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}
+              className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all"
+            >
+              <div className="flex flex-col items-end text-right">
+                <span className="text-[13px] font-bold text-gray-800 tracking-tight">{user?.name}</span>
+                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.email || user?.role || 'Staff'}</span>
+              </div>
+              {currentEmployee?.photoURL ? (
+                <img 
+                  src={currentEmployee.photoURL} 
+                  alt="Profile" 
+                  className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
+              )}
+            </button>
+            
+            <div className="h-6 w-px bg-gray-200"></div>
+            
             <button
               onClick={() => setShowLog(s => !s)}
               title="Activity Log"
