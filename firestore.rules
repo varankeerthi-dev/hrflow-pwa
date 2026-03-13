@@ -1,33 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if user is member of org
     function isOrgMember(orgId) {
-      return request.auth != null && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
     }
-    
-    // Users collection - each user can read/write their own doc
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Organizations and all subcollections
     match /organisations/{orgId} {
-      // Allow any auth user to read org (for join code verification)
       allow get: if request.auth != null;
-      // Require org membership for updates
       allow update, delete, list: if isOrgMember(orgId);
-      
-      // All subcollections use same pattern: org member can read, specific perms for write
       match /{allChildren=**} {
-        allow read: if isOrgMember(orgId);
-        allow write: if isOrgMember(orgId);
+        allow read, write: if isOrgMember(orgId);
       }
     }
-    
-    // Default deny all
     match /{document=**} {
       allow read, write: if false;
     }
