@@ -279,7 +279,7 @@ export default function Dashboard() {
       case 'letters': return <HRLettersTab />
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />
-      case 'summary': return <SummaryTab />
+      case 'summary': return <SummaryTab defaultSubTab={summarySubTab} />
       case 'salary-slip': return <SalarySlipTab />
       case 'advance': return <AdvanceExpenseTab />
       case 'fines': return <FineTab />
