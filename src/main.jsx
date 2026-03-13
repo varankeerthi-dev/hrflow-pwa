@@ -66,6 +66,10 @@ class GlobalErrorBoundary extends Component {
 
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled Rejection:', event.reason)
+  if (event.reason?.code === 'permission-denied') {
+    alert('Session Expired or Permission Denied. Please refresh the page.')
+    window.location.reload()
+  }
 })
 
 ReactDOM.createRoot(document.getElementById('root')).render(
