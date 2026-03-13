@@ -7,6 +7,7 @@ import { db } from '../../lib/firebase'
 import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import ImageViewer from '../ui/ImageViewer'
 import TimePicker from '../ui/TimePicker'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
@@ -30,7 +31,12 @@ import {
   Briefcase,
   Map,
   CreditCard,
-  Target
+  Target,
+  ExternalLink,
+  Eye,
+  Lock,
+  Smartphone,
+  Info
 } from 'lucide-react'
 
 export default function EmployeePortalTab() {
@@ -65,6 +71,7 @@ export default function EmployeePortalTab() {
   })
   const [attendanceRows, setAttendanceRows] = useState([])
   const [todayRecord, setTodayRecord] = useState(null)
+  const [viewerState, setViewerState] = useState(null) // { docs, index }
 
   useEffect(() => {
     if (!user?.orgId || empLoading) return
@@ -380,59 +387,56 @@ export default function EmployeePortalTab() {
         )}
 
         {activePortalTab === 'profile' && (
-          <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-            {/* Profile Header Card */}
-            <div className="bg-white rounded-3xl p-8 md:p-12 border border-gray-100 shadow-xl shadow-gray-200/20 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-indigo-100/50 transition-colors duration-1000"></div>
+          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+            {/* ── Modern Profile Header ─────────────────────────────────── */}
+            <div className="relative group">
+              {/* Decorative Background Elements */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-700 to-fuchsia-800 rounded-[40px] opacity-[0.03] -z-10 blur-3xl transform group-hover:scale-105 transition-transform duration-1000"></div>
               
-              <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-                <div className="relative">
-                  {employee?.photoURL ? (
-                    <img src={employee.photoURL} alt={user?.name} className="w-32 h-32 md:w-40 md:h-40 rounded-[40px] object-cover shadow-2xl ring-8 ring-indigo-50" />
-                  ) : (
-                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-[40px] bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center text-white text-5xl font-black shadow-2xl ring-8 ring-indigo-50">
-                      {user?.name?.[0]}
-                    </div>
-                  )}
-                  <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center text-indigo-600 border border-gray-50">
-                    <ShieldCheck size={24} />
-                  </div>
-                </div>
+              <div className="bg-white rounded-[40px] p-8 md:p-12 border border-gray-100 shadow-2xl shadow-gray-200/40 relative overflow-hidden">
+                {/* Abstract Header Pattern */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-50/40 to-fuchsia-50/40 rounded-full -mr-48 -mt-48 blur-3xl group-hover:from-indigo-100/40 transition-colors duration-1000"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-50/20 rounded-full -ml-32 -mb-32 blur-3xl"></div>
 
-                <div className="flex-1 text-center md:text-left">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-                    <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">{user?.name}</h2>
-                    <span className={`w-fit mx-auto md:mx-0 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${employee?.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-red-600 border-rose-100'}`}>
-                      {employee?.status || 'Active'} Duty
-                    </span>
+                <div className="relative z-10 flex flex-col lg:flex-row items-center lg:items-end gap-10">
+                  {/* Profile Image Container */}
+                  <div className="relative shrink-0">
+                    <div className="w-40 h-40 md:w-52 md:h-52 rounded-[48px] overflow-hidden shadow-2xl ring-[12px] ring-white relative group/avatar">
+                      {employee?.photoURL ? (
+                        <img src={employee.photoURL} alt={user?.name} className="w-full h-full object-cover transform group-hover/avatar:scale-110 transition-transform duration-700" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-tr from-indigo-600 to-violet-700 flex items-center justify-center text-white text-6xl font-black">
+                          {user?.name?.[0]}
+                        </div>
+                      )}
+                    </div>
+                    {/* Floating Status Badge */}
+                    <div className="absolute -bottom-2 -right-2 bg-white p-2 rounded-2xl shadow-xl border border-gray-50 flex items-center gap-2 pr-4">
+                      <div className={`w-3 h-3 rounded-full animate-pulse ${employee?.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">{employee?.status || 'Active'}</span>
+                    </div>
                   </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-8">
-                    <div className="flex items-center justify-center md:justify-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                        <Briefcase size={16} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Designation</p>
-                        <p className="text-[13px] font-bold text-gray-700">{employee?.designation || 'Staff Member'}</p>
-                      </div>
+
+                  {/* Header Text Content */}
+                  <div className="flex-1 text-center lg:text-left pb-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest mb-4">
+                      <Lock size={12} /> Personal Secured Portal
                     </div>
-                    <div className="flex items-center justify-center md:justify-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600">
-                        <Building size={16} />
+                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 tracking-tight mb-4 leading-tight">
+                      {user?.name}
+                    </h2>
+                    <div className="flex flex-wrap justify-center lg:justify-start gap-4">
+                      <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
+                        <Briefcase size={16} className="text-indigo-500" />
+                        <span className="text-sm font-bold text-gray-700">{employee?.designation || 'Staff Member'}</span>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Department</p>
-                        <p className="text-[13px] font-bold text-gray-700">{employee?.department || 'General'}</p>
+                      <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
+                        <Building size={16} className="text-violet-500" />
+                        <span className="text-sm font-bold text-gray-700">{employee?.department || 'General'}</span>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-center md:justify-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-                        <Hash size={16} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Employee ID</p>
-                        <p className="text-[13px] font-bold text-gray-700">{employee?.empCode || 'N/A'}</p>
+                      <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
+                        <Hash size={16} className="text-blue-500" />
+                        <span className="text-sm font-bold text-gray-700">{employee?.empCode || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
@@ -441,133 +445,208 @@ export default function EmployeePortalTab() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Personal Information */}
+              {/* ── Left Column: Personal & Contact ────────────────────────── */}
               <div className="lg:col-span-2 space-y-8">
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
-                    <UsersIcon size={18} className="text-indigo-600" />
-                    <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">Personal Identity Details</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-50">
-                    <div className="p-8 space-y-6">
-                      {[
-                        { label: 'Father\'s Name', value: employee?.fatherName, icon: <User size={14} /> },
-                        { label: 'Mother\'s Name', value: employee?.motherName, icon: <User size={14} /> },
-                        { label: 'Date of Birth', value: employee?.dob, icon: <Calendar size={14} /> }
-                      ].map(item => (
-                        <div key={item.label} className="flex items-start gap-4">
-                          <div className="mt-1 text-gray-300">{item.icon}</div>
-                          <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
-                            <p className="text-[14px] font-bold text-gray-700">{item.value || '—'}</p>
-                          </div>
-                        </div>
-                      ))}
+                
+                {/* Personal Identity Details */}
+                <div className="bg-white rounded-[32px] border border-gray-100 shadow-xl shadow-gray-200/20 overflow-hidden group">
+                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600"><UsersIcon size={18} /></div>
+                      <span className="text-[12px] font-black text-gray-900 uppercase tracking-[0.2em]">Personal Identity</span>
                     </div>
-                    <div className="p-8 space-y-6">
-                      {[
-                        { label: 'Blood Group', value: employee?.bloodGroup, icon: <Heart size={14} /> },
-                        { label: 'Marital Status', value: employee?.maritalStatus, icon: <UsersIcon size={14} /> },
-                        { label: 'Emergency Contact', value: employee?.emergencyContact, icon: <Phone size={14} /> }
-                      ].map(item => (
-                        <div key={item.label} className="flex items-start gap-4">
-                          <div className="mt-1 text-gray-300">{item.icon}</div>
-                          <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
-                            <p className="text-[14px] font-bold text-gray-700">{item.value || '—'}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <div className="w-10 h-1 bg-indigo-100 rounded-full"></div>
                   </div>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
-                    <MapPin size={18} className="text-indigo-600" />
-                    <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">Contact & Residence</span>
-                  </div>
-                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                      <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Primary Email Address</p>
-                        <p className="text-[14px] font-bold text-indigo-600 lowercase tracking-tight underline underline-offset-4 decoration-indigo-100">{user?.email}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Mobile Number</p>
-                        <p className="text-[14px] font-bold text-gray-700">{employee?.contactNo || '—'}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Residential Address</p>
-                      <p className="text-[13px] font-medium text-gray-600 leading-relaxed max-w-xs">{employee?.address || 'Residential details not documented in master file.'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Professional & Banking */}
-              <div className="space-y-8">
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
-                    <Target size={18} className="text-indigo-600" />
-                    <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">Work Profile</span>
-                  </div>
-                  <div className="p-8 space-y-6">
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-12">
                     {[
-                      { label: 'Date Joined', value: employee?.joinedDate, icon: <Calendar size={14} className="text-emerald-500" /> },
-                      { label: 'Employment Type', value: employee?.employmentType, icon: <Briefcase size={14} className="text-blue-500" /> },
-                      { label: 'Work Location / Site', value: employee?.site, icon: <Map size={14} className="text-orange-500" /> },
-                      { label: 'Shift Schedule', value: `${employee?.workHours || 9} Hours Daily`, icon: <Clock size={14} className="text-purple-500" /> },
-                      { label: 'Reporting Manager', value: employee?.reportingManager, icon: <UsersIcon size={14} className="text-indigo-500" /> }
+                      { label: "Father's Name", value: employee?.fatherName, icon: <User size={16} /> },
+                      { label: "Mother's Name", value: employee?.motherName, icon: <User size={16} /> },
+                      { label: 'Date of Birth', value: employee?.dob, icon: <Calendar size={16} /> },
+                      { label: 'Blood Group', value: employee?.bloodGroup, icon: <Heart size={16} className="text-rose-500" /> },
+                      { label: 'Marital Status', value: employee?.maritalStatus, icon: <UsersIcon size={16} /> },
                     ].map(item => (
-                      <div key={item.label} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full bg-gray-100"></div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{item.label}</p>
+                      <div key={item.label} className="group/item">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="text-gray-300 group-hover/item:text-indigo-400 transition-colors">{item.icon}</div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.label}</p>
                         </div>
-                        <p className="text-[12px] font-black text-gray-700 text-right">{item.value || 'N/A'}</p>
+                        <p className="text-[15px] font-bold text-gray-800 ml-6">{item.value || '—'}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
-                    <CreditCard size={18} className="text-indigo-600" />
-                    <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">Banking & Statutory</span>
-                  </div>
-                  <div className="p-8 space-y-8">
-                    <div className="bg-indigo-50/30 p-5 rounded-2xl border border-indigo-100/50">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Landmark size={16} className="text-indigo-600" />
-                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none">Settlement Bank Account</p>
-                      </div>
-                      <p className="text-[16px] font-mono font-black text-indigo-900 tracking-wider">
-                        {employee?.bankAccount ? employee.bankAccount.replace(/\d(?=\d{4})/g, "•") : 'Not Configured'}
-                      </p>
+                {/* Contact & Residence */}
+                <div className="bg-white rounded-[32px] border border-gray-100 shadow-xl shadow-gray-200/20 overflow-hidden">
+                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600"><MapPin size={18} /></div>
+                      <span className="text-[12px] font-black text-gray-900 uppercase tracking-[0.2em]">Contact & Residence</span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <ShieldCheck size={16} className="text-gray-400" />
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Provident Fund (PF) No.</p>
+                  </div>
+                  <div className="p-8 space-y-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Mail size={16} className="text-gray-300" />
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Primary Email</p>
+                        </div>
+                        <p className="text-[15px] font-bold text-indigo-600 ml-6 underline underline-offset-4 decoration-indigo-100">{user?.email}</p>
                       </div>
-                      <p className="text-[14px] font-bold text-gray-700 uppercase">{employee?.pfNo || 'UAN NOT REGISTERED'}</p>
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Smartphone size={16} className="text-gray-300" />
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mobile Number</p>
+                        </div>
+                        <p className="text-[15px] font-bold text-gray-800 ml-6 tabular-nums">{employee?.contactNo || '—'}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Phone size={16} className="text-gray-300" />
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Emergency Contact</p>
+                        </div>
+                        <p className="text-[15px] font-bold text-gray-800 ml-6 tabular-nums">{employee?.emergencyContact || '—'}</p>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Map size={16} className="text-gray-300" />
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Permanent Address</p>
+                        </div>
+                        <p className="text-[14px] font-medium text-gray-600 leading-relaxed ml-6 max-w-sm">
+                          {employee?.address || 'Master record does not contain specific residential documentation.'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-gray-900 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 -mr-10 -mt-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-                  <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40 mb-6">Support Center</h4>
-                  <p className="text-xs font-medium text-white/70 leading-relaxed mb-6">Need to update your master file details? Submit a request to the HR operations team.</p>
-                  <button className="w-full py-3 bg-white text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-lg">
-                    Contact Administrator
-                  </button>
+                {/* Statutory & Documentation */}
+                <div className="bg-white rounded-[32px] border border-gray-100 shadow-xl shadow-gray-200/20 overflow-hidden">
+                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-amber-100 rounded-xl text-amber-600"><FileText size={18} /></div>
+                      <span className="text-[12px] font-black text-gray-900 uppercase tracking-[0.2em]">Statutory & Documents</span>
+                    </div>
+                  </div>
+                  <div className="p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10 pb-10 border-b border-gray-50">
+                      <div className="bg-amber-50/30 p-6 rounded-[24px] border border-amber-100/50">
+                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Provident Fund (PF) No.</p>
+                        <p className="text-[18px] font-mono font-black text-amber-900 tracking-wider">
+                          {employee?.pfNo || 'NOT REGISTERED'}
+                        </p>
+                      </div>
+                      <div className="bg-indigo-50/30 p-6 rounded-[24px] border border-indigo-100/50">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Settlement Bank Account</p>
+                          <Landmark size={14} className="text-indigo-400" />
+                        </div>
+                        <p className="text-[18px] font-mono font-black text-indigo-900 tracking-wider">
+                          {employee?.bankAccount ? employee.bankAccount.replace(/\d(?=\d{4})/g, "•") : 'Not Configured'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Attached Master Documents</h4>
+                    {(!employee?.documents || employee.documents.length === 0) ? (
+                      <div className="flex flex-col items-center justify-center py-10 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100">
+                        <FileText size={24} className="text-gray-200 mb-2" />
+                        <p className="text-[11px] font-bold text-gray-400">No documents found in master record</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {employee.documents.map((doc, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-indigo-200 hover:shadow-lg transition-all group/doc">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 group-hover/doc:bg-indigo-600 group-hover/doc:text-white transition-colors">
+                                <FileText size={20} />
+                              </div>
+                              <div>
+                                <p className="text-[12px] font-bold text-gray-800 line-clamp-1">{doc.name}</p>
+                                <p className="text-[10px] text-gray-400 uppercase font-black">{doc.type?.split('/')?.[1] || 'PDF'} File</p>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => setViewerState({ docs: employee.documents, index: idx })}
+                              className="p-2 hover:bg-indigo-50 rounded-lg text-indigo-400 hover:text-indigo-600 transition-colors"
+                            >
+                              <Eye size={18} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Right Column: Professional Profile ──────────────────────── */}
+              <div className="space-y-8">
+                <div className="bg-white rounded-[32px] border border-gray-100 shadow-xl shadow-gray-200/20 overflow-hidden">
+                  <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
+                    <Target size={18} className="text-indigo-600" />
+                    <span className="text-[12px] font-black text-gray-900 uppercase tracking-[0.2em]">Work Profile</span>
+                  </div>
+                  <div className="p-8">
+                    <div className="space-y-6">
+                      {[
+                        { label: 'Date Joined', value: employee?.joinedDate, icon: <Calendar size={14} />, color: "text-emerald-500", bg: "bg-emerald-50" },
+                        { label: 'Employment Type', value: employee?.employmentType, icon: <Briefcase size={14} />, color: "text-blue-500", bg: "bg-blue-50" },
+                        { label: 'Work Location / Site', value: employee?.site, icon: <MapPin size={14} />, color: "text-orange-500", bg: "bg-orange-50" },
+                        { label: 'System Role', value: employee?.role, icon: <ShieldCheck size={14} />, color: "text-violet-500", bg: "bg-violet-50" },
+                        { label: 'Shift Schedule', value: `${employee?.workHours || 9} Hours Daily`, icon: <Clock size={14} />, color: "text-purple-500", bg: "bg-purple-50" },
+                        { label: 'Reporting To', value: employee?.reportingManager, icon: <UsersIcon size={14} />, color: "text-indigo-500", bg: "bg-indigo-50" }
+                      ].map(item => (
+                        <div key={item.label} className="flex items-center justify-between group/work">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg ${item.bg} ${item.color} flex items-center justify-center shrink-0`}>
+                              {item.icon}
+                            </div>
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">{item.label}</p>
+                          </div>
+                          <p className="text-[13px] font-black text-gray-700 text-right">{item.value || 'N/A'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-900 rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-colors duration-1000"></div>
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-white/10 rounded-xl"><Info size={18} className="text-white" /></div>
+                      <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/50">Information</h4>
+                    </div>
+                    <p className="text-sm font-medium text-white/70 leading-relaxed mb-8">
+                      Your profile details are managed by the HR operations team. If any information requires correction, please submit an official update request.
+                    </p>
+                    <button className="w-full py-4 bg-white text-gray-900 rounded-[20px] font-black text-[11px] uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-xl hover:-translate-y-1">
+                      Request Information Update
+                    </button>
+                  </div>
+                </div>
+
+                {/* Additional Stats Card */}
+                <div className="bg-gradient-to-br from-indigo-600 to-violet-800 rounded-[32px] p-8 text-white shadow-xl relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-4 opacity-20"><ShieldCheck size={64} /></div>
+                   <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/50 mb-4">Security</h4>
+                   <p className="text-2xl font-black mb-1">Authenticated</p>
+                   <p className="text-xs text-white/60 font-bold uppercase tracking-widest">Secure Access Session</p>
                 </div>
               </div>
             </div>
           </div>
+        )}
+
+        {viewerState && (
+          <ImageViewer
+            docs={viewerState.docs}
+            index={viewerState.index}
+            onClose={() => setViewerState(null)}
+          />
         )}
 
         {activePortalTab === 'attendance' && (
