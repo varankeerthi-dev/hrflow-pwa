@@ -353,6 +353,8 @@ export default function SettingsTab() {
   const handleSaveEmployee = async () => {
     setSaving(true)
     try {
+      const selectedRoleName = (editForm.role || 'employee').toLowerCase()
+      const selectedRolePerms = roles.find(r => r.name?.toLowerCase() === selectedRoleName)?.permissions || {}
       // Prepare clean employee data - remove any undefined values and include orgId
       const cleanEditForm = {
         ...Object.fromEntries(
@@ -384,7 +386,8 @@ export default function SettingsTab() {
               email: editForm.email,
               name: editForm.name,
               orgId: user.orgId, // Critical for rules
-              role: (editForm.role || 'employee').toLowerCase(),
+              role: selectedRoleName,
+              permissions: selectedRolePerms,
               employeeId: editingEmp,
               empCode: editForm.empCode,
               department: editForm.department || '',
@@ -404,16 +407,17 @@ export default function SettingsTab() {
 
             await setDoc(
               doc(db, 'users', cred.user.uid),
-              {
-                email: editForm.email,
-                name: editForm.name,
-                orgId: user.orgId, // Critical for rules
-                role: (editForm.role || 'employee').toLowerCase(),
-                employeeId: editingEmp,
-                empCode: editForm.empCode,
-                department: editForm.department || '',
-                reportingManager: editForm.reportingManager || '',
-                createdAt: serverTimestamp(),
+            {
+              email: editForm.email,
+              name: editForm.name,
+              orgId: user.orgId, // Critical for rules
+              role: selectedRoleName,
+              permissions: selectedRolePerms,
+              employeeId: editingEmp,
+              empCode: editForm.empCode,
+              department: editForm.department || '',
+              reportingManager: editForm.reportingManager || '',
+              createdAt: serverTimestamp(),
                 loginEnabled: true,
               },
               { merge: true }
@@ -486,6 +490,8 @@ export default function SettingsTab() {
 
       const payload = { ...newEmployee, empCode, orgId: user.orgId }
       const { tempPassword, ...employeeDoc } = payload
+      const roleName = (employeeDoc.role || 'Employee').toLowerCase()
+      const rolePermissions = roles.find(r => r.name?.toLowerCase() === roleName)?.permissions || {}
 
       // 1) Create employee master
       const empId = await addEmployee(employeeDoc)
@@ -503,7 +509,8 @@ export default function SettingsTab() {
             email: employeeDoc.email,
             name: employeeDoc.name,
             orgId: user.orgId,
-            role: (employeeDoc.role || 'Employee').toLowerCase(),
+            role: roleName,
+            permissions: rolePermissions,
             employeeId: empId,
             empCode,
             department: employeeDoc.department || '',
@@ -598,15 +605,21 @@ export default function SettingsTab() {
 
       updateDoc(doc(db, 'organisations', user.orgId, 'roles', roleId), { permissions })
       
-      // Critical: Find all employees with this role and update their user documents
-      // This ensures security rules are synced immediately
+      // Critical: sync permissions to user documents with this role inside the same org
       const affectedRole = roles.find(r => r.id === roleId)
       if (affectedRole) {
-        employees.forEach(async (emp) => {
-          if (emp.role?.toLowerCase() === affectedRole.name.toLowerCase()) {
-            await setDoc(doc(db, 'users', emp.id), { permissions }, { merge: true })
+        (async () => {
+          try {
+            const usersSnap = await getDocs(query(
+              collection(db, 'users'),
+              where('orgId', '==', user.orgId),
+              where('role', '==', affectedRole.name.toLowerCase())
+            ))
+            await Promise.all(usersSnap.docs.map(u => setDoc(doc(db, 'users', u.id), { permissions }, { merge: true })))
+          } catch (err) {
+            console.error('Failed to sync role permissions to users:', err)
           }
-        })
+        })()
       }
 
       return { ...r, permissions }
