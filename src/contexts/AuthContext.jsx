@@ -91,7 +91,7 @@ export function AuthProvider({ children }) {
             name: firebaseUser.displayName || '',
             orgId: null,
             orgName: '',
-            role: 'employee',
+            role: null,
           })
         }
       } else {
@@ -126,7 +126,7 @@ export function AuthProvider({ children }) {
       email,
       name,
       orgId: resolvedOrgId,
-      role: 'employee',
+      role: resolvedOrgId ? 'employee' : null,
       createdAt: new Date().toISOString(),
     }
     await setDoc(doc(db, 'users', firebaseUser.uid), userDoc)
@@ -146,7 +146,7 @@ export function AuthProvider({ children }) {
           email: firebaseUser.email,
           name: firebaseUser.displayName || '',
           orgId: null,
-          role: 'employee',
+          role: null,
           createdAt: new Date().toISOString(),
         }
         await setDoc(doc(db, 'users', firebaseUser.uid), newDoc)
