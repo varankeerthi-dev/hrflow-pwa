@@ -46,7 +46,11 @@ export default function EmployeePortalTab() {
 
   const employee = useMemo(() => {
     if (!user?.email || !employees.length) return null
-    return employees.find(e => e.email?.toLowerCase() === user.email.toLowerCase())
+    const normalizedUserEmail = user.email.toLowerCase().trim()
+    return employees.find(e => {
+      const empEmail = (e.email || '').toLowerCase().trim()
+      return empEmail === normalizedUserEmail
+    })
   }, [employees, user?.email])
 
   const employeeId = employee?.id

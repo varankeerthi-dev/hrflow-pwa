@@ -199,7 +199,11 @@ export default function Dashboard() {
 
   const currentEmployee = useMemo(() => {
     if (!employees.length || !user?.uid) return null
-    return employees.find(e => e.email === user.email || e.id === user.uid) || employees[0]
+    const normalizedUserEmail = user.email?.toLowerCase().trim()
+    return employees.find(e => {
+      const empEmail = (e.email || '').toLowerCase().trim()
+      return (normalizedUserEmail && empEmail === normalizedUserEmail) || e.id === user.uid
+    }) || employees[0]
   }, [employees, user])
 
   useEffect(() => {
