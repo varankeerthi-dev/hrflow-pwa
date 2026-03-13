@@ -53,6 +53,104 @@ import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 
+// ─── Org Setup Modal ────────
+function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
+  const [modalTab, setModalTab] = useState('join')
+  const [orgCode, setOrgCode] = useState('')
+  const [orgName, setOrgName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [createdCode, setCreatedCode] = useState(null)
+
+  const isAdmin = user?.role === 'admin'
+  const hasOrg = !!user?.orgId
+
+  const handleJoin = async (e) => {
+    e.preventDefault()
+    if (!orgCode.trim()) { setError('Please enter code.'); return }
+    setLoading(true); setError('')
+    try { await onJoin(orgCode.trim().toLowerCase()) }
+    catch (err) { setError(err.message); setLoading(false) }
+  }
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!orgName.trim()) { setError('Please enter name.'); return }
+    setLoading(true); setError('')
+    try { 
+      const code = await onCreate(orgName.trim()); 
+      setCreatedCode(code); 
+      setLoading(false) 
+    }
+    catch (err) { 
+      setError(err.message); 
+      setLoading(false) 
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mb-4 shadow-xl">
+            <span className="text-white text-3xl">🏢</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 uppercase tracking-tight">Organization Setup</h2>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-2">
+            {hasOrg && isAdmin ? 'Create New Division' : 'Join a Team or Create Your Own'}
+          </p>
+        </div>
+
+        {!(hasOrg && isAdmin) && (
+          <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+            <button onClick={() => { setModalTab('join'); setError('') }}
+              className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${modalTab === 'join' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
+              Join Team
+            </button>
+            <button onClick={() => { setModalTab('create'); setError('') }}
+              className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${modalTab === 'create' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
+              Create Org
+            </button>
+          </div>
+        )}
+
+        {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-lg text-[10px] font-bold mb-4 uppercase text-center">{error}</div>}
+
+        {createdCode ? (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-100 rounded-xl p-5 text-center">
+              <p className="text-[10px] text-green-700 font-bold uppercase tracking-widest mb-3">Organization Online! 🎉</p>
+              <div className="bg-white border border-green-200 rounded-lg px-4 py-3 font-mono font-bold tracking-widest text-lg select-all shadow-inner">{createdCode}</div>
+              <p className="text-[9px] text-gray-400 font-bold uppercase mt-3 tracking-tighter italic">Share this code with your employees</p>
+            </div>
+            <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg shadow-xl uppercase text-[10px] tracking-widest">Get Started</button>
+          </div>
+        ) : modalTab === 'join' ? (
+          <form onSubmit={handleJoin} className="space-y-4">
+            <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold tracking-widest bg-gray-50" />
+            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Verifying...' : 'Join Organization'}</button>
+          </form>
+        ) : (
+          <form onSubmit={handleCreate} className="space-y-4">
+            <input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="BUSINESS NAME" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold uppercase tracking-widest bg-gray-50" />
+            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Creating...' : 'Initialize Org'}</button>
+          </form>
+        )}
+
+        <div className="mt-6 pt-4 border-t border-gray-100">
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 uppercase text-[10px] font-bold tracking-widest"
+          >
+            <LogOut size={14} />
+            <span>Back to login</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
 }
@@ -91,8 +189,12 @@ function MenuCard({ icon, label, onClick, color }) {
 }
 
 export default function MobileDashboard() {
-  const { user, logout, loading: authLoading } = useAuth()
-  const { employees, loading: empLoading } = useEmployees(user?.orgId)
+  const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
+  
+  // Requirement: Delay employee lookup until auth user and orgId are available
+  const canFetchEmployees = user && !!user.orgId
+  const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
+  
   const [orgSettings, setOrgSettings] = useState({})
   const [stats, setStats] = useState({
     totalEmployees: 0,
@@ -183,11 +285,23 @@ export default function MobileDashboard() {
     fetchStats()
   }, [user?.orgId])
 
-  if (authLoading || empLoading) {
+  if (authLoading || (user?.orgId && empLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p className="text-gray-600 font-medium">Loading your dashboard...</p>
+      </div>
+    )
+  }
+
+  // Requirement: Force org creation modal and block navigation if user has no org and no role
+  const isMissingOrg = user && !user.orgId && !user.role;
+  const showOrgModal = isMissingOrg || (user && !user.orgId);
+
+  if (showOrgModal) {
+    return (
+      <div className="min-h-screen bg-white">
+        <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} onLogout={logout} />
       </div>
     )
   }

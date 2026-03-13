@@ -191,7 +191,7 @@ export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
   
   // Requirement: Delay employee lookup until auth user and orgId are available
-  const canFetchEmployees = !!user?.orgId
+  const canFetchEmployees = user && !!user.orgId
   const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
   
   const [activeTab, setActiveTab] = useState('attendance')
@@ -307,9 +307,16 @@ export default function Dashboard() {
   const isMissingOrg = user && !user.orgId && !user.role;
   const showOrgModal = isMissingOrg || (user && !user.orgId);
 
+  if (showOrgModal) {
+    return (
+      <div className="min-h-screen bg-white">
+        <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} onLogout={logout} />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col font-inter">
-      {showOrgModal && <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} onLogout={logout} />}
       {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-none h-14 shrink-0">
