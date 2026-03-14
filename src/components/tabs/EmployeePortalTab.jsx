@@ -258,7 +258,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     if (!mine) return
 
     mine.outTime = timeStr
-    mine.otHours = calcOT(mine.inTime, mine.outTime, mine.inDate, mine.outDate, mine.workHours || 9)
+    mine.otHours = calcOT(mine.inTime, mine.outTime, mine.inDate, mine.outDate, mine.minDailyHours || 8)
     await upsertAttendance([mine])
     setTodayRecord(mine)
   }
