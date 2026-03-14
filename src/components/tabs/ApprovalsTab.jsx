@@ -15,6 +15,7 @@ import {
   deleteDoc
 } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
+import { formatINR } from '../../lib/salaryUtils'
 import { 
   CheckCircle2, 
   XCircle, 
@@ -39,15 +40,17 @@ export default function ApprovalsTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   
-  const [activeSubTab, setActiveSubTab] = useState('advance-expense') // 'advance-expense' or 'leave-permission'
+  const [activeSubTab, setActiveSubTab] = useState('advance-expense') // 'advance-expense', 'leave-permission', or 'payment-queue'
   const [loading, setLoading] = useState(false)
   const [advExpenses, setAdvExpenses] = useState([])
+  const [paymentQueue, setPaymentQueue] = useState([])
   const [requests, setRequests] = useState([])
   
   // For the Advance/Expense action toggles
-  const [actionState, setActionState] = useState({}) // { id: { status, remarks, showToggle } }
+  const [actionState, setActionState] = useState({}) // { id: { status, remarks, showToggle, paymentMethod, paymentRef } }
 
   const canApprove = user?.role?.toLowerCase() === 'admin' || user?.permissions?.Approvals?.approve === true
+  const isAccountant = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
   const isMD = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'md'
   const isHR = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'hr'
 
@@ -59,14 +62,20 @@ export default function ApprovalsTab() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      if (activeSubTab === 'advance-expense') {
+      if (activeSubTab === 'advance-expense' || activeSubTab === 'payment-queue') {
         const q = query(
           collection(db, 'organisations', user.orgId, 'advances_expenses'),
           orderBy('date', 'desc')
         )
         const snap = await getDocs(q)
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        setAdvExpenses(data)
+        
+        if (activeSubTab === 'payment-queue') {
+          // Show only MD approved items that are not paid
+          setPaymentQueue(data.filter(item => item.mdApproval === 'Approved' && item.paymentStatus !== 'Paid'))
+        } else {
+          setAdvExpenses(data)
+        }
         
         // Initialize action states
         const initialActionState = {}
@@ -74,7 +83,9 @@ export default function ApprovalsTab() {
           initialActionState[item.id] = { 
             status: item.status || 'Pending', 
             remarks: item.remarks || '', 
-            showToggle: false 
+            showToggle: false,
+            paymentMethod: 'Bank Transfer',
+            paymentRef: ''
           }
         })
         setActionState(initialActionState)
@@ -159,6 +170,28 @@ export default function ApprovalsTab() {
     }
   }
 
+  const handleUpdatePaymentStatus = async (id) => {
+    if (!isAccountant) return alert('Only accountants can process payments')
+    const state = actionState[id]
+    if (!state?.paymentRef.trim()) return alert('Please provide a payment reference number')
+
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), {
+        paymentStatus: 'Paid',
+        paymentMethod: state.paymentMethod,
+        paymentRef: state.paymentRef,
+        paidAt: serverTimestamp(),
+        paidBy: user.uid,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+      })
+      alert('Payment processed successfully')
+      fetchData()
+    } catch (err) {
+      alert('Failed to process payment')
+    }
+  }
+
   const getStatusIcon = (status) => {
     const s = status?.toLowerCase()
     if (s === 'approve' || s === 'approved') return <CheckCircle2 size={14} className="text-green-500" />
@@ -193,11 +226,95 @@ export default function ApprovalsTab() {
           >
             Leave / Permission
           </button>
+          {isAccountant && (
+            <button 
+              onClick={() => setActiveSubTab('payment-queue')}
+              className={`px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'payment-queue' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              Payment Queue
+            </button>
+          )}
         </div>
       </div>
 
       {loading ? (
         <div className="py-20 flex justify-center"><Spinner /></div>
+      ) : activeSubTab === 'payment-queue' ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Method</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Ref Number</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {paymentQueue.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending payments</td>
+                  </tr>
+                ) : (
+                  paymentQueue.map(item => {
+                    const state = actionState[item.id] || { paymentMethod: 'Bank Transfer', paymentRef: '' }
+                    return (
+                      <tr key={item.id} className="h-[64px] hover:bg-gray-50/30 transition-colors">
+                        <td className="px-6">
+                          <span className="text-[13px] font-bold text-gray-700">{item.date}</span>
+                        </td>
+                        <td className="px-6">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                            {item.type}
+                          </span>
+                        </td>
+                        <td className="px-6">
+                          <span className="text-[13px] font-bold text-gray-800">{item.employeeName}</span>
+                        </td>
+                        <td className="px-6">
+                          <span className="text-[14px] font-black text-indigo-600">{formatINR(item.amount)}</span>
+                        </td>
+                        <td className="px-6">
+                          <select 
+                            value={state.paymentMethod}
+                            onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], paymentMethod: e.target.value } }))}
+                            className="h-[34px] bg-gray-50 border border-gray-200 rounded-lg px-3 text-[11px] font-bold outline-none focus:border-indigo-500"
+                          >
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="UPI">UPI</option>
+                          </select>
+                        </td>
+                        <td className="px-6">
+                          <input 
+                            type="text"
+                            placeholder="Ref #"
+                            value={state.paymentRef}
+                            onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], paymentRef: e.target.value } }))}
+                            className="h-[34px] w-32 bg-gray-50 border border-gray-200 rounded-lg px-3 text-[11px] font-bold outline-none focus:border-indigo-500"
+                          />
+                        </td>
+                        <td className="px-6 text-right">
+                          <button 
+                            onClick={() => handleUpdatePaymentStatus(item.id)}
+                            className="h-[34px] px-5 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
+                          >
+                            Pay Now
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : activeSubTab === 'advance-expense' ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">

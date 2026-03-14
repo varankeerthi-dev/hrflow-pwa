@@ -932,6 +932,10 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">MD Approval</span>
                         <span className={`text-[9px] font-bold uppercase ${req.mdApproval === 'Approved' ? 'text-green-600' : 'text-amber-500'}`}>{req.mdApproval || 'Pending'}</span>
                       </div>
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">Payment</span>
+                        <span className={`text-[9px] font-bold uppercase ${req.paymentStatus === 'Paid' ? 'text-emerald-600' : 'text-amber-500'}`}>{req.paymentStatus || 'Pending'}</span>
+                      </div>
                     </div>
                   )}
 
