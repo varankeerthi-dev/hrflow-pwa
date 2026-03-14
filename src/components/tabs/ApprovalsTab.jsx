@@ -12,7 +12,9 @@ import {
   doc, 
   updateDoc, 
   serverTimestamp,
-  deleteDoc
+  deleteDoc,
+  addDoc,
+  getDoc
 } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import { formatINR } from '../../lib/salaryUtils'
@@ -44,6 +46,7 @@ export default function ApprovalsTab() {
   const [loading, setLoading] = useState(false)
   const [advExpenses, setAdvExpenses] = useState([])
   const [paymentQueue, setPaymentQueue] = useState([])
+  const [recentPayments, setRecentPayments] = useState([])
   const [requests, setRequests] = useState([])
   
   // For the Advance/Expense action toggles
@@ -73,6 +76,8 @@ export default function ApprovalsTab() {
         if (activeSubTab === 'payment-queue') {
           // Show only MD approved items that are not paid
           setPaymentQueue(data.filter(item => item.mdApproval === 'Approved' && item.paymentStatus !== 'Paid'))
+          // Show only Paid items for recent payment history
+          setRecentPayments(data.filter(item => item.paymentStatus === 'Paid').slice(0, 10)) // last 10 payments
         } else {
           setAdvExpenses(data)
         }
@@ -176,7 +181,11 @@ export default function ApprovalsTab() {
     if (!state?.paymentRef.trim()) return alert('Please provide a payment reference number')
 
     try {
-      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), {
+      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', id)
+      const itemSnap = await getDoc(itemRef)
+      const itemData = itemSnap.data()
+
+      await updateDoc(itemRef, {
         paymentStatus: 'Paid',
         paymentMethod: state.paymentMethod,
         paymentRef: state.paymentRef,
@@ -185,9 +194,27 @@ export default function ApprovalsTab() {
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
       })
-      alert('Payment processed successfully')
+
+      // If it's an advance, add it to the salary advances collection for deduction
+      if (itemData?.type === 'Advance') {
+        await addDoc(collection(db, 'organisations', user.orgId, 'advances'), {
+          employeeId: itemData.employeeId,
+          employeeName: itemData.employeeName,
+          amount: itemData.amount,
+          type: 'Advance',
+          date: itemData.date || new Date().toISOString().split('T')[0],
+          reason: `Auto-linked from approved request: ${itemData.reason || itemData.category || 'No Reason'}`,
+          status: 'Pending', // Will be marked 'Recovered' when salary is processed
+          linkedRequestId: id,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid
+        })
+      }
+
+      alert('Payment processed and salary advance linked successfully')
       fetchData()
     } catch (err) {
+      console.error('Payment processing error:', err)
       alert('Failed to process payment')
     }
   }
@@ -240,81 +267,142 @@ export default function ApprovalsTab() {
       {loading ? (
         <div className="py-20 flex justify-center"><Spinner /></div>
       ) : activeSubTab === 'payment-queue' ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Type</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Method</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Ref Number</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {paymentQueue.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending payments</td>
+        <>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
+                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
+                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
+                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Method</th>
+                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Ref Number</th>
+                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
                   </tr>
-                ) : (
-                  paymentQueue.map(item => {
-                    const state = actionState[item.id] || { paymentMethod: 'Bank Transfer', paymentRef: '' }
-                    return (
-                      <tr key={item.id} className="h-[64px] hover:bg-gray-50/30 transition-colors">
-                        <td className="px-6">
-                          <span className="text-[13px] font-bold text-gray-700">{item.date}</span>
-                        </td>
-                        <td className="px-6">
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
-                            {item.type}
-                          </span>
-                        </td>
-                        <td className="px-6">
-                          <span className="text-[13px] font-bold text-gray-800">{item.employeeName}</span>
-                        </td>
-                        <td className="px-6">
-                          <span className="text-[14px] font-black text-indigo-600">{formatINR(item.amount)}</span>
-                        </td>
-                        <td className="px-6">
-                          <select 
-                            value={state.paymentMethod}
-                            onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], paymentMethod: e.target.value } }))}
-                            className="h-[34px] bg-gray-50 border border-gray-200 rounded-lg px-3 text-[11px] font-bold outline-none focus:border-indigo-500"
-                          >
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="Cash">Cash</option>
-                            <option value="Cheque">Cheque</option>
-                            <option value="UPI">UPI</option>
-                          </select>
-                        </td>
-                        <td className="px-6">
-                          <input 
-                            type="text"
-                            placeholder="Ref #"
-                            value={state.paymentRef}
-                            onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], paymentRef: e.target.value } }))}
-                            className="h-[34px] w-32 bg-gray-50 border border-gray-200 rounded-lg px-3 text-[11px] font-bold outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        <td className="px-6 text-right">
-                          <button 
-                            onClick={() => handleUpdatePaymentStatus(item.id)}
-                            className="h-[34px] px-5 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
-                          >
-                            Pay Now
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {paymentQueue.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending payments</td>
+                    </tr>
+                  ) : (
+                    paymentQueue.map(item => {
+                      const state = actionState[item.id] || { paymentMethod: 'Bank Transfer', paymentRef: '' }
+                      return (
+                        <tr key={item.id} className="h-[64px] hover:bg-gray-50/30 transition-colors">
+                          <td className="px-6">
+                            <span className="text-[13px] font-bold text-gray-700">{item.date}</span>
+                          </td>
+                          <td className="px-6">
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {item.type}
+                            </span>
+                          </td>
+                          <td className="px-6">
+                            <span className="text-[13px] font-bold text-gray-800">{item.employeeName}</span>
+                          </td>
+                          <td className="px-6">
+                            <span className="text-[14px] font-black text-indigo-600">{formatINR(item.amount)}</span>
+                          </td>
+                          <td className="px-6">
+                            <select 
+                              value={state.paymentMethod}
+                              onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], paymentMethod: e.target.value } }))}
+                              className="h-[34px] bg-gray-50 border border-gray-200 rounded-lg px-3 text-[11px] font-bold outline-none focus:border-indigo-500"
+                            >
+                              <option value="Bank Transfer">Bank Transfer</option>
+                              <option value="Cash">Cash</option>
+                              <option value="Cheque">Cheque</option>
+                              <option value="UPI">UPI</option>
+                            </select>
+                          </td>
+                          <td className="px-6">
+                            <input 
+                              type="text"
+                              placeholder="Ref #"
+                              value={state.paymentRef}
+                              onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], paymentRef: e.target.value } }))}
+                              className="h-[34px] w-32 bg-gray-50 border border-gray-200 rounded-lg px-3 text-[11px] font-bold outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          <td className="px-6 text-right">
+                            <button 
+                              onClick={() => handleUpdatePaymentStatus(item.id)}
+                              className="h-[34px] px-5 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
+                            >
+                              Pay Now
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Recent Payments Section */}
+          <div className="mt-12 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500">Recent Payment History</h3>
+            </div>
+            
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/50 h-[40px] border-b border-gray-100">
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Paid Date</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Method</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Reference</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {recentPayments.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-[11px] font-bold text-gray-300 uppercase tracking-widest italic opacity-60">No payment history available</td>
+                      </tr>
+                    ) : (
+                      recentPayments.map(item => (
+                        <tr key={item.id} className="h-[56px] hover:bg-gray-50/20 transition-colors">
+                          <td className="px-6">
+                            <span className="text-[12px] font-bold text-gray-500 italic">
+                              {item.paidAt?.toDate ? item.paidAt.toDate().toLocaleDateString() : item.date}
+                            </span>
+                          </td>
+                          <td className="px-6">
+                            <span className="text-[12px] font-bold text-gray-700">{item.employeeName}</span>
+                          </td>
+                          <td className="px-6">
+                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {item.type}
+                            </span>
+                          </td>
+                          <td className="px-6 text-right font-inter">
+                            <span className="text-[13px] font-black text-gray-900">{formatINR(item.amount)}</span>
+                          </td>
+                          <td className="px-6 text-center">
+                            <span className="text-[11px] font-medium text-gray-500">{item.paymentMethod}</span>
+                          </td>
+                          <td className="px-6 text-right">
+                            <span className="text-[11px] font-mono text-indigo-400 font-bold tracking-tighter">{item.paymentRef}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </>
       ) : activeSubTab === 'advance-expense' ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
