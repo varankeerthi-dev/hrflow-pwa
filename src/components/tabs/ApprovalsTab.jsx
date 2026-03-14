@@ -105,8 +105,10 @@ export default function ApprovalsTab() {
 
     try {
       const updateData = {
-        status: state.status,
+        status: state.status === 'Approve' ? 'Approved' : state.status,
         remarks: state.remarks,
+        approved_by: user.uid,
+        approved_at: serverTimestamp(),
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
       }

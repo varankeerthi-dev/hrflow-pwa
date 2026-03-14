@@ -18,7 +18,7 @@ export default function AdvanceExpenseTab() {
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
   
   const [addRows, setAddRows] = useState([
-    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', approvedBy: '' }
+    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '' }
   ])
 
   const [submitting, setSubmitting] = useState(false)
@@ -70,7 +70,7 @@ export default function AdvanceExpenseTab() {
   useEffect(() => { fetchCategories() }, [user?.orgId])
 
   const handleAddRow = () => {
-    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', approvedBy: '' }])
+    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '' }])
   }
 
   const handleSelfExpense = () => {
@@ -102,15 +102,16 @@ export default function AdvanceExpenseTab() {
           date: row.date,
           reason: row.reason,
           project: row.project || '',
-          approvedBy: row.approvedBy || '',
-          createdBy: user.name || user.email,
           status: 'Pending',
+          approved_by: null,
+          approved_at: null,
           hrApproval: 'Pending',
           mdApproval: 'Pending',
+          createdBy: user.name || user.email,
           createdAt: serverTimestamp()
         })
       }
-      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', approvedBy: '' }])
+      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '' }])
       await fetchEntries()
       // Enter into report split section
       setActiveModule('Reports')
@@ -233,7 +234,6 @@ export default function AdvanceExpenseTab() {
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[100px]">Amount</th>
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200">Remarks</th>
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200">Project</th>
-                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200">Approved By</th>
                   <th className="p-3 w-[50px]"></th>
                 </tr>
               </thead>
@@ -260,9 +260,6 @@ export default function AdvanceExpenseTab() {
                     </td>
                     <td className="p-2 border-r border-gray-100">
                       <input type="text" value={row.project} onChange={e => handleRowChange(row.id, 'project', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white" placeholder="Project..." />
-                    </td>
-                    <td className="p-2 border-r border-gray-100">
-                      <input type="text" value={row.approvedBy} onChange={e => handleRowChange(row.id, 'approvedBy', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white" placeholder="Approved by..." />
                     </td>
                     <td className="p-2 text-center">
                       <button onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} className="text-gray-400 hover:text-red-500 p-1">
