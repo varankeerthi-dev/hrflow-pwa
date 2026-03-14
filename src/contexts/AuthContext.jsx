@@ -53,7 +53,7 @@ async function readUserDoc(uid) {
         ]
         
         modules.forEach(m => {
-          defaultPermissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+          defaultPermissions[m] = { view: false, create: false, edit: false, delete: false, approve: false, export: false, full: false }
         })
 
         if (userData.role) {
@@ -61,15 +61,15 @@ async function readUserDoc(uid) {
           const rolesSnap = await getDocs(rolesQuery)
           const roleDoc = rolesSnap.docs.find(d => d.data().name.toLowerCase() === userData.role.toLowerCase())
           if (roleDoc) {
-            userData.permissions = roleDoc.data().permissions || {}
+            userData.permissions = roleDoc.data().permissions || defaultPermissions
             console.log('readUserDoc: Cached permissions for role:', userData.role)
           } else {
             userData.permissions = defaultPermissions
-            console.log('readUserDoc: Role not found, using default admin permissions')
+            console.log('readUserDoc: Role not found, using minimal permissions')
           }
         } else {
           userData.permissions = defaultPermissions
-          console.log('readUserDoc: No role, using default admin permissions')
+          console.log('readUserDoc: No role, using minimal permissions')
         }
 
         // Sync to Firestore user doc for rules

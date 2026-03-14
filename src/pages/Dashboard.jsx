@@ -265,8 +265,17 @@ export default function Dashboard() {
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
-  // RBAC disabled: show all tabs
-  const tabs = useMemo(() => allTabs, [allTabs])
+  // RBAC: filter tabs based on user permissions
+  const tabs = useMemo(() => {
+    const userPerms = user?.permissions || {}
+    return allTabs.filter(tab => {
+      // Always allow home, portal, and settings for logged in users
+      if (['home', 'portal', 'settings'].includes(tab.id)) return true
+      // Check if user has view permission for this module
+      const modulePerms = userPerms[tab.module] || {}
+      return modulePerms.view === true
+    })
+  }, [allTabs, user?.permissions])
 
   const renderTabContent = () => {
     switch (activeTab) {
