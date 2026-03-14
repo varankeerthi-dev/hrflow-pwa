@@ -512,13 +512,13 @@ export default function SettingsTab() {
       await updateEmployee(editingEmp, cleanEditForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
 
-      // Handle login enabled/disabled - only if login details actually changed
+      // Handle login - only if email or password changed
       const originalEmp = employees.find(e => e.id === editingEmp)
-      const loginChanged = (editForm.loginEnabled !== originalEmp?.loginEnabled) || 
-                          (editForm.email !== originalEmp?.email) ||
-                          (!!editForm.tempPassword && editForm.tempPassword.trim() !== '')
+      const emailChanged = editForm.email !== originalEmp?.email
+      const passwordChanged = !!editForm.tempPassword && editForm.tempPassword.trim() !== ''
+      const authNeedsUpdate = emailChanged || passwordChanged
       
-      if (editForm.loginEnabled && editForm.email && loginChanged) {
+      if (editForm.loginEnabled && editForm.email && authNeedsUpdate) {
         const tempPassword = editForm.tempPassword ? editForm.tempPassword.trim() : ''
         
         // Check if auth user already exists by looking up users collection
@@ -584,7 +584,7 @@ export default function SettingsTab() {
             alert(`Employee saved but could not create login. Error: ${authErr.message}`)
           }
         }
-      } else if (editForm.loginEnabled && editForm.email && !loginChanged) {
+      } else if (editForm.loginEnabled && editForm.email && !authNeedsUpdate) {
         // Login details unchanged - just update the user doc silently
         const usersSnap = await getDocs(query(
           collection(db, 'users'), 
