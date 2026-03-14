@@ -514,14 +514,14 @@ export default function SettingsTab() {
 
       // Handle login - only if email or password changed
       const originalEmp = employees.find(e => e.id === editingEmp)
-      const emailChanged = editForm.email !== originalEmp?.email
+      const emailChanged = (editForm.email || '').toLowerCase().trim() !== (originalEmp?.email || '').toLowerCase().trim()
       const passwordChanged = !!editForm.tempPassword && editForm.tempPassword.trim() !== ''
       const authNeedsUpdate = emailChanged || passwordChanged
       
       if (editForm.loginEnabled && editForm.email && authNeedsUpdate) {
         const tempPassword = editForm.tempPassword ? editForm.tempPassword.trim() : ''
         
-        // Check if auth user already exists by looking up users collection
+        // Check if user with this email already exists in Firestore
         const usersSnap = await getDocs(query(
           collection(db, 'users'), 
           where('orgId', '==', user.orgId),
@@ -529,14 +529,14 @@ export default function SettingsTab() {
         ))
         
         if (!usersSnap.empty) {
-          // User exists - just update the user document
+          // User with this email exists - just update the user document (email already in Firebase Auth)
           const userDocId = usersSnap.docs[0].id
           await setDoc(
             doc(db, 'users', userDocId),
             {
               email: editForm.email,
               name: editForm.name,
-              orgId: user.orgId, // Critical for rules
+              orgId: user.orgId,
               role: selectedRoleName,
               permissions: selectedRolePerms,
               employeeId: editingEmp,
@@ -548,10 +548,10 @@ export default function SettingsTab() {
             { merge: true }
           )
           if (tempPassword) {
-            alert(`Login details updated. New temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
+            alert(`Login details updated. Password cannot be changed here. Use Firebase Console to reset password.`)
           }
         } else {
-          // Create new auth user
+          // No user with this email - create new auth user
           try {
             const cred = await createUserWithEmailAndPassword(secondaryAuth, editForm.email, tempPassword || `HRFlow${Date.now()}`)
             await updateProfile(cred.user, { displayName: editForm.name })
@@ -561,7 +561,7 @@ export default function SettingsTab() {
             {
               email: editForm.email,
               name: editForm.name,
-              orgId: user.orgId, // Critical for rules
+              orgId: user.orgId,
               role: selectedRoleName,
               permissions: selectedRolePerms,
               employeeId: editingEmp,
@@ -581,7 +581,12 @@ export default function SettingsTab() {
             }
           } catch (authErr) {
             console.error('Auth error:', authErr)
-            alert(`Employee saved but could not create login. Error: ${authErr.message}`)
+            // If email already in use, just update the user doc
+            if (authErr.message && authErr.message.includes('email-already-in-use')) {
+              alert(`Employee saved. Note: This email is already registered in the system. Login was not created for this email.`)
+            } else {
+              alert(`Employee saved but could not create login. Error: ${authErr.message}`)
+            }
           }
         }
       } else if (editForm.loginEnabled && editForm.email && !authNeedsUpdate) {
