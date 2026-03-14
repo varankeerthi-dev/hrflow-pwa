@@ -1,11 +1,35 @@
+import React from 'react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
-import { useOTApprovals } from '../../hooks/useOTApprovals'
 import { db } from '../../lib/firebase'
-import { collection, query, where, getDocs, orderBy, doc, updateDoc } from 'firebase/firestore'
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy, 
+  doc, 
+  updateDoc, 
+  serverTimestamp,
+  deleteDoc
+} from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
-import { CheckCircle2, XCircle, Clock, Search, Filter, FileText, Calendar as CalendarIcon } from 'lucide-react'
+import { 
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  AlertCircle, 
+  PauseCircle, 
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Search,
+  Filter,
+  FileText,
+  Calendar as CalendarIcon,
+  Trash2
+} from 'lucide-react'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -14,263 +38,362 @@ function getInitials(name) {
 export default function ApprovalsTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const { otApprovals, loading, updateOTStatus } = useOTApprovals(user?.orgId)
-  const [empRequests, setEmpRequests] = useState([])
-  const [loadingReq, setLoadingReq] = useState(false)
+  
+  const [activeSubTab, setActiveSubTab] = useState('advance-expense') // 'advance-expense' or 'leave-permission'
+  const [loading, setLoading] = useState(false)
+  const [advExpenses, setAdvExpenses] = useState([])
+  const [requests, setRequests] = useState([])
+  
+  // For the Advance/Expense action toggles
+  const [actionState, setActionState] = useState({}) // { id: { status, remarks, showToggle } }
+
+  const canApprove = user?.role?.toLowerCase() === 'admin' || user?.permissions?.Approvals?.approve === true
+  const isMD = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'md'
+  const isHR = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'hr'
 
   useEffect(() => {
-    const loadRequests = async () => {
-      if (!user?.orgId) return
-      setLoadingReq(true)
-      try {
+    if (!user?.orgId) return
+    fetchData()
+  }, [user?.orgId, activeSubTab])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      if (activeSubTab === 'advance-expense') {
+        const q = query(
+          collection(db, 'organisations', user.orgId, 'advances_expenses'),
+          orderBy('date', 'desc')
+        )
+        const snap = await getDocs(q)
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setAdvExpenses(data)
+        
+        // Initialize action states
+        const initialActionState = {}
+        data.forEach(item => {
+          initialActionState[item.id] = { 
+            status: item.status || 'Pending', 
+            remarks: item.remarks || '', 
+            showToggle: false 
+          }
+        })
+        setActionState(initialActionState)
+
+      } else {
         const q = query(
           collection(db, 'organisations', user.orgId, 'requests'),
-          where('status', '==', 'Pending'),
           orderBy('createdAt', 'desc')
         )
         const snap = await getDocs(q)
-        setEmpRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-      } finally {
-        setLoadingReq(false)
+        setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       }
-    }
-    loadRequests()
-  }, [user?.orgId])
-
-  const canApprove = user?.role?.toLowerCase() === 'admin' || user?.permissions?.Approvals?.approve === true
-
-  const handleApproval = async (id, status) => {
-    if (!user?.uid) return
-    if (!canApprove) return alert('You do not have permission to approve/reject requests')
-    try {
-      await updateOTStatus(id, status, user.uid)
-      alert(`OT Request ${status === 'approved' ? 'Approved' : 'Rejected'} successfully!`)
     } catch (err) {
-      console.error('Error updating OT status:', err)
-      alert('Failed to update status: ' + err.message)
+      console.error('Error fetching approvals:', err)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const updateRequestStatus = async (id, status) => {
-    if (!user?.orgId) return
-    if (!canApprove) return alert('You do not have permission to approve/reject requests')
-    try {
-      await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), { status })
-      setEmpRequests(prev => prev.map(r => (r.id === id ? { ...r, status } : r)))
-      alert(`Request ${status} successfully!`)
-    } catch (err) {
-      console.error('Error updating request status:', err)
-      alert('Failed to update status: ' + err.message)
+  const handleUpdateAdvExpense = async (id) => {
+    if (!canApprove) return alert('No permission')
+    const state = actionState[id]
+    if (!state) return
+
+    if (['Partial', 'Rejected', 'Hold'].includes(state.status) && !state.remarks.trim()) {
+      return alert(`Please provide remarks for ${state.status} status`)
     }
+
+    try {
+      const updateData = {
+        status: state.status,
+        remarks: state.remarks,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+      }
+
+      // HR or MD approval marking
+      if (isHR) {
+        updateData.hrApproval = state.status === 'Approve' ? 'Approved' : state.status
+        updateData.hrApprovedBy = user.uid
+        updateData.hrApprovedAt = serverTimestamp()
+      }
+      
+      if (isMD) {
+        updateData.mdApproval = state.status === 'Approve' ? 'Approved' : state.status
+        updateData.mdApprovedBy = user.uid
+        updateData.mdApprovedAt = serverTimestamp()
+      }
+
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
+      alert('Status updated successfully')
+      fetchData()
+    } catch (err) {
+      alert('Failed to update status')
+    }
+  }
+
+  const handleUpdateRequestStatus = async (id, status) => {
+    if (!canApprove) return alert('No permission')
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), { 
+        status,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+      })
+      alert(`Request ${status} successfully`)
+      fetchData()
+    } catch (err) {
+      alert('Failed to update status')
+    }
+  }
+
+  const handleDeleteRequest = async (id) => {
+    if (!confirm('Permanently delete this request record?')) return
+    try {
+      await deleteDoc(doc(db, 'organisations', user.orgId, 'requests', id))
+      fetchData()
+    } catch (err) {
+      alert('Failed to delete')
+    }
+  }
+
+  const getStatusIcon = (status) => {
+    const s = status?.toLowerCase()
+    if (s === 'approve' || s === 'approved') return <CheckCircle2 size={14} className="text-green-500" />
+    if (s === 'rejected') return <XCircle size={14} className="text-red-500" />
+    if (s === 'pending') return <Clock size={14} className="text-amber-500" />
+    if (s === 'partial') return <AlertCircle size={14} className="text-blue-500" />
+    if (s === 'hold') return <PauseCircle size={14} className="text-gray-500" />
+    return <Clock size={14} className="text-gray-400" />
   }
 
   return (
-    <div className="space-y-6 font-inter">
-      {/* Search and Filters Header */}
-      <div className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-tight">Request Queue</h3>
+    <div className="space-y-6 font-inter text-gray-900">
+      {/* minimalist header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 border-b border-gray-100 mb-2">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-gray-900">Approvals</h2>
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+            Manage administrative and employee requests
+          </p>
         </div>
-        <div className="flex gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-            <input type="text" placeholder="Search requests..." className="h-[36px] pl-9 pr-4 border border-gray-200 rounded-lg text-[13px] bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none w-[200px]" />
-          </div>
-          <button className="h-[36px] px-4 bg-[#f3f4f6] text-[#374151] rounded-lg text-[12px] font-semibold flex items-center gap-2 hover:bg-gray-200 transition-all uppercase tracking-tighter">
-            <Filter size={14} /> Filters
+        
+        <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+          <button 
+            onClick={() => setActiveSubTab('advance-expense')}
+            className={`px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'advance-expense' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Advance / Expense
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('leave-permission')}
+            className={`px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'leave-permission' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Leave / Permission
           </button>
         </div>
       </div>
 
-      {/* Main Approvals Card */}
-      <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="h-[42px] bg-[#f9fafb]">
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Employee</th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Details</th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Auto OT</th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-center">Revised</th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">Status</th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f1f5f9]">
-              {loading ? (
-                <tr><td colSpan={6} className="text-center py-12"><Spinner /></td></tr>
-              ) : otApprovals.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">No pending requests found</td></tr>
-              ) : (
-                otApprovals.map((approval) => {
-                  const emp = employees.find(e => e.id === approval.employeeId)
-                  return (
-                    <tr key={approval.id} className="h-[48px] hover:bg-[#f8fafc] transition-colors group">
-                      <td className="px-[16px]">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-gray-100 text-gray-500 text-[10px] font-bold">
-                            {getInitials(emp?.name)}
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-bold text-gray-700 uppercase tracking-tight">{emp?.name || 'Unknown'}</p>
-                            <p className="text-[10px] text-gray-400 font-medium">{approval.month}</p>
-                          </div>
+      {loading ? (
+        <div className="py-20 flex justify-center"><Spinner /></div>
+      ) : activeSubTab === 'advance-expense' ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Requested By</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Created By</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-center">HR</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-center">MD</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {advExpenses.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No records found</td>
+                  </tr>
+                ) : (
+                  advExpenses.map(item => {
+                    const statusState = actionState[item.id] || { status: 'Pending', remarks: '', showToggle: false }
+                    return (
+                      <React.Fragment key={item.id}>
+                        <tr className="h-[64px] hover:bg-gray-50/30 transition-colors">
+                          <td className="px-6">
+                            <span className="text-[13px] font-bold text-gray-700">{item.date}</span>
+                          </td>
+                          <td className="px-6">
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {item.type}
+                            </span>
+                          </td>
+                          <td className="px-6">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-[9px] font-black text-gray-500">
+                                {getInitials(item.employeeName)}
+                              </div>
+                              <span className="text-[13px] font-bold text-gray-800">{item.employeeName}</span>
+                            </div>
+                          </td>
+                          <td className="px-6">
+                            <span className="text-[12px] font-medium text-gray-500">{item.createdBy || 'Self'}</span>
+                          </td>
+                          <td className="px-6 text-center">
+                            <div className="flex justify-center">
+                              {getStatusIcon(item.hrApproval || 'Pending')}
+                            </div>
+                          </td>
+                          <td className="px-6 text-center">
+                            <div className="flex justify-center">
+                              {getStatusIcon(item.mdApproval || 'Pending')}
+                            </div>
+                          </td>
+                          <td className="px-6">
+                            <div className="flex justify-end items-center gap-3">
+                              <div className="relative">
+                                <button 
+                                  onClick={() => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], showToggle: !prev[item.id]?.showToggle } }))}
+                                  className="h-[34px] px-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-gray-600 hover:bg-white transition-all"
+                                >
+                                  {statusState.status}
+                                  {statusState.showToggle ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </button>
+                                
+                                {statusState.showToggle && (
+                                  <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 shadow-xl rounded-xl z-20 py-1">
+                                    {['Approve', 'Pending', 'Partial', 'Rejected', 'Hold'].map(s => (
+                                      <button 
+                                        key={s}
+                                        onClick={() => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], status: s, showToggle: false } }))}
+                                        className="w-full px-4 py-2 text-left text-[11px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                      >
+                                        {s}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <button 
+                                onClick={() => handleUpdateAdvExpense(item.id)}
+                                className="h-[34px] px-5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
+                              >
+                                Submit
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {['Partial', 'Rejected', 'Hold'].includes(statusState.status) && (
+                          <tr className="bg-gray-50/20">
+                            <td colSpan={7} className="px-6 py-4">
+                              <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
+                                <MessageSquare size={16} className="text-gray-400 shrink-0" />
+                                <input 
+                                  type="text" 
+                                  placeholder={`Enter remarks for ${statusState.status} status...`}
+                                  value={statusState.remarks}
+                                  onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], remarks: e.target.value } }))}
+                                  className="flex-1 bg-transparent border-none text-[12px] font-medium outline-none placeholder:text-gray-300"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Requested Date</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Date / Details</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {requests.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No requests found</td>
+                  </tr>
+                ) : (
+                  requests.map(req => (
+                    <tr key={req.id} className="h-[64px] hover:bg-gray-50/30 transition-colors group">
+                      <td className="px-6">
+                        <div className="flex flex-col">
+                          <span className="text-[13px] font-bold text-gray-700">
+                            {req.createdAt?.toDate ? req.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{req.employeeName}</span>
                         </div>
                       </td>
-                      <td className="px-[16px]">
-                        <p className="text-[12px] text-gray-600 font-medium line-clamp-1 italic">"{approval.note || 'No notes provided'}"</p>
+                      <td className="px-6">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${req.type === 'Leave' ? 'bg-indigo-50 text-indigo-600' : req.type === 'Permission' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                          {req.type}
+                        </span>
                       </td>
-                      <td className="px-[16px] text-center font-mono font-bold text-gray-400 text-[12px]">{approval.autoOTHours}h</td>
-                      <td className="px-[16px] text-center font-mono font-bold text-indigo-600 text-[13px]">{approval.finalOTHours}h</td>
-                      <td className="px-[16px]">
+                      <td className="px-6">
+                        <p className="text-[12px] font-medium text-gray-600">
+                          {req.type === 'Leave' && `${req.fromDate} to ${req.toDate}`}
+                          {req.type === 'Permission' && `${req.permissionDate} at ${req.permissionTime}`}
+                          {req.type === 'Advance' && `₹${req.amount}`}
+                        </p>
+                        <p className="text-[11px] text-gray-400 italic line-clamp-1">"{req.reason}"</p>
+                      </td>
+                      <td className="px-6">
                         <div className="flex items-center gap-1.5">
-                          {approval.status === 'pending' ? (
-                            <span className="flex items-center gap-1 text-amber-600 text-[10px] font-black uppercase tracking-widest"><Clock size={12} /> Pending</span>
-                          ) : approval.status === 'approved' ? (
-                            <span className="flex items-center gap-1 text-green-600 text-[10px] font-black uppercase tracking-widest"><CheckCircle2 size={12} /> Approved</span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-red-600 text-[10px] font-black uppercase tracking-widest"><XCircle size={12} /> Rejected</span>
-                          )}
+                          {getStatusIcon(req.status)}
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${req.status === 'Approved' ? 'text-green-600' : req.status === 'Rejected' ? 'text-red-600' : 'text-amber-600'}`}>
+                            {req.status}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-[16px]">
+                      <td className="px-6">
                         <div className="flex justify-end gap-2">
-                          {approval.status === 'pending' ? (
+                          {req.status === 'Pending' ? (
                             <>
                               <button 
-                                onClick={() => handleApproval(approval.id, 'approved')}
-                                className="h-[32px] px-3 bg-green-50 text-green-700 rounded-md text-[11px] font-bold uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all shadow-sm"
+                                onClick={() => handleUpdateRequestStatus(req.id, 'Approved')}
+                                className="h-[32px] px-4 bg-green-50 text-green-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all"
                               >
                                 Approve
                               </button>
                               <button 
-                                onClick={() => handleApproval(approval.id, 'rejected')}
-                                className="h-[32px] px-3 bg-red-50 text-red-700 rounded-md text-[11px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')}
+                                className="h-[32px] px-4 bg-red-50 text-red-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
                               >
                                 Reject
                               </button>
                             </>
                           ) : (
-                            <button className="h-[32px] px-3 bg-gray-50 text-gray-400 rounded-md text-[10px] font-bold uppercase tracking-widest cursor-not-allowed" disabled>
-                              Complete
+                            <button 
+                              onClick={() => handleDeleteRequest(req.id)}
+                              className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={16} />
                             </button>
                           )}
                         </div>
                       </td>
                     </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-
-      {/* Employee Requests Approvals */}
-      <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <FileText size={16} className="text-indigo-500" />
-          <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-widest">
-            Leave / Permission / Advance
-          </h4>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="h-[42px] bg-[#f9fafb]">
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">
-                  Employee
-                </th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">
-                  Request Type
-                </th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">
-                  Date / Details
-                </th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-[16px] text-[12px] font-semibold text-[#6b7280] uppercase tracking-wider text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f1f5f9]">
-              {loadingReq ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-12">
-                    <Spinner />
-                  </td>
-                </tr>
-              ) : empRequests.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="text-center py-16 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic"
-                  >
-                    No pending employee requests
-                  </td>
-                </tr>
-              ) : (
-                empRequests.map(req => (
-                  <tr key={req.id} className="h-[48px] hover:bg-[#f8fafc] transition-colors group">
-                    <td className="px-[16px]">
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-gray-100 text-gray-500 text-[10px] font-bold">
-                          {getInitials(req.employeeName)}
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-bold text-gray-700 uppercase tracking-tight">
-                            {req.employeeName}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-[16px] text-[12px] font-semibold text-gray-700">
-                      {req.type}
-                    </td>
-                    <td className="px-[16px] text-[12px] text-gray-600">
-                      {req.type === 'Leave' && (
-                        <>
-                          {req.leaveType || 'Leave'} — {req.fromDate} to {req.toDate || req.fromDate}
-                        </>
-                      )}
-                      {req.type === 'Permission' && (
-                        <>
-                          {req.permissionDate} at {req.permissionTime || '--'}
-                        </>
-                      )}
-                      {req.type === 'Advance' && <>₹{req.amount}</>}
-                    </td>
-                    <td className="px-[16px]">
-                      <span className="inline-flex items-center gap-1 text-amber-600 text-[10px] font-black uppercase tracking-widest">
-                        <Clock size={12} /> {req.status}
-                      </span>
-                    </td>
-                    <td className="px-[16px]">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => updateRequestStatus(req.id, 'Approved')}
-                          className="h-[32px] px-3 bg-green-50 text-green-700 rounded-md text-[11px] font-bold uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all shadow-sm"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => updateRequestStatus(req.id, 'Rejected')}
-                          className="h-[32px] px-3 bg-red-50 text-red-700 rounded-md text-[11px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

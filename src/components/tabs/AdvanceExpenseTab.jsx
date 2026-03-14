@@ -103,7 +103,10 @@ export default function AdvanceExpenseTab() {
           reason: row.reason,
           project: row.project || '',
           approvedBy: row.approvedBy || '',
+          createdBy: user.name || user.email,
           status: 'Pending',
+          hrApproval: 'Pending',
+          mdApproval: 'Pending',
           createdAt: serverTimestamp()
         })
       }

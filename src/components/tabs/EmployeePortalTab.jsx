@@ -208,6 +208,8 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
 
       await addDoc(collection(db, 'organisations', user.orgId, 'requests'), {
         ...payload,
+        hrApproval: 'Pending',
+        mdApproval: 'Pending',
       })
       setShowRequestModal(false)
       fetchRequests()
@@ -905,7 +907,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest flex items-center gap-2">
                     <Calendar size={12} /> Details
                   </p>
-                  <p className="text-sm font-black text-gray-800 mb-6 flex items-center gap-2">
+                  <p className="text-sm font-black text-gray-800 mb-2 flex items-center gap-2">
                     {req.type === 'Leave' && (
                       <>
                         {req.leaveType || 'Leave'}: {req.fromDate} <ArrowRight size={14} className="text-gray-300" />{' '}
@@ -919,6 +921,20 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                     )}
                     {req.type === 'Advance' && <>₹{req.amount}</>}
                   </p>
+                  
+                  {req.type === 'Advance' && (
+                    <div className="flex gap-4 mb-4">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">HR Approval</span>
+                        <span className={`text-[9px] font-bold uppercase ${req.hrApproval === 'Approved' ? 'text-green-600' : 'text-amber-500'}`}>{req.hrApproval || 'Pending'}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">MD Approval</span>
+                        <span className={`text-[9px] font-bold uppercase ${req.mdApproval === 'Approved' ? 'text-green-600' : 'text-amber-500'}`}>{req.mdApproval || 'Pending'}</span>
+                      </div>
+                    </div>
+                  )}
+
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Justification</p>
                   <p className="text-[13px] font-medium text-gray-600 italic leading-relaxed line-clamp-3">"{req.reason}"</p>
                   
