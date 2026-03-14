@@ -214,7 +214,7 @@ export default function MobileDashboard() {
   }, [employees, user])
 
   const allModules = useMemo(() => [
-    { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={20} className="text-blue-600" />, module: 'Attendance', color: 'bg-blue-50' },
+    { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={20} className="text-blue-600" />, module: 'EmployeePortal', color: 'bg-blue-50' },
     { id: 'attendance', label: 'Attendance', icon: <Calendar size={20} className="text-green-600" />, module: 'Attendance', color: 'bg-green-50' },
     { id: 'correction', label: 'Correction', icon: <PencilLine size={20} className="text-orange-600" />, module: 'Correction', color: 'bg-orange-50' },
     { id: 'leave', label: 'Leave', icon: <Mail size={20} className="text-purple-600" />, module: 'Leave', color: 'bg-purple-50' },
