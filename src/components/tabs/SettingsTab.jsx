@@ -527,7 +527,7 @@ export default function SettingsTab() {
       alert('Employee details updated successfully!')
     } catch (err) {
       console.error('Error saving employee:', err)
-      alert('Failed to save employee: ' + err.message)
+      alert('Failed to save employee: ' + err.message + ' | Stack: ' + err.stack)
     } finally {
       setSaving(false)
     }
