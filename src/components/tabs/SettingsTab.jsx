@@ -795,12 +795,14 @@ export default function SettingsTab() {
           updatedAt: serverTimestamp()
         })
         setRoles(prev => prev.map(r => r.id === editingRole.id ? { ...r, ...newRole } : r))
+        alert(`Role "${newRole.name}" updated successfully!`)
       } else {
         const docRef = await addDoc(collection(db, 'organisations', user.orgId, 'roles'), {
           ...newRole,
           createdAt: serverTimestamp()
         })
         setRoles(prev => [...prev, { id: docRef.id, ...newRole }])
+        alert(`New role "${newRole.name}" created successfully!`)
       }
       setShowAddRole(false)
       setEditingRole(null)
