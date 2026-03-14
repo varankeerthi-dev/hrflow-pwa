@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useLogs } from '../../hooks/useActivityLog'
 import { X, Clock, Filter, RotateCcw } from 'lucide-react'
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, FileText } from 'lucide-react'
 
 /**

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 
 export default function Modal({ isOpen, onClose, title, children, size = 'xl' }) {
   const maxW = size === '2xl' ? 'max-w-2xl' : size === '3xl' ? 'max-w-3xl' : size === 'lg' ? 'max-w-lg' : 'max-w-3xl'

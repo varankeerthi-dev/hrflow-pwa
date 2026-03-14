@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { FileText, Award, BadgeInfo, AlertTriangle, UserMinus, Download, Printer, Search, ChevronRight } from 'lucide-react'
