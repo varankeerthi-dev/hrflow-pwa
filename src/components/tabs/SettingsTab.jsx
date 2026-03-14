@@ -859,6 +859,22 @@ export default function SettingsTab() {
     }
   }
 
+  const handleDeleteUser = async (uid, userName) => {
+    if (!isAdmin && userPermissions['Roles']?.delete !== true) return alert('You do not have permission to delete users.')
+    if (uid === user.uid) return alert('You cannot delete your own account.')
+    
+    if (!confirm(`Are you sure you want to remove login access for ${userName}? This will delete their user record but keep their employee data.`)) return
+    
+    try {
+      await deleteDoc(doc(db, 'users', uid))
+      setUsers(prev => prev.filter(u => u.id !== uid))
+      alert('User login access removed successfully.')
+    } catch (err) {
+      console.error('Delete user error:', err)
+      alert('Failed to remove user access.')
+    }
+  }
+
   const togglePermission = (modId, permKey) => {
     setNewRole(prev => {
       const perms = { ...(prev.permissions || {}) }
@@ -1667,8 +1683,27 @@ export default function SettingsTab() {
                             <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[9px] font-black uppercase tracking-widest">Active</span>
                           </td>
                           <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"><Edit size={16} /></button>
-                            <button className="p-2 text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                            <button 
+                              onClick={() => {
+                                const emp = employees.find(e => e.email === u.email || e.id === u.employeeId);
+                                if (emp) {
+                                  setEditingEmp(emp);
+                                  setEditForm({ ...emp });
+                                  setActiveSubTab('employees');
+                                } else {
+                                  alert('No linked employee record found for this user.');
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-indigo-600 transition-colors" title="Edit Linked Employee"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteUser(u.id, u.name || associatedEmp?.name || u.email)}
+                              className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Remove Login Access"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </td>
                         </tr>
                       ))}
