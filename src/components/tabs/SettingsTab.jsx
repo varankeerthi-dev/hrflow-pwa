@@ -5,7 +5,7 @@ import { db, storage, auth, secondaryAuth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
@@ -616,9 +616,9 @@ export default function SettingsTab() {
 
   const togglePermission = (modId, permKey) => {
     setNewRole(prev => {
-      const perms = { ...prev.permissions }
+      const perms = { ...(prev.permissions || {}) }
       if (!perms[modId]) perms[modId] = {}
-      perms[modId][permKey] = !perms[modId][permKey]
+      perms[modId] = { ...perms[modId], [permKey]: !perms[modId][permKey] }
       return { ...prev, permissions: perms }
     })
   }
