@@ -1571,12 +1571,12 @@ export default function SettingsTab() {
                             >
                               <option value="">No Role</option>
                               {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-                              {!roles.find(r => r.name === 'admin') && <option value="admin">Admin</option>}
+                              {!roles.find(r => r.name.toLowerCase() === 'admin') && <option value="admin">Admin</option>}
                             </select>
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-[10px] text-gray-500 max-w-[200px] truncate italic">
-                              {roles.find(r => r.name === u.role)?.description || 'No description available'}
+                              {roles.find(r => r.name.toLowerCase() === (u.role || '').toLowerCase())?.description || 'No description available'}
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
