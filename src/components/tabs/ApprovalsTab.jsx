@@ -45,12 +45,13 @@ export default function ApprovalsTab() {
   const [activeSubTab, setActiveSubTab] = useState('advance-expense') // 'advance-expense', 'leave-permission', or 'payment-queue'
   const [loading, setLoading] = useState(false)
   const [advExpenses, setAdvExpenses] = useState([])
+  const [recentAdvExpenses, setRecentAdvExpenses] = useState([])
   const [paymentQueue, setPaymentQueue] = useState([])
   const [recentPayments, setRecentPayments] = useState([])
   const [requests, setRequests] = useState([])
   
   // For the Advance/Expense action toggles
-  const [actionState, setActionState] = useState({}) // { id: { status, remarks, showToggle, paymentMethod, paymentRef } }
+  const [actionState, setActionState] = useState({}) // { id: { status, remarks, showToggle, paymentMethod, paymentRef, partialAmount } }
 
   const canApprove = user?.role?.toLowerCase() === 'admin' || user?.permissions?.Approvals?.approve === true
   const isAccountant = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
@@ -75,11 +76,22 @@ export default function ApprovalsTab() {
         
         if (activeSubTab === 'payment-queue') {
           // Show only MD approved items that are not paid
-          setPaymentQueue(data.filter(item => item.mdApproval === 'Approved' && item.paymentStatus !== 'Paid'))
+          setPaymentQueue(data.filter(item => (item.mdApproval === 'Approved' || item.mdApproval === 'Partial') && item.paymentStatus !== 'Paid'))
           // Show only Paid items for recent payment history
           setRecentPayments(data.filter(item => item.paymentStatus === 'Paid').slice(0, 10)) // last 10 payments
         } else {
-          setAdvExpenses(data)
+          // Filter: Approved, Partially Approved, and Rejected move to Recent Updates
+          // Hold and Pending stay in the active list.
+          const active = data.filter(item => {
+            const status = item.status || 'Pending'
+            return status === 'Pending' || status === 'Hold'
+          })
+          const recent = data.filter(item => {
+            const status = item.status || 'Pending'
+            return status === 'Approved' || status === 'Partial' || status === 'Rejected'
+          })
+          setAdvExpenses(active)
+          setRecentAdvExpenses(recent.slice(0, 10))
         }
         
         // Initialize action states
@@ -90,7 +102,8 @@ export default function ApprovalsTab() {
             remarks: item.remarks || '', 
             showToggle: false,
             paymentMethod: 'Bank Transfer',
-            paymentRef: ''
+            paymentRef: '',
+            partialAmount: item.partialAmount || item.amount || ''
           }
         })
         setActionState(initialActionState)
@@ -131,28 +144,44 @@ export default function ApprovalsTab() {
       return alert(`Please provide remarks for ${state.status} status`)
     }
 
+    if (state.status === 'Partial' && (!state.partialAmount || parseFloat(state.partialAmount) <= 0)) {
+      return alert('Please provide a valid partial amount')
+    }
+
     try {
       const updateData = {
-        status: state.status === 'Approve' ? 'Approved' : state.status,
-        approved_by: user.uid,
-        approved_at: serverTimestamp(),
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
       }
 
       // HR or MD approval marking
       if (isHR) {
-        updateData.hrApproval = state.status === 'Approve' ? 'Approved' : state.status
+        // HR can only "Submit" to move to next stage (MD)
+        // Actually, user said: "If the employee ask for advance, let HR choose submit"
+        // This implies HR just approves the move to MD.
+        updateData.hrApproval = 'Approved' 
         updateData.hrApprovedBy = user.uid
         updateData.hrApprovedAt = serverTimestamp()
         updateData.hrRemarks = state.remarks
+        // HR submit doesn't necessarily change the overall status unless it's a rejection (but user didn't mention HR rejection here)
       }
       
       if (isMD) {
+        updateData.status = state.status === 'Approve' ? 'Approved' : state.status
         updateData.mdApproval = state.status === 'Approve' ? 'Approved' : state.status
         updateData.mdApprovedBy = user.uid
         updateData.mdApprovedAt = serverTimestamp()
         updateData.mdRemarks = state.remarks
+        
+        if (state.status === 'Partial') {
+          updateData.partialAmount = parseFloat(state.partialAmount)
+        }
+
+        // If MD approves/partials, set main fields for accountant
+        if (state.status === 'Approve' || state.status === 'Partial') {
+          updateData.approved_by = user.uid
+          updateData.approved_at = serverTimestamp()
+        }
       }
 
       await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
@@ -228,10 +257,11 @@ export default function ApprovalsTab() {
 
       // If it's an advance, add it to the salary advances collection for deduction
       if (itemData?.type === 'Advance') {
+        const finalAmount = itemData.partialAmount || itemData.amount
         await addDoc(collection(db, 'organisations', user.orgId, 'advances'), {
           employeeId: itemData.employeeId,
           employeeName: itemData.employeeName,
-          amount: itemData.amount,
+          amount: finalAmount,
           type: 'Advance',
           date: itemData.date || new Date().toISOString().split('T')[0],
           reason: `Auto-linked from approved request: ${itemData.reason || itemData.category || 'No Reason'}`,
@@ -435,116 +465,221 @@ export default function ApprovalsTab() {
           </div>
         </>
       ) : activeSubTab === 'advance-expense' ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Type</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Requested By</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Created By</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-center">HR</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-center">MD</th>
-                  <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {advExpenses.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No records found</td>
+        <div className="space-y-12">
+          {/* Active List (Pending & Hold) */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
+                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested By</th>
+                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Created By</th>
+                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                    <th className="px-12 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">HR Status</th>
+                    <th className="px-12 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">MD Status</th>
+                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Submit</th>
                   </tr>
-                ) : (
-                  advExpenses.map(item => {
-                    const statusState = actionState[item.id] || { status: 'Pending', remarks: '', showToggle: false }
-                    return (
-                      <React.Fragment key={item.id}>
-                        <tr className="h-[64px] hover:bg-gray-50/30 transition-colors">
-                          <td className="px-6">
-                            <span className="text-[13px] font-bold text-gray-700">{item.date}</span>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {advExpenses.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending records found</td>
+                    </tr>
+                  ) : (
+                    advExpenses.map(item => {
+                      const statusState = actionState[item.id] || { status: 'Pending', remarks: '', showToggle: false, partialAmount: item.amount }
+                      return (
+                        <React.Fragment key={item.id}>
+                          <tr className="h-[64px] hover:bg-gray-50/30 transition-colors">
+                            <td className="px-6 whitespace-nowrap">
+                              <span className="text-[12px] font-bold text-gray-700">{item.date}</span>
+                            </td>
+                            <td className="px-6">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                                {item.type}
+                              </span>
+                            </td>
+                            <td className="px-6">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-md bg-gray-100 flex items-center justify-center text-[8px] font-black text-gray-500">
+                                  {getInitials(item.employeeName)}
+                                </div>
+                                <span className="text-[12px] font-bold text-gray-800 whitespace-nowrap">{item.employeeName}</span>
+                              </div>
+                            </td>
+                            <td className="px-6">
+                              <span className="text-[11px] font-medium text-gray-500 whitespace-nowrap">{item.createdBy || 'Self'}</span>
+                            </td>
+                            <td className="px-6 text-right font-inter">
+                              <span className="text-[12px] font-black text-gray-900">{formatINR(item.amount)}</span>
+                            </td>
+                            <td className="px-12 text-center">
+                              <div className="flex justify-center">
+                                {getStatusIcon(item.hrApproval || 'Pending')}
+                              </div>
+                            </td>
+                            <td className="px-12 text-center">
+                              <div className="flex justify-center">
+                                {getStatusIcon(item.mdApproval || 'Pending')}
+                              </div>
+                            </td>
+                            <td className="px-6">
+                              <div className="flex justify-end items-center gap-3">
+                                {isMD ? (
+                                  <div className="relative">
+                                    <button 
+                                      onClick={() => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], showToggle: !prev[item.id]?.showToggle } }))}
+                                      className="h-[30px] px-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-white transition-all whitespace-nowrap"
+                                    >
+                                      {statusState.status}
+                                      {statusState.showToggle ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                    </button>
+                                    
+                                    {statusState.showToggle && (
+                                      <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-100 shadow-xl rounded-xl z-20 py-1">
+                                        {['Approve', 'Hold', 'Partial', 'Rejected'].map(s => (
+                                          <button 
+                                            key={s}
+                                            onClick={() => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], status: s, showToggle: false } }))}
+                                            className="w-full px-4 py-2 text-left text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                          >
+                                            {s}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : isHR ? (
+                                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Ready to Submit</span>
+                                ) : (
+                                  <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest italic">Awaiting Action</span>
+                                )}
+
+                                <button 
+                                  onClick={() => handleUpdateAdvExpense(item.id)}
+                                  className="h-[30px] px-4 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.1em] shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
+                                >
+                                  {isHR && !isMD ? 'Submit' : 'Submit'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                          {/* Remarks and Partial Amount Inputs */}
+                          {(isHR || isMD) && (
+                            <tr className="bg-gray-50/20">
+                              <td colSpan={8} className="px-6 py-3">
+                                <div className="flex flex-col md:flex-row gap-4">
+                                  {statusState.status === 'Partial' && isMD && (
+                                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-indigo-100 w-full md:w-64">
+                                      <span className="text-[9px] font-black text-indigo-500 uppercase ml-1">Partial Amt:</span>
+                                      <input 
+                                        type="number" 
+                                        value={statusState.partialAmount}
+                                        onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], partialAmount: e.target.value } }))}
+                                        className="flex-1 bg-transparent border-none text-[11px] font-black text-indigo-600 outline-none"
+                                        placeholder="Enter amount"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="flex-1 flex items-center gap-3 bg-white p-2 rounded-xl border border-gray-100">
+                                    <MessageSquare size={14} className="text-gray-400 shrink-0 ml-1" />
+                                    <input 
+                                      type="text" 
+                                      placeholder={`Enter remarks for ${statusState.status} status...`}
+                                      value={statusState.remarks}
+                                      onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], remarks: e.target.value } }))}
+                                      className="flex-1 bg-transparent border-none text-[11px] font-medium outline-none placeholder:text-gray-300"
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Recent Updates List (Approved, Partial, Rejected) */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-1.5 h-5 bg-emerald-500 rounded-full"></div>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Recent Updates</h3>
+            </div>
+            
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/50 h-[40px] border-b border-gray-100">
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                      <th className="px-12 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">HR Status</th>
+                      <th className="px-12 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">MD Status</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Final Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {recentAdvExpenses.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest italic opacity-60">No recent updates</td>
+                      </tr>
+                    ) : (
+                      recentAdvExpenses.map(item => (
+                        <tr key={item.id} className="h-[52px] hover:bg-gray-50/20 transition-colors">
+                          <td className="px-6 whitespace-nowrap">
+                            <span className="text-[11px] font-bold text-gray-500">{item.date}</span>
                           </td>
                           <td className="px-6">
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
                               {item.type}
                             </span>
                           </td>
                           <td className="px-6">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-[9px] font-black text-gray-500">
-                                {getInitials(item.employeeName)}
-                              </div>
-                              <span className="text-[13px] font-bold text-gray-800">{item.employeeName}</span>
+                            <span className="text-[11px] font-bold text-gray-700">{item.employeeName}</span>
+                          </td>
+                          <td className="px-6 text-right font-inter">
+                            <div className="flex flex-col items-end">
+                              <span className={`text-[12px] font-black ${item.status === 'Partial' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{formatINR(item.amount)}</span>
+                              {item.status === 'Partial' && item.partialAmount && (
+                                <span className="text-[12px] font-black text-indigo-600">{formatINR(item.partialAmount)}</span>
+                              )}
                             </div>
                           </td>
-                          <td className="px-6">
-                            <span className="text-[12px] font-medium text-gray-500">{item.createdBy || 'Self'}</span>
-                          </td>
-                          <td className="px-6 text-center">
+                          <td className="px-12 text-center">
                             <div className="flex justify-center">
                               {getStatusIcon(item.hrApproval || 'Pending')}
                             </div>
                           </td>
-                          <td className="px-6 text-center">
+                          <td className="px-12 text-center">
                             <div className="flex justify-center">
                               {getStatusIcon(item.mdApproval || 'Pending')}
                             </div>
                           </td>
-                          <td className="px-6">
-                            <div className="flex justify-end items-center gap-3">
-                              <div className="relative">
-                                <button 
-                                  onClick={() => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], showToggle: !prev[item.id]?.showToggle } }))}
-                                  className="h-[34px] px-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-gray-600 hover:bg-white transition-all"
-                                >
-                                  {statusState.status}
-                                  {statusState.showToggle ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                </button>
-                                
-                                {statusState.showToggle && (
-                                  <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 shadow-xl rounded-xl z-20 py-1">
-                                    {['Approve', 'Pending', 'Partial', 'Rejected', 'Hold'].map(s => (
-                                      <button 
-                                        key={s}
-                                        onClick={() => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], status: s, showToggle: false } }))}
-                                        className="w-full px-4 py-2 text-left text-[11px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-                                      >
-                                        {s}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                              <button 
-                                onClick={() => handleUpdateAdvExpense(item.id)}
-                                className="h-[34px] px-5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
-                              >
-                                Submit
-                              </button>
-                            </div>
+                          <td className="px-6 text-right">
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${
+                              item.status === 'Approved' ? 'text-emerald-500' : 
+                              item.status === 'Partial' ? 'text-blue-500' : 
+                              item.status === 'Rejected' ? 'text-red-500' : 'text-gray-400'
+                            }`}>
+                              {item.status}
+                            </span>
                           </td>
                         </tr>
-                        {['Partial', 'Rejected', 'Hold'].includes(statusState.status) && (
-                          <tr className="bg-gray-50/20">
-                            <td colSpan={7} className="px-6 py-4">
-                              <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
-                                <MessageSquare size={16} className="text-gray-400 shrink-0" />
-                                <input 
-                                  type="text" 
-                                  placeholder={`Enter remarks for ${statusState.status} status...`}
-                                  value={statusState.remarks}
-                                  onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], remarks: e.target.value } }))}
-                                  className="flex-1 bg-transparent border-none text-[12px] font-medium outline-none placeholder:text-gray-300"
-                                />
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
