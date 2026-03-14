@@ -512,8 +512,13 @@ export default function SettingsTab() {
       await updateEmployee(editingEmp, cleanEditForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
 
-      // Handle login enabled/disabled
-      if (editForm.loginEnabled && editForm.email) {
+      // Handle login enabled/disabled - only if login details actually changed
+      const originalEmp = employees.find(e => e.id === editingEmp)
+      const loginChanged = (editForm.loginEnabled !== originalEmp?.loginEnabled) || 
+                          (editForm.email !== originalEmp?.email) ||
+                          (!!editForm.tempPassword && editForm.tempPassword.trim() !== '')
+      
+      if (editForm.loginEnabled && editForm.email && loginChanged) {
         const tempPassword = editForm.tempPassword ? editForm.tempPassword.trim() : ''
         
         // Check if auth user already exists by looking up users collection
@@ -578,6 +583,32 @@ export default function SettingsTab() {
             console.error('Auth error:', authErr)
             alert(`Employee saved but could not create login. Error: ${authErr.message}`)
           }
+        }
+      } else if (editForm.loginEnabled && editForm.email && !loginChanged) {
+        // Login details unchanged - just update the user doc silently
+        const usersSnap = await getDocs(query(
+          collection(db, 'users'), 
+          where('orgId', '==', user.orgId),
+          where('email', '==', editForm.email)
+        ))
+        if (!usersSnap.empty) {
+          const userDocId = usersSnap.docs[0].id
+          await setDoc(
+            doc(db, 'users', userDocId),
+            {
+              email: editForm.email,
+              name: editForm.name,
+              orgId: user.orgId,
+              role: selectedRoleName,
+              permissions: selectedRolePerms,
+              employeeId: editingEmp,
+              empCode: editForm.empCode,
+              department: editForm.department || '',
+              reportingManager: editForm.reportingManager || '',
+              loginEnabled: true,
+            },
+            { merge: true }
+          )
         }
       } else if (!editForm.loginEnabled && editForm.email) {
         // Disable login - update user doc
