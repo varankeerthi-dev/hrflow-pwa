@@ -45,35 +45,40 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
 
   const employee = useMemo(() => {
-    if (!user?.email || !employees.length) {
+    if (!user || !employees.length) {
       console.log('[DEBUG] Employee lookup failed:', { userEmail: user?.email, employeesCount: employees.length })
       return null
     }
-    const normalizedUserEmail = user.email.toLowerCase().trim()
-    console.log('[DEBUG] Looking for employee with email:', normalizedUserEmail)
+    const normalizedUserEmail = user.email?.toLowerCase().trim() || ''
+    const normalizedUserId = user.uid?.toLowerCase().trim() || ''
+    console.log('[DEBUG] Looking for employee with email:', normalizedUserEmail, 'or uid:', normalizedUserId)
     console.log('[DEBUG] Total employees:', employees.length)
     
     const found = employees.find(e => {
       const empEmail = (e.email || '').toLowerCase().trim()
+      const empCode = (e.empCode || '').toLowerCase().trim()
       const empName = e.name || 'Unknown'
-      const match = empEmail === normalizedUserEmail
-      if (e.email) {
-        console.log(`[DEBUG] Comparing: ${empEmail} === ${normalizedUserEmail} => ${match} (Employee: ${empName})`)
+      const matchEmail = empEmail === normalizedUserEmail
+      const matchEmpCode = empCode === normalizedUserEmail
+      const matchUid = e.id?.toLowerCase().trim() === normalizedUserId
+      const match = matchEmail || matchEmpCode || matchUid
+      if (e.email || e.empCode) {
+        console.log(`[DEBUG] Comparing: email=${empEmail}, empCode=${empCode} vs ${normalizedUserEmail} => ${match} (Employee: ${empName})`)
       }
       return match
     })
     
     if (!found) {
-      console.log('[DEBUG] No employee found. All employee emails:')
+      console.log('[DEBUG] No employee found. All employee emails/codes:')
       employees.forEach((e, i) => {
-        console.log(`  ${i+1}. ${e.name}: email='${e.email || 'NULL'}' (id: ${e.id})`)
+        console.log(`  ${i+1}. ${e.name}: email='${e.email || 'NULL'}', empCode='${e.empCode || 'NULL'}' (id: ${e.id})`)
       })
     } else {
       console.log('[DEBUG] Found employee:', found.name, found.id)
     }
     
     return found
-  }, [employees, user?.email])
+  }, [employees, user?.email, user?.uid])
 
   const employeeId = employee?.id || user?.uid
 
@@ -532,6 +537,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                       { label: 'Date of Birth', value: employee?.dob, icon: <Calendar size={16} /> },
                       { label: 'Blood Group', value: employee?.bloodGroup, icon: <Heart size={16} className="text-rose-500" /> },
                       { label: 'Marital Status', value: employee?.maritalStatus, icon: <UsersIcon size={16} /> },
+                      { label: 'Joining Date', value: employee?.joinedDate, icon: <Calendar size={16} /> },
                     ].map(item => (
                       <div key={item.label} className="group/item">
                         <div className="flex items-center gap-2 mb-2">
