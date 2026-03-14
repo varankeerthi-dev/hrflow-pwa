@@ -1429,7 +1429,7 @@ export default function SettingsTab() {
                 <button onClick={() => { setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }); setShowAddMinWorkHours(true); }} className="bg-amber-500 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">ADD CATEGORY</button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {minWorkHours.map(m => (
+                {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
                   <div key={m.id} className="bg-white p-4 rounded-none border shadow-sm group relative">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-black text-gray-800 uppercase tracking-tight">{m.name}</h4>
@@ -1690,7 +1690,7 @@ export default function SettingsTab() {
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
                   <option value="">Select Working Hours...</option>
-                  {minWorkHours.map(m => (
+                  {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
                     <option key={m.id} value={m.hours}>{m.name} - {m.hours} Hours</option>
                   ))}
                 </select>
@@ -1957,7 +1957,7 @@ export default function SettingsTab() {
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
                   <option value="">Select Working Hours...</option>
-                  {minWorkHours.map(m => (
+                  {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
                     <option key={m.id} value={m.hours}>{m.name} - {m.hours} Hours</option>
                   ))}
                 </select>
