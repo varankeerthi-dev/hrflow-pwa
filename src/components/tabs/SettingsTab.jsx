@@ -885,7 +885,7 @@ export default function SettingsTab() {
     })
   }
 
-  const handleSaveOrg = async () => {
+  const handleSaveOrg = async (msg) => {
     if (!user?.orgId) { setOrgError('No organisation ID found.'); return }
     if (loading) { setOrgError('Still loading data. Please wait.'); return }
     if (!isAdmin && userPermissions['Settings']?.edit !== true) { setOrgError('You do not have permission to edit organization settings.'); return }
@@ -895,7 +895,7 @@ export default function SettingsTab() {
     try {
       await setDoc(doc(db, 'organisations', user.orgId), orgSettings, { merge: true })
       setSaved(true)
-      alert('Organisation settings saved successfully!')
+      alert(msg || 'Organisation settings saved successfully!')
       
       // Refresh org settings from database
       const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
@@ -1198,7 +1198,7 @@ export default function SettingsTab() {
                 </div>
               ))}
             </div>
-            <button onClick={handleSaveOrg} className="w-full mt-6 bg-indigo-600 text-white font-black py-2.5 rounded-xl uppercase shadow-lg">Save Categories</button>
+            <button onClick={() => handleSaveOrg('Advance categories updated successfully!')} className="w-full mt-6 bg-indigo-600 text-white font-black py-2.5 rounded-xl uppercase shadow-lg">Save Categories</button>
           </div>
         )}
 
@@ -1223,7 +1223,7 @@ export default function SettingsTab() {
                 </div>
               ))}
             </div>
-            <button onClick={handleSaveOrg} className="w-full mt-8 bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase shadow-xl tracking-widest">Update Holiday List</button>
+            <button onClick={() => handleSaveOrg('Holiday list updated successfully!')} className="w-full mt-8 bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase shadow-xl tracking-widest">Update Holiday List</button>
           </div>
         )}
 

@@ -17,9 +17,27 @@ export default function AdvanceExpenseTab() {
   const [activeModule, setActiveModule] = useState('Add Expense')
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
   
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
+  const isAccountant = user?.role?.toLowerCase() === 'accountant'
+  const canSelectAll = isAdmin || isAccountant
+
+  const getMyEmpId = () => {
+    const me = employees.find(e => e.email === user.email || e.id === user.uid)
+    return me ? me.id : ''
+  }
+
   const [addRows, setAddRows] = useState([
     { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '' }
   ])
+
+  useEffect(() => {
+    if (!canSelectAll && employees.length > 0 && addRows.length === 1 && !addRows[0].employeeId) {
+      const myId = getMyEmpId()
+      if (myId) {
+        setAddRows([{ ...addRows[0], employeeId: myId }])
+      }
+    }
+  }, [employees, canSelectAll])
 
   const [submitting, setSubmitting] = useState(false)
   
@@ -70,7 +88,8 @@ export default function AdvanceExpenseTab() {
   useEffect(() => { fetchCategories() }, [user?.orgId])
 
   const handleAddRow = () => {
-    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '' }])
+    const myId = !canSelectAll ? getMyEmpId() : ''
+    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '' }])
   }
 
   const handleSelfExpense = () => {
@@ -111,7 +130,7 @@ export default function AdvanceExpenseTab() {
           createdAt: serverTimestamp()
         })
       }
-      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '' }])
+      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '' }])
       await fetchEntries()
       // Enter into report split section
       setActiveModule('Reports')
@@ -244,9 +263,20 @@ export default function AdvanceExpenseTab() {
                       <input type="date" value={row.date} onChange={e => handleRowChange(row.id, 'date', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white" />
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <select value={row.employeeId} onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white">
+                      <select 
+                        value={row.employeeId} 
+                        onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
+                        disabled={!canSelectAll}
+                        className={`w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      >
                         <option value="">Select Employee...</option>
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        {canSelectAll ? (
+                          employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)
+                        ) : (
+                          employees.filter(e => e.email === user.email || e.id === user.uid).map(e => (
+                            <option key={e.id} value={e.id}>{e.name}</option>
+                          ))
+                        )}
                       </select>
                     </td>
                     <td className="p-2 border-r border-gray-100">
