@@ -1701,7 +1701,7 @@ export default function SettingsTab() {
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours</label>
                 <select
-                  value={editForm.minDailyHours || ''}
+                  value={editForm.minDailyHoursCategory || ''}
                   onChange={e => setEditForm(s => ({ ...s, minDailyHoursCategory: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
