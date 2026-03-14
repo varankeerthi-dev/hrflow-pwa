@@ -700,7 +700,7 @@ export default function CorrectionTab() {
       }
       
       const isAbsent = inlineForm.status === 'Absent'
-      const otHours = isAbsent ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, inlineForm.minDailyHours || 8)
+      const otHours = isAbsent ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, row.minDailyHours || inlineForm.minDailyHours || 8)
       
       const rows = [{
         employeeId: row.id,
@@ -762,7 +762,7 @@ export default function CorrectionTab() {
         const outDate = updates.outDate || row.outDate
         const inTime = isAbsent ? '' : (updates.inTime || row.in)
         const outTime = isAbsent ? '' : (updates.outTime || row.out)
-        const otHours = isAbsent ? '00:00' : calcOT(inTime, outTime, inDate, outDate, updates.minDailyHours || 8)
+        const otHours = isAbsent ? '00:00' : calcOT(inTime, outTime, inDate, outDate, row.minDailyHours || 8)
         
         const rows = [{
           employeeId: row.id,
@@ -973,7 +973,7 @@ export default function CorrectionTab() {
                               ...f, 
                               shiftType: newShift,
                               outDate: newOutDate,
-                              otHours: calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, newOutDate, inlineForm.minDailyHours || 8)
+                              otHours: calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, newOutDate, inlineForm.minDailyHours || results.find(r => r.id === inlineEditRow)?.minDailyHours || 8)
                             }))
                           }}
                           className={`w-[60px] h-5 rounded-full p-[1px] flex items-center transition-all ${inlineForm.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-100'}`}

@@ -168,7 +168,16 @@ export default function AttendanceTab() {
     fetchByDate(selectedDate).then(records => {
       setExistingRecords(records)
       if (records.length > 0) {
-        const sortedRecords = [...records].sort((a, b) => {
+        // Enrich existing records with current employee data (e.g., minDailyHours)
+        const enrichedRecords = records.map(record => {
+          const emp = employees.find(e => e.id === record.employeeId)
+          return {
+            ...record,
+            minDailyHours: record.minDailyHours || emp?.minDailyHours || 8
+          }
+        })
+
+        const sortedRecords = [...enrichedRecords].sort((a, b) => {
           if (!Array.isArray(rowOrder) || !rowOrder.length) return a.name.localeCompare(b.name)
           const idxA = rowOrder.indexOf(a.employeeId)
           const idxB = rowOrder.indexOf(b.employeeId)
@@ -334,12 +343,35 @@ export default function AttendanceTab() {
         action: `Attendance submitted for ${rows.length} employee(s) on ${selectedDate}`,
         detail: rows.map(r => r.name).join(', ')
       })
-      setSaved(true)
-      setShowWarning(false)
-      setTimeout(() => setSaved(false), 3000)
+      
       // Refresh existing records after save
       const updatedRecords = await fetchByDate(selectedDate)
       setExistingRecords(updatedRecords)
+      
+      // Enrich updated rows to keep minDailyHours for OT calculation
+      const enrichedUpdated = updatedRecords.map(record => {
+        const emp = employees.find(e => e.id === record.employeeId)
+        return {
+          ...record,
+          minDailyHours: record.minDailyHours || emp?.minDailyHours || 8
+        }
+      })
+      
+      // Re-sort the enriched updated records
+      const sortedUpdated = [...enrichedUpdated].sort((a, b) => {
+        if (!Array.isArray(rowOrder) || !rowOrder.length) return a.name.localeCompare(b.name)
+        const idxA = rowOrder.indexOf(a.employeeId)
+        const idxB = rowOrder.indexOf(b.employeeId)
+        if (idxA === -1 && idxB === -1) return a.name.localeCompare(b.name)
+        if (idxA === -1) return 1
+        if (idxB === -1) return -1
+        return idxA - idxB
+      })
+
+      setRows(sortedUpdated)
+      setSaved(true)
+      setShowWarning(false)
+      setTimeout(() => setSaved(false), 3000)
     } catch (error) {
       console.error('Error saving attendance:', error)
       alert('Failed to save attendance. Please try again.')
