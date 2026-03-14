@@ -136,7 +136,7 @@ export default function AttendanceTab() {
 
   const sortedEmployees = useMemo(() => {
     const active = employees.filter(e => e.status === 'Active')
-    if (!rowOrder.length) return active
+    if (!Array.isArray(rowOrder) || !rowOrder.length) return active
     return [...active].sort((a, b) => {
       const idxA = rowOrder.indexOf(a.id)
       const idxB = rowOrder.indexOf(b.id)
@@ -169,7 +169,7 @@ export default function AttendanceTab() {
       setExistingRecords(records)
       if (records.length > 0) {
         const sortedRecords = [...records].sort((a, b) => {
-          if (!rowOrder.length) return a.name.localeCompare(b.name)
+          if (!Array.isArray(rowOrder) || !rowOrder.length) return a.name.localeCompare(b.name)
           const idxA = rowOrder.indexOf(a.employeeId)
           const idxB = rowOrder.indexOf(b.employeeId)
           if (idxA === -1 && idxB === -1) return a.name.localeCompare(b.name)

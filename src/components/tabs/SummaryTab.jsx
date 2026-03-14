@@ -100,7 +100,7 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
             return false
           })
 
-        const savedOrder = orgData.employeeOrder || []
+        const savedOrder = Array.isArray(orgData.employeeOrder) ? orgData.employeeOrder : []
         const orderedEmployees = [...filteredEmployees].sort((a, b) => {
           const idxA = savedOrder.indexOf(a.id)
           const idxB = savedOrder.indexOf(b.id)

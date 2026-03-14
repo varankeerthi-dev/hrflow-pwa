@@ -269,7 +269,7 @@ export default function SettingsTab() {
   }
 
   const getOrderedEmployees = () => {
-    if (!rowOrder.length) return employees
+    if (!Array.isArray(rowOrder) || !rowOrder.length) return employees
     return [...employees].sort((a, b) => {
       const idxA = rowOrder.indexOf(a.id)
       const idxB = rowOrder.indexOf(b.id)
@@ -1129,7 +1129,9 @@ export default function SettingsTab() {
                           'bg-rose-50 text-rose-700',
                           'bg-indigo-50 text-indigo-700',
                         ]
-                        const deptColor = deptColors[deptOptions.indexOf(emp.department) % deptColors.length] || 'bg-gray-100 text-gray-600'
+                        const deptColor = (Array.isArray(deptOptions) && emp.department) 
+                          ? (deptColors[deptOptions.indexOf(emp.department) % deptColors.length] || 'bg-gray-100 text-gray-600')
+                          : 'bg-gray-100 text-gray-600'
 
                         // Status badge
                         const statusBadge = emp.status === 'Active'
