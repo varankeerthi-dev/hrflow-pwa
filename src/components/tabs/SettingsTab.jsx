@@ -251,7 +251,7 @@ export default function SettingsTab() {
       }
 
       const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
-      setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })) || [])
       
       if (!silent) {
         alert('Default roles (Admin, Accountant, Employee, Technician) created/updated successfully!')
@@ -276,7 +276,7 @@ export default function SettingsTab() {
 
         // Fetch Roles
         const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
-        const fetchedRoles = rolesSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        const fetchedRoles = rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })) || []
         setRoles(fetchedRoles)
 
         // Auto-seed default roles if none exist
@@ -402,7 +402,8 @@ export default function SettingsTab() {
       let selectedRolePerms = {}
       
       // Fetch permissions for the selected role if it exists in our roles list
-      const roleObj = roles.find(r => r.name.toLowerCase() === selectedRoleName.toLowerCase())
+      const rolesArray = Array.isArray(roles) ? roles : []
+      const roleObj = rolesArray.find(r => r.name.toLowerCase() === selectedRoleName.toLowerCase())
       if (roleObj) {
         selectedRolePerms = roleObj.permissions || {}
       } else if (selectedRoleName.toLowerCase() === 'admin') {
@@ -558,7 +559,8 @@ export default function SettingsTab() {
       let rolePermissions = {}
 
       // Fetch permissions for the selected role
-      const roleObj = roles.find(r => r.name.toLowerCase() === roleName.toLowerCase())
+      const rolesArray = Array.isArray(roles) ? roles : []
+      const roleObj = rolesArray.find(r => r.name.toLowerCase() === roleName.toLowerCase())
       if (roleObj) {
         rolePermissions = roleObj.permissions || {}
       } else if (roleName.toLowerCase() === 'admin') {
@@ -676,7 +678,8 @@ export default function SettingsTab() {
   const handleUpdateUserRole = async (uid, newRoleName) => {
     try {
       let permissions = {}
-      const roleObj = roles.find(r => r.name.toLowerCase() === newRoleName.toLowerCase())
+      const rolesArray = Array.isArray(roles) ? roles : []
+      const roleObj = rolesArray.find(r => r.name.toLowerCase() === newRoleName.toLowerCase())
       
       if (roleObj) {
         permissions = roleObj.permissions || {}
