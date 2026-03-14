@@ -801,7 +801,7 @@ export default function SettingsTab() {
     }
   }
 
-  const handleUpdateUserRole = async (uid, newRoleName) => {
+    const handleUpdateUserRole = async (uid, newRoleName) => {
     try {
       let permissions = {}
       const rolesArray = Array.isArray(roles) ? roles : []
@@ -822,11 +822,24 @@ export default function SettingsTab() {
         })
       }
 
-      await updateDoc(doc(db, 'users', uid), { 
+      // Find the user to see if they are missing name or empCode
+      const userObj = users.find(u => u.id === uid)
+      const updatePayload = { 
         role: newRoleName,
         permissions: permissions
-      })
-      setUsers(prev => prev.map(u => u.id === uid ? { ...u, role: newRoleName, permissions } : u))
+      }
+
+      // Sync name and empCode from employee collection if missing in user doc
+      if (userObj && (!userObj.name || !userObj.empCode)) {
+        const emp = employees.find(e => e.email === userObj.email || e.id === userObj.employeeId)
+        if (emp) {
+          if (!userObj.name) updatePayload.name = emp.name
+          if (!userObj.empCode) updatePayload.empCode = emp.empCode
+        }
+      }
+
+      await updateDoc(doc(db, 'users', uid), updatePayload)
+      setUsers(prev => prev.map(u => u.id === uid ? { ...u, ...updatePayload } : u))
       alert('User role and permissions updated successfully')
     } catch (err) {
       console.error('Update user role error:', err)
@@ -1564,16 +1577,20 @@ export default function SettingsTab() {
                         <tr>
                           <td colSpan={5} className="px-6 py-10 text-center text-gray-400 text-xs italic">No users found in this organization.</td>
                         </tr>
-                      ) : users.map(u => (
+                      ) : users.map(u => {
+                        const associatedEmp = employees.find(e => e.email === u.email || e.id === u.employeeId)
+                        const displayName = u.name || associatedEmp?.name || 'No Name'
+                        
+                        return (
                         <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm flex-shrink-0" style={{ backgroundColor: getAvatarColor(u.id) }}>
-                                {getInitials(u.name)}
+                                {getInitials(displayName)}
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <div className="font-bold text-gray-800 text-sm truncate">{u.name || 'No Name'}</div>
+                                  <div className="font-bold text-gray-800 text-sm truncate">{displayName}</div>
                                   {u.id === user.uid && (
                                     <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 uppercase tracking-tighter shrink-0">
                                       You
@@ -1582,9 +1599,9 @@ export default function SettingsTab() {
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 mt-0.5">
                                   <div className="text-[10px] text-gray-400 font-medium truncate">{u.email}</div>
-                                  {u.empCode && (
+                                  {(u.empCode || associatedEmp?.empCode) && (
                                     <span className="text-[9px] font-black bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter shrink-0">
-                                      {u.empCode}
+                                      {u.empCode || associatedEmp?.empCode}
                                     </span>
                                   )}
                                 </div>
