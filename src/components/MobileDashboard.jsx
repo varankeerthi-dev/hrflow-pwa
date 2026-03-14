@@ -232,7 +232,27 @@ export default function MobileDashboard() {
     { id: 'settings', label: 'Settings', icon: <Settings size={20} className="text-gray-600" />, module: 'Settings', color: 'bg-gray-50' },
   ], [])
 
-  const visibleModules = useMemo(() => allModules, [allModules])
+  const visibleModules = useMemo(() => {
+    const userPerms = user?.permissions || {}
+    const isAdmin = user?.role?.toLowerCase() === 'admin'
+    
+    return allModules.filter(mod => {
+      // Always allow home and portal for logged in users
+      if (['home', 'portal'].includes(mod.id)) return true
+      
+      // Admin bypass
+      if (isAdmin) return true
+      
+      // Special case: settings tab requires Settings module view permission
+      if (mod.id === 'settings') {
+        return userPerms['Settings']?.view === true
+      }
+
+      // Check if user has view permission for this module
+      const modulePerms = userPerms[mod.module] || {}
+      return modulePerms.view === true
+    })
+  }, [allModules, user?.permissions, user?.role])
 
   useEffect(() => {
     if (!user?.orgId) return

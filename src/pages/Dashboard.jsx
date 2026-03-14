@@ -354,13 +354,26 @@ export default function Dashboard() {
             
             {/* Quick Access Bar - moved to header */}
             {(() => {
+              const userPerms = user?.permissions || {}
+              const isAdmin = user?.role?.toLowerCase() === 'admin'
+
               const quickActions = [
                 { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={15} />, module: 'Attendance', right: 'create' },
                 { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
                 { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
                 { label: 'Make Correction', tab: 'correction', icon: <PencilLine size={15} />, module: 'Correction', right: 'create' },
                 { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
-              ]
+              ].filter(action => {
+                if (isAdmin) return true
+                
+                // Special case for Add Employee which might be under Employees or Settings
+                if (action.module === 'Employees') {
+                   return userPerms['Employees']?.create === true || userPerms['Settings']?.create === true
+                }
+
+                const modulePerms = userPerms[action.module] || {}
+                return modulePerms[action.right] === true
+              })
 
               if (quickActions.length === 0) return null
 
