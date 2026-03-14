@@ -1251,9 +1251,9 @@ export default function SettingsTab() {
                             <td className="px-4 py-3">
                               <button
                                 onClick={() => { 
-                                  const mwhCategory = (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.hours === emp.minDailyHours)
+                                  const mwhCategory = (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.hours === emp.minDailyHours) || (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.name === emp.minDailyHours)
                                   setEditingEmp(emp.id); 
-                                  setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || '' }) 
+                                  setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || emp.minDailyHours || '' }) 
                                 }}
                                 className="flex items-center gap-3 text-left"
                               >
