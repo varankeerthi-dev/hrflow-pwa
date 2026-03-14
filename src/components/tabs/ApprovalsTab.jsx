@@ -101,7 +101,19 @@ export default function ApprovalsTab() {
           orderBy('createdAt', 'desc')
         )
         const snap = await getDocs(q)
-        setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setRequests(data)
+
+        // Initialize action states for regular requests too (for remarks)
+        const initialActionState = {}
+        data.forEach(item => {
+          initialActionState[item.id] = { 
+            status: item.status || 'Pending', 
+            remarks: item.remarks || '', 
+            showToggle: false
+          }
+        })
+        setActionState(prev => ({ ...prev, ...initialActionState }))
       }
     } catch (err) {
       console.error('Error fetching approvals:', err)
@@ -122,7 +134,6 @@ export default function ApprovalsTab() {
     try {
       const updateData = {
         status: state.status === 'Approve' ? 'Approved' : state.status,
-        remarks: state.remarks,
         approved_by: user.uid,
         approved_at: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -134,12 +145,14 @@ export default function ApprovalsTab() {
         updateData.hrApproval = state.status === 'Approve' ? 'Approved' : state.status
         updateData.hrApprovedBy = user.uid
         updateData.hrApprovedAt = serverTimestamp()
+        updateData.hrRemarks = state.remarks
       }
       
       if (isMD) {
         updateData.mdApproval = state.status === 'Approve' ? 'Approved' : state.status
         updateData.mdApprovedBy = user.uid
         updateData.mdApprovedAt = serverTimestamp()
+        updateData.mdRemarks = state.remarks
       }
 
       await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
@@ -152,12 +165,30 @@ export default function ApprovalsTab() {
 
   const handleUpdateRequestStatus = async (id, status) => {
     if (!canApprove) return alert('No permission')
+    const state = actionState[id]
+    
+    if (['Partial', 'Rejected', 'Hold'].includes(status) && (!state || !state.remarks?.trim())) {
+      return alert(`Please provide remarks for ${status} status`)
+    }
+
     try {
-      await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), { 
+      const updateData = { 
         status,
+        remarks: state?.remarks || '',
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
-      })
+      }
+
+      if (isHR) {
+        updateData.hrApproval = status
+        updateData.hrRemarks = state?.remarks || ''
+      }
+      if (isMD) {
+        updateData.mdApproval = status
+        updateData.mdRemarks = state?.remarks || ''
+      }
+
+      await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), updateData)
       alert(`Request ${status} successfully`)
       fetchData()
     } catch (err) {
@@ -536,64 +567,88 @@ export default function ApprovalsTab() {
                   </tr>
                 ) : (
                   requests.map(req => (
-                    <tr key={req.id} className="h-[64px] hover:bg-gray-50/30 transition-colors group">
-                      <td className="px-6">
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-bold text-gray-700">
-                            {req.createdAt?.toDate ? req.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                    <React.Fragment key={req.id}>
+                      <tr className="h-[64px] hover:bg-gray-50/30 transition-colors group">
+                        <td className="px-6">
+                          <div className="flex flex-col">
+                            <span className="text-[13px] font-bold text-gray-700">
+                              {req.createdAt?.toDate ? req.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{req.employeeName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${req.type === 'Leave' ? 'bg-indigo-50 text-indigo-600' : req.type === 'Permission' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {req.type}
                           </span>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{req.employeeName}</span>
-                        </div>
-                      </td>
-                      <td className="px-6">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${req.type === 'Leave' ? 'bg-indigo-50 text-indigo-600' : req.type === 'Permission' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                          {req.type}
-                        </span>
-                      </td>
-                      <td className="px-6">
-                        <p className="text-[12px] font-medium text-gray-600">
-                          {req.type === 'Leave' && `${req.fromDate} to ${req.toDate}`}
-                          {req.type === 'Permission' && `${req.permissionDate} at ${req.permissionTime}`}
-                          {req.type === 'Advance' && `₹${req.amount}`}
-                        </p>
-                        <p className="text-[11px] text-gray-400 italic line-clamp-1">"{req.reason}"</p>
-                      </td>
-                      <td className="px-6">
-                        <div className="flex items-center gap-1.5">
-                          {getStatusIcon(req.status)}
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${req.status === 'Approved' ? 'text-green-600' : req.status === 'Rejected' ? 'text-red-600' : 'text-amber-600'}`}>
-                            {req.status}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6">
-                        <div className="flex justify-end gap-2">
-                          {req.status === 'Pending' ? (
-                            <>
+                        </td>
+                        <td className="px-6">
+                          <p className="text-[12px] font-medium text-gray-600">
+                            {req.type === 'Leave' && `${req.fromDate} to ${req.toDate}`}
+                            {req.type === 'Permission' && `${req.permissionDate} at ${req.permissionTime}`}
+                            {req.type === 'Advance' && `₹${req.amount}`}
+                          </p>
+                          <p className="text-[11px] text-gray-400 italic line-clamp-1">"{req.reason}"</p>
+                        </td>
+                        <td className="px-6">
+                          <div className="flex items-center gap-1.5">
+                            {getStatusIcon(req.status)}
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${req.status === 'Approved' ? 'text-green-600' : req.status === 'Rejected' ? 'text-red-600' : 'text-amber-600'}`}>
+                              {req.status}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6">
+                          <div className="flex justify-end gap-2 items-center">
+                            {req.status === 'Pending' ? (
+                              <>
+                                <button 
+                                  onClick={() => handleUpdateRequestStatus(req.id, 'Approved')}
+                                  className="h-[32px] px-4 bg-green-50 text-green-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all"
+                                >
+                                  Approve
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')}
+                                  className="h-[32px] px-4 bg-red-50 text-red-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
+                                >
+                                  Reject
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateRequestStatus(req.id, 'Hold')}
+                                  className="h-[32px] px-4 bg-gray-50 text-gray-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-gray-600 hover:text-white transition-all"
+                                >
+                                  Hold
+                                </button>
+                              </>
+                            ) : (
                               <button 
-                                onClick={() => handleUpdateRequestStatus(req.id, 'Approved')}
-                                className="h-[32px] px-4 bg-green-50 text-green-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all"
+                                onClick={() => handleDeleteRequest(req.id)}
+                                className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors"
                               >
-                                Approve
+                                <Trash2 size={16} />
                               </button>
-                              <button 
-                                onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')}
-                                className="h-[32px] px-4 bg-red-50 text-red-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          ) : (
-                            <button 
-                              onClick={() => handleDeleteRequest(req.id)}
-                              className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {req.status === 'Pending' && (
+                        <tr className="bg-gray-50/20">
+                          <td colSpan={5} className="px-6 py-2">
+                            <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-gray-100 max-w-md ml-auto">
+                              <MessageSquare size={14} className="text-gray-400 shrink-0" />
+                              <input 
+                                type="text" 
+                                placeholder="Remarks (mandatory for Reject/Hold)..."
+                                value={actionState[req.id]?.remarks || ''}
+                                onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], remarks: e.target.value } }))}
+                                className="flex-1 bg-transparent border-none text-[11px] font-medium outline-none placeholder:text-gray-300"
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))
                 )}
               </tbody>

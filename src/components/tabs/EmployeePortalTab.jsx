@@ -970,7 +970,31 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                   </div>
 
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Remarks / Justification</p>
-                  <p className="text-[13px] font-medium text-gray-600 italic leading-relaxed line-clamp-2">"{req.reason || 'No justification provided'}"</p>
+                  <p className="text-[13px] font-medium text-gray-600 italic leading-relaxed">"{req.reason || 'No justification provided'}"</p>
+                  
+                  {(req.hrRemarks || req.mdRemarks || req.remarks) && (
+                    <div className="mt-4 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                      <p className="text-[9px] font-black text-indigo-400 uppercase mb-2 tracking-widest flex items-center gap-2">
+                        <MessageSquare size={12} />
+                        Approver Remarks
+                      </p>
+                      {req.hrRemarks && (
+                        <p className="text-[11px] text-gray-600 mb-1">
+                          <span className="font-bold text-indigo-600">HR:</span> {req.hrRemarks}
+                        </p>
+                      )}
+                      {req.mdRemarks && (
+                        <p className="text-[11px] text-gray-600 mb-1">
+                          <span className="font-bold text-indigo-600">MD:</span> {req.mdRemarks}
+                        </p>
+                      )}
+                      {req.remarks && !req.hrRemarks && !req.mdRemarks && (
+                        <p className="text-[11px] text-gray-600">
+                          {req.remarks}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   
                   <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center opacity-40 group-hover:opacity-100 transition-opacity">
                     <span className="text-[8px] font-black text-gray-300 uppercase">Ref: {req.id.slice(-8).toUpperCase()}</span>
