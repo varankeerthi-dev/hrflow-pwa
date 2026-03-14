@@ -81,7 +81,7 @@ export default function SettingsTab() {
     department: '',
     shiftId: '',
     workHours: 9,
-    minDailyHours: 8,
+    minDailyHoursCategory: '',
     site: '',
     employmentType: 'Full-time',
     monthlySalary: 0,
@@ -499,12 +499,15 @@ export default function SettingsTab() {
       }
 
       // Prepare clean employee data - remove any undefined values and include orgId
+      const mwhCategory = (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.name === editForm.minDailyHoursCategory)
       const cleanEditForm = {
         ...Object.fromEntries(
           Object.entries(editForm).filter(([_, v]) => v !== undefined && v !== null)
         ),
-        orgId: user.orgId // Ensure orgId is present for security rules
+        orgId: user.orgId, // Ensure orgId is present for security rules
+        minDailyHours: mwhCategory?.hours || editForm.minDailyHours || 8
       }
+      delete cleanEditForm.minDailyHoursCategory
       
       await updateEmployee(editingEmp, cleanEditForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
@@ -654,8 +657,16 @@ export default function SettingsTab() {
         })
       }
 
+      // Convert minDailyHoursCategory to minDailyHours
+      const mwhCategory = (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.name === newEmployee.minDailyHoursCategory)
+      const employeeWithMinHours = {
+        ...newEmployee,
+        minDailyHours: mwhCategory?.hours || 8
+      }
+      delete employeeWithMinHours.minDailyHoursCategory
+
       // 1) Create employee master
-      const empId = await addEmployee(employeeDoc)
+      const empId = await addEmployee(employeeWithMinHours)
       await logChange('EMPLOYEE_CREATE', empId, { name: employeeDoc.name })
 
       // 2) Optionally create login-enabled auth user
@@ -1239,7 +1250,11 @@ export default function SettingsTab() {
                             {/* Employee: avatar + name + email */}
                             <td className="px-4 py-3">
                               <button
-                                onClick={() => { setEditingEmp(emp.id); setEditForm(emp) }}
+                                onClick={() => { 
+                                  const mwhCategory = (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.hours === emp.minDailyHours)
+                                  setEditingEmp(emp.id); 
+                                  setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || '' }) 
+                                }}
                                 className="flex items-center gap-3 text-left"
                               >
                                 <div className="w-8 h-8 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white text-[11px] font-bold" style={{ backgroundColor: getAvatarColor(emp.id) }}>
@@ -1687,12 +1702,12 @@ export default function SettingsTab() {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours</label>
                 <select
                   value={editForm.minDailyHours || ''}
-                  onChange={e => setEditForm(s => ({ ...s, minDailyHours: Number(e.target.value) }))}
+                  onChange={e => setEditForm(s => ({ ...s, minDailyHoursCategory: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
                   <option value="">Select Working Hours...</option>
                   {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
-                    <option key={m.id} value={m.hours}>{m.name} - {m.hours} Hours</option>
+                    <option key={m.id} value={m.name}>{m.name} - {m.hours} Hours</option>
                   ))}
                 </select>
               </div>
@@ -1953,13 +1968,13 @@ export default function SettingsTab() {
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours</label>
                 <select
-                  value={newEmployee.minDailyHours || ''}
-                  onChange={e => setNewEmployee(s => ({ ...s, minDailyHours: Number(e.target.value) }))}
+                  value={newEmployee.minDailyHoursCategory || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, minDailyHoursCategory: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
                   <option value="">Select Working Hours...</option>
                   {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
-                    <option key={m.id} value={m.hours}>{m.name} - {m.hours} Hours</option>
+                    <option key={m.id} value={m.name}>{m.name} - {m.hours} Hours</option>
                   ))}
                 </select>
               </div>
