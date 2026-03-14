@@ -116,6 +116,7 @@ export default function SettingsTab() {
   })
 
   const [saving, setSaving] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const [saved, setSaved] = useState(false)
   const [orgError, setOrgError] = useState('')
 
@@ -955,14 +956,22 @@ export default function SettingsTab() {
                 {/* Logo Upload */}
                 <div className="flex flex-col items-center pb-6 border-b border-gray-100">
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden bg-gray-50 group hover:border-indigo-400 transition-all cursor-pointer" style={{ width: '90px', height: '90px' }}>
-                    {orgSettings.logoURL ? (
+                    {uploadingLogo ? (
+                      <div className="flex flex-col items-center justify-center">
+                        <svg className="animate-spin h-6 w-6 text-indigo-500" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        <span className="text-[9px] text-gray-400 font-medium mt-1">Uploading...</span>
+                      </div>
+                    ) : orgSettings.logoURL ? (
                       <img 
                         src={orgSettings.logoURL} 
                         className="w-full h-full object-cover rounded-full" 
                         alt="Logo" 
                         onError={(e) => {
                           e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
+                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
                         }}
                       />
                     ) : (
@@ -971,16 +980,16 @@ export default function SettingsTab() {
                         <span className="text-[9px] text-gray-400 font-medium">Upload</span>
                       </div>
                     )}
-                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploadingLogo} onChange={async (e) => {
                       const file = e.target.files[0]
                       if (!file) return
                       
                       try {
-                        setSaving(true)
-                        const url = await handleFileUpload(file, `orgs/${user.orgId}/logo`)
+                        setUploadingLogo(true)
+                        const url = await handleFileUpload(file, `orgs/${user.orgId}/logo_${Date.now()}`)
                         if (url) {
                           setOrgSettings(s => ({ ...s, logoURL: url }))
-                          // Immediately persist to Firestore to avoid confusion
+                          // Immediately persist to Firestore
                           await setDoc(doc(db, 'organisations', user.orgId), { logoURL: url }, { merge: true })
                           alert('Organisation logo updated successfully!')
                         }
@@ -988,7 +997,7 @@ export default function SettingsTab() {
                         console.error('Logo upload error:', err)
                         alert('Failed to upload logo: ' + err.message)
                       } finally {
-                        setSaving(false)
+                        setUploadingLogo(false)
                       }
                     }} />
                   </div>
@@ -1673,19 +1682,35 @@ export default function SettingsTab() {
             <div className="flex items-start gap-4 pb-5 border-b border-gray-100">
               {/* Passport size photo */}
               <div className="relative shrink-0">
-                <div className="w-20 h-24 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-all">
-                  {editForm.photoURL
-                    ? <img src={editForm.photoURL} className="w-full h-full object-cover" alt="photo" />
-                    : <>
-                      <svg className="w-6 h-6 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                      <span className="text-[9px] text-gray-400 font-medium text-center leading-tight">Passport<br />Photo</span>
-                    </>
-                  }
-                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
-                    const url = await handleFileUpload(e.target.files[0], `employees/${editingEmp}/profile`)
-                    if (url) setEditForm(s => ({ ...s, photoURL: url }))
-                  }} />
-                </div>
+                  <div className="w-20 h-24 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-all relative">
+                    {uploadingLogo ? (
+                      <div className="flex flex-col items-center justify-center">
+                        <svg className="animate-spin h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      </div>
+                    ) : editForm.photoURL ? (
+                      <img src={editForm.photoURL} className="w-full h-full object-cover" alt="photo" />
+                    ) : (
+                      <>
+                        <svg className="w-6 h-6 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <span className="text-[9px] text-gray-400 font-medium text-center leading-tight">Passport<br />Photo</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploadingLogo} onChange={async (e) => {
+                      try {
+                        setUploadingLogo(true)
+                        const url = await handleFileUpload(e.target.files[0], `employees/${editingEmp}/profile_${Date.now()}`)
+                        if (url) setEditForm(s => ({ ...s, photoURL: url }))
+                      } catch (err) {
+                        console.error('Photo upload error:', err)
+                        alert('Failed to upload photo: ' + err.message)
+                      } finally {
+                        setUploadingLogo(false)
+                      }
+                    }} />
+                  </div>
                 <span className="block text-[9px] text-gray-400 text-center mt-1">Click to upload</span>
               </div>
               <div className="flex-1 space-y-3">
@@ -1943,19 +1968,35 @@ export default function SettingsTab() {
             <div className="flex items-start gap-4 pb-5 border-b border-gray-100">
               {/* Passport size photo */}
               <div className="relative shrink-0">
-                <div className="w-20 h-24 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-all">
-                  {newEmployee.photoURL
-                    ? <img src={newEmployee.photoURL} className="w-full h-full object-cover" alt="photo" />
-                    : <>
-                      <svg className="w-6 h-6 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                      <span className="text-[9px] text-gray-400 font-medium text-center leading-tight">Passport<br />Photo</span>
-                    </>
-                  }
-                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
-                    const url = await handleFileUpload(e.target.files[0], `employees/new_${Date.now()}/profile`)
-                    if (url) setNewEmployee(s => ({ ...s, photoURL: url }))
-                  }} />
-                </div>
+                <div className="w-20 h-24 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-all relative">
+                    {uploadingLogo ? (
+                      <div className="flex flex-col items-center justify-center">
+                        <svg className="animate-spin h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      </div>
+                    ) : newEmployee.photoURL ? (
+                      <img src={newEmployee.photoURL} className="w-full h-full object-cover" alt="photo" />
+                    ) : (
+                      <>
+                        <svg className="w-6 h-6 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <span className="text-[9px] text-gray-400 font-medium text-center leading-tight">Passport<br />Photo</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploadingLogo} onChange={async (e) => {
+                      try {
+                        setUploadingLogo(true)
+                        const url = await handleFileUpload(e.target.files[0], `employees/new_${Date.now()}/profile`)
+                        if (url) setNewEmployee(s => ({ ...s, photoURL: url }))
+                      } catch (err) {
+                        console.error('Photo upload error:', err)
+                        alert('Failed to upload photo: ' + err.message)
+                      } finally {
+                        setUploadingLogo(false)
+                      }
+                    }} />
+                  </div>
                 <span className="block text-[9px] text-gray-400 text-center mt-1">Click to upload</span>
               </div>
               <div className="flex-1 space-y-3">
