@@ -45,6 +45,7 @@ export default function SettingsTab() {
   const [showPreview, setShowPreview] = useState(false)
   const [previewEmpIndex, setPreviewEmpIndex] = useState(0)
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [seeding, setSeeding] = useState(false)
 
   const userPermissions = user?.permissions || {}
   const isAdmin = user?.role === 'admin'
@@ -656,6 +657,122 @@ export default function SettingsTab() {
 
   const handlePrintRoster = () => { window.print() }
 
+  const seedDefaultRoles = async () => {
+    if (!user?.orgId) return
+    setSeeding(true)
+    try {
+      const defaultRoles = [
+        {
+          name: 'Admin',
+          description: 'Full access to all modules and settings.',
+          permissions: allModulesList.reduce((acc, mod) => {
+            acc[mod.id] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+            return acc
+          }, {})
+        },
+        {
+          name: 'Accountant',
+          description: 'Access to payroll, expenses, and financial reports.',
+          isAccountant: true,
+          permissions: allModulesList.reduce((acc, mod) => {
+            const isPayroll = mod.group === 'Payroll'
+            const isHRMS = ['Attendance', 'Leave', 'Summary'].includes(mod.id)
+            acc[mod.id] = { 
+              view: isPayroll || isHRMS, 
+              create: isPayroll, 
+              edit: isPayroll, 
+              delete: false, 
+              approve: isPayroll, 
+              export: isPayroll 
+            }
+            return acc
+          }, {})
+        },
+        {
+          name: 'Employee',
+          description: 'Standard employee access to self-service portal.',
+          permissions: allModulesList.reduce((acc, mod) => {
+            const isPortal = mod.id === 'EmployeePortal'
+            acc[mod.id] = { view: isPortal, create: false, edit: false, delete: false, approve: false, export: false }
+            return acc
+          }, {})
+        },
+        {
+          name: 'Technician',
+          description: 'Access to projects, time tracking, and assets.',
+          permissions: allModulesList.reduce((acc, mod) => {
+            const isTech = ['Projects', 'TimeTracking', 'AssetManagement', 'EmployeePortal'].includes(mod.id)
+            acc[mod.id] = { view: isTech, create: isTech, edit: isTech, delete: false, approve: false, export: false }
+            return acc
+          }, {})
+        }
+      ]
+
+      for (const role of defaultRoles) {
+        const roleQuery = query(collection(db, 'organisations', user.orgId, 'roles'), where('name', '==', role.name))
+        const existing = await getDocs(roleQuery)
+        if (existing.empty) {
+          await addDoc(collection(db, 'organisations', user.orgId, 'roles'), {
+            ...role,
+            createdAt: serverTimestamp()
+          })
+        } else {
+          // Update existing to ensure correct permissions/description
+          await updateDoc(doc(db, 'organisations', user.orgId, 'roles', existing.docs[0].id), {
+            ...role,
+            updatedAt: serverTimestamp()
+          })
+        }
+      }
+
+      // Re-fetch roles
+      const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
+      setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      
+      alert('Default roles (Admin, Accountant, Employee, Technician) created/updated successfully!')
+    } catch (err) {
+      console.error('Seed roles error:', err)
+      alert('Failed to seed roles: ' + err.message)
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  const makeAllEmployeesAdmin = async () => {
+    if (!user?.orgId) return
+    if (!confirm('This will set ALL users in this organization to the "Admin" role with full permissions. Continue?')) return
+    
+    setSeeding(true)
+    try {
+      const usersQuery = query(collection(db, 'users'), where('orgId', '==', user.orgId))
+      const usersSnap = await getDocs(usersQuery)
+      
+      const adminPermissions = allModulesList.reduce((acc, mod) => {
+        acc[mod.id] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+        return acc
+      }, {})
+
+      const updates = usersSnap.docs.map(u => 
+        updateDoc(doc(db, 'users', u.id), {
+          role: 'Admin',
+          permissions: adminPermissions
+        })
+      )
+      
+      await Promise.all(updates)
+      
+      // Update local state
+      setUsers(prev => prev.map(u => ({ ...u, role: 'Admin', permissions: adminPermissions })))
+      
+      alert(`Successfully updated ${updates.length} users to Admin role!`)
+    } catch (err) {
+      console.error('Batch update error:', err)
+      alert('Failed to update users: ' + err.message)
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   return (
     <div className="h-full flex flex-col text-[11px] font-inter">
       <style>{`
@@ -1238,7 +1355,16 @@ export default function SettingsTab() {
             {activeUserRoleSubTab === 'users' && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-300">
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                  <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Users List</h3>
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Users List</h3>
+                    <button 
+                      onClick={makeAllEmployeesAdmin}
+                      disabled={seeding}
+                      className="text-[10px] font-bold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 transition-all uppercase tracking-tight"
+                    >
+                      {seeding ? 'Processing...' : 'Make All Admin'}
+                    </button>
+                  </div>
                   <button 
                     onClick={() => setShowInviteModal(true)}
                     className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2"
@@ -1303,7 +1429,16 @@ export default function SettingsTab() {
             {activeUserRoleSubTab === 'roles' && (
               <div className="space-y-4 animate-in fade-in duration-300">
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Defined Roles</h3>
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Defined Roles</h3>
+                    <button 
+                      onClick={seedDefaultRoles}
+                      disabled={seeding}
+                      className="text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-all uppercase tracking-tight"
+                    >
+                      {seeding ? 'Seeding...' : 'Seed Default Roles'}
+                    </button>
+                  </div>
                   <button 
                     onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }); setShowAddRole(true); }}
                     className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 uppercase tracking-widest"
