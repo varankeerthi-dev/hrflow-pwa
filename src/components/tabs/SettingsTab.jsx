@@ -510,13 +510,14 @@ export default function SettingsTab() {
       }
 
       // Prepare clean employee data - remove any undefined values and include orgId
-      const mwhCategory = (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.name === editForm.minDailyHoursCategory)
+      const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
+      const mwhCategory = mwhList.find(m => m.name === editForm.minDailyHoursCategory)
       const cleanEditForm = {
         ...Object.fromEntries(
           Object.entries(editForm).filter(([_, v]) => v !== undefined && v !== null)
         ),
         orgId: user.orgId, // Ensure orgId is present for security rules
-        minDailyHours: mwhCategory?.hours || editForm.minDailyHours || 8
+        minDailyHours: mwhCategory ? mwhCategory.hours : (editForm.minDailyHours || 8)
       }
       delete cleanEditForm.minDailyHoursCategory
       
@@ -1465,9 +1466,18 @@ export default function SettingsTab() {
                                 </button>
                                 <button
                                   onClick={async () => {
+                                    const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
+                                    const mwhCategory = mwhList.find(m => m.hours === emp.minDailyHours) || mwhList.find(m => m.name === emp.minDailyHours)
+                                    const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
+
                                     // Set basic info immediately to avoid blank form
                                     setEditingEmp(emp.id)
-                                    setEditForm({ ...emp, loginEnabled: emp.loginEnabled || false, tempPassword: '' })
+                                    setEditForm({ 
+                                      ...emp, 
+                                      loginEnabled: emp.loginEnabled || false, 
+                                      tempPassword: '',
+                                      minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || ''
+                                    })
                                     
                                     // Fetch additional login info in the background
                                     const userDoc = await getDoc(doc(db, 'users', emp.id))
