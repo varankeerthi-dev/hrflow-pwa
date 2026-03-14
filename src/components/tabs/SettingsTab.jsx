@@ -1706,7 +1706,8 @@ export default function SettingsTab() {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
