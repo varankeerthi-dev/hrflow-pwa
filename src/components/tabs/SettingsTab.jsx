@@ -1568,12 +1568,26 @@ export default function SettingsTab() {
                         <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm" style={{ backgroundColor: getAvatarColor(u.id) }}>
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm flex-shrink-0" style={{ backgroundColor: getAvatarColor(u.id) }}>
                                 {getInitials(u.name)}
                               </div>
-                              <div>
-                                <div className="font-bold text-gray-800 text-sm">{u.name}</div>
-                                <div className="text-[10px] text-gray-400 font-medium">{u.email}</div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <div className="font-bold text-gray-800 text-sm truncate">{u.name || 'No Name'}</div>
+                                  {u.id === user.uid && (
+                                    <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 uppercase tracking-tighter shrink-0">
+                                      You
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                  <div className="text-[10px] text-gray-400 font-medium truncate">{u.email}</div>
+                                  {u.empCode && (
+                                    <span className="text-[9px] font-black bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter shrink-0">
+                                      {u.empCode}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>
