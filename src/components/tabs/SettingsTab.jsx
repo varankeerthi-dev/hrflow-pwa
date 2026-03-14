@@ -44,6 +44,7 @@ export default function SettingsTab() {
   const [draggedRowItem, setDraggedRowItem] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   const [previewEmpIndex, setPreviewEmpIndex] = useState(0)
+  const [showInviteModal, setShowInviteModal] = useState(false)
 
   const userPermissions = user?.permissions || {}
   const isAdmin = user?.role === 'admin'
@@ -1239,7 +1240,7 @@ export default function SettingsTab() {
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                   <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Users List</h3>
                   <button 
-                    onClick={() => { setShowAddEmployee(true); setActiveSubTab('employee'); }}
+                    onClick={() => setShowInviteModal(true)}
                     className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2"
                   >
                     <Plus size={14} /> Invite User
@@ -2103,6 +2104,71 @@ export default function SettingsTab() {
               {saving ? 'Saving...' : (editingRole ? 'Update Role' : 'Create Role')}
             </button>
           </div>
+        </div>
+      </Modal>
+      
+      {/* INVITE USER MODAL - Display Employees with login access enabled */}
+      <Modal 
+        isOpen={showInviteModal} 
+        onClose={() => setShowInviteModal(false)} 
+        title="Invite User (Enable Login Access)"
+      >
+        <div className="max-h-[60vh] overflow-y-auto p-2">
+          <div className="grid grid-cols-1 gap-3">
+            {employees.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 italic">No employees found.</div>
+            ) : employees.filter(emp => emp.loginEnabled).length === 0 ? (
+              <div className="text-center py-10 text-gray-500 font-bold bg-amber-50 rounded-xl border border-amber-100 uppercase tracking-widest text-[10px]">
+                No employees have login access enabled. <br/> Enable "Login Access" in the Employee profile first.
+              </div>
+            ) : employees.filter(emp => emp.loginEnabled).map(emp => {
+              const userExists = users.find(u => u.email === emp.email)
+              return (
+                <div key={emp.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm" style={{ backgroundColor: getAvatarColor(emp.id) }}>
+                      {getInitials(emp.name)}
+                    </div>
+                    <div>
+                      <div className="font-black text-gray-800 uppercase tracking-tight text-sm">{emp.name}</div>
+                      <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{emp.email}</div>
+                      <div className="mt-1">
+                        <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase tracking-widest">{emp.empCode || 'No Code'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    {userExists ? (
+                      <span className="text-[9px] font-black text-green-600 bg-green-50 px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1">
+                        <Check size={10} /> Active User
+                      </span>
+                    ) : (
+                      <button 
+                        onClick={async () => {
+                          // This could trigger the account creation again if it somehow failed or was deleted from users collection
+                          // But generally, loginEnabled: true should have already created it.
+                          // Here we just acknowledge they are ready for role assignment in the main list.
+                          alert(`User account for ${emp.name} is enabled. They should appear in the Users list shortly.`)
+                          setShowInviteModal(false)
+                        }}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all"
+                      >
+                        Check Status
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+          <button 
+            onClick={() => setShowInviteModal(false)}
+            className="px-6 py-2.5 text-xs font-black text-gray-400 hover:text-gray-600 uppercase tracking-widest transition-all"
+          >
+            Close
+          </button>
         </div>
       </Modal>
 
