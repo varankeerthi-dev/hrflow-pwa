@@ -164,7 +164,24 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         orderBy('createdAt', 'desc')
       )
       const snap = await getDocs(q)
-      setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      const ordinaryRequests = snap.docs.map(d => ({ id: d.id, ...d.data(), source: 'requests' }))
+
+      const q2 = query(
+        collection(db, 'organisations', user.orgId, 'advances_expenses'),
+        where('employeeId', '==', employeeId),
+        orderBy('createdAt', 'desc')
+      )
+      const snap2 = await getDocs(q2)
+      const advExpRequests = snap2.docs.map(d => ({ id: d.id, ...d.data(), source: 'advances_expenses' }))
+
+      // Merge and sort
+      const merged = [...ordinaryRequests, ...advExpRequests].sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0)
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0)
+        return dateB - dateA
+      })
+
+      setRequests(merged)
     } catch (err) {
       console.error('Portal fetch error:', err)
     } finally {
@@ -877,23 +894,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
-              {requests.filter(req => {
-                if (req.status === 'Pending') return true
-                if (req.status === 'Approved') {
-                  const today = new Date().toISOString().split('T')[0]
-                  if (req.type === 'Leave') {
-                    return req.toDate >= today || req.fromDate >= today
-                  }
-                  if (req.type === 'Permission') {
-                    return req.permissionDate >= today
-                  }
-                  if (req.type === 'Advance') {
-                    return true
-                  }
-                  return true
-                }
-                return true
-              }).map(req => (
+              {requests.map(req => (
                 <div key={req.id} className="bg-white p-8 rounded-[12px] border border-gray-100 shadow-sm flex flex-col relative overflow-hidden group hover:shadow-lg transition-all">
                   <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-xl text-[9px] font-black uppercase tracking-[0.2em] ${req.status === 'Approved' ? 'bg-green-100 text-green-700 border-l border-b border-green-200' : req.status === 'Rejected' ? 'bg-red-100 text-red-700 border-l border-b border-red-200' : 'bg-amber-50 text-amber-600 border-l border-b border-amber-100'}`}>
                     {req.status}
@@ -903,70 +904,83 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                       <FileText size={20} />
                     </div>
                     <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">{req.type}</span>
+                    {req.source === 'advances_expenses' && (
+                      <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">{req.category}</span>
+                    )}
                   </div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest flex items-center gap-2">
-                    <Calendar size={12} /> Details
-                  </p>
-                  <p className="text-sm font-black text-gray-800 mb-2 flex items-center gap-2">
-                    {req.type === 'Leave' && (
-                      <>
-                        {req.leaveType || 'Leave'}: {req.fromDate} <ArrowRight size={14} className="text-gray-300" />{' '}
-                        {req.toDate || req.fromDate}
-                      </>
-                    )}
-                    {req.type === 'Permission' && (
-                      <>
-                        {req.permissionDate} at {req.permissionTime || '--'}
-                      </>
-                    )}
-                    {req.type === 'Advance' && <>₹{req.amount}</>}
-                  </p>
                   
-                  {req.type === 'Advance' && (
-                    <div className="flex gap-4 mb-4">
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">HR Approval</span>
-                        <span className={`text-[9px] font-bold uppercase ${req.hrApproval === 'Approved' ? 'text-green-600' : 'text-amber-500'}`}>{req.hrApproval || 'Pending'}</span>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest flex items-center gap-2">
+                        <Calendar size={12} /> Details
+                      </p>
+                      <p className="text-sm font-black text-gray-800 mb-2 flex items-center gap-2">
+                        {req.type === 'Leave' && (
+                          <>
+                            {req.leaveType || 'Leave'}: {req.fromDate} <ArrowRight size={14} className="text-gray-300" />{' '}
+                            {req.toDate || req.fromDate}
+                          </>
+                        )}
+                        {req.type === 'Permission' && (
+                          <>
+                            {req.permissionDate} at {req.permissionTime || '--'}
+                          </>
+                        )}
+                        {(req.type === 'Advance' || req.type === 'Expense') && <>₹{req.amount}</>}
+                      </p>
+                    </div>
+                    {(req.type === 'Advance' || req.type === 'Expense') && req.date && (
+                      <div className="text-right">
+                         <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Entry Date</p>
+                         <p className="text-[12px] font-bold text-gray-700">{req.date}</p>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">MD Approval</span>
-                        <span className={`text-[9px] font-bold uppercase ${req.mdApproval === 'Approved' ? 'text-green-600' : 'text-amber-500'}`}>{req.mdApproval || 'Pending'}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">Payment</span>
-                        <span className={`text-[9px] font-bold uppercase ${req.paymentStatus === 'Paid' ? 'text-emerald-600' : 'text-amber-500'}`}>{req.paymentStatus || 'Pending'}</span>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-tight mb-1">Status 1 (HR Approval)</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${req.hrApproval === 'Approved' ? 'bg-green-500' : req.hrApproval === 'Rejected' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
+                        <span className={`text-[10px] font-black uppercase ${req.hrApproval === 'Approved' ? 'text-green-700' : req.hrApproval === 'Rejected' ? 'text-red-700' : 'text-amber-600'}`}>
+                          {req.hrApproval || 'Pending'}
+                        </span>
                       </div>
                     </div>
-                  )}
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-tight mb-1">Status 2 (MD Approval)</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${req.mdApproval === 'Approved' ? 'bg-green-500' : req.mdApproval === 'Rejected' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
+                        <span className={`text-[10px] font-black uppercase ${req.mdApproval === 'Approved' ? 'text-green-700' : req.mdApproval === 'Rejected' ? 'text-red-700' : 'text-amber-600'}`}>
+                          {req.mdApproval || 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                    {(req.type === 'Advance' || req.type === 'Expense') && (
+                      <div className="flex flex-col col-span-2 pt-2 border-t border-gray-200/50">
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-tight mb-1">Payment Queue Status</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-1.5 h-1.5 rounded-full ${req.paymentStatus === 'Paid' ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
+                          <span className={`text-[10px] font-black uppercase ${req.paymentStatus === 'Paid' ? 'text-emerald-700' : 'text-gray-500'}`}>
+                            {req.paymentStatus || 'Pending'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Justification</p>
-                  <p className="text-[13px] font-medium text-gray-600 italic leading-relaxed line-clamp-3">"{req.reason}"</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Remarks / Justification</p>
+                  <p className="text-[13px] font-medium text-gray-600 italic leading-relaxed line-clamp-2">"{req.reason || 'No justification provided'}"</p>
                   
-                  <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[9px] font-black text-gray-300 uppercase">ID: {req.id.slice(-6)}</span>
+                  <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center opacity-40 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[8px] font-black text-gray-300 uppercase">Ref: {req.id.slice(-8).toUpperCase()}</span>
                     {req.status === 'Pending' && (
                       <button className="text-[9px] font-black text-red-400 uppercase hover:text-red-600">Withdraw</button>
                     )}
                   </div>
                 </div>
               ))}
-              {requests.filter(req => {
-                if (req.status === 'Pending') return true
-                if (req.status === 'Approved') {
-                  const today = new Date().toISOString().split('T')[0]
-                  if (req.type === 'Leave') {
-                    return req.toDate >= today || req.fromDate >= today
-                  }
-                  if (req.type === 'Permission') {
-                    return req.permissionDate >= today
-                  }
-                  if (req.type === 'Advance') {
-                    return true
-                  }
-                  return true
-                }
-                return true
-              }).length === 0 && (
+              {requests.length === 0 && (
                 <div className="col-span-full py-32 text-center">
                   <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-6 text-gray-200"><FileText size={40} /></div>
                   <p className="text-gray-300 font-medium uppercase tracking-[0.25em] text-xl italic opacity-40">No internal records found</p>
