@@ -71,6 +71,8 @@ export default function HomeTab() {
 
   if (empLoading || attLoading || recLoading || docLoading) return <div className="flex h-full items-center justify-center py-20"><Spinner /></div>
 
+  const canViewAttendance = user?.role?.toLowerCase() === 'admin' || user?.permissions?.Attendance?.view === true
+
   return (
     <div className="p-4 md:p-8 font-inter animate-in fade-in slide-in-from-bottom-2 duration-700 space-y-8">
       {/* Header Section */}
@@ -79,47 +81,51 @@ export default function HomeTab() {
           <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Control Center</h1>
           <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em] mt-1">Operational Overview • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-100">
-          <div className="px-4 py-2 text-center border-r border-gray-50">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Health Score</p>
-            <p className="text-sm font-black text-emerald-600">98.2%</p>
+        {canViewAttendance && (
+          <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-100">
+            <div className="px-4 py-2 text-center border-r border-gray-50">
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Health Score</p>
+              <p className="text-sm font-black text-emerald-600">98.2%</p>
+            </div>
+            <div className="px-4 py-2 text-center">
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Efficiency</p>
+              <p className="text-sm font-black text-indigo-600">High</p>
+            </div>
           </div>
-          <div className="px-4 py-2 text-center">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Efficiency</p>
-            <p className="text-sm font-black text-indigo-600">High</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Attendance Card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-            <Calendar size={80} className="text-indigo-900" />
-          </div>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-              <Calendar size={16} className="text-indigo-600" />
+        {canViewAttendance && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+              <Calendar size={80} className="text-indigo-900" />
             </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Attendance</span>
-          </div>
-          <div className="space-y-3 relative z-10">
-            {[
-              { label: 'Present', color: 'bg-emerald-500', count: stats.present.length, id: 'present' },
-              { label: 'Absent', color: 'bg-rose-500', count: stats.absent.length, id: 'absent' },
-              { label: 'On Leave', color: 'bg-amber-500', count: stats.leave.length, id: 'leave' }
-            ].map(cat => (
-              <div key={cat.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${cat.color} shadow-sm`} />
-                  <span className="text-[12px] font-bold text-gray-600">{cat.label}</span>
-                </div>
-                <span className="text-[13px] font-black text-gray-900">{cat.count}</span>
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <Calendar size={16} className="text-indigo-600" />
               </div>
-            ))}
+              <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Attendance</span>
+            </div>
+            <div className="space-y-3 relative z-10">
+              {[
+                { label: 'Present', color: 'bg-emerald-500', count: stats.present.length, id: 'present' },
+                { label: 'Absent', color: 'bg-rose-500', count: stats.absent.length, id: 'absent' },
+                { label: 'On Leave', color: 'bg-amber-500', count: stats.leave.length, id: 'leave' }
+              ].map(cat => (
+                <div key={cat.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${cat.color} shadow-sm`} />
+                    <span className="text-[12px] font-bold text-gray-600">{cat.label}</span>
+                  </div>
+                  <span className="text-[13px] font-black text-gray-900">{cat.count}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Workforce Stats */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">

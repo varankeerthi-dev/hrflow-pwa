@@ -329,48 +329,55 @@ export default function MobileDashboard() {
 
   if (!user) return null
 
-  const renderHomeDashboard = () => (
-    <div className="p-4 space-y-4">
-      <div className="grid grid-cols-3 gap-2">
-        <StatCard 
-          icon={<Users size={16} className="text-blue-600" />} 
-          label="Employees" 
-          value={stats.totalEmployees}
-          color="bg-blue-50"
-        />
-        <StatCard 
-          icon={<CheckCircle2 size={16} className="text-green-600" />} 
-          label="Present" 
-          value={stats.presentToday}
-          color="bg-green-50"
-        />
-        <StatCard 
-          icon={<XCircle size={16} className="text-red-600" />} 
-          label="Absent" 
-          value={stats.absentToday}
-          color="bg-red-50"
-        />
-      </div>
+  const renderHomeDashboard = () => {
+    const canViewAttendance = user?.role?.toLowerCase() === 'admin' || user?.permissions?.Attendance?.view === true
 
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <h3 className="text-sm font-bold text-gray-800 mb-3">Quick Overview</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={14} className="text-orange-500" />
-              <span className="text-xs text-gray-600">Pending Corrections</span>
-            </div>
-            <span className="text-sm font-bold text-orange-600">{stats.pendingCorrections}</span>
+    return (
+      <div className="p-4 space-y-4">
+        {canViewAttendance && (
+          <div className="grid grid-cols-3 gap-2">
+            <StatCard 
+              icon={<Users size={16} className="text-blue-600" />} 
+              label="Employees" 
+              value={stats.totalEmployees}
+              color="bg-blue-50"
+            />
+            <StatCard 
+              icon={<CheckCircle2 size={16} className="text-green-600" />} 
+              label="Present" 
+              value={stats.presentToday}
+              color="bg-green-50"
+            />
+            <StatCard 
+              icon={<XCircle size={16} className="text-red-600" />} 
+              label="Absent" 
+              value={stats.absentToday}
+              color="bg-red-50"
+            />
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock size={14} className="text-purple-500" />
-              <span className="text-xs text-gray-600">Today's Date</span>
+        )}
+
+        {canViewAttendance && (
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 className="text-sm font-bold text-gray-800 mb-3">Quick Overview</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={14} className="text-orange-500" />
+                  <span className="text-xs text-gray-600">Pending Corrections</span>
+                </div>
+                <span className="text-sm font-bold text-orange-600">{stats.pendingCorrections}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock size={14} className="text-purple-500" />
+                  <span className="text-xs text-gray-600">Today's Date</span>
+                </div>
+                <span className="text-sm font-bold text-gray-800">{new Date().toLocaleDateString()}</span>
+              </div>
             </div>
-            <span className="text-sm font-bold text-gray-800">{new Date().toLocaleDateString()}</span>
           </div>
-        </div>
-      </div>
+        )}
 
       <div>
         <h3 className="text-sm font-bold text-gray-800 mb-2 px-1">Modules</h3>

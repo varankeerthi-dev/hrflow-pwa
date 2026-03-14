@@ -235,9 +235,7 @@ export default function Dashboard() {
 
   const allTabs = useMemo(() => [
     { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
-    { id: 'attendance', label: 'Attendance Records', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
-    
-    { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
+    { id: 'attendance', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
@@ -259,7 +257,7 @@ export default function Dashboard() {
 
   const sections = useMemo(() => [
     { id: 'main', title: 'MAIN', tabs: ['home'] },
-    { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'recruitment', 'documents', 'summary'] },
+    { id: 'hr', title: 'HR', tabs: ['attendance', 'correction', 'leave', 'approvals', 'letters', 'recruitment', 'documents', 'summary'] },
     { id: 'payroll', title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
     { id: 'workforce', title: 'WORKFORCE', tabs: ['engage', 'shift-planning'] },
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
@@ -291,8 +289,7 @@ export default function Dashboard() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home': return <HomeTab />
-      case 'attendance':
-      case 'attendance-list': return <AttendanceTab />
+      case 'attendance': return <AttendanceTab />
       case 'correction': return <CorrectionTab />
       case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />
