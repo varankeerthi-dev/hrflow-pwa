@@ -1282,9 +1282,11 @@ export default function SettingsTab() {
                             <td className="px-4 py-3">
                               <button
                                 onClick={() => { 
-                                  const mwhCategory = (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.hours === emp.minDailyHours) || (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.name === emp.minDailyHours)
+                                  const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
+                                  const mwhCategory = mwhList.find(m => m.hours === emp.minDailyHours) || mwhList.find(m => m.name === emp.minDailyHours)
+                                  const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
                                   setEditingEmp(emp.id); 
-                                  setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || emp.minDailyHours || '' }) 
+                                  setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || '' }) 
                                 }}
                                 className="flex items-center gap-3 text-left"
                               >
@@ -1730,13 +1732,12 @@ export default function SettingsTab() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours *</label>
                 <select
-                  value={editForm.minDailyHoursCategory || ''}
+                  value={editForm.minDailyHoursCategory || (Array.isArray(minWorkHours) ? minWorkHours[0]?.name : '') || ''}
                   onChange={e => setEditForm(s => ({ ...s, minDailyHoursCategory: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
-                  <option value="">Select Working Hours...</option>
                   {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
                     <option key={m.id} value={m.name}>{m.name} - {m.hours} Hours</option>
                   ))}
@@ -1997,13 +1998,12 @@ export default function SettingsTab() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours *</label>
                 <select
-                  value={newEmployee.minDailyHoursCategory || ''}
+                  value={newEmployee.minDailyHoursCategory || (Array.isArray(minWorkHours) ? minWorkHours[0]?.name : '') || ''}
                   onChange={e => setNewEmployee(s => ({ ...s, minDailyHoursCategory: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
-                  <option value="">Select Working Hours...</option>
                   {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
                     <option key={m.id} value={m.name}>{m.name} - {m.hours} Hours</option>
                   ))}
@@ -2518,7 +2518,14 @@ export default function SettingsTab() {
 
                         <div className="flex gap-2">
                           <button 
-                            onClick={() => { setEditingEmp(emp); setEditForm(emp); setShowAddEmployee(false); }}
+                            onClick={() => { 
+                              const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
+                              const mwhCategory = mwhList.find(m => m.hours === emp.minDailyHours) || mwhList.find(m => m.name === emp.minDailyHours)
+                              const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
+                              setEditingEmp(emp); 
+                              setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || '' }); 
+                              setShowAddEmployee(false); 
+                            }}
                             className="flex-1 h-9 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-sm flex items-center justify-center gap-2"
                           >
                             <Edit size={12} /> Edit Role
