@@ -37,8 +37,11 @@ export default function ApprovalsTab() {
     loadRequests()
   }, [user?.orgId])
 
+  const canApprove = user?.role?.toLowerCase() === 'admin' || user?.permissions?.Approvals?.approve === true
+
   const handleApproval = async (id, status) => {
     if (!user?.uid) return
+    if (!canApprove) return alert('You do not have permission to approve/reject requests')
     try {
       await updateOTStatus(id, status, user.uid)
       alert(`OT Request ${status === 'approved' ? 'Approved' : 'Rejected'} successfully!`)
@@ -50,6 +53,7 @@ export default function ApprovalsTab() {
 
   const updateRequestStatus = async (id, status) => {
     if (!user?.orgId) return
+    if (!canApprove) return alert('You do not have permission to approve/reject requests')
     try {
       await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), { status })
       setEmpRequests(prev => prev.map(r => (r.id === id ? { ...r, status } : r)))

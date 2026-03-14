@@ -52,7 +52,7 @@ export default function SettingsTab() {
   const [seeding, setSeeding] = useState(false)
 
   const userPermissions = user?.permissions || {}
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
   const allSubTabs = [
     { id: 'organization', label: 'Organization', module: 'Settings' },
     { id: 'user_roles', label: 'User & Roles', module: 'Settings' },
@@ -62,7 +62,17 @@ export default function SettingsTab() {
     { id: 'advance_cat', label: 'Advance Cats', module: 'AdvanceExpense' },
     { id: 'holidays', label: 'Holidays', module: 'Settings' }
   ]
-  const visibleSubTabs = allSubTabs
+  
+  const visibleSubTabs = useMemo(() => {
+    if (isAdmin) return allSubTabs
+    return allSubTabs.filter(tab => {
+      // Special check for 'Roles' since it's a sub-module of 'User & Roles'
+      if (tab.id === 'user_roles') {
+        return userPermissions['Settings']?.view === true || userPermissions['Roles']?.view === true
+      }
+      return userPermissions[tab.module]?.view === true
+    })
+  }, [userPermissions, isAdmin])
 
   useEffect(() => {
     if (!visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {
@@ -774,6 +784,7 @@ export default function SettingsTab() {
   }
 
   const handleAddRole = async () => {
+    if (!isAdmin && userPermissions['Roles']?.edit !== true) return alert('You do not have permission to manage roles.')
     if (!newRole.name.trim()) return alert('Role name is required')
     setSaving(true)
     try {
@@ -802,6 +813,7 @@ export default function SettingsTab() {
   }
 
     const handleUpdateUserRole = async (uid, newRoleName) => {
+    if (!isAdmin && userPermissions['Roles']?.edit !== true) return alert('You do not have permission to change user roles.')
     try {
       let permissions = {}
       const rolesArray = Array.isArray(roles) ? roles : []
@@ -859,6 +871,7 @@ export default function SettingsTab() {
   const handleSaveOrg = async () => {
     if (!user?.orgId) { setOrgError('No organisation ID found.'); return }
     if (loading) { setOrgError('Still loading data. Please wait.'); return }
+    if (!isAdmin && userPermissions['Settings']?.edit !== true) { setOrgError('You do not have permission to edit organization settings.'); return }
     if (!orgSettings.name || !orgSettings.name.trim()) { setOrgError('Organisation Name is required.'); return }
     setSaving(true)
     setOrgError('')
@@ -1202,51 +1215,57 @@ export default function SettingsTab() {
           const deptOptions = [...new Set(employees.map(e => e.department).filter(Boolean))]
           const statusOptions = ['All', 'Active', 'Inactive']
 
-          return (
-            <div className="space-y-3 no-print">
-              {/* ── Header ─────────────────────────────────── */}
-              <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-[#F3F4F6]">
-                  {/* Left: title + subtitle */}
-                  <div>
-                    <h2 className="text-[15px] font-semibold text-gray-900 tracking-tight">Employee Directory</h2>
-                    <p className="text-[12px] text-gray-400 mt-0.5">All employees in your organisation</p>
-                  </div>
-                  {/* Right: filters + add */}
-                  <div className="flex items-center gap-2">
-                    {/* Row Order button */}
-                    <button 
-                      onClick={() => { setRowOrder(employees.map(e => e.id)); setShowRowOrder(true); }}
-                      className="h-[34px] px-3 flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[12px] font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all"
-                    >
-                      <Filter size={14} /> Row Order
-                    </button>
+  const canCreateEmployee = isAdmin || userPermissions['Employees']?.create === true
+  const canEditEmployee = isAdmin || userPermissions['Employees']?.edit === true
+  const canDeleteEmployee = isAdmin || userPermissions['Employees']?.delete === true
 
-                    {/* Column picker toggle */}
-                    <div className="relative group">
-                      <button className="h-[34px] px-3 flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[12px] font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all">
-                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" /></svg>
-                        Columns
-                      </button>
-                      {/* Column picker dropdown */}
-                      <div className="absolute right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-3 z-20 w-44 hidden group-focus-within:block">
-                        {allColumns.filter(c => c.optional).map(col => (
-                          <label key={col.key} className="flex items-center gap-2.5 py-1.5 px-1 hover:bg-gray-50 rounded-lg cursor-pointer">
-                            <input type="checkbox" checked={visibleColumns.includes(col.key)} onChange={() => setVisibleColumns(prev => prev.includes(col.key) ? prev.filter(k => k !== col.key) : [...prev, col.key])} className="w-3.5 h-3.5 rounded border-gray-300 text-gray-900 accent-gray-900" />
-                            <span className="text-[12px] text-gray-600 font-medium">{col.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+  return (
+    <div className="space-y-3 no-print">
+      {/* ── Header ─────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#F3F4F6]">
+          {/* Left: title + subtitle */}
+          <div>
+            <h2 className="text-[15px] font-semibold text-gray-900 tracking-tight">Employee Directory</h2>
+            <p className="text-[12px] text-gray-400 mt-0.5">All employees in your organisation</p>
+          </div>
+          {/* Right: filters + add */}
+          <div className="flex items-center gap-2">
+            {/* Row Order button */}
+            <button 
+              onClick={() => { setRowOrder(employees.map(e => e.id)); setShowRowOrder(true); }}
+              className="h-[34px] px-3 flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[12px] font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all"
+            >
+              <Filter size={14} /> Row Order
+            </button>
 
-                    <button
-                      onClick={() => setShowAddEmployee(true)}
-                      className="h-[34px] px-4 bg-gray-900 text-white text-[12px] font-semibold rounded-lg hover:bg-gray-800 transition-all flex items-center gap-1.5"
-                    >
-                      <Plus size={14} /> Add Employee
-                    </button>
-                  </div>
-                </div>
+            {/* Column picker toggle */}
+            <div className="relative group">
+              <button className="h-[34px] px-3 flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[12px] font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all">
+                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" /></svg>
+                Columns
+              </button>
+              {/* Column picker dropdown */}
+              <div className="absolute right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-3 z-20 w-44 hidden group-focus-within:block">
+                {allColumns.filter(c => c.optional).map(col => (
+                  <label key={col.key} className="flex items-center gap-2.5 py-1.5 px-1 hover:bg-gray-50 rounded-lg cursor-pointer">
+                    <input type="checkbox" checked={visibleColumns.includes(col.key)} onChange={() => setVisibleColumns(prev => prev.includes(col.key) ? prev.filter(k => k !== col.key) : [...prev, col.key])} className="w-3.5 h-3.5 rounded border-gray-300 text-gray-900 accent-gray-900" />
+                    <span className="text-[12px] text-gray-600 font-medium">{col.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {canCreateEmployee && (
+              <button
+                onClick={() => setShowAddEmployee(true)}
+                className="h-[34px] px-4 bg-gray-900 text-white text-[12px] font-semibold rounded-lg hover:bg-gray-800 transition-all flex items-center gap-1.5"
+              >
+                <Plus size={14} /> Add Employee
+              </button>
+            )}
+          </div>
+        </div>
 
                 {/* ── Table ─────────────────────────────────── */}
                 <div className="overflow-x-auto">
@@ -1309,13 +1328,14 @@ export default function SettingsTab() {
                             <td className="px-4 py-3">
                               <button
                                 onClick={() => { 
+                                  if (!canEditEmployee) return;
                                   const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
                                   const mwhCategory = mwhList.find(m => m.hours === emp.minDailyHours) || mwhList.find(m => m.name === emp.minDailyHours)
                                   const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
                                   setEditingEmp(emp.id); 
                                   setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || '' }) 
                                 }}
-                                className="flex items-center gap-3 text-left"
+                                className={`flex items-center gap-3 text-left ${!canEditEmployee ? 'cursor-default' : ''}`}
                               >
                                 <div className="w-8 h-8 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-white text-[11px] font-bold" style={{ backgroundColor: getAvatarColor(emp.id) }}>
                                   {emp.photoURL ? <img src={emp.photoURL} className="w-full h-full object-cover" alt="" /> : getInitials(emp.name)}
@@ -1476,11 +1496,19 @@ export default function SettingsTab() {
           )
         })()}
 
-        {activeSubTab === 'shift' && (
+        {activeSubTab === 'shift' && (() => {
+          const canCreateShift = isAdmin || userPermissions['Shifts']?.create === true
+          const canEditShift = isAdmin || userPermissions['Shifts']?.edit === true
+          const canDeleteShift = isAdmin || userPermissions['Shifts']?.delete === true
+          const canManageMWH = isAdmin || userPermissions['Settings']?.edit === true
+
+          return (
           <div className="space-y-4 no-print">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black text-gray-800 uppercase">Shift Management</h3>
-              <button onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">CREATE SHIFT</button>
+              {canCreateShift && (
+                <button onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">CREATE SHIFT</button>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {(Array.isArray(shifts) ? shifts : []).map(s => (
@@ -1491,8 +1519,12 @@ export default function SettingsTab() {
                   </div>
                   <div className="text-[10px] font-bold text-gray-400">{s.isFlexible ? 'Anytime' : `${s.startTime || '09:00'} - ${s.endTime || '18:00'}`}</div>
                   <div className="mt-3 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditingShift(s); setNewShift(s); setShowAddShift(true); }} className="text-indigo-600 font-black">Edit</button>
-                    <button onClick={async () => { if (confirm('Delete shift?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'shifts', s.id)); setShifts(prev => prev.filter(x => x.id !== s.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
+                    {canEditShift && (
+                      <button onClick={() => { setEditingShift(s); setNewShift(s); setShowAddShift(true); }} className="text-indigo-600 font-black">Edit</button>
+                    )}
+                    {canDeleteShift && (
+                      <button onClick={async () => { if (confirm('Delete shift?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'shifts', s.id)); setShifts(prev => prev.filter(x => x.id !== s.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1502,7 +1534,9 @@ export default function SettingsTab() {
             <div className="space-y-4 no-print mt-8 pt-8 border-t border-gray-200">
               <div className="flex justify-between items-center">
                 <h3 className="text-sm font-black text-gray-800 uppercase">Minimum Work Hours</h3>
-                <button onClick={() => { setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }); setShowAddMinWorkHours(true); }} className="bg-amber-500 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">ADD CATEGORY</button>
+                {canManageMWH && (
+                  <button onClick={() => { setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }); setShowAddMinWorkHours(true); }} className="bg-amber-500 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">ADD CATEGORY</button>
+                )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
@@ -1513,15 +1547,20 @@ export default function SettingsTab() {
                     </div>
                     <div className="text-[10px] font-bold text-gray-400">{m.description || 'No description'}</div>
                     <div className="mt-3 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { setEditingMinWorkHours(m); setNewMinWorkHours(m); setShowAddMinWorkHours(true); }} className="text-indigo-600 font-black">Edit</button>
-                      <button onClick={async () => { if (confirm('Delete minimum work hours category?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'minWorkHours', m.id)); setMinWorkHours(prev => prev.filter(x => x.id !== m.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
+                      {canManageMWH && (
+                        <>
+                          <button onClick={() => { setEditingMinWorkHours(m); setNewMinWorkHours(m); setShowAddMinWorkHours(true); }} className="text-indigo-600 font-black">Edit</button>
+                          <button onClick={async () => { if (confirm('Delete minimum work hours category?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'minWorkHours', m.id)); setMinWorkHours(prev => prev.filter(x => x.id !== m.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        )}
+          )
+        })()}
 
         {activeSubTab === 'user_roles' && !showInvitePage && (
           <div className="space-y-6">
