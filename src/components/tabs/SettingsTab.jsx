@@ -36,6 +36,7 @@ export default function SettingsTab() {
   const [editForm, setEditForm] = useState({})
   const [showAddShift, setShowAddShift] = useState(false)
   const [editingShift, setEditingShift] = useState(null)
+  const [shifts, setShifts] = useState([])
   const [minWorkHours, setMinWorkHours] = useState([])
   const [showAddMinWorkHours, setShowAddMinWorkHours] = useState(false)
   const [editingMinWorkHours, setEditingMinWorkHours] = useState(null)
@@ -1407,7 +1408,7 @@ export default function SettingsTab() {
               <button onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">CREATE SHIFT</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {shifts.map(s => (
+              {(Array.isArray(shifts) ? shifts : []).map(s => (
                 <div key={s.id} className="bg-white p-4 rounded-none border shadow-sm group relative">
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-black text-gray-800 uppercase tracking-tight">{s.name}</h4>
