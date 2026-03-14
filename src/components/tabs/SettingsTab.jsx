@@ -99,7 +99,6 @@ export default function SettingsTab() {
     bankAccount: '',
     photoURL: '',
     permissionHours: 2,
-    minDailyHours: 8,
     documents: [],
     role: 'Employee',
     reportingManager: '',
