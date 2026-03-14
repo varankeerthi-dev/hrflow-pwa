@@ -183,6 +183,89 @@ export default function SettingsTab() {
   // Role Groups & Rights
   const roleGroups = []
 
+  const seedDefaultRoles = async (silent = false) => {
+    if (!user?.orgId) return
+    setSeeding(true)
+    try {
+      const defaultRoles = [
+        {
+          name: 'Admin',
+          description: 'Full access to all modules and settings.',
+          permissions: allModulesList.reduce((acc, mod) => {
+            acc[mod.id] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+            return acc
+          }, {})
+        },
+        {
+          name: 'Accountant',
+          description: 'Access to payroll, expenses, and financial reports.',
+          isAccountant: true,
+          permissions: allModulesList.reduce((acc, mod) => {
+            const isPayroll = mod.group === 'Payroll'
+            const isHRMS = ['Attendance', 'Leave', 'Summary'].includes(mod.id)
+            acc[mod.id] = { 
+              view: isPayroll || isHRMS, 
+              create: isPayroll, 
+              edit: isPayroll, 
+              delete: false, 
+              approve: isPayroll, 
+              export: isPayroll 
+            }
+            return acc
+          }, {})
+        },
+        {
+          name: 'Employee',
+          description: 'Standard employee access to self-service portal.',
+          permissions: allModulesList.reduce((acc, mod) => {
+            const isPortal = mod.id === 'EmployeePortal'
+            acc[mod.id] = { view: isPortal, create: false, edit: false, delete: false, approve: false, export: false }
+            return acc
+          }, {})
+        },
+        {
+          name: 'Technician',
+          description: 'Access to projects, time tracking, and assets.',
+          permissions: allModulesList.reduce((acc, mod) => {
+            const isTech = ['Projects', 'TimeTracking', 'AssetManagement', 'EmployeePortal'].includes(mod.id)
+            acc[mod.id] = { view: isTech, create: isTech, edit: isTech, delete: false, approve: false, export: false }
+            return acc
+          }, {})
+        }
+      ]
+
+      for (const role of defaultRoles) {
+        const roleQuery = query(collection(db, 'organisations', user.orgId, 'roles'), where('name', '==', role.name))
+        const existing = await getDocs(roleQuery)
+        if (existing.empty) {
+          await addDoc(collection(db, 'organisations', user.orgId, 'roles'), {
+            ...role,
+            createdAt: serverTimestamp()
+          })
+        } else {
+          await updateDoc(doc(db, 'organisations', user.orgId, 'roles', existing.docs[0].id), {
+            ...role,
+            updatedAt: serverTimestamp()
+          })
+        }
+      }
+
+      const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
+      setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      
+      if (!silent) {
+        alert('Default roles (Admin, Accountant, Employee, Technician) created/updated successfully!')
+      }
+    } catch (err) {
+      console.error('Seed roles error:', err)
+      if (!silent) {
+        alert('Failed to seed roles: ' + err.message)
+      }
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   useEffect(() => {
     if (!user?.orgId) return
     const fetchData = async () => {
@@ -193,7 +276,13 @@ export default function SettingsTab() {
 
         // Fetch Roles
         const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
-        setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        const fetchedRoles = rolesSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setRoles(fetchedRoles)
+
+        // Auto-seed default roles if none exist
+        if (fetchedRoles.length === 0) {
+          await seedDefaultRoles(true)
+        }
 
         // Fetch Users belonging to this org
         const usersQuery = query(collection(db, 'users'), where('orgId', '==', user.orgId))
@@ -656,87 +745,6 @@ export default function SettingsTab() {
   }
 
   const handlePrintRoster = () => { window.print() }
-
-  const seedDefaultRoles = async () => {
-    if (!user?.orgId) return
-    setSeeding(true)
-    try {
-      const defaultRoles = [
-        {
-          name: 'Admin',
-          description: 'Full access to all modules and settings.',
-          permissions: allModulesList.reduce((acc, mod) => {
-            acc[mod.id] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
-            return acc
-          }, {})
-        },
-        {
-          name: 'Accountant',
-          description: 'Access to payroll, expenses, and financial reports.',
-          isAccountant: true,
-          permissions: allModulesList.reduce((acc, mod) => {
-            const isPayroll = mod.group === 'Payroll'
-            const isHRMS = ['Attendance', 'Leave', 'Summary'].includes(mod.id)
-            acc[mod.id] = { 
-              view: isPayroll || isHRMS, 
-              create: isPayroll, 
-              edit: isPayroll, 
-              delete: false, 
-              approve: isPayroll, 
-              export: isPayroll 
-            }
-            return acc
-          }, {})
-        },
-        {
-          name: 'Employee',
-          description: 'Standard employee access to self-service portal.',
-          permissions: allModulesList.reduce((acc, mod) => {
-            const isPortal = mod.id === 'EmployeePortal'
-            acc[mod.id] = { view: isPortal, create: false, edit: false, delete: false, approve: false, export: false }
-            return acc
-          }, {})
-        },
-        {
-          name: 'Technician',
-          description: 'Access to projects, time tracking, and assets.',
-          permissions: allModulesList.reduce((acc, mod) => {
-            const isTech = ['Projects', 'TimeTracking', 'AssetManagement', 'EmployeePortal'].includes(mod.id)
-            acc[mod.id] = { view: isTech, create: isTech, edit: isTech, delete: false, approve: false, export: false }
-            return acc
-          }, {})
-        }
-      ]
-
-      for (const role of defaultRoles) {
-        const roleQuery = query(collection(db, 'organisations', user.orgId, 'roles'), where('name', '==', role.name))
-        const existing = await getDocs(roleQuery)
-        if (existing.empty) {
-          await addDoc(collection(db, 'organisations', user.orgId, 'roles'), {
-            ...role,
-            createdAt: serverTimestamp()
-          })
-        } else {
-          // Update existing to ensure correct permissions/description
-          await updateDoc(doc(db, 'organisations', user.orgId, 'roles', existing.docs[0].id), {
-            ...role,
-            updatedAt: serverTimestamp()
-          })
-        }
-      }
-
-      // Re-fetch roles
-      const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
-      setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
-      
-      alert('Default roles (Admin, Accountant, Employee, Technician) created/updated successfully!')
-    } catch (err) {
-      console.error('Seed roles error:', err)
-      alert('Failed to seed roles: ' + err.message)
-    } finally {
-      setSeeding(false)
-    }
-  }
 
   const makeAllEmployeesAdmin = async () => {
     if (!user?.orgId) return
