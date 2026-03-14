@@ -41,26 +41,44 @@ async function readUserDoc(uid) {
           userData.orgName = orgSnap.data().name
         }
         
-        // Cache role permissions on login and sync to Firestore user doc for rules
+        // Default to 'admin' permissions (all modules/actions true) as requested
+        // This will be used unless a specific role with permissions is assigned
+        const defaultPermissions = {}
+        const modules = [
+          'Attendance', 'Correction', 'Leave', 'Approvals', 'Summary', 'HRLetters',
+          'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
+          'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
+          'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
+          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking'
+        ]
+        
+        modules.forEach(m => {
+          defaultPermissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+        })
+
         if (userData.role) {
           const rolesQuery = collection(db, 'organisations', userData.orgId, 'roles')
           const rolesSnap = await getDocs(rolesQuery)
           const roleDoc = rolesSnap.docs.find(d => d.data().name.toLowerCase() === userData.role.toLowerCase())
           if (roleDoc) {
-            const permissions = roleDoc.data().permissions || {}
-            userData.permissions = permissions
+            userData.permissions = roleDoc.data().permissions || {}
             console.log('readUserDoc: Cached permissions for role:', userData.role)
-            
-            // Critical: Update the user document in Firestore so security rules can read them
-            // We only update if it's different to save writes
-            if (JSON.stringify(snap.data().permissions) !== JSON.stringify(permissions)) {
-              await setDoc(userRef, { permissions }, { merge: true })
-              console.log('readUserDoc: Synced permissions to Firestore user doc')
-            }
+          } else {
+            userData.permissions = defaultPermissions
+            console.log('readUserDoc: Role not found, using default admin permissions')
           }
+        } else {
+          userData.permissions = defaultPermissions
+          console.log('readUserDoc: No role, using default admin permissions')
+        }
+
+        // Sync to Firestore user doc for rules
+        if (JSON.stringify(snap.data().permissions) !== JSON.stringify(userData.permissions)) {
+          await setDoc(userRef, { permissions: userData.permissions }, { merge: true })
+          console.log('readUserDoc: Synced permissions to Firestore user doc')
         }
       } catch (err) {
-        console.warn('readUserDoc: Could not read org doc:', err)
+        console.warn('readUserDoc: Could not read org or roles:', err)
       }
     }
     return { uid, ...userData }

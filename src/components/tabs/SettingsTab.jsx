@@ -28,8 +28,9 @@ export default function SettingsTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading, updateEmployee, addEmployee, deleteEmployee } = useEmployees(user?.orgId)
   const [activeSubTab, setActiveSubTab] = useState('organization')
-  const [shifts, setShifts] = useState([])
+  const [users, setUsers] = useState([])
   const [roles, setRoles] = useState([])
+  const [activeUserRoleSubTab, setActiveUserRoleSubTab] = useState('users')
   const [loading, setLoading] = useState(true)
   const [editingEmp, setEditingEmp] = useState(null)
   const [editForm, setEditForm] = useState({})
@@ -48,6 +49,7 @@ export default function SettingsTab() {
   const isAdmin = user?.role === 'admin'
   const allSubTabs = [
     { id: 'organization', label: 'Organization', module: 'Settings' },
+    { id: 'user_roles', label: 'User & Roles', module: 'Settings' },
     { id: 'employee', label: 'Employees', module: 'Employees' },
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
@@ -187,7 +189,14 @@ export default function SettingsTab() {
         const shiftsSnap = await getDocs(collection(db, 'organisations', user.orgId, 'shifts'))
         setShifts(shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
 
-        // RBAC disabled: skip roles fetch
+        // Fetch Roles
+        const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
+        setRoles(rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+
+        // Fetch Users belonging to this org
+        const usersQuery = query(collection(db, 'users'), where('orgId', '==', user.orgId))
+        const usersSnap = await getDocs(usersQuery)
+        setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() })))
 
         const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
         if (orgSnap.exists()) {
@@ -298,8 +307,27 @@ export default function SettingsTab() {
   const handleSaveEmployee = async () => {
     setSaving(true)
     try {
-      const selectedRoleName = 'employee'
-      const selectedRolePerms = {}
+      const selectedRoleName = editForm.role || 'employee'
+      let selectedRolePerms = {}
+      
+      // Fetch permissions for the selected role if it exists in our roles list
+      const roleObj = roles.find(r => r.name.toLowerCase() === selectedRoleName.toLowerCase())
+      if (roleObj) {
+        selectedRolePerms = roleObj.permissions || {}
+      } else if (selectedRoleName.toLowerCase() === 'admin') {
+        // Full permissions for admin
+        const modules = [
+          'Attendance', 'Correction', 'Leave', 'Approvals', 'Summary', 'HRLetters',
+          'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
+          'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
+          'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
+          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking'
+        ]
+        modules.forEach(m => {
+          selectedRolePerms[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+        })
+      }
+
       // Prepare clean employee data - remove any undefined values and include orgId
       const cleanEditForm = {
         ...Object.fromEntries(
@@ -433,10 +461,27 @@ export default function SettingsTab() {
       const empCode = newEmployee.empCode?.trim() ||
         `EMP-${Date.now().toString(36).toUpperCase().slice(-4)}`
 
-      const payload = { ...newEmployee, empCode, orgId: user.orgId, role: 'Employee' }
+      const payload = { ...newEmployee, empCode, orgId: user.orgId }
       const { tempPassword, ...employeeDoc } = payload
-      const roleName = 'employee'
-      const rolePermissions = {}
+      const roleName = newEmployee.role || 'employee'
+      let rolePermissions = {}
+
+      // Fetch permissions for the selected role
+      const roleObj = roles.find(r => r.name.toLowerCase() === roleName.toLowerCase())
+      if (roleObj) {
+        rolePermissions = roleObj.permissions || {}
+      } else if (roleName.toLowerCase() === 'admin') {
+        const modules = [
+          'Attendance', 'Correction', 'Leave', 'Approvals', 'Summary', 'HRLetters',
+          'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
+          'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
+          'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
+          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking'
+        ]
+        modules.forEach(m => {
+          rolePermissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+        })
+      }
 
       // 1) Create employee master
       const empId = await addEmployee(employeeDoc)
@@ -509,9 +554,74 @@ export default function SettingsTab() {
     }
   }
 
-  const handleAddRole = async () => {}
+  const handleAddRole = async () => {
+    if (!newRole.name.trim()) return alert('Role name is required')
+    setSaving(true)
+    try {
+      if (editingRole) {
+        await updateDoc(doc(db, 'organisations', user.orgId, 'roles', editingRole.id), {
+          ...newRole,
+          updatedAt: serverTimestamp()
+        })
+        setRoles(prev => prev.map(r => r.id === editingRole.id ? { ...r, ...newRole } : r))
+      } else {
+        const docRef = await addDoc(collection(db, 'organisations', user.orgId, 'roles'), {
+          ...newRole,
+          createdAt: serverTimestamp()
+        })
+        setRoles(prev => [...prev, { id: docRef.id, ...newRole }])
+      }
+      setShowAddRole(false)
+      setEditingRole(null)
+      setNewRole({ name: '', description: '', permissions: {} })
+    } catch (err) {
+      console.error('Role save error:', err)
+      alert('Failed to save role')
+    } finally {
+      setSaving(false)
+    }
+  }
 
-  const togglePermission = async () => {}
+  const handleUpdateUserRole = async (uid, newRoleName) => {
+    try {
+      let permissions = {}
+      const roleObj = roles.find(r => r.name.toLowerCase() === newRoleName.toLowerCase())
+      
+      if (roleObj) {
+        permissions = roleObj.permissions || {}
+      } else if (newRoleName.toLowerCase() === 'admin') {
+        const modules = [
+          'Attendance', 'Correction', 'Leave', 'Approvals', 'Summary', 'HRLetters',
+          'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
+          'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
+          'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
+          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking'
+        ]
+        modules.forEach(m => {
+          permissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+        })
+      }
+
+      await updateDoc(doc(db, 'users', uid), { 
+        role: newRoleName,
+        permissions: permissions
+      })
+      setUsers(prev => prev.map(u => u.id === uid ? { ...u, role: newRoleName, permissions } : u))
+      alert('User role and permissions updated successfully')
+    } catch (err) {
+      console.error('Update user role error:', err)
+      alert('Failed to update user role')
+    }
+  }
+
+  const togglePermission = (modId, permKey) => {
+    setNewRole(prev => {
+      const perms = { ...prev.permissions }
+      if (!perms[modId]) perms[modId] = {}
+      perms[modId][permKey] = !perms[modId][permKey]
+      return { ...prev, permissions: perms }
+    })
+  }
 
   const handleSaveOrg = async () => {
     if (!user?.orgId) { setOrgError('No organisation ID found.'); return }
@@ -608,9 +718,23 @@ export default function SettingsTab() {
                       </div>
                     )}
                     <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
-                      const url = await handleFileUpload(e.target.files[0], `orgs/${user.orgId}/logo`)
-                      if (url) {
-                        setOrgSettings(s => ({ ...s, logoURL: url }))
+                      const file = e.target.files[0]
+                      if (!file) return
+                      
+                      try {
+                        setSaving(true)
+                        const url = await handleFileUpload(file, `orgs/${user.orgId}/logo`)
+                        if (url) {
+                          setOrgSettings(s => ({ ...s, logoURL: url }))
+                          // Immediately persist to Firestore to avoid confusion
+                          await setDoc(doc(db, 'organisations', user.orgId), { logoURL: url }, { merge: true })
+                          alert('Organisation logo updated successfully!')
+                        }
+                      } catch (err) {
+                        console.error('Logo upload error:', err)
+                        alert('Failed to upload logo: ' + err.message)
+                      } finally {
+                        setSaving(false)
                       }
                     }} />
                   </div>
@@ -1092,173 +1216,131 @@ export default function SettingsTab() {
           </div>
         )}
 
-        {activeSubTab === 'roles' && (
-          <div className="space-y-6 no-print">
-            {/* Role Management Header */}
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Role Management</h3>
-              <button onClick={() => setShowAddRole(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2">
-                <Plus size={18} /> Create Role
+        {activeSubTab === 'user_roles' && (
+          <div className="space-y-6">
+            {/* Sub-tabs: Users / Roles */}
+            <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
+              <button 
+                onClick={() => setActiveUserRoleSubTab('users')}
+                className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeUserRoleSubTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                Users
+              </button>
+              <button 
+                onClick={() => setActiveUserRoleSubTab('roles')}
+                className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeUserRoleSubTab === 'roles' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                Roles
               </button>
             </div>
 
-            {/* Role Cards Grid */}
-            {roles.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-                <h4 className="text-base font-semibold text-gray-700 mb-4">Create Standard Roles</h4>
-                <p className="text-sm text-gray-400 mb-6">Start with pre-defined role templates or create custom roles</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button onClick={async () => {
-                    const adminPerms = {}
-                    modules.forEach(m => { adminPerms[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true } })
-                    await addDoc(collection(db, 'organisations', user.orgId, 'roles'), { name: 'Admin', description: 'Full system access', permissions: adminPerms, createdAt: serverTimestamp() })
-                    setRoles(prev => [...prev, { id: 'temp', name: 'Admin', description: 'Full system access', permissions: adminPerms }])
-                  }} className="p-5 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-xl font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all text-left">
-                    <div className="text-lg mb-1">Admin</div>
-                    <div className="text-xs opacity-80">Full system access</div>
+            {activeUserRoleSubTab === 'users' && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-300">
+                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                  <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Users List</h3>
+                  <button 
+                    onClick={() => { setShowAddEmployee(true); setActiveSubTab('employee'); }}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2"
+                  >
+                    <Plus size={14} /> Invite User
                   </button>
-                  <button onClick={async () => {
-                    const hrPerms = {}
-                    modules.forEach(m => { hrPerms[m] = { view: true, create: true, edit: true, delete: false, approve: true, export: true, full: false } })
-                    await addDoc(collection(db, 'organisations', user.orgId, 'roles'), { name: 'HR', description: 'HR management access', permissions: hrPerms, createdAt: serverTimestamp() })
-                    setRoles(prev => [...prev, { id: 'temp', name: 'HR', description: 'HR management access', permissions: hrPerms }])
-                  }} className="p-5 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all text-left">
-                    <div className="text-lg mb-1">HR</div>
-                    <div className="text-xs opacity-80">HR management access</div>
-                  </button>
-                  <button onClick={async () => {
-                    const empPerms = {}
-                    modules.forEach(m => { empPerms[m] = { view: m === 'EmployeePortal' || m === 'Attendance', create: false, edit: false, delete: false, approve: false, export: false, full: false } })
-                    empPerms['EmployeePortal'] = { view: true, create: true, edit: true, delete: false, approve: false, export: true, full: false }
-                    empPerms['Attendance'] = { view: true, create: true, edit: false, delete: false, approve: false, export: false, full: false }
-                    await addDoc(collection(db, 'organisations', user.orgId, 'roles'), { name: 'Employee', description: 'Self service access', permissions: empPerms, createdAt: serverTimestamp() })
-                    setRoles(prev => [...prev, { id: 'temp', name: 'Employee', description: 'Self service access', permissions: empPerms }])
-                  }} className="p-5 bg-gradient-to-br from-green-500 to-green-700 text-white rounded-xl font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all text-left">
-                    <div className="text-lg mb-1">Employee</div>
-                    <div className="text-xs opacity-80">Self service access</div>
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                  {['Manager', 'Supervisor', 'Payroll Officer', 'Accounts'].map(roleName => (
-                    <button key={roleName} onClick={async () => {
-                      const defaultPerms = {}
-                      modules.forEach(m => { defaultPerms[m] = { view: true, create: false, edit: false, delete: false, approve: false, export: false, full: false } })
-                      await addDoc(collection(db, 'organisations', user.orgId, 'roles'), { name: roleName, description: `${roleName} role`, permissions: defaultPerms, createdAt: serverTimestamp() })
-                      setRoles(prev => [...prev, { id: 'temp', name: roleName, description: `${roleName} role`, permissions: defaultPerms }])
-                    }} className="py-3 px-4 bg-gray-100 text-gray-600 rounded-lg font-medium text-sm hover:bg-gray-200 transition-all">
-                      + {roleName}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {roles.map(role => {
-                  const permCount = Object.values(role.permissions || {}).filter(p => p.view).length
-                  const fullAccess = Object.values(role.permissions || {}).some(p => p.full)
-                  return (
-                    <div key={role.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-all">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-bold text-gray-800">{role.name}</h4>
-                          <p className="text-xs text-gray-400 mt-0.5">{role.description || 'No description'}</p>
-                        </div>
-                        <div className="flex gap-1">
-                          <button onClick={async () => {
-                            const newName = prompt('Duplicate role name:', role.name + ' (Copy)')
-                            if (newName) {
-                              await addDoc(collection(db, 'organisations', user.orgId, 'roles'), {
-                                name: newName,
-                                description: role.description,
-                                permissions: { ...role.permissions },
-                                createdAt: serverTimestamp()
-                              })
-                              setRoles(prev => [...prev, { id: 'temp', name: newName, description: role.description, permissions: role.permissions }])
-                            }
-                          }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Duplicate">
-                            <Copy size={14} />
-                          </button>
-                          <button onClick={async () => { if (confirm(`Delete role "${role.name}"?`)) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-semibold ${fullAccess ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700'}`}>
-                          {fullAccess ? 'Full Access' : `${permCount} Modules`}
-                        </span>
-                      </div>
-                      <button onClick={() => { setEditingRole(role); setNewRole({ name: role.name, description: role.description || '', permissions: role.permissions || {} }); setShowAddRole(true); }} className="w-full py-2 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-100 transition-all">
-                        Configure Permissions
-                      </button>
-                    </div>
-                  )
-                })}
-                <button onClick={() => setShowAddRole(true)} className="border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition-all">
-                  <Plus size={24} />
-                  <span className="text-sm font-medium mt-2">Add Role</span>
-                </button>
-              </div>
-            )}
-
-            {/* Permissions Matrix */}
-            {roles.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                  <h4 className="font-bold text-gray-800">Permissions Matrix</h4>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded"></div> Allowed</span>
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-200 rounded"></div> Denied</span>
-                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100">
-                        <th className="px-4 py-3 font-semibold text-gray-600 sticky left-0 bg-gray-50">Module</th>
-                        {roles.map(role => (
-                          <th key={role.id} className="px-4 py-3 font-semibold text-gray-600 text-center min-w-[280px] border-l border-gray-100">{role.name}</th>
-                        ))}
+                      <tr className="bg-gray-50/50 border-b border-gray-100">
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">User Detail</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Role</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {roleGroups.map(group => (
-                        <>
-                          <tr key={group.title} className="bg-indigo-50/50">
-                            <td colSpan={roles.length + 1} className="px-4 py-2 font-bold text-indigo-700 text-xs uppercase tracking-wider sticky left-0">{group.title}</td>
-                          </tr>
-                          {group.modules.map(mod => (
-                            <tr key={mod.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                              <td className="px-4 py-3 font-medium text-gray-700 sticky left-0 bg-white">{mod.label}</td>
-                              {roles.map(role => (
-                                <td key={role.id} className="px-4 py-3 text-center border-l border-gray-100">
-                                  <div className="flex items-center justify-center gap-2 flex-wrap">
-                                    {[
-                                      { key: 'view', label: 'View' },
-                                      { key: 'create', label: 'Create' },
-                                      { key: 'edit', label: 'Edit' },
-                                      { key: 'delete', label: 'Delete' },
-                                      { key: 'approve', label: 'Approve' },
-                                      { key: 'export', label: 'Export' }
-                                    ].map(perm => (
-                                      <button
-                                        key={perm.key}
-                                        onClick={() => togglePermission(role.id, mod.id, perm.key)}
-                                        className={`px-2 py-1.5 rounded-md text-[11px] font-medium transition-all flex items-center gap-1.5 ${role.permissions?.[mod.id]?.[perm.key] ? 'bg-green-500 text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                        title={perm.label}
-                                      >
-                                        {perm.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </>
+                    <tbody className="divide-y divide-gray-50">
+                      {users.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-10 text-center text-gray-400 text-xs italic">No users found in this organization.</td>
+                        </tr>
+                      ) : users.map(u => (
+                        <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm" style={{ backgroundColor: getAvatarColor(u.id) }}>
+                                {getInitials(u.name)}
+                              </div>
+                              <div>
+                                <div className="font-bold text-gray-800 text-sm">{u.name}</div>
+                                <div className="text-[10px] text-gray-400 font-medium">{u.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <select 
+                              value={u.role || ''} 
+                              onChange={(e) => handleUpdateUserRole(u.id, e.target.value)}
+                              className="bg-transparent border-none text-xs font-bold text-indigo-600 focus:ring-0 cursor-pointer hover:bg-indigo-50 px-2 py-1 rounded-lg transition-all"
+                            >
+                              <option value="">No Role</option>
+                              {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                              {!roles.find(r => r.name === 'admin') && <option value="admin">Admin</option>}
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[9px] font-black uppercase tracking-widest">Active</span>
+                          </td>
+                          <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"><Edit size={16} /></button>
+                            <button className="p-2 text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {activeUserRoleSubTab === 'roles' && (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Defined Roles</h3>
+                  <button 
+                    onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }); setShowAddRole(true); }}
+                    className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 uppercase tracking-widest"
+                  >
+                    <Plus size={18} /> Add Role
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {roles.length === 0 ? (
+                    <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-gray-100">
+                      <p className="text-gray-400 text-sm">No custom roles defined yet.</p>
+                    </div>
+                  ) : roles.map(role => (
+                    <div key={role.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="cursor-pointer" onClick={() => { setEditingRole(role); setNewRole({ ...role }); setShowAddRole(true); }}>
+                          <h4 className="font-black text-gray-800 uppercase tracking-tight text-base group-hover:text-indigo-600 transition-colors">{role.name}</h4>
+                          <p className="text-[11px] text-gray-400 mt-1 font-medium leading-relaxed">{role.description || 'No description provided for this role.'}</p>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={async () => { if (confirm(`Delete role "${role.name}"?`)) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
+                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-widest">
+                          {Object.keys(role.permissions || {}).length} Modules
+                        </span>
+                        <button 
+                          onClick={() => { setEditingRole(role); setNewRole({ ...role }); setShowAddRole(true); }}
+                          className="text-[10px] font-black text-gray-400 hover:text-indigo-600 uppercase tracking-widest"
+                        >
+                          Edit Permissions
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1312,7 +1394,20 @@ export default function SettingsTab() {
                     className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                   />
                 </div>
-                <input type="hidden" value="Employee" />
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Access Role</label>
+                  <select 
+                    value={editForm.role || 'employee'} 
+                    onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  >
+                    <option value="employee">Employee (Default)</option>
+                    <option value="admin">Admin (All Access)</option>
+                    {roles.map(r => (
+                      <option key={r.id} value={r.name}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -1884,68 +1979,128 @@ export default function SettingsTab() {
       </Modal>
 
       <Modal isOpen={showAddRole} onClose={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }) }} title={editingRole ? 'Edit Role' : 'Create New Role'}>
-        <div className="p-6 space-y-5 max-w-md mx-auto">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Role Name *</label>
-            <input
-              type="text"
-              value={newRole.name}
-              onChange={e => setNewRole(s => ({ ...s, name: e.target.value }))}
-              className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="e.g. Manager, Supervisor"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
-            <textarea
-              value={newRole.description || ''}
-              onChange={e => setNewRole(s => ({ ...s, description: e.target.value }))}
-              rows={2}
-              className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
-              placeholder="Brief description of this role"
-            />
-          </div>
-          {!editingRole && (
-            <div className="pt-2">
-              <p className="text-xs text-gray-400 mb-3">Quick templates:</p>
-              <div className="flex gap-2 flex-wrap">
-                <button type="button" onClick={() => {
-                  const adminPerms = {}
-                  modules.forEach(m => { adminPerms[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true } })
-                  setNewRole(s => ({ ...s, name: 'Admin', description: 'Full system access', permissions: adminPerms }))
-                }} className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-200">Admin</button>
-                <button type="button" onClick={() => {
-                  const hrPerms = {}
-                  modules.forEach(m => { hrPerms[m] = { view: true, create: true, edit: true, delete: false, approve: true, export: true, full: false } })
-                  setNewRole(s => ({ ...s, name: 'HR', description: 'HR management access', permissions: hrPerms }))
-                }} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200">HR</button>
-                <button type="button" onClick={() => {
-                  const empPerms = {}
-                  modules.forEach(m => { empPerms[m] = { view: m === 'EmployeePortal' || m === 'Attendance', create: false, edit: false, delete: false, approve: false, export: false, full: false } })
-                  setNewRole(s => ({ ...s, name: 'Employee', description: 'Self service access', permissions: empPerms }))
-                }} className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200">Employee</button>
-                <button type="button" onClick={() => {
-                  const mgrPerms = {}
-                  modules.forEach(m => { mgrPerms[m] = { view: true, create: false, edit: false, delete: false, approve: true, export: true, full: false } })
-                  setNewRole(s => ({ ...s, name: 'Manager', description: 'Management access', permissions: mgrPerms }))
-                }} className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-200">Manager</button>
+        <div className="flex flex-col h-[85vh] max-w-5xl mx-auto bg-white font-inter">
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+            {/* Identity Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-gray-100">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-black text-gray-500 uppercase tracking-widest mb-2">Role Name *</label>
+                  <input
+                    type="text"
+                    value={newRole.name}
+                    onChange={e => setNewRole(s => ({ ...s, name: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="Enter role name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-gray-500 uppercase tracking-widest mb-2">Description</label>
+                  <textarea
+                    value={newRole.description || ''}
+                    onChange={e => setNewRole(s => ({ ...s, description: e.target.value }))}
+                    rows={3}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none transition-all"
+                    placeholder="What can this role do?"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col justify-center bg-indigo-50/50 rounded-2xl p-6 border border-indigo-100">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${newRole.isAccountant ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300 group-hover:border-indigo-400'}`}>
+                    {newRole.isAccountant && <Check size={14} className="text-white" />}
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    className="hidden" 
+                    checked={newRole.isAccountant} 
+                    onChange={e => setNewRole(s => ({ ...s, isAccountant: e.target.checked }))} 
+                  />
+                  <div>
+                    <span className="block text-sm font-black text-indigo-900 uppercase tracking-tight">This role is for Accountant users</span>
+                    <p className="text-[10px] text-indigo-500 font-medium">Enables specialized accounting features and reporting</p>
+                  </div>
+                </label>
               </div>
             </div>
-          )}
-          <div className="flex gap-3 pt-4">
+
+            {/* Permissions Matrix */}
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Permissions Matrix</h4>
+                  <p className="text-[10px] text-gray-400 font-medium mt-1 uppercase">Configure module-level access and actions</p>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-indigo-600 rounded-sm"></div>
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Full Access</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-gray-200 rounded-sm"></div>
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No Access</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-1/3">Module Name</th>
+                      {['View', 'Create', 'Edit', 'Delete', 'Approve'].map(action => (
+                        <th key={action} className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">{action}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {Object.entries(moduleGroups).map(([group, groupModules]) => (
+                      <React.Fragment key={group}>
+                        <tr className="bg-gray-50/30">
+                          <td colSpan={6} className="px-6 py-2 text-[9px] font-black text-indigo-600 uppercase tracking-[0.2em]">{group}</td>
+                        </tr>
+                        {groupModules.map(mod => (
+                          <tr key={mod.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <span className="text-xs font-bold text-gray-700 uppercase tracking-tight">{mod.label}</span>
+                            </td>
+                            {['view', 'create', 'edit', 'delete', 'approve'].map(action => (
+                              <td key={action} className="px-4 py-4 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => togglePermission(mod.id, action)}
+                                  className={`w-5 h-5 rounded-md border-2 inline-flex items-center justify-center transition-all ${newRole.permissions?.[mod.id]?.[action] ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-200 hover:border-indigo-300'}`}
+                                >
+                                  {newRole.permissions?.[mod.id]?.[action] && <Check size={12} className="text-white" />}
+                                </button>
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
             <button
               type="button"
               onClick={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }) }}
-              className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-50"
+              className="px-6 py-2.5 text-xs font-black text-gray-400 hover:text-gray-600 uppercase tracking-widest transition-all"
             >
-              Cancel
+              Discard Changes
             </button>
             <button
               type="button"
               onClick={handleAddRole}
-              className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700"
+              disabled={saving}
+              className="bg-indigo-600 text-white px-8 py-2.5 rounded-xl font-black text-xs shadow-xl hover:bg-indigo-700 transition-all uppercase tracking-widest disabled:opacity-50"
             >
-              {editingRole ? 'Update Role' : 'Create Role'}
+              {saving ? 'Saving...' : (editingRole ? 'Update Role' : 'Create Role')}
             </button>
           </div>
         </div>
