@@ -36,6 +36,9 @@ export default function SettingsTab() {
   const [editForm, setEditForm] = useState({})
   const [showAddShift, setShowAddShift] = useState(false)
   const [editingShift, setEditingShift] = useState(null)
+  const [minWorkHours, setMinWorkHours] = useState([])
+  const [showAddMinWorkHours, setShowAddMinWorkHours] = useState(false)
+  const [editingMinWorkHours, setEditingMinWorkHours] = useState(null)
   const [showAddEmployee, setShowAddEmployee] = useState(false)
   const [showAddRole, setShowAddRole] = useState(false)
   const [editingRole, setEditingRole] = useState(null)
@@ -69,6 +72,7 @@ export default function SettingsTab() {
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
   const [showEndTimePicker, setShowEndTimePicker] = useState(false)
+  const [newMinWorkHours, setNewMinWorkHours] = useState({ name: '', hours: 8, description: '' })
   const [newEmployee, setNewEmployee] = useState({
     name: '',
     empCode: '',
@@ -76,6 +80,7 @@ export default function SettingsTab() {
     department: '',
     shiftId: '',
     workHours: 9,
+    minDailyHours: 8,
     site: '',
     employmentType: 'Full-time',
     monthlySalary: 0,
@@ -266,6 +271,69 @@ export default function SettingsTab() {
     }
   }
 
+  const seedDefaultMinWorkHours = async (silent = false) => {
+    if (!user?.orgId) return
+    setSeeding(true)
+    try {
+      const defaultMinWorkHours = [
+        { name: 'Staff', hours: 8, description: 'Staff Minimum Working Hours' },
+        { name: 'Technician', hours: 9, description: 'Technician Minimum Working Hours' },
+        { name: 'Manager', hours: 9, description: 'Manager Minimum Working Hours' }
+      ]
+
+      for (const mwh of defaultMinWorkHours) {
+        const mwhQuery = query(collection(db, 'organisations', user.orgId, 'minWorkHours'), where('name', '==', mwh.name))
+        const existing = await getDocs(mwhQuery)
+        if (existing.empty) {
+          await addDoc(collection(db, 'organisations', user.orgId, 'minWorkHours'), {
+            ...mwh,
+            createdAt: serverTimestamp()
+          })
+        }
+      }
+
+      const mwhSnap = await getDocs(collection(db, 'organisations', user.orgId, 'minWorkHours'))
+      setMinWorkHours(mwhSnap.docs.map(d => ({ id: d.id, ...d.data() })) || [])
+
+      if (!silent) {
+        alert('Minimum work hours categories created successfully!')
+      }
+    } catch (err) {
+      console.error('Seed min work hours error:', err)
+      if (!silent) {
+        alert('Failed to create minimum work hours: ' + err.message)
+      }
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  const handleAddMinWorkHours = async () => {
+    if (!newMinWorkHours.name.trim() || !newMinWorkHours.hours) return alert('Name and hours are required')
+    if (!user?.orgId) return
+    try {
+      if (editingMinWorkHours) {
+        await updateDoc(doc(db, 'organisations', user.orgId, 'minWorkHours', editingMinWorkHours.id), {
+          ...newMinWorkHours,
+          updatedAt: serverTimestamp()
+        })
+        setMinWorkHours(prev => prev.map(m => m.id === editingMinWorkHours.id ? { ...m, ...newMinWorkHours } : m))
+      } else {
+        const docRef = await addDoc(collection(db, 'organisations', user.orgId, 'minWorkHours'), {
+          ...newMinWorkHours,
+          createdAt: serverTimestamp()
+        })
+        setMinWorkHours(prev => [...prev, { id: docRef.id, ...newMinWorkHours }])
+      }
+      setShowAddMinWorkHours(false)
+      setEditingMinWorkHours(null)
+      setNewMinWorkHours({ name: '', hours: 8, description: '' })
+    } catch (err) {
+      console.error('Add min work hours error:', err)
+      alert('Failed to save: ' + err.message)
+    }
+  }
+
   useEffect(() => {
     if (!user?.orgId) return
     const fetchData = async () => {
@@ -273,6 +341,16 @@ export default function SettingsTab() {
       try {
         const shiftsSnap = await getDocs(collection(db, 'organisations', user.orgId, 'shifts'))
         setShifts(shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+
+        // Fetch Minimum Work Hours
+        const minWorkHoursSnap = await getDocs(collection(db, 'organisations', user.orgId, 'minWorkHours'))
+        const fetchedMinWorkHours = minWorkHoursSnap.docs.map(d => ({ id: d.id, ...d.data() })) || []
+        setMinWorkHours(fetchedMinWorkHours)
+
+        // Auto-seed default minimum work hours if none exist
+        if (fetchedMinWorkHours.length === 0) {
+          await seedDefaultMinWorkHours(true)
+        }
 
         // Fetch Roles
         const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
@@ -1344,6 +1422,29 @@ export default function SettingsTab() {
                 </div>
               ))}
             </div>
+
+            {/* Minimum Work Hours Section */}
+            <div className="space-y-4 no-print mt-8 pt-8 border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-black text-gray-800 uppercase">Minimum Work Hours</h3>
+                <button onClick={() => { setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }); setShowAddMinWorkHours(true); }} className="bg-amber-500 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">ADD CATEGORY</button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {minWorkHours.map(m => (
+                  <div key={m.id} className="bg-white p-4 rounded-none border shadow-sm group relative">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-black text-gray-800 uppercase tracking-tight">{m.name}</h4>
+                      <span className="px-1.5 py-0.5 rounded-none text-[8px] font-bold bg-amber-50 text-amber-600">{m.hours} Hours</span>
+                    </div>
+                    <div className="text-[10px] font-bold text-gray-400">{m.description || 'No description'}</div>
+                    <div className="mt-3 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => { setEditingMinWorkHours(m); setNewMinWorkHours(m); setShowAddMinWorkHours(true); }} className="text-indigo-600 font-black">Edit</button>
+                      <button onClick={async () => { if (confirm('Delete minimum work hours category?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'minWorkHours', m.id)); setMinWorkHours(prev => prev.filter(x => x.id !== m.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1581,6 +1682,19 @@ export default function SettingsTab() {
                   onChange={e => setEditForm(s => ({ ...s, joinedDate: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours</label>
+                <select
+                  value={editForm.minDailyHours || ''}
+                  onChange={e => setEditForm(s => ({ ...s, minDailyHours: Number(e.target.value) }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select Working Hours...</option>
+                  {minWorkHours.map(m => (
+                    <option key={m.id} value={m.hours}>{m.name} - {m.hours} Hours</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
@@ -1835,6 +1949,19 @@ export default function SettingsTab() {
                   onChange={e => setNewEmployee(s => ({ ...s, department: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours</label>
+                <select
+                  value={newEmployee.minDailyHours || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, minDailyHours: Number(e.target.value) }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select Working Hours...</option>
+                  {minWorkHours.map(m => (
+                    <option key={m.id} value={m.hours}>{m.name} - {m.hours} Hours</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
@@ -2130,6 +2257,25 @@ export default function SettingsTab() {
             <input type="checkbox" checked={newShift.isFlexible} onChange={e => setNewShift(s => ({ ...s, isFlexible: e.target.checked }))} className="w-5 h-5 rounded-none text-purple-600" />
           </div>
           <button onClick={handleAddShift} className="w-full bg-indigo-600 text-white font-black py-3 rounded-none uppercase text-[10px]">SAVE SHIFT</button>
+        </div>
+      </Modal>
+
+      {/* Minimum Work Hours Modal */}
+      <Modal isOpen={showAddMinWorkHours} onClose={() => { setShowAddMinWorkHours(false); setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }) }} title={editingMinWorkHours ? 'EDIT MINIMUM WORK HOURS' : 'ADD MINIMUM WORK HOURS'}>
+        <div className="p-6 space-y-4 max-w-sm mx-auto">
+          <div>
+            <label className="block text-[10px] font-bold text-amber-600 uppercase mb-1">Category Name</label>
+            <input type="text" placeholder="e.g. Staff, Technician, Manager" value={newMinWorkHours.name} onChange={e => setNewMinWorkHours(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-none px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-amber-600 uppercase mb-1">Minimum Hours</label>
+            <input type="number" min="1" max="24" value={newMinWorkHours.hours} onChange={e => setNewMinWorkHours(s => ({ ...s, hours: Number(e.target.value) }))} className="w-full border rounded-none px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-amber-600 uppercase mb-1">Description</label>
+            <input type="text" placeholder="Description" value={newMinWorkHours.description || ''} onChange={e => setNewMinWorkHours(s => ({ ...s, description: e.target.value }))} className="w-full border rounded-none px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
+          </div>
+          <button onClick={handleAddMinWorkHours} className="w-full bg-amber-500 text-white font-black py-3 rounded-none uppercase text-[10px]">SAVE</button>
         </div>
       </Modal>
 
