@@ -271,8 +271,8 @@ export default function Dashboard() {
     const isAdmin = user?.role?.toLowerCase() === 'admin'
     
     return allTabs.filter(tab => {
-      // Always allow home and portal for logged in users
-      if (['home', 'portal'].includes(tab.id)) return true
+      // Always allow portal for logged in users
+      if (tab.id === 'portal') return true
       
       // Admin bypass
       if (isAdmin) return true

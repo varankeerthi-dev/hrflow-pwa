@@ -237,8 +237,8 @@ export default function MobileDashboard() {
     const isAdmin = user?.role?.toLowerCase() === 'admin'
     
     return allModules.filter(mod => {
-      // Always allow home and portal for logged in users
-      if (['home', 'portal'].includes(mod.id)) return true
+      // Always allow portal for logged in users
+      if (mod.id === 'portal') return true
       
       // Admin bypass
       if (isAdmin) return true
