@@ -86,10 +86,11 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow read: if request.auth != null;
       allow update, delete: if isEmployee(orgId);
-      // Employees: allow self, any employee, or admins to read; writes require employee/admin
+      // Employees: allow read if same org (matches original behavior when user is part of org)
       match /employees/{empId} {
-        // Workaround: open reads to any authenticated user to restore roster visibility
-        allow read: if request.auth != null;
+        allow read: if request.auth != null && (
+          userOrg() == orgId || isEmployee(orgId) || isAdmin()
+        );
         allow write: if isEmployee(orgId) || isAdmin();
       }
       // Other subcollections
