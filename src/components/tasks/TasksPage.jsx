@@ -27,6 +27,7 @@ export default function TasksPage() {
   const [ideaModalOpen, setIdeaModalOpen] = useState(false)
   const [editingIdea, setEditingIdea] = useState(null)
   const [enableDrag, setEnableDrag] = useState(true)
+  const [flash, setFlash] = useState('')
 
   const { tasks, loading: tasksLoading } = useTasks(user, { clientFilter })
   const { reminders } = useReminders(user)
@@ -80,6 +81,7 @@ export default function TasksPage() {
           <div>
             <p className="text-xs uppercase text-gray-400 font-semibold">Tasks</p>
             <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
+            {flash && <p className="text-xs text-green-600 mt-1">{flash}</p>}
           </div>
           <div className="flex items-center gap-2">
             <select value={clientFilter} onChange={e => setClientFilter(e.target.value)} className="border border-gray-200 rounded-md px-3 py-2 text-sm">
@@ -115,6 +117,8 @@ export default function TasksPage() {
             onQuickAdd={async (text) => {
               try {
                 await createIdeaDoc({ text, tags: [], user })
+                setFlash('Idea saved')
+                setTimeout(() => setFlash(''), 2000)
               } catch (err) {
                 alert(err.message || 'Failed to save idea')
               }
@@ -124,6 +128,8 @@ export default function TasksPage() {
           <div className="bg-white border border-gray-200 rounded-lg p-3">
             {tasksLoading ? (
               <p className="text-sm text-gray-500">Loading tasks...</p>
+            ) : visibleTasks.length === 0 ? (
+              <p className="text-sm text-gray-500">No tasks yet.</p>
             ) : (
               <TaskBoard
                 tasks={visibleTasks}
@@ -139,7 +145,12 @@ export default function TasksPage() {
         )}
       </div>
 
-      <CreateTaskModal isOpen={showCreate} onClose={() => setShowCreate(false)} user={user} />
+      <CreateTaskModal
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+        user={user}
+        onSuccess={(msg) => { setFlash(msg); setTimeout(() => setFlash(''), 3000) }}
+      />
 
       <TaskDetail
         task={selectedTask}

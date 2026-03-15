@@ -2,14 +2,12 @@ import React from 'react'
 import { relativeTime } from '../../utils/taskHelpers'
 
 export default function IdeasTab({ ideas = [], onNew, onEdit, onDelete, onQuickAdd }) {
-  const handleInline = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      const val = e.target.value.trim()
-      if (val) {
-        onQuickAdd(val)
-        e.target.value = ''
-      }
+  const handleInline = async (e) => {
+    e.preventDefault()
+    const val = e.target.elements?.inlineIdea?.value?.trim()
+    if (val) {
+      await onQuickAdd(val)
+      e.target.reset()
     }
   }
   return (
@@ -21,14 +19,15 @@ export default function IdeasTab({ ideas = [], onNew, onEdit, onDelete, onQuickA
         </div>
         <button onClick={onNew} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm">New Idea</button>
       </div>
-      <div className="mb-4">
+      <form className="mb-4 flex flex-col sm:flex-row gap-2" onSubmit={handleInline}>
         <textarea
-          placeholder="Quick capture... press Enter to save"
-          onKeyDown={handleInline}
-          className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+          name="inlineIdea"
+          placeholder="Quick capture... (type and hit Save idea)"
+          className="flex-1 border border-gray-200 rounded-md px-3 py-2 text-sm"
           rows={2}
         />
-      </div>
+        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm whitespace-nowrap">Save idea</button>
+      </form>
       {ideas.length === 0 ? (
         <p className="text-sm text-gray-500">No ideas yet. Capture your thoughts here!</p>
       ) : (

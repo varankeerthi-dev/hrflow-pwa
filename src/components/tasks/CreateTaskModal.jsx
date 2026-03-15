@@ -5,7 +5,7 @@ import { db } from '../../lib/firebase'
 
 const priorities = ['normal', 'important', 'urgent']
 
-export default function CreateTaskModal({ isOpen, onClose, user }) {
+export default function CreateTaskModal({ isOpen, onClose, user, onSuccess }) {
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -51,6 +51,7 @@ export default function CreateTaskModal({ isOpen, onClose, user }) {
         clientName: form.clientEnabled ? form.clientName || null : null,
         clientType: form.clientEnabled ? form.clientType : null,
       })
+      onSuccess?.('Task added')
       onClose()
     } catch (err) {
       setError(err.message || 'Failed to save task.')

@@ -9,7 +9,11 @@ export function useTasks(user, { clientFilter = 'all' } = {}) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user?.orgId) return
+    if (!user?.orgId) {
+      setTasks([])
+      setLoading(false)
+      return
+    }
     const q = query(
       collection(db, 'tasks'),
       where('organizationId', '==', user.orgId)
