@@ -18,21 +18,40 @@ export function useTasks(user, { clientFilter = 'all' } = {}) {
     }
     setLoading(true)
     setError(null)
-    const q = query(
-      collection(db, 'tasks'),
-      where('organizationId', '==', user.orgId)
-    )
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      setTasks(data)
-      setLoading(false)
-    }, (err) => {
-      console.error('useTasks snapshot error', err)
-      setError(err)
-      setLoading(false)
-    })
-    return unsub
-  }, [user?.orgId])
+
+    const unsubs = []
+    const base = collection(db, 'tasks')
+
+    // Org-scoped tasks
+    unsubs.push(onSnapshot(
+      query(base, where('organizationId', '==', user.orgId)),
+      (snap) => {
+        setTasks(prev => {
+          const others = prev.filter(t => t.organizationId == null) // keep legacy personal added by second listener
+          const current = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+          return [...others, ...current]
+        })
+        setLoading(false)
+      },
+      (err) => { console.error('useTasks org snapshot error', err); setError(err); setLoading(false) }
+    ))
+
+    // Legacy personal tasks without organizationId created by this user
+    unsubs.push(onSnapshot(
+      query(base, where('organizationId', '==', null), where('createdBy', '==', user.uid)),
+      (snap) => {
+        setTasks(prev => {
+          const nonLegacy = prev.filter(t => t.organizationId !== null)
+          const legacy = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+          return [...nonLegacy, ...legacy]
+        })
+        setLoading(false)
+      },
+      (err) => { console.error('useTasks legacy snapshot error', err); setError(err); setLoading(false) }
+    ))
+
+    return () => unsubs.forEach(u => u && u())
+  }, [user?.orgId, user?.uid])
 
   const visibleTasks = useMemo(() => {
     const filtered = tasks.filter(task => {

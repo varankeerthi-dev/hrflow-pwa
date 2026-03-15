@@ -16,7 +16,10 @@ service cloud.firestore {
     function sameOrg(data) {
       return request.auth != null && (
         data.organizationId == userOrg() ||
-        (data.organizationId == null && data.createdBy == request.auth.uid)  // legacy/no-org docs created by this user
+        (data.organizationId == null && (
+          data.createdBy == request.auth.uid ||
+          request.auth.uid in data.assignedTo
+        ))
       );
     }
     function taskVisible(data) {
