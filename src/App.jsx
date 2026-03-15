@@ -3,6 +3,7 @@ import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Spinner from './components/ui/Spinner'
+import TasksPage from './components/tasks/TasksPage'
 import React, { useEffect } from 'react'
 
 function ProtectedRoute({ children }) {
@@ -41,6 +42,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/tasks" 
+          element={
+            <ProtectedRoute>
+              <TasksPage />
             </ProtectedRoute>
           } 
         />

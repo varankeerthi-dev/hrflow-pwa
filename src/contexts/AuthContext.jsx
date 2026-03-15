@@ -34,6 +34,9 @@ async function readUserDoc(uid) {
     const userData = snap.data()
     console.log('readUserDoc: Found user data:', userData)
     
+    // Ensure new field default
+    userData.whatsappNumber = userData.whatsappNumber || null
+    
     if (userData.orgId) {
       try {
         const orgSnap = await getDoc(doc(db, 'organisations', userData.orgId))
@@ -111,6 +114,7 @@ export function AuthProvider({ children }) {
             orgId: null,
             orgName: '',
             role: null,
+            whatsappNumber: null,
           })
         }
       } else {
@@ -146,6 +150,7 @@ export function AuthProvider({ children }) {
       name,
       orgId: resolvedOrgId,
       role: resolvedOrgId ? 'employee' : null,
+      whatsappNumber: null,
       createdAt: new Date().toISOString(),
     }
     await setDoc(doc(db, 'users', firebaseUser.uid), userDoc)
@@ -161,13 +166,14 @@ export function AuthProvider({ children }) {
 
       let userData = await readUserDoc(firebaseUser.uid)
       if (!userData) {
-        const newDoc = {
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || '',
-          orgId: null,
-          role: null,
-          createdAt: new Date().toISOString(),
-        }
+    const newDoc = {
+      email: firebaseUser.email,
+      name: firebaseUser.displayName || '',
+      orgId: null,
+      role: null,
+      whatsappNumber: null,
+      createdAt: new Date().toISOString(),
+    }
         await setDoc(doc(db, 'users', firebaseUser.uid), newDoc)
         userData = { uid: firebaseUser.uid, ...newDoc }
       }

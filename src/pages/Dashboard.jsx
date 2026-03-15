@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, Component } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useReminders } from '../hooks/useReminders'
 import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
@@ -189,6 +190,9 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
+  const { unreadCount } = useReminders(user)
+  const navigate = useNavigate()
+  const tasksActive = typeof window !== 'undefined' && window.location.pathname === '/tasks'
   
   // Requirement: Delay employee lookup until auth user and orgId are available
   const canFetchEmployees = user && !!user.orgId
@@ -437,6 +441,22 @@ export default function Dashboard() {
           className={`bg-white border-r border-gray-100 hidden md:flex flex-col shrink-0 transition-all duration-200 ${isCollapsed ? 'w-[56px]' : 'w-[220px]'}`}
         >
           <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
+            <button
+              onClick={() => navigate('/tasks')}
+              className={`w-full group flex items-center rounded-lg px-2.5 py-2 gap-3 mb-2 transition-all duration-150 ${
+                tasksActive ? 'bg-white shadow-sm text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+            >
+              <span className="shrink-0 text-gray-500 group-hover:text-gray-700">🗂️</span>
+              {!isCollapsed && (
+                <span className="text-[13px] truncate">Tasks</span>
+              )}
+              {unreadCount > 0 && (
+                <span className={`ml-auto shrink-0 flex items-center justify-center bg-blue-500 text-white text-[10px] font-semibold px-2 h-5 rounded-full ${isCollapsed ? 'absolute -top-1 -right-1' : ''}`}>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
             {sections.map(section => {
               // Filter section tabs by user permissions
               const sectionTabs = tabs.filter(t => section.tabs.includes(t.id));
