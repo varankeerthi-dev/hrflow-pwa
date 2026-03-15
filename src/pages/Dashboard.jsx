@@ -490,6 +490,7 @@ export default function Dashboard() {
                         <button
                           key={tab.id}
                           onClick={() => {
+                            if (tasksActive) navigate('/')
                             setActiveTab(tab.id)
                             if (tab.id === 'summary') setSummarySubTab('summary')
                           }}
@@ -539,7 +540,7 @@ export default function Dashboard() {
           <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 overflow-x-auto flex items-center shrink-0">
             <div className="flex px-2 h-14">
               {tabs.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-5 h-full flex items-center text-[11px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
+                <button key={tab.id} onClick={() => { if (tasksActive) navigate('/'); setActiveTab(tab.id) }} className={`px-5 h-full flex items-center text-[11px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
                   <span className="mr-2 text-[#6b7280]">{tab.icon}</span> {tab.label}
                 </button>
               ))}
