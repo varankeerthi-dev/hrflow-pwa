@@ -112,6 +112,13 @@ export default function TasksPage() {
             onNew={() => { setEditingIdea(null); setIdeaModalOpen(true) }}
             onEdit={(idea) => { setEditingIdea(idea); setIdeaModalOpen(true) }}
             onDelete={handleIdeaDelete}
+            onQuickAdd={async (text) => {
+              try {
+                await createIdeaDoc({ text, tags: [], user })
+              } catch (err) {
+                alert(err.message || 'Failed to save idea')
+              }
+            }}
           />
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg p-3">
@@ -151,7 +158,13 @@ export default function TasksPage() {
         isOpen={ideaModalOpen}
         onClose={() => setIdeaModalOpen(false)}
         idea={editingIdea}
-        onSave={handleIdeaSave}
+        onSave={async (payload) => {
+          try {
+            await handleIdeaSave(payload)
+          } catch (err) {
+            alert(err.message || 'Failed to save idea')
+          }
+        }}
       />
     </div>
   )

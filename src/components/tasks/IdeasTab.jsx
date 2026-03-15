@@ -1,7 +1,17 @@
 import React from 'react'
 import { relativeTime } from '../../utils/taskHelpers'
 
-export default function IdeasTab({ ideas = [], onNew, onEdit, onDelete }) {
+export default function IdeasTab({ ideas = [], onNew, onEdit, onDelete, onQuickAdd }) {
+  const handleInline = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      const val = e.target.value.trim()
+      if (val) {
+        onQuickAdd(val)
+        e.target.value = ''
+      }
+    }
+  }
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
@@ -10,6 +20,14 @@ export default function IdeasTab({ ideas = [], onNew, onEdit, onDelete }) {
           <p className="text-sm text-gray-500">Personal ideas only you can see.</p>
         </div>
         <button onClick={onNew} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm">New Idea</button>
+      </div>
+      <div className="mb-4">
+        <textarea
+          placeholder="Quick capture... press Enter to save"
+          onKeyDown={handleInline}
+          className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
+          rows={2}
+        />
       </div>
       {ideas.length === 0 ? (
         <p className="text-sm text-gray-500">No ideas yet. Capture your thoughts here!</p>

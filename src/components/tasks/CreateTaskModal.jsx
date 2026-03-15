@@ -18,37 +18,45 @@ export default function CreateTaskModal({ isOpen, onClose, user }) {
     clientType: 'order'
   })
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.title.trim()) return
+    if (!form.title.trim()) { setError('Title is required'); return }
+    if (!user?.orgId) { setError('Join an organisation before creating tasks.'); return }
     setSaving(true)
+    setError('')
     const assignedToArr = form.assignedTo.split(',').map(s => s.trim()).filter(Boolean)
-    await addDoc(collection(db, 'tasks'), {
-      title: form.title.trim(),
-      description: form.description.trim(),
-      status: 'todo',
-      isPersonal: form.isPersonal,
-      assignedTo: assignedToArr.length ? assignedToArr : [user?.uid],
-      createdBy: user?.uid,
-      createdByName: user?.name || user?.email || 'User',
-      organizationId: user?.orgId,
-      createdAt: serverTimestamp(),
-      completedAt: null,
-      dueDate: form.dueDate ? new Date(form.dueDate) : null,
-      priority: form.priority,
-      notes: '',
-      postponedCount: 0,
-      postponeHistory: [],
-      onHoldReason: null,
-      onHoldSince: null,
-      clientName: form.clientEnabled ? form.clientName || null : null,
-      clientType: form.clientEnabled ? form.clientType : null,
-    })
-    setSaving(false)
-    onClose()
+    try {
+      await addDoc(collection(db, 'tasks'), {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        status: 'todo',
+        isPersonal: form.isPersonal,
+        assignedTo: assignedToArr.length ? assignedToArr : [user?.uid],
+        createdBy: user?.uid,
+        createdByName: user?.name || user?.email || 'User',
+        organizationId: user?.orgId,
+        createdAt: serverTimestamp(),
+        completedAt: null,
+        dueDate: form.dueDate ? new Date(form.dueDate) : null,
+        priority: form.priority,
+        notes: '',
+        postponedCount: 0,
+        postponeHistory: [],
+        onHoldReason: null,
+        onHoldSince: null,
+        clientName: form.clientEnabled ? form.clientName || null : null,
+        clientType: form.clientEnabled ? form.clientType : null,
+      })
+      onClose()
+    } catch (err) {
+      setError(err.message || 'Failed to save task.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -109,6 +117,7 @@ export default function CreateTaskModal({ isOpen, onClose, user }) {
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-md">Cancel</button>
           <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">Create</button>
         </div>
+        {error && <p className="text-xs text-red-600">{error}</p>}
       </form>
     </Modal>
   )

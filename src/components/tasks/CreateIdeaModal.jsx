@@ -4,6 +4,7 @@ import Modal from '../ui/Modal'
 export default function CreateIdeaModal({ isOpen, onClose, onSave, idea }) {
   const [text, setText] = useState('')
   const [tags, setTags] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (idea) {
@@ -17,7 +18,12 @@ export default function CreateIdeaModal({ isOpen, onClose, onSave, idea }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (!text.trim()) {
+      setError('Idea text is required')
+      return
+    }
     const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : []
+    setError('')
     onSave({ text, tags: tagsArr })
     onClose()
   }
@@ -41,6 +47,7 @@ export default function CreateIdeaModal({ isOpen, onClose, onSave, idea }) {
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-md">Cancel</button>
           <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md">{idea ? 'Update' : 'Save'}</button>
         </div>
+        {error && <p className="text-xs text-red-600">{error}</p>}
       </form>
     </Modal>
   )

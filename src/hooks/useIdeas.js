@@ -22,7 +22,7 @@ export function useIdeas(user) {
 }
 
 export async function createIdea({ text, tags, user }) {
-  if (!text?.trim() || !user?.uid) return
+  if (!text?.trim() || !user?.uid) throw new Error('Missing text or user')
   await addDoc(collection(db, 'ideas'), {
     text: text.trim(),
     tags: tags?.length ? tags : null,

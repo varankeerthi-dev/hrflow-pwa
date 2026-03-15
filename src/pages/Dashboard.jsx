@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, Component } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useReminders } from '../hooks/useReminders'
+import TasksPage from '../components/tasks/TasksPage'
 import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
@@ -192,7 +193,8 @@ export default function Dashboard() {
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
   const { unreadCount } = useReminders(user)
   const navigate = useNavigate()
-  const tasksActive = typeof window !== 'undefined' && window.location.pathname === '/tasks'
+  const location = useLocation()
+  const tasksActive = location.pathname === '/tasks'
   
   // Requirement: Delay employee lookup until auth user and orgId are available
   const canFetchEmployees = user && !!user.orgId
@@ -291,6 +293,7 @@ export default function Dashboard() {
   }, [allTabs, user?.permissions, user?.role])
 
   const renderTabContent = () => {
+    if (tasksActive) return <TasksPage embedded />
     switch (activeTab) {
       case 'home': return <HomeTab />
       case 'attendance': return <AttendanceTab />
