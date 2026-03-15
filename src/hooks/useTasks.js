@@ -7,13 +7,17 @@ const canSeeAll = (user) => ['admin', 'md'].includes((user?.role || '').toLowerC
 export function useTasks(user, { clientFilter = 'all' } = {}) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!user?.orgId) {
       setTasks([])
       setLoading(false)
+      setError(null)
       return
     }
+    setLoading(true)
+    setError(null)
     const q = query(
       collection(db, 'tasks'),
       where('organizationId', '==', user.orgId)
@@ -21,6 +25,10 @@ export function useTasks(user, { clientFilter = 'all' } = {}) {
     const unsub = onSnapshot(q, (snap) => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       setTasks(data)
+      setLoading(false)
+    }, (err) => {
+      console.error('useTasks snapshot error', err)
+      setError(err)
       setLoading(false)
     })
     return unsub
@@ -41,7 +49,7 @@ export function useTasks(user, { clientFilter = 'all' } = {}) {
     })
   }, [tasks, clientFilter, user])
 
-  return { tasks: visibleTasks, rawTasks: tasks, loading }
+  return { tasks: visibleTasks, rawTasks: tasks, loading, error }
 }
 
 export async function updateTaskStatus(task, status, extra = {}) {

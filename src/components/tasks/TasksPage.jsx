@@ -29,7 +29,7 @@ export default function TasksPage() {
   const [enableDrag, setEnableDrag] = useState(true)
   const [flash, setFlash] = useState('')
 
-  const { tasks, loading: tasksLoading } = useTasks(user, { clientFilter })
+  const { tasks, loading: tasksLoading, error: tasksError } = useTasks(user, { clientFilter })
   const { reminders } = useReminders(user)
   const { ideas } = useIdeas(user)
 
@@ -128,6 +128,8 @@ export default function TasksPage() {
           <div className="bg-white border border-gray-200 rounded-lg p-3">
             {tasksLoading ? (
               <p className="text-sm text-gray-500">Loading tasks...</p>
+            ) : tasksError ? (
+              <p className="text-sm text-red-600">Unable to load tasks: {tasksError.message}</p>
             ) : visibleTasks.length === 0 ? (
               <p className="text-sm text-gray-500">No tasks yet.</p>
             ) : (
