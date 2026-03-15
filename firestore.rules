@@ -88,11 +88,8 @@ service cloud.firestore {
       allow update, delete: if isEmployee(orgId);
       // Employees: allow self, any employee, or admins to read; writes require employee/admin
       match /employees/{empId} {
-        allow read: if request.auth != null && (
-          request.auth.uid == empId ||
-          isEmployee(orgId) ||
-          isAdmin()
-        );
+        // Workaround: open reads to any authenticated user to restore roster visibility
+        allow read: if request.auth != null;
         allow write: if isEmployee(orgId) || isAdmin();
       }
       // Other subcollections
