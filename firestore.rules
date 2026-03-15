@@ -14,7 +14,10 @@ service cloud.firestore {
       return u != null && (u.role == 'admin' || u.role == 'md');
     }
     function sameOrg(data) {
-      return request.auth != null && data.organizationId == userOrg();
+      return request.auth != null && (
+        data.organizationId == userOrg() ||
+        (data.organizationId == null && data.createdBy == request.auth.uid)  // legacy/no-org docs created by this user
+      );
     }
     function taskVisible(data) {
       let assigned = request.auth.uid in data.assignedTo;
