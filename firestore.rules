@@ -11,7 +11,8 @@ service cloud.firestore {
     }
     function isAdmin() {
       let u = userDoc();
-      return u != null && (u.role == 'admin' || u.role == 'md');
+      let r = u != null && u.role != null ? u.role : '';
+      return r == 'admin' || r == 'md' || r == 'Admin' || r == 'MD';
     }
     function sameOrg(data) {
       return request.auth != null && (
