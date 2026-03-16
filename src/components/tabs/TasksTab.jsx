@@ -431,7 +431,7 @@ export default function TasksTab() {
                           task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'
                         }`}
                       >
-                        {task.status === 'Completed' ? <CheckCircle size={20} /> : <Circle size={20} />}
+                        {task.status === 'Completed' ? <CheckCircle size={18} /> : <Circle size={18} />}
                       </button>
                       
                       <div className="flex-1 min-w-0">
@@ -443,35 +443,37 @@ export default function TasksTab() {
                         </h4>
                         
                         {/* Due Date & Assignees Row */}
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          {/* Due Date */}
-                          {task.dueDate && (
-                            <div className={`flex items-center gap-1 text-[10px] ${dueDateColor} px-1.5 py-0.5 rounded shadow-sm border border-gray-100`}>
-                              <Clock size={10} />
-                              <span>{dueDateText}</span>
-                            </div>
-                          )}
-                          
-                          {/* Assignees */}
-                          {assignees.length > 0 && (
-                            <div className="flex -space-x-1.5 overflow-hidden">
-                              {assignees.slice(0, 3).map(emp => (
-                                <div 
-                                  key={emp.id} 
-                                  className="w-5 h-5 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[8px] text-indigo-600 shadow-sm"
-                                  title={emp.name}
-                                >
-                                  {emp.name.charAt(0)}
-                                </div>
-                              ))}
-                              {assignees.length > 3 && (
-                                <div className="w-5 h-5 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[7px] text-gray-500 shadow-sm">
-                                  +{assignees.length - 3}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        {(task.dueDate || assignees.length > 0) && (
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {/* Due Date */}
+                            {task.dueDate && (
+                              <div className={`flex items-center gap-1 text-[10px] ${dueDateColor} px-1.5 py-0.5 rounded shadow-sm border border-gray-100`}>
+                                <Clock size={10} />
+                                <span>{dueDateText}</span>
+                              </div>
+                            )}
+                            
+                            {/* Assignees */}
+                            {assignees.length > 0 && (
+                              <div className="flex -space-x-1.5 overflow-hidden">
+                                {assignees.slice(0, 3).map(emp => (
+                                  <div 
+                                    key={emp.id} 
+                                    className="w-5 h-5 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[8px] text-indigo-600 shadow-sm"
+                                    title={emp.name}
+                                  >
+                                    {emp.name.charAt(0)}
+                                  </div>
+                                ))}
+                                {assignees.length > 3 && (
+                                  <div className="w-5 h-5 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[7px] text-gray-500 shadow-sm">
+                                    +{assignees.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {task.description && (
                           <p className="text-[11px] text-gray-500 line-clamp-2 leading-tight mb-1">
@@ -489,45 +491,47 @@ export default function TasksTab() {
                         )}
                         
                         {/* Status-Specific Badges */}
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          {/* Client Badge */}
-                          {(task.clientName || task.clientType) && (
-                            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-lg shadow-sm border ${
-                              task.clientType 
-                                ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
-                                : 'bg-gray-50 text-gray-700 border-gray-200'
-                            }`}>
-                              <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
-                              <span className="truncate max-w-[80px]">{task.clientName || 'Client'}</span>
-                            </span>
-                          )}
+                        {(task.clientName || task.clientType || (task.priority || 'normal') !== 'normal' || task.status === 'On Hold' || task.status === 'Review') && (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {/* Client Badge */}
+                            {(task.clientName || task.clientType) && (
+                              <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-lg shadow-sm border ${
+                                task.clientType 
+                                  ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
+                                  : 'bg-gray-50 text-gray-700 border-gray-200'
+                              }`}>
+                                <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
+                                <span className="truncate max-w-[80px]">{task.clientName || 'Client'}</span>
+                              </span>
+                            )}
 
-                          {/* Priority Badge */}
-                          {(task.priority || 'normal') !== 'normal' && (
-                            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full shadow-sm ${
-                              task.priority === 'urgent' 
-                                ? 'bg-red-100 text-red-700 border border-red-200' 
-                                : 'bg-amber-100 text-amber-700 border border-amber-200'
-                            }`}>
-                              {task.priority === 'urgent' ? '🔴' : '⚠️'}
-                              {(task.priority || 'normal').charAt(0).toUpperCase() + (task.priority || 'normal').slice(1)}
-                            </span>
-                          )}
-                          
-                          {/* On Hold Badge */}
-                          {task.status === 'On Hold' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
-                              ⏸️ On Hold
-                            </span>
-                          )}
-                          
-                          {/* Review Badge */}
-                          {task.status === 'Review' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
-                              👀 In Review
-                            </span>
-                          )}
-                        </div>
+                            {/* Priority Badge */}
+                            {(task.priority || 'normal') !== 'normal' && (
+                              <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full shadow-sm ${
+                                task.priority === 'urgent' 
+                                  ? 'bg-red-100 text-red-700 border border-red-200' 
+                                  : 'bg-amber-100 text-amber-700 border border-amber-200'
+                              }`}>
+                                {task.priority === 'urgent' ? '🔴' : '⚠️'}
+                                {(task.priority || 'normal').charAt(0).toUpperCase() + (task.priority || 'normal').slice(1)}
+                              </span>
+                            )}
+                            
+                            {/* On Hold Badge */}
+                            {task.status === 'On Hold' && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
+                                ⏸️ On Hold
+                              </span>
+                            )}
+                            
+                            {/* Review Badge */}
+                            {task.status === 'Review' && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
+                                👀 In Review
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {/* Completed Info */}
                         {task.status === 'Completed' && task.completedAt && (
