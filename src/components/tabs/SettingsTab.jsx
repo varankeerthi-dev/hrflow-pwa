@@ -499,6 +499,9 @@ export default function SettingsTab() {
   }
 
   const handleSaveEmployee = async () => {
+    if (editingEmp && editForm.role && typeof editForm.role !== 'string') {
+      return alert('Role must be a valid string')
+    }
     setSaving(true)
     try {
       const selectedRoleName = editForm.role || 'employee'
@@ -800,7 +803,8 @@ export default function SettingsTab() {
 
   const handleAddRole = async () => {
     if (!isAdmin && userPermissions['Roles']?.edit !== true) return alert('You do not have permission to manage roles.')
-    if (!newRole.name.trim()) return alert('Role name is required')
+    if (!newRole.name || !newRole.name.trim()) return alert('Role name is required')
+    if (typeof newRole.name !== 'string') return alert('Role name must be a string')
     setSaving(true)
     try {
       if (editingRole) {
@@ -894,7 +898,8 @@ export default function SettingsTab() {
     setNewRole(prev => {
       const perms = { ...(prev.permissions || {}) }
       if (!perms[modId]) perms[modId] = {}
-      perms[modId] = { ...perms[modId], [permKey]: !perms[modId][permKey] }
+      const currentVal = !!perms[modId][permKey]
+      perms[modId] = { ...perms[modId], [permKey]: !currentVal }
       return { ...prev, permissions: perms }
     })
   }
@@ -1658,7 +1663,8 @@ export default function SettingsTab() {
                         </tr>
                       ) : users.map(u => {
                         const associatedEmp = employees.find(e => e.email === u.email || e.id === u.employeeId)
-                        const displayName = u.name || associatedEmp?.name || 'No Name'
+                        const emailPrefix = u.email ? u.email.split('@')[0] : 'User'
+                        const displayName = u.name || associatedEmp?.fullName || associatedEmp?.name || emailPrefix
                         
                         return (
                         <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">

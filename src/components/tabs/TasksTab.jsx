@@ -29,10 +29,38 @@ import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
 const STATUSES = [
-  { id: 'Inbox', label: 'Inbox', icon: <Inbox size={16} className="text-gray-400" /> },
-  { id: 'To-do', label: 'To-do', icon: <Circle size={16} className="text-blue-400" /> },
-  { id: 'In Progress', label: 'In Progress', icon: <PlayCircle size={16} className="text-orange-400" /> },
-  { id: 'Completed', label: 'Completed', icon: <CheckCircle2 size={16} className="text-green-500" /> }
+  { id: 'To Do', label: 'To Do', icon: <Circle size={16} className="text-blue-500" />, bgColor: 'bg-gray-50' },
+  { id: 'In Progress', label: 'In Progress', icon: <PlayCircle size={16} className="text-orange-500" />, bgColor: 'bg-blue-50' },
+  { id: 'On Hold', label: 'On Hold', icon: <Clock size={16} className="text-amber-500" />, bgColor: 'bg-amber-50' },
+  { id: 'Review', label: 'Review', icon: <CheckCircle size={16} className="text-purple-500" />, bgColor: 'bg-purple-50' },
+  { id: 'Completed', label: 'Completed', icon: <CheckCircle2 size={16} className="text-green-500" />, bgColor: 'bg-green-50' }
+]
+
+const CLIENT_TYPES = [
+  { 
+    id: 'order', 
+    label: 'Order', 
+    icon: '📦', 
+    color: 'text-green-700',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-300'
+  },
+  { 
+    id: 'complaint', 
+    label: 'Complaint', 
+    icon: '⚠️', 
+    color: 'text-red-700',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-300'
+  },
+  { 
+    id: 'followup', 
+    label: 'Follow-up', 
+    icon: '📞', 
+    color: 'text-blue-700',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-300'
+  }
 ]
 
 const TABS = [
@@ -55,26 +83,43 @@ export default function TasksTab() {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    status: 'Inbox',
+    status: 'To Do',
     assignedTo: [],
     isPersonal: false,
     category: 'task',
     dueDate: null,
     priority: 'normal',
-    notes: ''
+    notes: '',
+    // NEW CLIENT FIELDS
+    clientName: '',
+    clientType: null  // 'order' | 'complaint' | 'followup' | null
   })
+  const [clientFilter, setClientFilter] = useState('all')  // 'all' | 'order' | 'complaint' | 'followup' | 'internal'
 
   // Filter tasks based on active tab
   const filteredTasks = useMemo(() => {
+    let tasksToFilter = tasks
+      // Filter by tab (team/personal/idea)
     if (activeTab === 'idea') {
-      return tasks.filter(t => t.category === 'idea')
+      tasksToFilter = tasksToFilter.filter(t => t.category === 'idea')
+    } else if (activeTab === 'personal') {
+      tasksToFilter = tasksToFilter.filter(t => t.isPersonal && t.category === 'task')
+    } else {
+      // Team tasks: not personal and category is task
+      tasksToFilter = tasksToFilter.filter(t => !t.isPersonal && t.category === 'task')
     }
-    if (activeTab === 'personal') {
-      return tasks.filter(t => t.isPersonal && t.category === 'task')
+      // Apply client filter
+    if (clientFilter !== 'all') {
+      if (clientFilter === 'internal') {
+        // Show tasks without client info
+        tasksToFilter = tasksToFilter.filter(t => !t.clientName && !t.clientType)
+      } else {
+        // Show tasks with specific client type
+        tasksToFilter = tasksToFilter.filter(t => t.clientType === clientFilter)
+      }
     }
-    // Team tasks: not personal and category is task
-    return tasks.filter(t => !t.isPersonal && t.category === 'task')
-  }, [tasks, activeTab])
+      return tasksToFilter
+  }, [tasks, activeTab, clientFilter])
 
   const handleInlineCreate = async (status, e) => {
     if (e.key === 'Enter' && inlineInputs[status]?.trim()) {
@@ -82,7 +127,7 @@ export default function TasksTab() {
       try {
         await addTask({
           title,
-          status,
+          status: status === 'Inbox' ? 'To Do' : status,  // Convert legacy Inbox to To Do
           isPersonal: activeTab === 'personal',
           category: activeTab === 'idea' ? 'idea' : 'task',
           assignedTo: activeTab === 'personal' ? [user.uid] : []
@@ -106,13 +151,15 @@ export default function TasksTab() {
       setNewTask({
         title: '',
         description: '',
-        status: 'Inbox',
+        status: 'To Do',
         assignedTo: [],
         isPersonal: activeTab === 'personal',
         category: 'task',
         dueDate: null,
         priority: 'normal',
-        notes: ''
+        notes: '',
+        clientName: '',
+        clientType: null
       })
     } catch (err) {
       alert('Failed to create task')
@@ -149,14 +196,17 @@ export default function TasksTab() {
   }
 
   const toggleStatus = async (task) => {
-    const nextStatus = {
-      'Inbox': 'To-do',
-      'To-do': 'In Progress',
-      'In Progress': 'Completed',
-      'Completed': 'To-do'
+    const statusFlow = {
+      'Inbox': 'To Do',  // Legacy support
+      'To-do': 'To Do',  // Legacy support
+      'To Do': 'In Progress',
+      'In Progress': 'Review',
+      'On Hold': 'In Progress',  // Resume from on hold
+      'Review': 'Completed',
+      'Completed': 'To Do'  // Reopen
     }
-    try {
-      await updateTask(task.id, { status: nextStatus[task.status] || 'To-do' })
+      try {
+      await updateTask(task.id, { status: statusFlow[task.status] || 'To Do' })
     } catch (err) {
       console.error("Failed to update status:", err)
     }
@@ -180,6 +230,27 @@ export default function TasksTab() {
     }
     fetchUsers()
   }, [user?.orgId])
+
+  const getAssigneeInfo = (assignedTo) => {
+    const ids = Array.isArray(assignedTo) ? assignedTo : assignedTo ? [assignedTo] : []
+    return ids.map(id => employees.find(e => e.id === id)).filter(Boolean)
+  }
+
+  const formatDueDate = (date) => {
+    if (!date) return null
+    const d = date.toDate ? date.toDate() : new Date(date)
+    return formatDistanceToNow(d, { addSuffix: true })
+  }
+
+  const getDueDateColor = (date) => {
+    if (!date) return 'text-gray-400'
+    const d = date.toDate ? date.toDate() : new Date(date)
+    const now = new Date()
+    if (d < now) return 'text-red-500 bg-red-50'
+    const diff = d - now
+    if (diff < 86400000) return 'text-amber-500 bg-amber-50'
+    return 'text-gray-500 bg-gray-50'
+  }
 
   const loginEnabledEmployees = useMemo(() => {
     return employees.filter(emp => users.some(u => u.email === emp.email))
@@ -223,42 +294,105 @@ export default function TasksTab() {
         </div>
       </div>
 
+      {/* Client Filter - Show only on Team Tasks tab */}
+      {activeTab === 'team' && (
+        <div className="px-6 py-4 border-b border-gray-200 bg-white">
+          <div className="flex items-center gap-3">
+            <Filter size={18} className="text-gray-400" />
+            <span className="text-sm font-semibold text-gray-600">Filter by Client:</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setClientFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  clientFilter === 'all'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                All Tasks ({tasks.filter(t => !t.isPersonal && t.category === 'task').length})
+              </button>
+                      {CLIENT_TYPES.map(type => {
+                const count = tasks.filter(t => 
+                  !t.isPersonal && 
+                  t.category === 'task' && 
+                  t.clientType === type.id
+                ).length
+                          return (
+                  <button
+                    key={type.id}
+                    onClick={() => setClientFilter(type.id)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                      clientFilter === type.id
+                        ? `${type.bgColor} ${type.color} border-2 ${type.borderColor} shadow-sm`
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span>{type.icon}</span>
+                    <span>{type.label}</span>
+                    <span className={`text-xs font-bold ${clientFilter === type.id ? type.color : 'text-gray-500'}`}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+              <button
+                onClick={() => setClientFilter('internal')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  clientFilter === 'internal'
+                    ? 'bg-gray-800 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                🏠 Internal ({tasks.filter(t => !t.isPersonal && t.category === 'task' && !t.clientName && !t.clientType).length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto p-6 bg-gray-50/50">
-        <div className="flex gap-6 h-full min-w-max">
+      <div className="flex-1 overflow-x-auto p-6 bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="flex gap-4 h-full min-w-max">
           {STATUSES.map(status => (
             <div 
               key={status.id} 
-              className="flex flex-col w-72"
+              className="flex flex-col w-80 flex-shrink-0"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, status.id)}
             >
               {/* Column Header */}
-              <div className="flex items-center justify-between px-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="p-1 rounded bg-white shadow-sm border border-gray-100">
-                    {status.icon}
-                  </span>
-                  <span className="text-sm font-semibold uppercase tracking-wider text-gray-500">
-                    {status.label}
-                  </span>
-                  <span className="text-xs font-bold text-gray-400 bg-gray-200/50 px-2 py-0.5 rounded-full">
-                    {filteredTasks.filter(t => t.status === status.id).length}
-                  </span>
+              <div className={`${status.bgColor} rounded-t-xl border-b-2 ${
+                status.id === 'Completed' ? 'border-green-500' :
+                status.id === 'Review' ? 'border-purple-500' :
+                status.id === 'On Hold' ? 'border-amber-500' :
+                status.id === 'In Progress' ? 'border-orange-500' :
+                'border-blue-500'
+              }`}>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-1.5 rounded-lg bg-white shadow-sm border border-gray-200">
+                      {status.icon}
+                    </span>
+                    <span className="text-sm font-bold uppercase tracking-wider text-gray-700">
+                      {status.label}
+                    </span>
+                    <span className="text-xs font-bold text-gray-500 bg-white px-2.5 py-1 rounded-full shadow-sm">
+                      {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
+                    </span>
+                  </div>
+                  <button className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-white rounded-lg transition-colors">
+                    <MoreHorizontal size={16} />
+                  </button>
                 </div>
-                <button className="text-gray-400 hover:text-gray-600 p-1 hover:bg-white rounded transition-colors">
-                  <MoreHorizontal size={16} />
-                </button>
               </div>
-
-              {/* Task List */}
-              <div className="flex-1 space-y-3">
+              {/* Task List Area */}
+              <div className={`flex-1 ${status.bgColor} rounded-b-xl p-3 space-y-3 min-h-[500px]`}>
                 {/* Inline Quick Add */}
                 <div className="group relative">
                   <input
                     type="text"
-                    placeholder="Type to add task..."
-                    className="w-full bg-white border border-transparent focus:border-indigo-200 focus:ring-4 focus:ring-indigo-50/50 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-300 shadow-sm"
+                    placeholder="Quick add task..."
+                    className="w-full bg-white border-2 border-transparent focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm hover:shadow"
                     value={inlineInputs[status.id] || ''}
                     onChange={(e) => setInlineInputs({ ...inlineInputs, [status.id]: e.target.value })}
                     onKeyDown={(e) => handleInlineCreate(status.id, e)}
@@ -269,100 +403,146 @@ export default function TasksTab() {
                     </div>
                   )}
                 </div>
-
+                {/* Tasks */}
                 {filteredTasks
-                  .filter(t => t.status === status.id)
-                  .map(task => (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, task.id)}
-                      onDragEnd={handleDragEnd}
-                      className="group bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
-                    >
-                      {/* Left border indicator based on status */}
-                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-                        status.id === 'Completed' ? 'bg-green-500' : 
-                        status.id === 'In Progress' ? 'bg-orange-400' :
-                        status.id === 'To-do' ? 'bg-blue-400' : 'bg-gray-300'
-                      }`} />
-
-                      <div className="flex gap-3">
-                        <button 
-                          onClick={() => toggleStatus(task)}
-                          className={`mt-1 flex-shrink-0 transition-colors ${
-                            task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-400'
-                          }`}
-                        >
-                          {task.status === 'Completed' ? <CheckCircle size={18} /> : <Circle size={18} />}
-                        </button>
-                        
-                        <div className="flex-1 min-w-0">
-                          <h4 className={`text-sm font-semibold text-gray-800 leading-snug break-words ${task.status === 'Completed' ? 'line-through text-gray-400' : ''}`}>
-                            {task.title}
-                          </h4>
-                          {task.description && (
-                            <p className="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">
-                              {task.description}
-                            </p>
-                          )}
+                  .filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
+                  .map(task => {
+                    const assignees = getAssigneeInfo(task.assignedTo)
+                    const dueDateText = formatDueDate(task.dueDate)
+                    const dueDateColor = getDueDateColor(task.dueDate)
+                    
+                    return (
+                      <div
+                        key={task.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, task.id)}
+                        onDragEnd={handleDragEnd}
+                        className="group bg-white border-2 border-gray-200 rounded-xl p-4 shadow hover:shadow-lg hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
+                      >
+                        {/* Priority & Status left border */}
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                          task.priority === 'urgent' ? 'bg-red-500' : 
+                          task.priority === 'important' ? 'bg-amber-500' :
+                          status.id === 'Completed' ? 'bg-green-500' : 
+                          status.id === 'Review' ? 'bg-purple-500' :
+                          status.id === 'On Hold' ? 'bg-amber-500' :
+                          status.id === 'In Progress' ? 'bg-orange-400' :
+                          'bg-blue-400'
+                        }`} />
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={() => toggleStatus(task)}
+                            className={`mt-1 flex-shrink-0 transition-colors ${
+                              task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'
+                            }`}
+                          >
+                            {task.status === 'Completed' ? <CheckCircle size={20} /> : <Circle size={20} />}
+                          </button>
                           
-                          {/* Notes */}
-                          {task.notes && (
-                            <div className="mt-2 p-2 bg-gray-50 rounded-lg border-l-2 border-indigo-200">
-                              <p className="text-[10px] text-gray-500 leading-relaxed italic">
-                                📝 {task.notes}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Priority Badge (for important/urgent) */}
-                          {task.priority && task.priority !== 'normal' && (
-                            <div className="mt-2">
-                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                                task.priority === 'urgent' 
-                                  ? 'bg-red-100 text-red-700' 
-                                  : 'bg-amber-100 text-amber-700'
-                              }`}>
-                                {task.priority === 'urgent' ? '🔴' : '⚠️'}
-                                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Completed Info */}
-                          {task.status === 'Completed' && task.completedAt && (
-                            <p className="text-xs text-green-600 mt-2">
-                              ✓ Completed {formatDistanceToNow(task.completedAt.toDate(), { addSuffix: true })}
-                            </p>
-                          )}
-
-                          <div className="flex items-center justify-between mt-4">
-                            <div className="flex -space-x-1.5 overflow-hidden">
-                              {Array.isArray(task.assignedTo) ? (
-                                task.assignedTo.length > 0 ? (
-                                  task.assignedTo.map(uid => (
-                                    <div key={uid} className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600" title={uid}>
-                                      {employees.find(e => e.id === uid)?.name?.charAt(0) || <User size={12} />}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-gray-300">
-                                    <User size={12} />
-                                  </div>
-                                )
-                              ) : task.assignedTo ? (
-                                <div className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600" title={task.assignedTo}>
-                                  {employees.find(e => e.id === task.assignedTo)?.name?.charAt(0) || <User size={12} />}
+                          <div className="flex-1 min-w-0">
+                            {/* Title */}
+                            <h4 className={`text-sm font-semibold text-gray-800 leading-snug break-words mb-2 ${
+                              task.status === 'Completed' ? 'line-through text-gray-400' : ''
+                            }`}>
+                              {task.title}
+                            </h4>
+                            
+                            {/* Due Date & Assignees Row */}
+                            <div className="flex items-center gap-3 mb-2 flex-wrap">
+                              {/* Due Date */}
+                              {task.dueDate && (
+                                <div className={`flex items-center gap-1 text-xs font-semibold ${dueDateColor} px-2 py-1 rounded-md shadow-sm border border-gray-100`}>
+                                  <Clock size={12} />
+                                  <span>{dueDateText}</span>
                                 </div>
-                              ) : (
-                                <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-gray-300">
-                                  <User size={12} />
+                              )}
+                              
+                              {/* Assignees */}
+                              {assignees.length > 0 && (
+                                <div className="flex -space-x-2 overflow-hidden">
+                                  {assignees.slice(0, 3).map(emp => (
+                                    <div 
+                                      key={emp.id} 
+                                      className="w-6 h-6 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
+                                      title={emp.name}
+                                    >
+                                      {emp.name.charAt(0)}
+                                    </div>
+                                  ))}
+                                  {assignees.length > 3 && (
+                                    <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500 shadow-sm">
+                                      +{assignees.length - 3}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
+
+                            {task.description && (
+                              <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-2">
+                                {task.description}
+                              </p>
+                            )}
                             
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Notes Preview */}
+                            {task.notes && (
+                              <div className="mt-2 bg-amber-50 border-l-3 border-amber-400 px-2.5 py-1.5 rounded-md">
+                                <p className="text-xs text-amber-800 line-clamp-1 font-medium">
+                                  📝 {task.notes}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* Status-Specific Badges */}
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              {/* Client Badge */}
+                              {(task.clientName || task.clientType) && (
+                                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm border ${
+                                  task.clientType 
+                                    ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
+                                    : 'bg-gray-50 text-gray-700 border-gray-200'
+                                }`}>
+                                  <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
+                                  <span className="truncate max-w-[100px]">{task.clientName || 'Client'}</span>
+                                </span>
+                              )}
+
+                              {/* Priority Badge */}
+                              {(task.priority || 'normal') !== 'normal' && (
+                                <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold shadow-sm ${
+                                  task.priority === 'urgent' 
+                                    ? 'bg-red-100 text-red-700 border border-red-200' 
+                                    : 'bg-amber-100 text-amber-700 border border-amber-200'
+                                }`}>
+                                  {task.priority === 'urgent' ? '🔴' : '⚠️'}
+                                  {(task.priority || 'normal').charAt(0).toUpperCase() + (task.priority || 'normal').slice(1)}
+                                </span>
+                              )}
+                              
+                              {/* On Hold Badge */}
+                              {task.status === 'On Hold' && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
+                                  ⏸️ On Hold
+                                </span>
+                              )}
+                              
+                              {/* Review Badge */}
+                              {task.status === 'Review' && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
+                                  👀 In Review
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Completed Info */}
+                            {task.status === 'Completed' && task.completedAt && (
+                              <p className="text-xs text-green-600 mt-2 font-medium">
+                                ✓ Completed {formatDistanceToNow(task.completedAt.toDate(), { addSuffix: true })}
+                              </p>
+                            )}
+                            
+                            {/* Delete Button */}
+                            <div className="flex items-center justify-end mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button 
                                 onClick={() => deleteTask(task.id)}
                                 className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
@@ -373,8 +553,8 @@ export default function TasksTab() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
               </div>
             </div>
           ))}
@@ -505,6 +685,47 @@ export default function TasksTab() {
               value={newTask.notes}
               onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
             />
+          </div>
+
+          {/* Client Tracking */}
+          <div className="bg-gray-50 p-4 rounded-xl space-y-4 border border-gray-100">
+            <h5 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+              <span>👤 Client Tracking</span>
+              <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">Optional</span>
+            </h5>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Client Name</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all bg-white"
+                  placeholder="e.g. John Doe"
+                  value={newTask.clientName}
+                  onChange={e => setNewTask({ ...newTask, clientName: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Client Type</label>
+                <div className="flex gap-1.5">
+                  {CLIENT_TYPES.map(type => (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => setNewTask({ ...newTask, clientType: newTask.clientType === type.id ? null : type.id })}
+                      className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase transition-all border-2 ${
+                        newTask.clientType === type.id 
+                          ? `${type.bgColor} ${type.borderColor} ${type.color}`
+                          : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                      }`}
+                      title={type.label}
+                    >
+                      {type.icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 py-2 border-t border-gray-50 mt-4 pt-4">
