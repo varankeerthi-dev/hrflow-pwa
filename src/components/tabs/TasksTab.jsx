@@ -87,6 +87,7 @@ export default function TasksTab() {
   const [activeTab, setActiveTab] = useState('team')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showReminderModal, setShowReminderModal] = useState(false)
+  const [selectedReminder, setSelectedReminder] = useState(null)
   const [inlineInputs, setInlineInputs] = useState({})
   const [inlineDates, setInlineDates] = useState({})
   const [draggedTaskId, setDraggedTaskId] = useState(null)
@@ -110,7 +111,9 @@ export default function TasksTab() {
     title: '',
     content: '',
     type: 'general',
-    targetUsers: []
+    targetUsers: [],
+    reminderDate: null,
+    keywords: []
   })
   const [clientFilter, setClientFilter] = useState('all')  // 'all' | 'order' | 'complaint' | 'followup' | 'internal'
 
@@ -194,13 +197,19 @@ export default function TasksTab() {
     e.preventDefault()
     if (!newReminder.title.trim()) return
     try {
-      await addReminder(newReminder)
+      await addReminder({
+        ...newReminder,
+        reminderDate: newReminder.reminderDate || null,
+        keywords: newReminder.keywords || []
+      })
       setShowReminderModal(false)
       setNewReminder({
         title: '',
         content: '',
         type: 'general',
-        targetUsers: []
+        targetUsers: [],
+        reminderDate: null,
+        keywords: []
       })
     } catch (err) {
       alert('Failed to create reminder')
@@ -414,7 +423,8 @@ export default function TasksTab() {
                 {reminders.map(reminder => (
                   <div 
                     key={reminder.id}
-                    className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group"
+                    onClick={() => setSelectedReminder(reminder)}
+                    className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer"
                   >
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
                       reminder.type === 'general' ? 'bg-indigo-500' : 
@@ -433,10 +443,26 @@ export default function TasksTab() {
                           <span className="text-xs text-gray-400">
                             {reminder.createdAt ? formatDistanceToNow(reminder.createdAt.toDate(), { addSuffix: true }) : 'just now'}
                           </span>
+                          {reminder.reminderDate && (
+                            <span className="flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded ml-auto">
+                              <CalendarIcon size={12} />
+                              {new Date(reminder.reminderDate.toDate ? reminder.reminderDate.toDate() : reminder.reminderDate).toLocaleDateString()}
+                            </span>
+                          )}
                         </div>
                         <h4 className="text-lg font-bold text-gray-900 mb-1">{reminder.title}</h4>
-                        <p className="text-gray-600 text-sm whitespace-pre-wrap">{reminder.content}</p>
+                        <p className="text-gray-600 text-sm whitespace-pre-wrap line-clamp-2">{reminder.content}</p>
                         
+                        {reminder.keywords && reminder.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-3">
+                            {reminder.keywords.map((kw, idx) => (
+                              <span key={idx} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                                #{kw}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
                         <div className="mt-4 flex items-center gap-4 text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <User size={12} />
@@ -448,7 +474,10 @@ export default function TasksTab() {
                       <div className="flex flex-col gap-2">
                         {reminder.createdBy === user.uid ? (
                           <button 
-                            onClick={() => deleteReminder(reminder.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteReminder(reminder.id);
+                            }}
                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete Announcement"
                           >
@@ -457,7 +486,10 @@ export default function TasksTab() {
                         ) : (
                           !reminder.dismissedBy?.includes(user.uid) && (
                             <button 
-                              onClick={() => dismissReminder(reminder.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                dismissReminder(reminder.id);
+                              }}
                               className="px-3 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 rounded-lg text-xs font-bold transition-colors border border-gray-100"
                             >
                               Dismiss
@@ -958,6 +990,29 @@ export default function TasksTab() {
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Reminder Date</label>
+              <DatePicker
+                selected={newReminder.reminderDate}
+                onChange={(date) => setNewReminder({ ...newReminder, reminderDate: date })}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all"
+                placeholderText="Pick a date"
+                dateFormat="MMM d, yyyy"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Keywords</label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all placeholder:text-gray-300"
+                placeholder="Comma separated: urgent, info"
+                value={newReminder.keywords.join(', ')}
+                onChange={e => setNewReminder({ ...newReminder, keywords: e.target.value.split(',').map(kw => kw.trim()).filter(Boolean) })}
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Audience</label>
             <div className="flex gap-2">
@@ -1025,6 +1080,103 @@ export default function TasksTab() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Reminder Summary View Modal */}
+      <Modal
+        isOpen={!!selectedReminder}
+        onClose={() => setSelectedReminder(null)}
+        title="Announcement Summary"
+      >
+        {selectedReminder && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                  selectedReminder.type === 'general' ? 'bg-indigo-50 text-indigo-600' : 
+                  selectedReminder.type === 'targeted' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
+                }`}>
+                  {selectedReminder.type}
+                </span>
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <Clock size={12} />
+                  Posted {selectedReminder.createdAt ? formatDistanceToNow(selectedReminder.createdAt.toDate(), { addSuffix: true }) : 'just now'}
+                </span>
+              </div>
+              {selectedReminder.reminderDate && (
+                <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+                  <CalendarIcon size={14} />
+                  Due {new Date(selectedReminder.reminderDate.toDate ? selectedReminder.reminderDate.toDate() : selectedReminder.reminderDate).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedReminder.title}</h2>
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 min-h-[150px]">
+                <p className="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">{selectedReminder.content}</p>
+              </div>
+            </div>
+
+            {selectedReminder.keywords && selectedReminder.keywords.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Keywords</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedReminder.keywords.map((kw, idx) => (
+                    <span key={idx} className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-semibold border border-indigo-100 shadow-sm">
+                      #{kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-6 border-t border-gray-50 text-gray-500">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                  {selectedReminder.createdByName?.charAt(0)}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">{selectedReminder.createdByName}</p>
+                  <p className="text-[10px] uppercase tracking-widest font-medium">Author</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                {selectedReminder.createdBy === user.uid ? (
+                  <button 
+                    onClick={() => {
+                      deleteReminder(selectedReminder.id);
+                      setSelectedReminder(null);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-xs font-bold transition-colors"
+                  >
+                    <Trash2 size={16} />
+                    Delete
+                  </button>
+                ) : (
+                  !selectedReminder.dismissedBy?.includes(user.uid) && (
+                    <button 
+                      onClick={() => {
+                        dismissReminder(selectedReminder.id);
+                        setSelectedReminder(null);
+                      }}
+                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 transition-all active:scale-95"
+                    >
+                      Dismiss Announcement
+                    </button>
+                  )
+                )}
+                <button 
+                  onClick={() => setSelectedReminder(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-bold transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )
