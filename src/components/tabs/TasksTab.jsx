@@ -409,7 +409,7 @@ export default function TasksTab() {
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
                     onDragEnd={handleDragEnd}
-                    className="group bg-white border-2 border-gray-200 rounded-xl p-4 shadow hover:shadow-lg hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
+                    className="group bg-white border-2 border-gray-200 rounded-xl p-2.5 shadow hover:shadow-md hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
                   >
                     {/* Priority & Status left border */}
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
@@ -433,36 +433,36 @@ export default function TasksTab() {
                       
                       <div className="flex-1 min-w-0">
                         {/* Title */}
-                        <h4 className={`text-sm font-semibold text-gray-800 leading-snug break-words mb-2 ${
+                        <h4 className={`text-sm font-semibold text-gray-800 leading-snug break-words mb-1 ${
                           task.status === 'Completed' ? 'line-through text-gray-400' : ''
                         }`}>
                           {task.title}
                         </h4>
                         
                         {/* Due Date & Assignees Row */}
-                        <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           {/* Due Date */}
                           {task.dueDate && (
-                            <div className={`flex items-center gap-1 text-xs font-semibold ${dueDateColor} px-2 py-1 rounded-md shadow-sm border border-gray-100`}>
-                              <Clock size={12} />
+                            <div className={`flex items-center gap-1 text-[10px] font-semibold ${dueDateColor} px-1.5 py-0.5 rounded shadow-sm border border-gray-100`}>
+                              <Clock size={10} />
                               <span>{dueDateText}</span>
                             </div>
                           )}
                           
                           {/* Assignees */}
                           {assignees.length > 0 && (
-                            <div className="flex -space-x-2 overflow-hidden">
+                            <div className="flex -space-x-1.5 overflow-hidden">
                               {assignees.slice(0, 3).map(emp => (
                                 <div 
                                   key={emp.id} 
-                                  className="w-6 h-6 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
+                                  className="w-5 h-5 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[8px] font-bold text-indigo-600 shadow-sm"
                                   title={emp.name}
                                 >
                                   {emp.name.charAt(0)}
                                 </div>
                               ))}
                               {assignees.length > 3 && (
-                                <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500 shadow-sm">
+                                <div className="w-5 h-5 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[7px] font-bold text-gray-500 shadow-sm">
                                   +{assignees.length - 3}
                                 </div>
                               )}
@@ -471,37 +471,37 @@ export default function TasksTab() {
                         </div>
 
                         {task.description && (
-                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-2">
+                          <p className="text-[11px] text-gray-500 line-clamp-2 leading-tight mb-1">
                             {task.description}
                           </p>
                         )}
                         
                         {/* Notes Preview */}
                         {task.notes && (
-                          <div className="mt-2 bg-amber-50 border-l-3 border-amber-400 px-2.5 py-1.5 rounded-md">
-                            <p className="text-xs text-amber-800 line-clamp-1 font-medium">
+                          <div className="mt-1 bg-amber-50 border-l-2 border-amber-400 px-2 py-1 rounded">
+                            <p className="text-[10px] text-amber-800 line-clamp-1 font-medium">
                               📝 {task.notes}
                             </p>
                           </div>
                         )}
                         
                         {/* Status-Specific Badges */}
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                           {/* Client Badge */}
                           {(task.clientName || task.clientType) && (
-                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm border ${
+                            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-lg font-bold shadow-sm border ${
                               task.clientType 
                                 ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
                                 : 'bg-gray-50 text-gray-700 border-gray-200'
                             }`}>
                               <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
-                              <span className="truncate max-w-[100px]">{task.clientName || 'Client'}</span>
+                              <span className="truncate max-w-[80px]">{task.clientName || 'Client'}</span>
                             </span>
                           )}
 
                           {/* Priority Badge */}
                           {(task.priority || 'normal') !== 'normal' && (
-                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold shadow-sm ${
+                            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full font-semibold shadow-sm ${
                               task.priority === 'urgent' 
                                 ? 'bg-red-100 text-red-700 border border-red-200' 
                                 : 'bg-amber-100 text-amber-700 border border-amber-200'
@@ -513,14 +513,14 @@ export default function TasksTab() {
                           
                           {/* On Hold Badge */}
                           {task.status === 'On Hold' && (
-                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
+                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full font-semibold bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
                               ⏸️ On Hold
                             </span>
                           )}
                           
                           {/* Review Badge */}
                           {task.status === 'Review' && (
-                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
+                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
                               👀 In Review
                             </span>
                           )}
@@ -528,18 +528,18 @@ export default function TasksTab() {
 
                         {/* Completed Info */}
                         {task.status === 'Completed' && task.completedAt && (
-                          <p className="text-xs text-green-600 mt-2 font-medium">
+                          <p className="text-[10px] text-green-600 mt-1 font-medium">
                             ✓ Completed {formatDistanceToNow(task.completedAt.toDate(), { addSuffix: true })}
                           </p>
                         )}
                         
                         {/* Delete Button */}
-                        <div className="flex items-center justify-end mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-end mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
                             onClick={() => deleteTask(task.id)}
-                            className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                            className="text-gray-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </div>
@@ -554,24 +554,24 @@ export default function TasksTab() {
   )
 
   const renderTableView = () => (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden font-sans">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Title</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Status</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Assignee</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Priority</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Due Date</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Client</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest text-right">Actions</th>
+            <tr className="bg-gray-50/50 border-b border-gray-100">
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Task Title</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Assignees</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-center">Priority</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Due Date</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Client Info</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-100/80">
             {filteredTasks.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-12 text-center text-gray-400 italic">No tasks found</td>
+                <td colSpan="7" className="px-6 py-16 text-center text-gray-400 italic font-medium">No tasks found</td>
               </tr>
             ) : (
               filteredTasks.map(task => {
@@ -580,8 +580,8 @@ export default function TasksTab() {
                 const clientType = CLIENT_TYPES.find(ct => ct.id === task.clientType)
                 
                 return (
-                  <tr key={task.id} className="hover:bg-gray-50 transition-colors group">
-                    <td className="px-6 py-4">
+                  <tr key={task.id} className="hover:bg-indigo-50/30 transition-all group">
+                    <td className="px-6 py-3">
                       <div className="flex items-center gap-3">
                         <button 
                           onClick={() => toggleStatus(task)}
@@ -591,68 +591,86 @@ export default function TasksTab() {
                         >
                           {task.status === 'Completed' ? <CheckCircle size={18} /> : <Circle size={18} />}
                         </button>
-                        <span className={`text-sm font-semibold text-gray-700 ${task.status === 'Completed' ? 'line-through text-gray-400' : ''}`}>
-                          {task.title}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className={`text-[13px] font-semibold text-gray-800 ${task.status === 'Completed' ? 'line-through text-gray-400' : ''}`}>
+                            {task.title}
+                          </span>
+                          {task.category === 'idea' && (
+                            <span className="text-[10px] text-indigo-500 font-bold uppercase tracking-tighter">Idea</span>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusInfo.bgColor} ${
+                    <td className="px-6 py-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-tight ${statusInfo.bgColor} ${
                         task.status === 'Completed' ? 'text-green-600' :
                         task.status === 'Review' ? 'text-purple-600' :
                         task.status === 'On Hold' ? 'text-amber-600' :
                         task.status === 'In Progress' ? 'text-orange-600' :
                         'text-blue-600'
-                      }`}>
-                        {statusInfo.icon}
+                      } border border-current/10 shadow-sm`}>
+                        {React.cloneElement(statusInfo.icon, { size: 10 })}
                         {task.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex -space-x-2">
+                    <td className="px-6 py-3">
+                      <div className="flex -space-x-1.5 items-center">
                         {assignees.map(emp => (
                           <div 
                             key={emp.id} 
-                            className="w-7 h-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
+                            className="w-7 h-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm transition-transform hover:scale-110 cursor-default"
                             title={emp.name}
                           >
                             {emp.name.charAt(0)}
                           </div>
                         ))}
-                        {assignees.length === 0 && <span className="text-xs text-gray-300">Unassigned</span>}
+                        {assignees.length === 0 && <span className="text-[10px] text-gray-400 font-medium">Unassigned</span>}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                        task.priority === 'urgent' ? 'bg-red-50 text-red-600' :
-                        task.priority === 'high' ? 'bg-amber-50 text-amber-600' :
-                        'bg-blue-50 text-blue-600'
+                    <td className="px-6 py-3 text-center">
+                      <span className={`inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded shadow-sm border ${
+                        task.priority === 'urgent' ? 'bg-red-50 text-red-600 border-red-100' :
+                        task.priority === 'high' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                        'bg-blue-50 text-blue-600 border-blue-100'
                       }`}>
                         {task.priority || 'normal'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs font-medium ${getDueDateColor(task.dueDate)} px-2 py-1 rounded-md`}>
-                        {task.dueDate ? formatDueDate(task.dueDate) : 'No date'}
-                      </span>
+                    <td className="px-6 py-3">
+                      <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${getDueDateColor(task.dueDate)} px-2 py-1 rounded-md border border-current/10 w-fit`}>
+                        <Clock size={12} />
+                        {task.dueDate ? formatDueDate(task.dueDate) : 'No deadline'}
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       {task.clientName ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-700 truncate max-w-[100px]">{task.clientName}</span>
-                          {clientType && <span title={clientType.label}>{clientType.icon}</span>}
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[12px] font-bold text-gray-800 truncate max-w-[120px]">{task.clientName}</span>
+                            {clientType && <span className="text-sm grayscale-0" title={clientType.label}>{clientType.icon}</span>}
+                          </div>
+                          <span className="text-[10px] text-gray-400 font-medium">{clientType?.label || 'Direct Client'}</span>
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-300">-</span>
+                        <span className="text-[11px] text-gray-300 font-medium tracking-widest">- - -</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => deleteTask(task.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    <td className="px-6 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="Edit Task"
+                        >
+                          <MoreHorizontal size={14} />
+                        </button>
+                        <button 
+                          onClick={() => deleteTask(task.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Task"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -661,6 +679,55 @@ export default function TasksTab() {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+
+  const renderIdeaTabView = () => (
+    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      <h3 className="text-xl font-black text-gray-900 mb-6 uppercase tracking-tight">Add New Idea</h3>
+      <form onSubmit={handleCreateTask} className="space-y-6">
+        <div className="space-y-2">
+          <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Idea Title (Data)</label>
+          <input
+            type="text"
+            placeholder="What's the core idea?"
+            className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none"
+            value={newTask.title}
+            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+            required
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Description (Text)</label>
+          <textarea
+            placeholder="Describe the idea in detail..."
+            rows="4"
+            className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none resize-none"
+            value={newTask.description}
+            onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Remarks</label>
+          <textarea
+            placeholder="Any additional remarks or context?"
+            rows="2"
+            className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none resize-none"
+            value={newTask.notes}
+            onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-lg text-sm font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+        >
+          <Plus size={18} strokeWidth={3} />
+          Save Idea
+        </button>
+      </form>
     </div>
   )
 
@@ -787,9 +854,9 @@ export default function TasksTab() {
   return (
     <div className="flex flex-col h-full bg-white text-gray-900 font-sans">
       {/* Header & Tabs */}
-      <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
+      <div className="px-6 py-6 border-b-4 border-gray-900 bg-white">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-black tracking-tighter uppercase">Tasks</h1>
           <button 
             onClick={() => {
               if (activeTab === 'reminders') {
@@ -799,58 +866,58 @@ export default function TasksTab() {
                 setShowAddModal(true)
               }
             }}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95"
+            className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-none text-xs font-black uppercase tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-none"
           >
-            <Plus size={18} />
+            <Plus size={18} strokeWidth={3} />
             <span>{activeTab === 'reminders' ? 'New Announcement' : 'New Task'}</span>
           </button>
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex gap-1">
+          <div className="flex gap-0 overflow-hidden border-2 border-gray-900">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-r-2 border-gray-900 last:border-r-0 ${
                   activeTab === tab.id 
-                    ? 'bg-gray-100 text-gray-900' 
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                    ? 'bg-gray-900 text-white' 
+                    : 'bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                {tab.icon}
+                {React.cloneElement(tab.icon, { size: 16, strokeWidth: 3 })}
                 {tab.label}
               </button>
             ))}
           </div>
 
           {activeTab !== 'reminders' && activeTab !== 'idea' && (
-            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
+            <div className="flex items-center gap-0 border-2 border-gray-900 overflow-hidden">
               <button
                 onClick={() => setViewMode('board')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  viewMode === 'board' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                className={`flex items-center gap-2 px-4 py-3 text-[10px] font-black uppercase tracking-wider transition-all border-r-2 border-gray-900 ${
+                  viewMode === 'board' ? 'bg-gray-900 text-white' : 'bg-white text-gray-400 hover:text-gray-900'
                 }`}
               >
-                <Layout size={14} />
+                <Layout size={14} strokeWidth={3} />
                 <span>Board</span>
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                className={`flex items-center gap-2 px-4 py-3 text-[10px] font-black uppercase tracking-wider transition-all border-r-2 border-gray-900 ${
+                  viewMode === 'table' ? 'bg-gray-900 text-white' : 'bg-white text-gray-400 hover:text-gray-900'
                 }`}
               >
-                <Table size={14} />
+                <Table size={14} strokeWidth={3} />
                 <span>Table</span>
               </button>
               <button
                 onClick={() => setViewMode('dashboard')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  viewMode === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                className={`flex items-center gap-2 px-4 py-3 text-[10px] font-black uppercase tracking-wider transition-all ${
+                  viewMode === 'dashboard' ? 'bg-gray-900 text-white' : 'bg-white text-gray-400 hover:text-gray-900'
                 }`}
               >
-                <BarChart2 size={14} />
+                <BarChart2 size={14} strokeWidth={3} />
                 <span>Dashboard</span>
               </button>
             </div>
@@ -1014,7 +1081,7 @@ export default function TasksTab() {
             )}
           </div>
         ) : activeTab === 'idea' ? (
-          renderBoardView()
+          renderIdeaTabView()
         ) : (
           <>
             {viewMode === 'board' && renderBoardView()}
