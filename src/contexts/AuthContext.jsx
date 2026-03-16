@@ -49,7 +49,7 @@ async function readUserDoc(uid) {
           'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
           'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
           'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
-          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking'
+          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
         ]
         
         modules.forEach(m => {

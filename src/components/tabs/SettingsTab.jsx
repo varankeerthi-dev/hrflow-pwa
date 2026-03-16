@@ -502,7 +502,7 @@ export default function SettingsTab() {
           'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
           'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
           'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
-          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking'
+          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
         ]
         modules.forEach(m => {
           selectedRolePerms[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
@@ -698,7 +698,7 @@ export default function SettingsTab() {
           'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
           'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
           'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
-          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking'
+          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
         ]
         modules.forEach(m => {
           rolePermissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
@@ -828,7 +828,7 @@ export default function SettingsTab() {
           'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
           'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
           'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
-          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking'
+          'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
         ]
         modules.forEach(m => {
           permissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }

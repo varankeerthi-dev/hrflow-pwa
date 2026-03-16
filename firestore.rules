@@ -1,33 +1,112 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if a user is an employee of an organisation
-    function isEmployee(orgId) {
-      return request.auth != null && exists(/databases/$(database)/documents/organisations/$(orgId)/employees/$(request.auth.uid));
+    
+    // Helper function to get user's data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-
-    // Rules for users collection
+    
+    // Helper function to get user's orgId
+    function getUserOrgId() {
+      return request.auth != null ? getUserData().orgId : null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && getUserData().role == 'admin';
+    }
+    
+    // Helper function to check if user is HR
+    function isHR() {
+      return request.auth != null && getUserData().role == 'HR';
+    }
+    
+    // Helper function to check if user is admin or HR
+    function isAdminOrHR() {
+      return isAdmin() || isHR();
+    }
+    
+    // Helper function to check if user belongs to an org
+    function isOrgMember() {
+      return request.auth != null && getUserOrgId() != null;
+    }
+    
+    // Users collection
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null && (
+        request.auth.uid == uid || 
+        (isOrgMember() && getUserOrgId() == resource.data.orgId)
+      );
+      allow create: if request.auth != null && (
+        request.auth.uid == uid || 
+        (isAdmin() && getUserOrgId() == request.resource.data.orgId)
+      );
+      allow update: if request.auth != null && (
+        request.auth.uid == uid || 
+        (isAdmin() && getUserOrgId() == resource.data.orgId)
+      );
+      allow delete: if isAdmin() && isOrgMember() && getUserOrgId() == resource.data.orgId;
     }
-
-    // Rules for organisations collection
+    
+    // Organisations collection
     match /organisations/{orgId} {
-      // Allow creation of a new organisation if authenticated
-      allow create: if request.auth != null;
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && getUserOrgId() == orgId;
+      allow create: if request.auth != null && (getUserOrgId() == null || getUserOrgId() == orgId);
+      allow update, delete: if isAdmin() && getUserOrgId() == orgId;
       
-      // Allow read of organisation details if they are an employee
-      // Also allow read for any authenticated user so they can join/verify org existence
-      allow read: if request.auth != null;
-
-      // Allow write (update/delete) for employees of this organisation
-      // Note: In a real system, you might want to restrict this further to admins
-      allow update, delete: if isEmployee(orgId);
-
-      // Rules for all sub-collections within an organisation
-      match /{allSubCollections=**} {
-        allow read, write: if isEmployee(orgId);
+      // Generic rule for sub-collections: Org members can read, Admin/HR can write
+      match /{collection}/{docId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId;
+        allow write: if isAdminOrHR() && getUserOrgId() == orgId;
       }
+
+      // Specific overrides
+      
+      // Attendance: Org members can read/write their own and others (for team view)
+      match /attendance/{attId} {
+        allow read, write: if isOrgMember() && getUserOrgId() == orgId;
+        allow delete: if isAdminOrHR() && getUserOrgId() == orgId;
+      }
+      
+      // Corrections, OT Requests, Advances, Leaves, Fines: Org members can create
+      match /corrections/{id} { allow create: if isOrgMember() && getUserOrgId() == orgId; }
+      match /otRequests/{id} { allow create: if isOrgMember() && getUserOrgId() == orgId; }
+      match /otApprovals/{id} { allow read, create: if isOrgMember() && getUserOrgId() == orgId; }
+      match /advances/{id} { allow create: if isOrgMember() && getUserOrgId() == orgId; }
+      match /leaves/{id} { allow create: if isOrgMember() && getUserOrgId() == orgId; }
+      match /fines/{id} { allow create: if isOrgMember() && getUserOrgId() == orgId; }
+      
+      // Activity Logs & Logs: Org members can read/create
+      match /activityLogs/{id} { allow read, create: if isOrgMember() && getUserOrgId() == orgId; }
+      match /logs/{id} { allow read, create: if isOrgMember() && getUserOrgId() == orgId; }
+      
+      // Recruitment (Jobs & Applicants)
+      match /jobs/{id} { allow read: if isOrgMember() && getUserOrgId() == orgId; }
+      match /applicants/{id} { allow read, create: if isOrgMember() && getUserOrgId() == orgId; }
+      
+      // Documents
+      match /documents/{id} { allow read: if isOrgMember() && getUserOrgId() == orgId; }
+      
+      // Tasks
+      match /tasks/{taskId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId && (
+          resource == null || !resource.data.isPersonal || resource.data.createdBy == request.auth.uid
+        );
+        allow create: if isOrgMember() && getUserOrgId() == orgId && request.resource.data.orgId == orgId;
+        allow update: if isOrgMember() && getUserOrgId() == orgId && (
+          !resource.data.isPersonal || resource.data.createdBy == request.auth.uid
+        );
+        allow delete: if isOrgMember() && getUserOrgId() == orgId && (
+          !resource.data.isPersonal || resource.data.createdBy == request.auth.uid
+        );
+      }
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

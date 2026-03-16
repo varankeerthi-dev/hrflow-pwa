@@ -52,6 +52,7 @@ import EngagementTab from '../components/tabs/EngagementTab'
 import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SettingsTab from '../components/tabs/SettingsTab'
+import TasksTab from '../components/tabs/TasksTab'
 
 // ─── Org Setup Modal ────────
 function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
@@ -220,6 +221,7 @@ export default function MobileDashboard() {
     { id: 'leave', label: 'Leave', icon: <Mail size={20} className="text-purple-600" />, module: 'Leave', color: 'bg-purple-50' },
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle size={20} className="text-cyan-600" />, module: 'Approvals', color: 'bg-cyan-50' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={20} className="text-indigo-600" />, module: 'HRLetters', color: 'bg-indigo-50' },
+    { id: 'tasks', label: 'Tasks', icon: <CheckCircle size={20} className="text-indigo-600" />, module: 'Tasks', color: 'bg-indigo-50' },
     { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={20} className="text-blue-600" />, module: 'Recruitment', color: 'bg-blue-50' },
     { id: 'documents', label: 'Documents', icon: <Folder size={20} className="text-amber-600" />, module: 'DocumentManagement', color: 'bg-amber-50' },
     { id: 'summary', label: 'Summary', icon: <BarChart3 size={20} className="text-pink-600" />, module: 'Summary', color: 'bg-pink-50' },
@@ -403,6 +405,8 @@ export default function MobileDashboard() {
         return <ApprovalsTab />
       case 'letters':
         return <HRLettersTab />
+      case 'tasks':
+        return <TasksTab />
       case 'recruitment':
         return <RecruitmentTab />
       case 'documents':

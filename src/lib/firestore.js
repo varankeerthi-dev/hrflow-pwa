@@ -50,3 +50,9 @@ export const documentsCol = (orgId) =>
 
 export const documentDoc = (orgId, docId) =>
   doc(db, 'organisations', orgId, 'documents', docId)
+
+export const tasksCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'tasks')
+
+export const taskDoc = (orgId, taskId) =>
+  doc(db, 'organisations', orgId, 'tasks', taskId)
