@@ -50,6 +50,17 @@ export default function SettingsTab() {
   const [previewEmpIndex, setPreviewEmpIndex] = useState(0)
   const [showInvitePage, setShowInvitePage] = useState(false)
   const [seeding, setSeeding] = useState(false)
+  const [approvalSettings, setApprovalSettings] = useState([])
+  const [showAddApproval, setShowAddApproval] = useState(false)
+  const [editingApproval, setEditingApproval] = useState(null)
+  const [newApproval, setNewApproval] = useState({
+    moduleName: 'Leave',
+    type: 'single',
+    approvers: [], // Array of role names or user IDs
+    stages: [
+      { role: '', amountLimit: '' }
+    ]
+  })
 
   const userPermissions = user?.permissions || {}
   const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -60,7 +71,8 @@ export default function SettingsTab() {
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
     { id: 'advance_cat', label: 'Advance Cats', module: 'AdvanceExpense' },
-    { id: 'holidays', label: 'Holidays', module: 'Settings' }
+    { id: 'holidays', label: 'Holidays', module: 'Settings' },
+    { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' }
   ]
   
   const visibleSubTabs = useMemo(() => {
@@ -935,6 +947,268 @@ export default function SettingsTab() {
     }
   }
 
+  useEffect(() => {
+    if (!user?.orgId) return
+    const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'), orderBy('createdAt', 'desc'))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setApprovalSettings(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+    return () => unsubscribe()
+  }, [user?.orgId])
+
+  const handleSaveApproval = async () => {
+    if (!user?.orgId) return
+    try {
+      const payload = {
+        ...newApproval,
+        updatedAt: serverTimestamp()
+      }
+      if (editingApproval) {
+        await updateDoc(doc(db, 'organisations', user.orgId, 'approvalSettings', editingApproval.id), payload)
+      } else {
+        await addDoc(collection(db, 'organisations', user.orgId, 'approvalSettings'), {
+          ...payload,
+          createdAt: serverTimestamp()
+        })
+      }
+      setShowAddApproval(false)
+      setEditingApproval(null)
+      setNewApproval({ moduleName: 'Leave', type: 'single', approvers: [], stages: [{ role: '', amountLimit: '' }] })
+    } catch (err) {
+      console.error('Save approval error:', err)
+      alert('Failed to save approval setting.')
+    }
+  }
+
+  const handleDeleteApproval = async (id) => {
+    if (!user?.orgId || !confirm('Are you sure you want to delete this approval setting?')) return
+    try {
+      await deleteDoc(doc(db, 'organisations', user.orgId, 'approvalSettings', id))
+    } catch (err) {
+      console.error('Delete approval error:', err)
+      alert('Failed to delete.')
+    }
+  }
+
+  const renderApprovalSettings = () => {
+    return (
+      <div className="space-y-4 no-print">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Approval Settings</h2>
+              <p className="text-sm text-gray-500">Configure approval workflows for different modules</p>
+            </div>
+            <button
+              onClick={() => {
+                setEditingApproval(null)
+                setNewApproval({ moduleName: 'Leave', type: 'single', approvers: [], stages: [{ role: '', amountLimit: '' }] })
+                setShowAddApproval(true)
+              }}
+              className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 flex items-center gap-2"
+            >
+              <Plus size={16} /> New Approval
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50 border-y border-gray-100">
+                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Module</th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Approvers / Stages</th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {approvalSettings.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-10 text-center text-gray-400">No approval settings configured.</td>
+                  </tr>
+                ) : approvalSettings.map(setting => (
+                  <tr key={setting.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-4">
+                      <span className="font-semibold text-gray-900">{setting.moduleName}</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${setting.type === 'multi' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {setting.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-600">
+                      {setting.type === 'single' ? (
+                        <div className="flex flex-wrap gap-1">
+                          {setting.approvers?.map(a => <span key={a} className="bg-gray-100 px-2 py-0.5 rounded text-xs">{a}</span>)}
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {setting.stages?.map((s, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs">
+                              <span className="font-bold text-gray-400">{i + 1}.</span>
+                              <span className="font-medium">{s.role}</span>
+                              {s.amountLimit && <span className="text-indigo-600 font-mono">(&le; {s.amountLimit})</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => { setEditingApproval(setting); setNewApproval(setting); setShowAddApproval(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit size={16} /></button>
+                        <button onClick={() => handleDeleteApproval(setting.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {showAddApproval && (
+          <Modal title={editingApproval ? "Edit Approval" : "New Approval"} onClose={() => setShowAddApproval(false)}>
+            <div className="space-y-5 p-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Module Name</label>
+                  <select
+                    value={newApproval.moduleName}
+                    onChange={(e) => setNewApproval({ ...newApproval, moduleName: e.target.value })}
+                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/5 transition-all"
+                  >
+                    <option value="Leave">Leave</option>
+                    <option value="Advance amount approval">Advance amount approval</option>
+                    <option value="Expense amount approval">Expense amount approval</option>
+                    <option value="Other">Other Approval</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Approval Type</label>
+                  <div className="flex gap-2 p-1 bg-gray-50 rounded-lg border border-gray-200">
+                    <button
+                      onClick={() => setNewApproval({ ...newApproval, type: 'single' })}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${newApproval.type === 'single' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      Single
+                    </button>
+                    <button
+                      onClick={() => setNewApproval({ ...newApproval, type: 'multi' })}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${newApproval.type === 'multi' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      Multi
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {newApproval.type === 'single' ? (
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Who can approve? (Choose multiple)</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Admin', 'HR', 'MD', 'Accountant', 'Finance'].map(role => (
+                      <button
+                        key={role}
+                        onClick={() => {
+                          const current = newApproval.approvers || []
+                          const updated = current.includes(role) ? current.filter(r => r !== role) : [...current, role]
+                          setNewApproval({ ...newApproval, approvers: updated })
+                        }}
+                        className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-all ${newApproval.approvers?.includes(role) ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
+                  {(newApproval.moduleName.includes('Advance') || newApproval.moduleName.includes('Expense')) && (
+                    <div className="mt-4 space-y-1.5">
+                      <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Amount Limit (Optional - Any if blank)</label>
+                      <input
+                        type="number"
+                        placeholder="Set amount limit or choose any"
+                        value={newApproval.amountLimit || ''}
+                        onChange={(e) => setNewApproval({ ...newApproval, amountLimit: e.target.value })}
+                        className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/5"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Approval Stages (Dynamic)</label>
+                    <button
+                      onClick={() => setNewApproval({ ...newApproval, stages: [...(newApproval.stages || []), { role: '', amountLimit: '' }] })}
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase"
+                    >
+                      + Add Stage
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {newApproval.stages?.map((stage, idx) => (
+                      <div key={idx} className="flex gap-3 items-end bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <div className="flex-1 space-y-1.5">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase">Stage {idx + 1} Role</label>
+                          <select
+                            value={stage.role}
+                            onChange={(e) => {
+                              const updated = [...newApproval.stages]
+                              updated[idx].role = e.target.value
+                              setNewApproval({ ...newApproval, stages: updated })
+                            }}
+                            className="w-full h-9 px-2 bg-white border border-gray-200 rounded-lg text-xs outline-none"
+                          >
+                            <option value="">Select Role</option>
+                            {['Admin', 'HR', 'MD', 'Accountant', 'Finance'].map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase">Limit (Optional)</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 500"
+                            value={stage.amountLimit || ''}
+                            onChange={(e) => {
+                              const updated = [...newApproval.stages]
+                              updated[idx].amountLimit = e.target.value
+                              setNewApproval({ ...newApproval, stages: updated })
+                            }}
+                            className="w-full h-9 px-2 bg-white border border-gray-200 rounded-lg text-xs outline-none"
+                          />
+                        </div>
+                        <button
+                          onClick={() => setNewApproval({ ...newApproval, stages: newApproval.stages.filter((_, i) => i !== idx) })}
+                          className="h-9 w-9 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4 border-t border-gray-100 mt-6">
+                <button
+                  onClick={() => setShowAddApproval(false)}
+                  className="flex-1 h-11 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveApproval}
+                  className="flex-1 h-11 bg-gray-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-gray-800 shadow-lg shadow-gray-200 transition-all"
+                >
+                  Save Approval
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </div>
+    )
+  }
+
   const handlePrintRoster = () => { window.print() }
 
   const makeAllEmployeesAdmin = async () => {
@@ -1245,6 +1519,8 @@ export default function SettingsTab() {
             <button onClick={() => handleSaveOrg('Holiday list updated successfully!')} className="w-full mt-8 bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase shadow-xl tracking-widest">Update Holiday List</button>
           </div>
         )}
+
+        {activeSubTab === 'approval_settings' && renderApprovalSettings()}
 
         {activeSubTab === 'employee' && (() => {
           // Derive filter options
