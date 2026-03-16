@@ -1172,86 +1172,109 @@ export default function TasksTab() {
         isOpen={showAddModal} 
         onClose={() => setShowAddModal(false)}
         title="Create New Task"
+        size="2xl"
       >
-        <form onSubmit={handleCreateTask} className="space-y-4">
-          {/* Title */}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Task Title</label>
-            <input
-              type="text"
-              required
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all placeholder:text-gray-300"
-              placeholder="What needs to be done?"
-              value={newTask.title}
-              onChange={e => setNewTask({ ...newTask, title: e.target.value })}
-              autoFocus
-            />
-          </div>
+        <form onSubmit={handleCreateTask} className="p-6 space-y-6">
+          {/* Title Section */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Task Title</label>
+              <input
+                type="text"
+                required
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
+                placeholder="What needs to be done?"
+                value={newTask.title}
+                onChange={e => setNewTask({ ...newTask, title: e.target.value })}
+                autoFocus
+              />
+            </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Description</label>
-            <textarea
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all min-h-[100px] resize-none placeholder:text-gray-300"
-              placeholder="Add some details..."
-              value={newTask.description}
-              onChange={e => setNewTask({ ...newTask, description: e.target.value })}
-            />
-          </div>
-
-          {/* Priority Selector */}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Priority</label>
-            <div className="flex gap-2">
-              {['normal', 'high', 'urgent'].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setNewTask({ ...newTask, priority: p })}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border-2 ${
-                    newTask.priority === p 
-                      ? p === 'urgent' ? 'bg-red-50 border-red-500 text-red-600' :
-                        p === 'high' ? 'bg-amber-50 border-amber-500 text-amber-600' :
-                        'bg-indigo-50 border-indigo-500 text-indigo-600'
-                      : 'border-gray-100 text-gray-400 hover:border-gray-200'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Description</label>
+              <textarea
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[80px] resize-none placeholder:text-gray-400"
+                placeholder="Add some details..."
+                value={newTask.description}
+                onChange={e => setNewTask({ ...newTask, description: e.target.value })}
+              />
             </div>
           </div>
 
-          {/* Dates & Status */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Due Date</label>
-              <div className="relative">
-                <DatePicker
-                  selected={newTask.dueDate}
-                  onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all"
-                  placeholderText="Optional"
-                  dateFormat="MMM d, yyyy"
-                />
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-6">
+              {/* Priority Selector */}
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Priority</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['normal', 'high', 'urgent'].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setNewTask({ ...newTask, priority: p })}
+                      className={`py-2 rounded-lg text-[10px] font-medium uppercase tracking-wider transition-all border ${
+                        newTask.priority === p 
+                          ? p === 'urgent' ? 'bg-red-50 border-red-200 text-red-600 shadow-sm shadow-red-100' :
+                            p === 'high' ? 'bg-amber-50 border-amber-200 text-amber-600 shadow-sm shadow-amber-100' :
+                            'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm shadow-indigo-100'
+                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Initial Status</label>
+                <select
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                  value={newTask.status}
+                  onChange={e => setNewTask({ ...newTask, status: e.target.value })}
+                >
+                  {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Initial Status</label>
-              <select
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all appearance-none bg-white"
-                value={newTask.status}
-                onChange={e => setNewTask({ ...newTask, status: e.target.value })}
-              >
-                {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
+
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Due Date */}
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Due Date</label>
+                <div className="relative">
+                  <DatePicker
+                    selected={newTask.dueDate}
+                    onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
+                    placeholderText="Optional"
+                    dateFormat="MMM d, yyyy"
+                  />
+                  <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+                </div>
+              </div>
+
+              {/* Internal Notes */}
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Internal Notes</label>
+                <input
+                  type="text"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
+                  placeholder="Quick notes (internal only)"
+                  value={newTask.notes}
+                  onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
+                />
+              </div>
             </div>
           </div>
 
           {/* Multi-Assignee Selector */}
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Assign To</label>
-            <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-xl min-h-[45px]">
+            <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Assign To</label>
+            <div className="flex flex-wrap gap-1.5 p-3 bg-gray-50/50 border border-gray-200 rounded-lg min-h-[45px]">
               {loginEnabledEmployees.map(emp => {
                 const isSelected = newTask.assignedTo?.includes(emp.id)
                 return (
@@ -1265,64 +1288,56 @@ export default function TasksTab() {
                         : [...current, emp.id]
                       setNewTask({ ...newTask, assignedTo: updated })
                     }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-all flex items-center gap-1.5 border ${
                       isSelected 
-                        ? 'bg-indigo-600 text-white' 
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-100' 
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
+                    <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-gray-300'}`} />
                     {emp.name}
                   </button>
                 )
               })}
               {loginEnabledEmployees.length === 0 && (
-                <p className="text-[10px] text-gray-400 italic p-2">No login-enabled users found</p>
+                <p className="text-[10px] text-gray-400 italic py-1">No login-enabled users found</p>
               )}
             </div>
           </div>
 
-          {/* Internal Notes */}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Internal Notes</label>
-            <input
-              type="text"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all placeholder:text-gray-300"
-              placeholder="Quick notes (internal only)"
-              value={newTask.notes}
-              onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
-            />
-          </div>
-
-          {/* Client Tracking */}
-          <div className="bg-gray-50 p-4 rounded-xl space-y-4 border border-gray-100">
-            <h5 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-              <span>👤 Client Tracking</span>
-              <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">Optional</span>
-            </h5>
+          {/* Client Tracking - Shadcn-like Card */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+            <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+              <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                <User size={12} className="text-gray-400" />
+                Client Tracking
+              </h5>
+              <span className="text-[10px] font-medium text-gray-400 italic">Optional</span>
+            </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Client Name</label>
+                <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">Client Name</label>
                 <input
                   type="text"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all bg-white"
+                  className="w-full bg-gray-50/30 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                   placeholder="e.g. John Doe"
                   value={newTask.clientName}
                   onChange={e => setNewTask({ ...newTask, clientName: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Client Type</label>
-                <div className="flex gap-1.5">
+                <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">Client Type</label>
+                <div className="flex gap-2">
                   {CLIENT_TYPES.map(type => (
                     <button
                       key={type.id}
                       type="button"
                       onClick={() => setNewTask({ ...newTask, clientType: newTask.clientType === type.id ? null : type.id })}
-                      className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase transition-all border-2 ${
+                      className={`flex-1 py-2 rounded-lg text-xs transition-all border ${
                         newTask.clientType === type.id 
-                          ? `${type.bgColor} ${type.borderColor} ${type.color}`
-                          : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                          ? `${type.bgColor} ${type.borderColor} ${type.color} shadow-sm`
+                          : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
                       }`}
                       title={type.label}
                     >
@@ -1334,8 +1349,8 @@ export default function TasksTab() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 py-2 border-t border-gray-50 mt-4 pt-4">
-            <label className="flex items-center gap-2 cursor-pointer group">
+          <div className="flex items-center gap-6 py-2">
+            <label className="flex items-center gap-3 cursor-pointer group">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -1343,12 +1358,12 @@ export default function TasksTab() {
                   checked={newTask.isPersonal}
                   onChange={e => setNewTask({ ...newTask, isPersonal: e.target.checked })}
                 />
-                <div className="w-10 h-6 bg-gray-200 rounded-full peer peer-checked:bg-indigo-600 transition-colors after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-indigo-600 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4 shadow-sm"></div>
               </div>
-              <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Personal Task</span>
+              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Personal Task</span>
             </label>
 
-            <label className="flex items-center gap-2 cursor-pointer group">
+            <label className="flex items-center gap-3 cursor-pointer group">
               <div className="relative flex items-center">
                 <input
                   type="checkbox"
@@ -1356,23 +1371,23 @@ export default function TasksTab() {
                   checked={newTask.category === 'idea'}
                   onChange={e => setNewTask({ ...newTask, category: e.target.checked ? 'idea' : 'task' })}
                 />
-                <div className="w-10 h-6 bg-gray-200 rounded-full peer peer-checked:bg-amber-500 transition-colors after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-amber-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4 shadow-sm"></div>
               </div>
-              <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Mark as Idea</span>
+              <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Mark as Idea</span>
             </label>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-4 border-t border-gray-100">
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
-              className="flex-1 px-4 py-3 border border-gray-200 text-gray-600 rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+              className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-indigo-700 transition-shadow shadow-lg shadow-indigo-100 active:scale-[0.98]"
+              className="flex-1 px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 active:scale-[0.98]"
             >
               Create Task
             </button>
