@@ -108,6 +108,18 @@ service cloud.firestore {
           !resource.data.isPersonal || resource.data.createdBy == request.auth.uid
         );
       }
+
+      // Team Chat
+      match /chats/{chatId} {
+        allow read: if isOrgMember() && getUserOrgId() == orgId && request.auth.uid in resource.data.participantIds;
+        allow create: if isOrgMember() && getUserOrgId() == orgId && request.auth.uid in request.resource.data.participantIds;
+        allow update: if isOrgMember() && getUserOrgId() == orgId && request.auth.uid in resource.data.participantIds;
+        
+        match /messages/{messageId} {
+          allow read: if isOrgMember() && getUserOrgId() == orgId && request.auth.uid in get(/databases/$(database)/documents/organisations/$(orgId)/chats/$(chatId)).data.participantIds;
+          allow create: if isOrgMember() && getUserOrgId() == orgId && request.auth.uid in get(/databases/$(database)/documents/organisations/$(orgId)/chats/$(chatId)).data.participantIds;
+        }
+      }
     }
     
     // Default deny

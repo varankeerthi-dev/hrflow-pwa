@@ -27,7 +27,8 @@ import {
   FileText,
   Mail,
   MoreHorizontal,
-  History
+  History,
+  MessageSquare
 } from 'lucide-react'
 import ActivityLogSidebar from '../components/ui/ActivityLogSidebar'
 import AttendanceTab from '../components/tabs/AttendanceTab'
@@ -46,6 +47,7 @@ import HRLettersTab from '../components/tabs/HRLettersTab'
 import RecruitmentTab from '../components/tabs/RecruitmentTab'
 import DocumentsTab from '../components/tabs/DocumentsTab'
 import TasksTab from '../components/tabs/TasksTab'
+import ChatTab from '../components/tabs/ChatTab'
 import HomeTab from '../components/tabs/HomeTab'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
@@ -252,6 +254,7 @@ export default function Dashboard() {
     { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
 
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
+    { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
     { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, module: 'Tasks' },
     
@@ -263,7 +266,7 @@ export default function Dashboard() {
     { id: 'main', title: 'MAIN', tabs: ['home'] },
     { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'recruitment', 'documents', 'summary'] },
     { id: 'payroll', title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
-    { id: 'workforce', title: 'WORKFORCE', tabs: ['engage', 'shift-planning', 'tasks'] },
+    { id: 'workforce', title: 'WORKFORCE', tabs: ['engage', 'chat', 'shift-planning', 'tasks'] },
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
@@ -306,6 +309,7 @@ export default function Dashboard() {
       case 'advance': return <AdvanceExpenseTab />
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
+      case 'chat': return <ChatTab />
       case 'shift-planning': return <ShiftPlanningTab />
       case 'tasks': return <TasksTab />
       case 'portal': return <EmployeePortalTab portalSubTab={portalSubTab} />

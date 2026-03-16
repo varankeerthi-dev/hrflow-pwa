@@ -33,7 +33,8 @@ import {
   CheckCircle,
   XOctagon,
   ArrowLeft,
-  Menu
+  Menu,
+  MessageSquare
 } from 'lucide-react'
 
 import HomeTab from '../components/tabs/HomeTab'
@@ -53,6 +54,7 @@ import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 import TasksTab from '../components/tabs/TasksTab'
+import ChatTab from '../components/tabs/ChatTab'
 import Badge from '../components/ui/Badge'
 
 // ─── Org Setup Modal ────────
@@ -230,6 +232,7 @@ export default function MobileDashboard() {
       { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400', section: 'Payroll' },
       { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400', section: 'Payroll' },
       { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400', section: 'Core' },
+      { id: 'chat', label: 'Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', section: 'Core' },
       { id: 'shift-planning', label: 'Shift Plan', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400', section: 'Operations' },
       { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400', section: 'Core' },
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400', section: 'System' },
@@ -432,6 +435,8 @@ export default function MobileDashboard() {
         return <FineTab />
       case 'engage':
         return <EngagementTab />
+      case 'chat':
+        return <ChatTab />
       case 'shift-planning':
         return <ShiftPlanningTab />
       case 'portal':

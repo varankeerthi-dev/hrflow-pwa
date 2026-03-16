@@ -56,3 +56,9 @@ export const tasksCol = (orgId) =>
 
 export const taskDoc = (orgId, taskId) =>
   doc(db, 'organisations', orgId, 'tasks', taskId)
+
+export const chatsCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'chats')
+
+export const messagesCol = (orgId, chatId) =>
+  collection(db, 'organisations', orgId, 'chats', chatId, 'messages')

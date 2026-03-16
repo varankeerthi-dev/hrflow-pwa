@@ -1067,7 +1067,11 @@ export default function SettingsTab() {
         </div>
 
         {showAddApproval && (
-          <Modal title={editingApproval ? "Edit Approval" : "New Approval"} onClose={() => setShowAddApproval(false)}>
+          <Modal 
+            isOpen={showAddApproval} 
+            title={editingApproval ? "Edit Approval" : "New Approval"} 
+            onClose={() => setShowAddApproval(false)}
+          >
             <div className="space-y-5 p-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -1080,7 +1084,7 @@ export default function SettingsTab() {
                     <option value="Leave">Leave</option>
                     <option value="Advance amount approval">Advance amount approval</option>
                     <option value="Expense amount approval">Expense amount approval</option>
-                    <option value="Other">Other Approval</option>
+                    <option value="Any other approval">Any other approval</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
