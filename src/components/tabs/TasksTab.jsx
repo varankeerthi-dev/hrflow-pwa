@@ -82,7 +82,7 @@ export default function TasksTab() {
           status,
           isPersonal: activeTab === 'personal',
           category: activeTab === 'idea' ? 'idea' : 'task',
-          assignedTo: activeTab === 'personal' ? user.uid : ''
+          assignedTo: activeTab === 'personal' ? [user.uid] : []
         })
         setInlineInputs({ ...inlineInputs, [status]: '' })
       } catch (err) {
