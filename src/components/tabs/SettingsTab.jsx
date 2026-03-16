@@ -183,6 +183,7 @@ export default function SettingsTab() {
     { id: 'Helpdesk', label: 'Helpdesk', group: 'Future' },
     { id: 'Projects', label: 'Projects', group: 'Future' },
     { id: 'TimeTracking', label: 'Time Tracking', group: 'Future' },
+    { id: 'Tasks', label: 'Tasks', group: 'Future' },
   ]
 
   const modules = allModulesList.map(m => m.id)

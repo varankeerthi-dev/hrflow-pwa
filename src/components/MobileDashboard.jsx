@@ -214,25 +214,25 @@ export default function MobileDashboard() {
     return employees.find(e => e.email === user.email) || employees[0]
   }, [employees, user])
 
-  const allModules = useMemo(() => [
-    { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={20} className="text-blue-600" />, module: 'EmployeePortal', color: 'bg-blue-50' },
-    { id: 'attendance', label: 'Attendance', icon: <Calendar size={20} className="text-green-600" />, module: 'Attendance', color: 'bg-green-50' },
-    { id: 'correction', label: 'Correction', icon: <PencilLine size={20} className="text-orange-600" />, module: 'Correction', color: 'bg-orange-50' },
-    { id: 'leave', label: 'Leave', icon: <Mail size={20} className="text-purple-600" />, module: 'Leave', color: 'bg-purple-50' },
-    { id: 'approvals', label: 'Approvals', icon: <CheckCircle size={20} className="text-cyan-600" />, module: 'Approvals', color: 'bg-cyan-50' },
-    { id: 'letters', label: 'HR Letters', icon: <FileText size={20} className="text-indigo-600" />, module: 'HRLetters', color: 'bg-indigo-50' },
-    { id: 'tasks', label: 'Tasks', icon: <CheckCircle size={20} className="text-indigo-600" />, module: 'Tasks', color: 'bg-indigo-50' },
-    { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={20} className="text-blue-600" />, module: 'Recruitment', color: 'bg-blue-50' },
-    { id: 'documents', label: 'Documents', icon: <Folder size={20} className="text-amber-600" />, module: 'DocumentManagement', color: 'bg-amber-50' },
-    { id: 'summary', label: 'Summary', icon: <BarChart3 size={20} className="text-pink-600" />, module: 'Summary', color: 'bg-pink-50' },
-    { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={20} className="text-emerald-600" />, module: 'SalarySlip', color: 'bg-emerald-50' },
-    { id: 'advance', label: 'Advances', icon: <Wallet size={20} className="text-teal-600" />, module: 'AdvanceExpense', color: 'bg-teal-50' },
-    { id: 'fines', label: 'Fines', icon: <Gavel size={20} className="text-red-600" />, module: 'Fine', color: 'bg-red-50' },
-    { id: 'engage', label: 'Engage', icon: <Handshake size={20} className="text-amber-600" />, module: 'Engagement', color: 'bg-amber-50' },
-    { id: 'shift-planning', label: 'Shift Plan', icon: <Calendar size={20} className="text-violet-600" />, module: 'ShiftPlanning', color: 'bg-violet-50' },
-    { id: 'portal', label: 'My Portal', icon: <User size={20} className="text-indigo-600" />, module: 'EmployeePortal', color: 'bg-indigo-50' },
-    { id: 'settings', label: 'Settings', icon: <Settings size={20} className="text-gray-600" />, module: 'Settings', color: 'bg-gray-50' },
-  ], [])
+    const allModules = useMemo(() => [
+      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={20} className="text-blue-600" />, module: 'EmployeePortal', color: 'bg-blue-50' },
+      { id: 'attendance', label: 'Attendance', icon: <Calendar size={20} className="text-green-600" />, module: 'Attendance', color: 'bg-green-50' },
+      { id: 'correction', label: 'Correction', icon: <PencilLine size={20} className="text-orange-600" />, module: 'Correction', color: 'bg-orange-50' },
+      { id: 'leave', label: 'Leave', icon: <Mail size={20} className="text-purple-600" />, module: 'Leave', color: 'bg-purple-50' },
+      { id: 'approvals', label: 'Approvals', icon: <CheckCircle size={20} className="text-cyan-600" />, module: 'Approvals', color: 'bg-cyan-50' },
+      { id: 'letters', label: 'HR Letters', icon: <FileText size={20} className="text-indigo-600" />, module: 'HRLetters', color: 'bg-indigo-50' },
+      { id: 'tasks', label: 'Tasks', icon: <CheckCircle size={20} className="text-indigo-600" />, module: 'Tasks', color: 'bg-indigo-50' },
+      { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={20} className="text-blue-600" />, module: 'Recruitment', color: 'bg-blue-50' },
+      { id: 'documents', label: 'Documents', icon: <Folder size={20} className="text-amber-600" />, module: 'DocumentManagement', color: 'bg-amber-50' },
+      { id: 'summary', label: 'Summary', icon: <BarChart3 size={20} className="text-pink-600" />, module: 'Summary', color: 'bg-pink-50' },
+      { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={20} className="text-emerald-600" />, module: 'SalarySlip', color: 'bg-emerald-50' },
+      { id: 'advance', label: 'Advances', icon: <Wallet size={20} className="text-teal-600" />, module: 'AdvanceExpense', color: 'bg-teal-50' },
+      { id: 'fines', label: 'Fines', icon: <Gavel size={20} className="text-red-600" />, module: 'Fine', color: 'bg-red-50' },
+      { id: 'engage', label: 'Engage', icon: <Handshake size={20} className="text-amber-600" />, module: 'Engagement', color: 'bg-amber-50' },
+      { id: 'shift-planning', label: 'Shift Plan', icon: <Calendar size={20} className="text-violet-600" />, module: 'ShiftPlanning', color: 'bg-violet-50' },
+      { id: 'portal', label: 'My Portal', icon: <User size={20} className="text-indigo-600" />, module: 'EmployeePortal', color: 'bg-indigo-50' },
+      { id: 'settings', label: 'Settings', icon: <Settings size={20} className="text-gray-600" />, module: 'Settings', color: 'bg-gray-50' },
+    ], [])
 
   const visibleModules = useMemo(() => {
     const userPerms = user?.permissions || {}
