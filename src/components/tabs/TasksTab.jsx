@@ -37,11 +37,11 @@ import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
 const STATUSES = [
-  { id: 'To Do', label: 'To Do', icon: <Circle size={16} className="text-blue-500" />, bgColor: 'bg-gray-50' },
-  { id: 'In Progress', label: 'In Progress', icon: <PlayCircle size={16} className="text-orange-500" />, bgColor: 'bg-blue-50' },
-  { id: 'On Hold', label: 'On Hold', icon: <Clock size={16} className="text-amber-500" />, bgColor: 'bg-amber-50' },
-  { id: 'Review', label: 'Review', icon: <CheckCircle size={16} className="text-purple-500" />, bgColor: 'bg-purple-50' },
-  { id: 'Completed', label: 'Completed', icon: <CheckCircle2 size={16} className="text-green-500" />, bgColor: 'bg-green-50' }
+  { id: 'To Do', label: 'To Do', icon: <Circle size={16} className="text-gray-400" />, bgColor: 'bg-transparent' },
+  { id: 'In Progress', label: 'In Progress', icon: <PlayCircle size={16} className="text-blue-500" />, bgColor: 'bg-transparent' },
+  { id: 'On Hold', label: 'On Hold', icon: <Clock size={16} className="text-orange-500" />, bgColor: 'bg-transparent' },
+  { id: 'Review', label: 'Review', icon: <CheckCircle size={16} className="text-purple-500" />, bgColor: 'bg-transparent' },
+  { id: 'Completed', label: 'Completed', icon: <CheckCircle2 size={16} className="text-green-500" />, bgColor: 'bg-transparent' }
 ]
 
 const CLIENT_TYPES = [
@@ -318,82 +318,66 @@ export default function TasksTab() {
       {STATUSES.map(status => (
         <div 
           key={status.id} 
-          className="flex flex-col min-w-[280px] flex-1"
+          className="flex flex-col min-w-[300px] flex-1 border-r border-gray-100 last:border-0"
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, status.id)}
         >
           {/* Column Header */}
-          <div className={`${status.bgColor} rounded-t-xl border-b-2 ${
-            status.id === 'Completed' ? 'border-green-500' :
-            status.id === 'Review' ? 'border-purple-500' :
-            status.id === 'On Hold' ? 'border-amber-500' :
-            status.id === 'In Progress' ? 'border-orange-500' :
-            'border-blue-500'
-          }`}>
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-2.5">
-                <span className="p-1.5 rounded-lg bg-white shadow-sm border border-gray-200">
-                  {status.icon}
-                </span>
-                <span className="text-sm uppercase tracking-wider text-gray-700">
-                  {status.label}
-                </span>
-                <span className="text-xs text-gray-500 bg-white px-2.5 py-1 rounded-full shadow-sm">
-                  {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
-                </span>
-              </div>
-              <button className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-white rounded-lg transition-colors">
-                <MoreHorizontal size={16} />
-              </button>
+          <div className="px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex-shrink-0">
+                {status.icon}
+              </span>
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                {status.label}
+              </span>
+              <span className="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-100 font-medium">
+                {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
+              </span>
             </div>
+            <button className="text-gray-300 hover:text-gray-600 p-1 hover:bg-gray-50 rounded transition-colors">
+              <MoreHorizontal size={14} />
+            </button>
           </div>
+
           {/* Task List Area */}
-          <div className={`flex-1 ${status.bgColor} rounded-b-xl p-3 space-y-3 min-h-[500px]`}>
+          <div className="flex-1 p-2 space-y-2 min-h-[500px]">
             {/* Inline Quick Add */}
-            <div className="group relative space-y-2 bg-white/50 p-2 rounded-xl border border-dashed border-gray-300">
+            <div className="group relative space-y-2 bg-transparent p-1 rounded-lg border border-transparent hover:border-gray-100 transition-all mb-2">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Quick add task..."
-                  className="w-full bg-white border-2 border-transparent focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm hover:shadow pr-10"
+                  className="w-full bg-transparent border-none focus:ring-0 rounded px-2 py-2 text-sm outline-none transition-all placeholder:text-gray-400"
                   value={inlineInputs[status.id] || ''}
                   onChange={(e) => setInlineInputs({ ...inlineInputs, [status.id]: e.target.value })}
                   onKeyDown={(e) => handleInlineCreate(status.id, e)}
                 />
                 {!inlineInputs[status.id] && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-opacity group-focus-within:opacity-0">
-                    <Plus size={16} />
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-opacity group-focus-within:opacity-0">
+                    <Plus size={14} />
                   </div>
                 )}
               </div>
 
               {/* Datepicker & Submit Arrow - Only show if input has text */}
               {inlineInputs[status.id]?.trim() && (
-                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex items-center gap-2 px-2 pb-2 animate-in fade-in slide-in-from-top-1 duration-200">
                   <div className="relative flex-1 group/date">
-                    <CalendarIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 z-10 pointer-events-none" />
+                    <CalendarIcon size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
                     <DatePicker
                       selected={inlineDates[status.id]}
                       onChange={(date) => setInlineDates({ ...inlineDates, [status.id]: date })}
-                      placeholderText="Set due date"
-                      dateFormat="MMM d, yyyy"
-                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 outline-none transition-all cursor-pointer hover:border-indigo-200"
+                      placeholderText="Due date"
+                      dateFormat="MMM d"
+                      className="w-full pl-7 pr-2 py-1 bg-white border border-gray-100 rounded text-[10px] focus:ring-1 focus:ring-blue-100 focus:border-blue-200 outline-none transition-all cursor-pointer hover:border-gray-200"
                     />
-                    {inlineDates[status.id] && (
-                      <button 
-                        onClick={() => setInlineDates({ ...inlineDates, [status.id]: null })}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 z-10"
-                      >
-                        <X size={10} />
-                      </button>
-                    )}
                   </div>
                   <button
                     onClick={() => handleInlineCreate(status.id)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-all shadow-sm hover:shadow active:scale-90 flex-shrink-0"
-                    title="Save Task"
+                    className="bg-blue-600 hover:bg-blue-700 text-white p-1 rounded transition-all shadow-sm active:scale-95 flex-shrink-0"
                   >
-                    <ArrowRight size={16} />
+                    <ArrowRight size={14} />
                   </button>
                 </div>
               )}
@@ -412,126 +396,84 @@ export default function TasksTab() {
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
                     onDragEnd={handleDragEnd}
-                    className="group bg-white border-2 border-gray-200 rounded-xl p-2.5 shadow hover:shadow-md hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
+                    className="group bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-grab active:cursor-grabbing relative"
                   >
-                    {/* Priority & Status left border */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                      task.priority === 'urgent' ? 'bg-red-500' : 
-                      task.priority === 'important' ? 'bg-amber-500' :
-                      status.id === 'Completed' ? 'bg-green-500' : 
-                      status.id === 'Review' ? 'bg-purple-500' :
-                      status.id === 'On Hold' ? 'bg-amber-500' :
-                      status.id === 'In Progress' ? 'bg-orange-400' :
-                      'bg-blue-400'
-                    }`} />
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                       <button 
                         onClick={() => toggleStatus(task)}
                         className={`mt-1 flex-shrink-0 transition-colors ${
                           task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'
                         }`}
                       >
-                        {task.status === 'Completed' ? <CheckCircle size={18} /> : <Circle size={18} />}
+                        {task.status === 'Completed' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                       </button>
                       
                       <div className="flex-1 min-w-0">
                         {/* Title */}
-                        <h4 className={`text-sm text-gray-800 leading-snug break-words mb-1 ${
+                        <h4 className={`text-sm font-medium text-gray-800 leading-snug break-words mb-2 ${
                           task.status === 'Completed' ? 'line-through text-gray-400' : ''
                         }`}>
                           {task.title}
                         </h4>
                         
-                        {/* Due Date & Assignees Row */}
-                        {(task.dueDate || assignees.length > 0) && (
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            {/* Due Date */}
-                            {task.dueDate && (
-                              <div className={`flex items-center gap-1 text-[10px] ${dueDateColor} px-1.5 py-0.5 rounded shadow-sm border border-gray-100`}>
-                                <Clock size={10} />
-                                <span>{dueDateText}</span>
-                              </div>
-                            )}
-                            
-                            {/* Assignees */}
-                            {assignees.length > 0 && (
-                              <div className="flex -space-x-1.5 overflow-hidden">
-                                {assignees.slice(0, 3).map(emp => (
-                                  <div 
-                                    key={emp.id} 
-                                    className="w-5 h-5 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[8px] text-indigo-600 shadow-sm"
-                                    title={emp.name}
-                                  >
-                                    {emp.name.charAt(0)}
-                                  </div>
-                                ))}
-                                {assignees.length > 3 && (
-                                  <div className="w-5 h-5 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[7px] text-gray-500 shadow-sm">
-                                    +{assignees.length - 3}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
+                        {/* Description Preview (if any) */}
                         {task.description && (
-                          <p className="text-[11px] text-gray-500 line-clamp-2 leading-tight mb-1">
+                          <p className="text-[11px] text-gray-500 line-clamp-1 leading-tight mb-2 italic">
                             {task.description}
                           </p>
                         )}
-                        
-                        {/* Notes Preview */}
-                        {task.notes && (
-                          <div className="mt-1 bg-amber-50 border-l-2 border-amber-400 px-2 py-1 rounded">
-                            <p className="text-[10px] text-amber-800 line-clamp-1">
-                              📝 {task.notes}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Status-Specific Badges */}
-                        {(task.clientName || task.clientType || (task.priority || 'normal') !== 'normal' || task.status === 'On Hold' || task.status === 'Review') && (
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            {/* Client Badge */}
-                            {(task.clientName || task.clientType) && (
-                              <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-lg shadow-sm border ${
-                                task.clientType 
-                                  ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
-                                  : 'bg-gray-50 text-gray-700 border-gray-200'
-                              }`}>
-                                <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
-                                <span className="truncate max-w-[80px]">{task.clientName || 'Client'}</span>
-                              </span>
+
+                        {/* Badges and Info */}
+                        <div className="flex items-center justify-between gap-2 mt-auto">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Priority Icon */}
+                            {(task.priority || 'normal') !== 'normal' && (
+                              <div className="flex items-center" title={`Priority: ${task.priority}`}>
+                                {task.priority === 'urgent' ? (
+                                  <span className="text-red-500 text-[10px]">🔴</span>
+                                ) : (
+                                  <span className="text-orange-500 text-[10px]">⚠️</span>
+                                )}
+                              </div>
                             )}
 
-                            {/* Priority Badge */}
-                            {(task.priority || 'normal') !== 'normal' && (
-                              <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full shadow-sm ${
-                                task.priority === 'urgent' 
-                                  ? 'bg-red-100 text-red-700 border border-red-200' 
-                                  : 'bg-amber-100 text-amber-700 border border-amber-200'
-                              }`}>
-                                {task.priority === 'urgent' ? '🔴' : '⚠️'}
-                                {(task.priority || 'normal').charAt(0).toUpperCase() + (task.priority || 'normal').slice(1)}
-                              </span>
+                            {/* Due Date */}
+                            {task.dueDate && (
+                              <div className={`flex items-center gap-1 text-[9px] ${dueDateColor.includes('red') ? 'text-red-500' : 'text-gray-400'} font-medium`}>
+                                <CalendarIcon size={10} />
+                                <span>{dueDateText}</span>
+                              </div>
                             )}
-                            
-                            {/* On Hold Badge */}
-                            {task.status === 'On Hold' && (
-                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
-                                ⏸️ On Hold
-                              </span>
-                            )}
-                            
-                            {/* Review Badge */}
-                            {task.status === 'Review' && (
-                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0 rounded-full bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
-                                👀 In Review
-                              </span>
+
+                            {/* Client/Type Badge (Plane style) */}
+                            {(task.clientName || task.clientType) && (
+                              <div className="flex items-center gap-1 text-[9px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                <span className="text-[8px]">{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
+                                <span className="truncate max-w-[60px]">{task.clientName || 'Client'}</span>
+                              </div>
                             )}
                           </div>
-                        )}
+
+                          {/* Assignees */}
+                          {assignees.length > 0 && (
+                            <div className="flex -space-x-1.5 overflow-hidden">
+                              {assignees.slice(0, 3).map(emp => (
+                                <div 
+                                  key={emp.id} 
+                                  className="w-5 h-5 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[8px] text-gray-600 font-semibold shadow-sm"
+                                  title={emp.name}
+                                >
+                                  {emp.name.charAt(0)}
+                                </div>
+                              ))}
+                              {assignees.length > 3 && (
+                                <div className="w-5 h-5 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[7px] text-gray-400 font-medium">
+                                  +{assignees.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
                         {/* Completed Info */}
                         {task.status === 'Completed' && task.completedAt && (
