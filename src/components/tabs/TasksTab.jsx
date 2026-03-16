@@ -317,7 +317,7 @@ export default function TasksTab() {
                           )}
 
                           {/* Priority Badge (for important/urgent) */}
-                          {task.priority !== 'normal' && (
+                          {task.priority && task.priority !== 'normal' && (
                             <div className="mt-2">
                               <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
                                 task.priority === 'urgent' 
