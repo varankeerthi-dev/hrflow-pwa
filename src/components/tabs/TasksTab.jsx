@@ -782,10 +782,6 @@ export default function TasksTab() {
     )
   }
 
-  const loginEnabledEmployees = useMemo(() => {
-    return employees.filter(emp => users.some(u => u.email === emp.email))
-  }, [employees, users])
-
   if (loading) return <div className="h-64 flex items-center justify-center"><Spinner /></div>
 
   return (
