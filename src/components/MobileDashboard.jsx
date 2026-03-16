@@ -53,6 +53,7 @@ import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 import TasksTab from '../components/tabs/TasksTab'
+import Badge from '../components/ui/Badge'
 
 // ─── Org Setup Modal ────────
 function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
@@ -215,24 +216,34 @@ export default function MobileDashboard() {
   }, [employees, user])
 
     const allModules = useMemo(() => [
-      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={20} className="text-blue-600" />, module: 'EmployeePortal', color: 'bg-blue-50' },
-      { id: 'attendance', label: 'Attendance', icon: <Calendar size={20} className="text-green-600" />, module: 'Attendance', color: 'bg-green-50' },
-      { id: 'correction', label: 'Correction', icon: <PencilLine size={20} className="text-orange-600" />, module: 'Correction', color: 'bg-orange-50' },
-      { id: 'leave', label: 'Leave', icon: <Mail size={20} className="text-purple-600" />, module: 'Leave', color: 'bg-purple-50' },
-      { id: 'approvals', label: 'Approvals', icon: <CheckCircle size={20} className="text-cyan-600" />, module: 'Approvals', color: 'bg-cyan-50' },
-      { id: 'letters', label: 'HR Letters', icon: <FileText size={20} className="text-indigo-600" />, module: 'HRLetters', color: 'bg-indigo-50' },
-      { id: 'tasks', label: 'Tasks', icon: <CheckCircle size={20} className="text-indigo-600" />, module: 'Tasks', color: 'bg-indigo-50' },
-      { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={20} className="text-blue-600" />, module: 'Recruitment', color: 'bg-blue-50' },
-      { id: 'documents', label: 'Documents', icon: <Folder size={20} className="text-amber-600" />, module: 'DocumentManagement', color: 'bg-amber-50' },
-      { id: 'summary', label: 'Summary', icon: <BarChart3 size={20} className="text-pink-600" />, module: 'Summary', color: 'bg-pink-50' },
-      { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={20} className="text-emerald-600" />, module: 'SalarySlip', color: 'bg-emerald-50' },
-      { id: 'advance', label: 'Advances', icon: <Wallet size={20} className="text-teal-600" />, module: 'AdvanceExpense', color: 'bg-teal-50' },
-      { id: 'fines', label: 'Fines', icon: <Gavel size={20} className="text-red-600" />, module: 'Fine', color: 'bg-red-50' },
-      { id: 'engage', label: 'Engage', icon: <Handshake size={20} className="text-amber-600" />, module: 'Engagement', color: 'bg-amber-50' },
-      { id: 'shift-planning', label: 'Shift Plan', icon: <Calendar size={20} className="text-violet-600" />, module: 'ShiftPlanning', color: 'bg-violet-50' },
-      { id: 'portal', label: 'My Portal', icon: <User size={20} className="text-indigo-600" />, module: 'EmployeePortal', color: 'bg-indigo-50' },
-      { id: 'settings', label: 'Settings', icon: <Settings size={20} className="text-gray-600" />, module: 'Settings', color: 'bg-gray-50' },
-    ], [])
+      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-blue-400', section: 'Core' },
+      { id: 'attendance', label: 'Attendance', icon: <Calendar className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400', section: 'HRMS' },
+      { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', color: 'text-orange-400', section: 'HRMS' },
+      { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', color: 'text-purple-400', section: 'HRMS' },
+      { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', color: 'text-cyan-400', section: 'HRMS', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
+      { id: 'letters', label: 'HR Letters', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400', section: 'HRMS' },
+      { id: 'tasks', label: 'Tasks', icon: <CheckCircle className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', section: 'Productivity' },
+      { id: 'recruitment', label: 'Recruitment', icon: <Briefcase className="h-4 w-4" />, module: 'Recruitment', color: 'text-blue-400', section: 'Operations' },
+      { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', color: 'text-amber-400', section: 'Operations' },
+      { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400', section: 'Core' },
+      { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400', section: 'Payroll' },
+      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400', section: 'Payroll' },
+      { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400', section: 'Payroll' },
+      { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400', section: 'Core' },
+      { id: 'shift-planning', label: 'Shift Plan', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400', section: 'Operations' },
+      { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400', section: 'Core' },
+      { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400', section: 'System' },
+    ], [stats.pendingCorrections])
+
+    const moduleSections = useMemo(() => {
+      const sections = {}
+      visibleModules.forEach(mod => {
+        const section = mod.section || 'Other'
+        if (!sections[section]) sections[section] = []
+        sections[section].push(mod)
+      })
+      return sections
+    }, [visibleModules])
 
   const visibleModules = useMemo(() => {
     const userPerms = user?.permissions || {}
@@ -438,135 +449,209 @@ export default function MobileDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-1 -ml-1 rounded-lg hover:bg-gray-100"
-            >
-              <Menu size={20} className="text-gray-600" />
-            </button>
-            {orgSettings?.logoURL ? (
-              <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
-            ) : (
-              <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white">
-                <Building2 size={16} />
-              </div>
-            )}
-            <span className="text-md font-black text-gray-900">
-              {orgSettings?.name || user?.orgName || 'HRFlow'}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="flex items-center">
-              {currentEmployee?.photoURL ? (
-                <img src={currentEmployee.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
-              ) : (
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                  style={{ backgroundColor: getAvatarColor(user?.uid) }}
-                >
-                  {getInitials(user?.name)}
-                </div>
-              )}
-            </button>
-          </div>
+    <div className="min-h-screen bg-slate-50 flex overflow-hidden">
+      {/* ─── Desktop Sidebar (Hidden on Mobile) ─── */}
+      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-slate-200 border-r border-slate-800 transition-all shrink-0">
+        <div className="p-6 flex items-center gap-3 border-b border-slate-800/50">
+          {orgSettings?.logoURL ? (
+            <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
+              <Building2 size={18} />
+            </div>
+          )}
+          <span className="text-sm font-semibold tracking-tight truncate">
+            {orgSettings?.name || user?.orgName || 'HRFlow ERP'}
+          </span>
         </div>
-      </header>
 
-      {showMenu && (
-        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setShowMenu(false)}>
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-800">Menu</h2>
-                <button onClick={() => setShowMenu(false)} className="p-1 rounded hover:bg-gray-100">
-                  <X size={20} className="text-gray-500" />
-                </button>
+        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
+          {Object.entries(moduleSections).map(([section, modules]) => (
+            <div key={section} className="space-y-2">
+              <h3 className="px-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                {section}
+              </h3>
+              <div className="space-y-1">
+                {modules.map((mod) => (
+                  <button
+                    key={mod.id}
+                    onClick={() => setActiveTab(mod.id)}
+                    className={`w-full flex items-center justify-between group px-3 py-2 rounded-md text-sm transition-all duration-200 ${
+                      activeTab === mod.id
+                        ? 'bg-slate-800 text-white border-l-2 border-blue-500 shadow-sm'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`${activeTab === mod.id ? mod.color : 'text-slate-500 group-hover:text-slate-300'}`}>
+                        {mod.icon}
+                      </div>
+                      <span className="font-medium tracking-tight">{mod.label}</span>
+                    </div>
+                    {mod.badge && (
+                      <Badge variant="destructive" className="px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center text-[10px]">
+                        {mod.badge}
+                      </Badge>
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="p-2 space-y-1 overflow-y-auto max-h-[calc(100vh-120px)]">
-              {visibleModules.map((mod) => (
-                <button
-                  key={mod.id}
-                  onClick={() => { setActiveTab(mod.id); setShowMenu(false) }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
-                    activeTab === mod.id 
-                      ? 'bg-indigo-50 text-indigo-700' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${mod.color}`}>
-                    {mod.icon}
-                  </div>
-                  <span className="text-sm font-medium">{mod.label}</span>
-                </button>
-              ))}
-              <div className="border-t border-gray-200 my-2"></div>
+          ))}
+        </nav>
+
+        <div className="p-4 border-t border-slate-800/50 space-y-2">
+          <button 
+            onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}
+            className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            {currentEmployee?.photoURL ? (
+              <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-slate-700" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-300">
+                {getInitials(user?.name)}
+              </div>
+            )}
+            <div className="flex-1 text-left truncate">
+              <p className="text-xs font-bold text-white truncate">{user?.name}</p>
+              <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">{user?.role || 'Member'}</p>
+            </div>
+          </button>
+          
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-400 hover:bg-red-900/20 hover:text-red-400 transition-all"
+          >
+            <LogOut size={16} />
+            <span className="font-medium">Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* ─── Main Content Area ─── */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Mobile Header (Hidden on Desktop) */}
+        <header className="lg:hidden sticky top-0 z-40 bg-white border-b border-gray-200 px-4 h-14 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowMenu(true)}
+              className="p-2 -ml-2 rounded-lg hover:bg-gray-100 text-slate-600 transition-colors"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="text-sm font-black text-slate-900 tracking-tight uppercase">
+              {getCurrentModuleLabel()}
+            </span>
+          </div>
+          <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}>
+            {currentEmployee?.photoURL ? (
+              <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
+                {getInitials(user?.name)}
+              </div>
+            )}
+          </button>
+        </header>
+
+        {/* Desktop Header / Breadcrumb */}
+        <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-white border-b border-slate-200 shrink-0">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-slate-400 font-medium">Organization</span>
+            <ChevronRight size={14} className="text-slate-300" />
+            <span className="text-slate-900 font-bold tracking-tight">{getCurrentModuleLabel()}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="h-8 w-px bg-slate-200 mx-2" />
+            <div className="text-right">
+              <p className="text-xs font-bold text-slate-900 leading-none">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+              <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tighter">Attendance System</p>
+            </div>
+          </div>
+        </header>
+
+        {/* Content View */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="max-w-[1600px] mx-auto min-h-full">
+            {renderTabContent()}
+          </div>
+        </div>
+
+        {/* Mobile Navigation (Hidden on Desktop) */}
+        <nav className="lg:hidden bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 h-16 px-4 z-40">
+          <div className="flex justify-around items-center h-full">
+            {[
+              { id: 'home', label: 'Home', icon: <LayoutDashboard size={20} /> },
+              { id: 'attendance', label: 'Attendance', icon: <Calendar size={20} /> },
+              { id: 'portal', label: 'Portal', icon: <User size={20} /> },
+              { id: 'more', label: 'More', icon: <Menu size={20} />, onClick: () => setShowMenu(true) }
+            ].map(item => (
               <button
-                onClick={() => { logout(); setShowMenu(false) }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-red-600 hover:bg-red-50"
+                key={item.id}
+                onClick={item.onClick || (() => setActiveTab(item.id))}
+                className={`flex flex-col items-center gap-1 transition-colors ${
+                  activeTab === item.id && !item.onClick ? 'text-indigo-600' : 'text-slate-400'
+                }`}
               >
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-50">
-                  <LogOut size={18} className="text-red-600" />
+                {item.icon}
+                <span className="text-[9px] font-bold uppercase tracking-tighter">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      </main>
+
+      {/* ─── Mobile Sidebar Overlay ─── */}
+      {showMenu && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-slate-900 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+            <div className="p-6 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
+                  <Building2 size={16} />
                 </div>
-                <span className="text-sm font-medium">Logout</span>
+                <span className="text-sm font-bold text-white tracking-tight uppercase">HRFlow Menu</span>
+              </div>
+              <button onClick={() => setShowMenu(false)} className="p-2 text-slate-400 hover:text-white rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <nav className="flex-1 overflow-y-auto p-4 space-y-6">
+              {Object.entries(moduleSections).map(([section, modules]) => (
+                <div key={section} className="space-y-2">
+                  <h3 className="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">{section}</h3>
+                  <div className="space-y-1">
+                    {modules.map(mod => (
+                      <button
+                        key={mod.id}
+                        onClick={() => { setActiveTab(mod.id); setShowMenu(false) }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${
+                          activeTab === mod.id ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={activeTab === mod.id ? mod.color : 'text-slate-500'}>{mod.icon}</div>
+                          <span className="font-semibold">{mod.label}</span>
+                        </div>
+                        {mod.badge && <Badge variant="destructive">{mod.badge}</Badge>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+              <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-red-400 hover:bg-red-950/30 transition-colors">
+                <LogOut size={18} />
+                <span className="font-bold uppercase tracking-widest">Sign Out</span>
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <div className="flex-1 overflow-auto pb-16">
-        {activeTab !== 'home' && (
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-2 z-30 flex items-center gap-2">
-            <button 
-              onClick={() => setActiveTab('home')}
-              className="p-1 rounded hover:bg-gray-100"
-            >
-              <ArrowLeft size={18} className="text-gray-600" />
-            </button>
-            <span className="text-sm font-bold text-gray-800">{getCurrentModuleLabel()}</span>
-          </div>
-        )}
-        {renderTabContent()}
-      </div>
-
-      <nav className="bg-white border-t border-gray-200 px-1 py-1 fixed bottom-0 w-full">
-        <div className="flex justify-around">
-          <button 
-            onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center py-2 px-3 ${activeTab === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}
-          >
-            <LayoutDashboard size={20} />
-            <span className="text-[9px] font-medium mt-0.5">Home</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('attendance')}
-            className={`flex flex-col items-center py-2 px-3 ${activeTab === 'attendance' ? 'text-indigo-600' : 'text-gray-400'}`}
-          >
-            <Calendar size={20} />
-            <span className="text-[9px] font-medium mt-0.5">Attendance</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('portal')}
-            className={`flex flex-col items-center py-2 px-3 ${activeTab === 'portal' ? 'text-indigo-600' : 'text-gray-400'}`}
-          >
-            <User size={20} />
-            <span className="text-[9px] font-medium mt-0.5">Portal</span>
-          </button>
-          <button 
-            onClick={() => setShowMenu(true)}
-            className={`flex flex-col items-center py-2 px-3 ${showMenu ? 'text-indigo-600' : 'text-gray-400'}`}
-          >
-            <Menu size={20} />
-            <span className="text-[9px] font-medium mt-0.5">More</span>
-          </button>
-        </div>
-      </nav>
     </div>
   )
 }
