@@ -46,38 +46,56 @@ export function useTasks(orgId) {
   }, [orgId, user?.uid])
 
   const addTask = async (taskData) => {
-    if (!orgId || !user) return
-    try {
-      const payload = {
-        ...taskData,
-        orgId,
-        createdBy: user.uid,
-        createdByName: user.name || 'Anonymous',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: taskData.status || 'Inbox', // Default status
-        order: taskData.order || 0
-      }
-      const docRef = await addDoc(tasksCol(orgId), payload)
-      return docRef.id
-    } catch (e) {
-      console.error("Error adding task:", e)
-      throw e
+  if (!orgId || !user) return
+  try {
+    const payload = {
+      ...taskData,
+      // Handle both string and array for assignedTo
+      assignedTo: Array.isArray(taskData.assignedTo) 
+        ? taskData.assignedTo 
+        : (taskData.assignedTo ? [taskData.assignedTo] : []),
+      orgId,
+      createdBy: user.uid,
+      createdByName: user.name || 'Anonymous',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      status: taskData.status || 'Inbox',
+      order: taskData.order || 0,
+      // NEW FIELDS
+      dueDate: taskData.dueDate || null,
+      completedAt: null,
+      priority: taskData.priority || 'normal',
+      notes: taskData.notes || ''
     }
+    const docRef = await addDoc(tasksCol(orgId), payload)
+    return docRef.id
+  } catch (e) {
+    console.error("Error adding task:", e)
+    throw e
   }
+}
 
   const updateTask = async (taskId, updates) => {
-    if (!orgId) return
-    try {
-      await updateDoc(taskDoc(orgId, taskId), {
-        ...updates,
-        updatedAt: serverTimestamp()
-      })
-    } catch (e) {
-      console.error("Error updating task:", e)
-      throw e
+  if (!orgId) return
+  try {
+    const payload = { ...updates, updatedAt: serverTimestamp() }
+        // Auto-set completedAt when status becomes "Completed"
+    if (updates.status === 'Completed' && !updates.completedAt) {
+      payload.completedAt = serverTimestamp()
     }
+        // Clear completedAt when reopening task
+    if (updates.status && updates.status !== 'Completed') {
+      payload.completedAt = null
+    }
+        await updateDoc(taskDoc(orgId, taskId), {
+      ...payload,
+      updatedAt: serverTimestamp()
+    })
+  } catch (e) {
+    console.error("Error updating task:", e)
+    throw e
   }
+}
 
   const deleteTask = async (taskId) => {
     if (!orgId) return

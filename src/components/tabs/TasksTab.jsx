@@ -1,4 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import { formatDistanceToNow } from 'date-fns'
 import { 
   CheckCircle2, 
   Circle, 
@@ -50,9 +53,12 @@ export default function TasksTab() {
     title: '',
     description: '',
     status: 'Inbox',
-    assignedTo: '',
+    assignedTo: [],
     isPersonal: false,
-    category: 'task' // 'task' or 'idea'
+    category: 'task',
+    dueDate: null,
+    priority: 'normal',
+    notes: ''
   })
 
   // Filter tasks based on active tab
@@ -98,9 +104,12 @@ export default function TasksTab() {
         title: '',
         description: '',
         status: 'Inbox',
-        assignedTo: '',
+        assignedTo: [],
         isPersonal: activeTab === 'personal',
-        category: 'task'
+        category: 'task',
+        dueDate: null,
+        priority: 'normal',
+        notes: ''
       })
     } catch (err) {
       alert('Failed to create task')
@@ -272,9 +281,51 @@ export default function TasksTab() {
                             </p>
                           )}
                           
+                          {/* Notes */}
+                          {task.notes && (
+                            <div className="mt-2 p-2 bg-gray-50 rounded-lg border-l-2 border-indigo-200">
+                              <p className="text-[10px] text-gray-500 leading-relaxed italic">
+                                📝 {task.notes}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Priority Badge (for important/urgent) */}
+                          {task.priority !== 'normal' && (
+                            <div className="mt-2">
+                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                                task.priority === 'urgent' 
+                                  ? 'bg-red-100 text-red-700' 
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {task.priority === 'urgent' ? '🔴' : '⚠️'}
+                                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Completed Info */}
+                          {task.status === 'Completed' && task.completedAt && (
+                            <p className="text-xs text-green-600 mt-2">
+                              ✓ Completed {formatDistanceToNow(task.completedAt.toDate(), { addSuffix: true })}
+                            </p>
+                          )}
+
                           <div className="flex items-center justify-between mt-4">
                             <div className="flex -space-x-1.5 overflow-hidden">
-                              {task.assignedTo ? (
+                              {Array.isArray(task.assignedTo) ? (
+                                task.assignedTo.length > 0 ? (
+                                  task.assignedTo.map(uid => (
+                                    <div key={uid} className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600" title={uid}>
+                                      {employees.find(e => e.id === uid)?.name?.charAt(0) || <User size={12} />}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-gray-300">
+                                    <User size={12} />
+                                  </div>
+                                )
+                              ) : task.assignedTo ? (
                                 <div className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600" title={task.assignedTo}>
                                   {employees.find(e => e.id === task.assignedTo)?.name?.charAt(0) || <User size={12} />}
                                 </div>
@@ -311,6 +362,7 @@ export default function TasksTab() {
         title="Create New Task"
       >
         <form onSubmit={handleCreateTask} className="space-y-4">
+          {/* Title */}
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Task Title</label>
             <input
@@ -324,6 +376,7 @@ export default function TasksTab() {
             />
           </div>
 
+          {/* Description */}
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Description</label>
             <textarea
@@ -334,7 +387,43 @@ export default function TasksTab() {
             />
           </div>
 
+          {/* Priority Selector */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Priority</label>
+            <div className="flex gap-2">
+              {['normal', 'high', 'urgent'].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setNewTask({ ...newTask, priority: p })}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border-2 ${
+                    newTask.priority === p 
+                      ? p === 'urgent' ? 'bg-red-50 border-red-500 text-red-600' :
+                        p === 'high' ? 'bg-amber-50 border-amber-500 text-amber-600' :
+                        'bg-indigo-50 border-indigo-500 text-indigo-600'
+                      : 'border-gray-100 text-gray-400 hover:border-gray-200'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Dates & Status */}
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Due Date</label>
+              <div className="relative">
+                <DatePicker
+                  selected={newTask.dueDate}
+                  onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all"
+                  placeholderText="Optional"
+                  dateFormat="MMM d, yyyy"
+                />
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Initial Status</label>
               <select
@@ -345,22 +434,51 @@ export default function TasksTab() {
                 {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Assignee</label>
-              <select
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all appearance-none bg-white"
-                value={newTask.assignedTo}
-                onChange={e => setNewTask({ ...newTask, assignedTo: e.target.value })}
-              >
-                <option value="">Unassigned</option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>{emp.name}</option>
-                ))}
-              </select>
+          </div>
+
+          {/* Multi-Assignee Selector */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Assign To</label>
+            <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-xl min-h-[45px]">
+              {employees.map(emp => {
+                const isSelected = newTask.assignedTo?.includes(emp.id)
+                return (
+                  <button
+                    key={emp.id}
+                    type="button"
+                    onClick={() => {
+                      const current = newTask.assignedTo || []
+                      const updated = isSelected 
+                        ? current.filter(id => id !== emp.id)
+                        : [...current, emp.id]
+                      setNewTask({ ...newTask, assignedTo: updated })
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      isSelected 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {emp.name}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          <div className="flex items-center gap-4 py-2">
+          {/* Internal Notes */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Internal Notes</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all placeholder:text-gray-300"
+              placeholder="Quick notes (internal only)"
+              value={newTask.notes}
+              onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
+            />
+          </div>
+
+          <div className="flex items-center gap-4 py-2 border-t border-gray-50 mt-4 pt-4">
             <label className="flex items-center gap-2 cursor-pointer group">
               <div className="relative flex items-center">
                 <input
@@ -388,7 +506,7 @@ export default function TasksTab() {
             </label>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
