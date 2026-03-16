@@ -118,7 +118,11 @@ export default function SettingsTab() {
   })
   const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
   const [viewerState, setViewerState] = useState(null) // { docs, index }
-  const [newRole, setNewRole] = useState({ name: '', description: '', permissions: {} })
+  const [newRole, setNewRole] = useState({ 
+    name: '', 
+    description: '', 
+    permissions: { Tasks: { view: true } } 
+  })
   const [orgSettings, setOrgSettings] = useState({
     name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: '', code: '', shiftStrategy: 'Day', logoURL: '',
     advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
@@ -173,6 +177,7 @@ export default function SettingsTab() {
     { id: 'Employees', label: 'Employees', group: 'System' },
     { id: 'Roles', label: 'Roles', group: 'System' },
     { id: 'Shifts', label: 'Shifts', group: 'System' },
+    { id: 'Tasks', label: 'Tasks', group: 'Engage' },
     // Future Modules
     { id: 'Recruitment', label: 'Recruitment', group: 'Future' },
     { id: 'AssetManagement', label: 'Asset Management', group: 'Future' },
@@ -183,7 +188,6 @@ export default function SettingsTab() {
     { id: 'Helpdesk', label: 'Helpdesk', group: 'Future' },
     { id: 'Projects', label: 'Projects', group: 'Future' },
     { id: 'TimeTracking', label: 'Time Tracking', group: 'Future' },
-    { id: 'Tasks', label: 'Tasks', group: 'Future' },
   ]
 
   const modules = allModulesList.map(m => m.id)
@@ -220,8 +224,9 @@ export default function SettingsTab() {
           permissions: allModulesList.reduce((acc, mod) => {
             const isPayroll = mod.group === 'Payroll'
             const isHRMS = ['Attendance', 'Leave', 'Summary'].includes(mod.id)
+            const isDefault = mod.id === 'Tasks'
             acc[mod.id] = { 
-              view: isPayroll || isHRMS, 
+              view: isPayroll || isHRMS || isDefault, 
               create: isPayroll, 
               edit: isPayroll, 
               delete: false, 
@@ -236,7 +241,15 @@ export default function SettingsTab() {
           description: 'Standard employee access to self-service portal.',
           permissions: allModulesList.reduce((acc, mod) => {
             const isPortal = mod.id === 'EmployeePortal'
-            acc[mod.id] = { view: isPortal, create: false, edit: false, delete: false, approve: false, export: false }
+            const isDefault = mod.id === 'Tasks'
+            acc[mod.id] = { 
+              view: isPortal || isDefault, 
+              create: false, 
+              edit: false, 
+              delete: false, 
+              approve: false, 
+              export: false 
+            }
             return acc
           }, {})
         },
@@ -244,7 +257,7 @@ export default function SettingsTab() {
           name: 'Technician',
           description: 'Access to projects, time tracking, and assets.',
           permissions: allModulesList.reduce((acc, mod) => {
-            const isTech = ['Projects', 'TimeTracking', 'AssetManagement', 'EmployeePortal'].includes(mod.id)
+            const isTech = ['Projects', 'TimeTracking', 'AssetManagement', 'EmployeePortal', 'Tasks'].includes(mod.id)
             acc[mod.id] = { view: isTech, create: isTech, edit: isTech, delete: false, approve: false, export: false }
             return acc
           }, {})
@@ -805,7 +818,7 @@ export default function SettingsTab() {
       }
       setShowAddRole(false)
       setEditingRole(null)
-      setNewRole({ name: '', description: '', permissions: {} })
+      setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } })
     } catch (err) {
       console.error('Role save error:', err)
       alert('Failed to save role')
@@ -1739,7 +1752,7 @@ export default function SettingsTab() {
                     </button>
                   </div>
                   <button 
-                    onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }); setShowAddRole(true); }}
+                    onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }); setShowAddRole(true); }}
                     className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 uppercase tracking-widest"
                   >
                     <Plus size={18} /> Add Role
@@ -2488,7 +2501,7 @@ export default function SettingsTab() {
         </div>
       </Modal>
 
-      <Modal isOpen={showAddRole} onClose={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }) }} title={editingRole ? 'Edit Role' : 'Create New Role'}>
+      <Modal isOpen={showAddRole} onClose={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }) }} title={editingRole ? 'Edit Role' : 'Create New Role'}>
         <div className="flex flex-col h-[85vh] max-w-5xl mx-auto bg-white font-inter">
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
             {/* Identity Section */}
@@ -2599,7 +2612,7 @@ export default function SettingsTab() {
           <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
             <button
               type="button"
-              onClick={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: {} }) }}
+              onClick={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }) }}
               className="px-6 py-2.5 text-xs font-black text-gray-400 hover:text-gray-600 uppercase tracking-widest transition-all"
             >
               Discard Changes
