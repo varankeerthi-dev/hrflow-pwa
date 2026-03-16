@@ -72,10 +72,10 @@ const CLIENT_TYPES = [
 ]
 
 const TABS = [
-  { id: 'team', label: 'Team Task', icon: <User size={16} /> },
-  { id: 'personal', label: 'Personal Task', icon: <User size={16} /> },
-  { id: 'idea', label: 'Idea Tab', icon: <Lightbulb size={16} /> },
-  { id: 'reminders', label: 'Reminders', icon: <Bell size={16} /> }
+  { id: 'team', label: 'Team Task', icon: <User size={16} />, color: 'bg-blue-600' },
+  { id: 'personal', label: 'Personal Task', icon: <User size={16} />, color: 'bg-emerald-600' },
+  { id: 'idea', label: 'Idea Tab', icon: <Lightbulb size={16} />, color: 'bg-purple-600' },
+  { id: 'reminders', label: 'Reminders', icon: <Bell size={16} />, color: 'bg-rose-600' }
 ]
 
 export default function TasksTab() {
@@ -171,12 +171,14 @@ export default function TasksTab() {
   }
 
   const handleCreateTask = async (e) => {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     if (!newTask.title.trim()) return
     try {
+      const isIdea = activeTab === 'idea'
       await addTask({
         ...newTask,
-        category: activeTab === 'idea' ? 'idea' : 'task'
+        isPersonal: isIdea ? false : (activeTab === 'personal'),
+        category: isIdea ? 'idea' : 'task'
       })
       setShowAddModal(false)
       setNewTask({
@@ -193,6 +195,7 @@ export default function TasksTab() {
         clientType: null
       })
     } catch (err) {
+      console.error("Create task error:", err)
       alert('Failed to create task')
     }
   }
@@ -683,51 +686,123 @@ export default function TasksTab() {
   )
 
   const renderIdeaTabView = () => (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-      <h3 className="text-xl font-black text-gray-900 mb-6 uppercase tracking-tight">Add New Idea</h3>
-      <form onSubmit={handleCreateTask} className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Idea Title (Data)</label>
-          <input
-            type="text"
-            placeholder="What's the core idea?"
-            className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none"
-            value={newTask.title}
-            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-            required
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Description (Text)</label>
-          <textarea
-            placeholder="Describe the idea in detail..."
-            rows="4"
-            className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none resize-none"
-            value={newTask.description}
-            onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-          />
-        </div>
+    <div className="space-y-6">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border-2 border-gray-900 p-8">
+        <h3 className="text-xl font-google-sans font-black text-gray-900 mb-6 uppercase tracking-tight">Add New Idea</h3>
+        <form onSubmit={handleCreateTask} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Idea Title (Ideas)</label>
+            <input
+              type="text"
+              placeholder="What's the core idea?"
+              className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none"
+              value={newTask.title}
+              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Description (Text)</label>
+            <textarea
+              placeholder="Describe the idea in detail..."
+              rows="3"
+              className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none resize-none"
+              value={newTask.description}
+              onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Remarks</label>
-          <textarea
-            placeholder="Any additional remarks or context?"
-            rows="2"
-            className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none resize-none"
-            value={newTask.notes}
-            onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
-          />
-        </div>
+          <div className="space-y-2">
+            <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Remarks</label>
+            <textarea
+              placeholder="Any additional remarks or context?"
+              rows="3"
+              className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm font-semibold transition-all outline-none resize-none"
+              value={newTask.notes}
+              onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
+            />
+          </div>
 
-        <button
-          type="submit"
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-lg text-sm font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
-        >
-          <Plus size={18} strokeWidth={3} />
-          Save Idea
-        </button>
-      </form>
+          <div className="md:col-span-2">
+            <button
+              type="submit"
+              className="w-full bg-gray-900 hover:bg-black text-white py-4 rounded-none text-sm font-black uppercase tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-none flex items-center justify-center gap-2"
+            >
+              <Plus size={18} strokeWidth={3} />
+              Save Idea
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Idea Dashboard View */}
+      <div className="bg-white rounded-xl shadow-sm border-2 border-gray-900 overflow-hidden font-sans">
+        <div className="bg-gray-900 px-6 py-3 border-b-2 border-gray-900">
+          <h4 className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
+            <Lightbulb size={14} />
+            Ideas Dashboard
+          </h4>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-gray-50 border-b-2 border-gray-900">
+                <th className="px-6 py-4 text-[11px] font-black text-gray-900 uppercase tracking-wider w-32">Date</th>
+                <th className="px-6 py-4 text-[11px] font-black text-gray-900 uppercase tracking-wider">Ideas</th>
+                <th className="px-6 py-4 text-[11px] font-black text-gray-900 uppercase tracking-wider">Remarks</th>
+                <th className="px-6 py-4 text-[11px] font-black text-gray-900 uppercase tracking-wider text-right w-24">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y-2 divide-gray-100">
+              {filteredTasks.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center text-gray-400 italic font-medium">No ideas captured yet</td>
+                </tr>
+              ) : (
+                filteredTasks.map(idea => (
+                  <tr key={idea.id} className="hover:bg-purple-50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-900">
+                          {idea.createdAt ? new Date(idea.createdAt.toDate()).toLocaleDateString() : 'Today'}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">
+                          {idea.createdAt ? formatDistanceToNow(idea.createdAt.toDate(), { addSuffix: true }) : ''}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-black text-gray-900 leading-tight">{idea.title}</span>
+                        {idea.description && (
+                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{idea.description}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="bg-amber-50 border-l-4 border-amber-400 px-3 py-2 rounded shadow-sm">
+                        <p className="text-xs text-amber-900 font-medium italic">
+                          {idea.notes || 'No remarks'}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => deleteTask(idea.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete Idea"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 
@@ -856,7 +931,7 @@ export default function TasksTab() {
       {/* Header & Tabs */}
       <div className="px-6 py-6 border-b-4 border-gray-900 bg-white">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-black tracking-tighter uppercase">Tasks</h1>
+          <h1 className="text-3xl font-google-sans font-black tracking-tighter uppercase">Tasks</h1>
           <button 
             onClick={() => {
               if (activeTab === 'reminders') {
@@ -879,9 +954,9 @@ export default function TasksTab() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-r-2 border-gray-900 last:border-r-0 ${
+                className={`flex items-center gap-2 px-6 py-4 text-xs font-google-sans font-black uppercase tracking-widest transition-all border-r-2 border-gray-900 last:border-r-0 ${
                   activeTab === tab.id 
-                    ? 'bg-gray-900 text-white' 
+                    ? `${tab.color} text-white` 
                     : 'bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
