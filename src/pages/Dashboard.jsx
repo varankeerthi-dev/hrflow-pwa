@@ -45,6 +45,7 @@ import LeaveTab from '../components/tabs/LeaveTab'
 import HRLettersTab from '../components/tabs/HRLettersTab'
 import RecruitmentTab from '../components/tabs/RecruitmentTab'
 import DocumentsTab from '../components/tabs/DocumentsTab'
+import TasksTab from '../components/tabs/TasksTab'
 import HomeTab from '../components/tabs/HomeTab'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
@@ -252,6 +253,7 @@ export default function Dashboard() {
 
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
+    { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, module: 'Tasks' },
     
     { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
@@ -261,7 +263,7 @@ export default function Dashboard() {
     { id: 'main', title: 'MAIN', tabs: ['home'] },
     { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'recruitment', 'documents', 'summary'] },
     { id: 'payroll', title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
-    { id: 'workforce', title: 'WORKFORCE', tabs: ['engage', 'shift-planning'] },
+    { id: 'workforce', title: 'WORKFORCE', tabs: ['engage', 'shift-planning', 'tasks'] },
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
@@ -305,6 +307,7 @@ export default function Dashboard() {
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
       case 'shift-planning': return <ShiftPlanningTab />
+      case 'tasks': return <TasksTab />
       case 'portal': return <EmployeePortalTab portalSubTab={portalSubTab} />
       case 'settings': return <SettingsTab />
       default: return <EmployeePortalTab portalSubTab={portalSubTab} />
