@@ -41,10 +41,12 @@ import {
   Check,
   CheckCheck,
   Smile,
-  FileText
+  FileText,
+  Plus
 } from 'lucide-react'
 import { Button, Card } from '../ui/index'
 import Modal from '../ui/Modal'
+import Spinner from '../ui/Spinner'
 
 export default function ChatTab() {
   const { user } = useAuth()
