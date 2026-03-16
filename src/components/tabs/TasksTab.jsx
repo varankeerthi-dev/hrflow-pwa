@@ -352,11 +352,11 @@ export default function TasksTab() {
 
       {/* Kanban Board */}
       <div className="flex-1 overflow-x-auto p-6 bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="flex gap-4 h-full min-w-max">
+        <div className="flex gap-4 h-full min-w-full">
           {STATUSES.map(status => (
             <div 
               key={status.id} 
-              className="flex flex-col w-80 flex-shrink-0"
+              className="flex flex-col min-w-[280px] flex-1"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, status.id)}
             >
