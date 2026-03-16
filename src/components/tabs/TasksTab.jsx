@@ -23,6 +23,8 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useTasks } from '../../hooks/useTasks'
+import { db } from '../../lib/firebase'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 
@@ -44,6 +46,7 @@ export default function TasksTab() {
   const { employees } = useEmployees(user?.orgId)
   const { tasks, loading, addTask, updateTask, deleteTask } = useTasks(user?.orgId)
   
+  const [users, setUsers] = useState([])
   const [activeTab, setActiveTab] = useState('team')
   const [showAddModal, setShowAddModal] = useState(false)
   const [inlineInputs, setInlineInputs] = useState({})
@@ -158,6 +161,29 @@ export default function TasksTab() {
       console.error("Failed to update status:", err)
     }
   }
+
+  // Fetch login-enabled users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!user?.orgId) return
+      try {
+        const q = query(
+          collection(db, 'users'), 
+          where('orgId', '==', user.orgId),
+          where('loginEnabled', '==', true)
+        )
+        const snap = await getDocs(q)
+        setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      } catch (err) {
+        console.error("Error fetching login-enabled users:", err)
+      }
+    }
+    fetchUsers()
+  }, [user?.orgId])
+
+  const loginEnabledEmployees = useMemo(() => {
+    return employees.filter(emp => users.some(u => u.email === emp.email))
+  }, [employees, users])
 
   if (loading) return <div className="h-64 flex items-center justify-center"><Spinner /></div>
 
@@ -440,7 +466,7 @@ export default function TasksTab() {
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Assign To</label>
             <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-xl min-h-[45px]">
-              {employees.map(emp => {
+              {loginEnabledEmployees.map(emp => {
                 const isSelected = newTask.assignedTo?.includes(emp.id)
                 return (
                   <button
@@ -463,6 +489,9 @@ export default function TasksTab() {
                   </button>
                 )
               })}
+              {loginEnabledEmployees.length === 0 && (
+                <p className="text-[10px] text-gray-400 italic p-2">No login-enabled users found</p>
+              )}
             </div>
           </div>
 
