@@ -14,12 +14,18 @@ service cloud.firestore {
     
     // Helper function to check if user is admin
     function isAdmin() {
-      return request.auth != null && getUserData().role.lower() == 'admin';
+      return request.auth != null && 
+        "role" in getUserData() && 
+        getUserData().role != null && 
+        getUserData().role.lower() == 'admin';
     }
     
     // Helper function to check if user is HR
     function isHR() {
-      return request.auth != null && getUserData().role.lower() == 'hr';
+      return request.auth != null && 
+        "role" in getUserData() && 
+        getUserData().role != null && 
+        getUserData().role.lower() == 'hr';
     }
     
     // Helper function to check if user is admin or HR

@@ -95,7 +95,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   const [error, setError] = useState('')
   const [createdCode, setCreatedCode] = useState(null)
 
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
   const hasOrg = !!user?.orgId
 
   const handleJoin = async (e) => {
