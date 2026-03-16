@@ -20,7 +20,11 @@ import {
   Target,
   FileText,
   Upload,
-  Clock3
+  Clock3,
+  BarChart3,
+  PieChart,
+  Activity,
+  Zap
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 
@@ -31,6 +35,7 @@ export default function HomeTab() {
   const { jobs, applicants, loading: recLoading } = useRecruitment(user?.orgId, user)
   const { documents, loading: docLoading } = useDocuments(user?.orgId, user)
   
+  const [activeSubTab, setActiveSubTab] = useState('home')
   const [todayRecords, setTodayRecords] = useState([])
   const today = new Date().toISOString().split('T')[0]
 
@@ -71,176 +76,138 @@ export default function HomeTab() {
 
   if (empLoading || attLoading || recLoading || docLoading) return <div className="flex h-full items-center justify-center py-20"><Spinner /></div>
 
-  return (
-    <div className="p-4 md:p-8 font-inter animate-in fade-in slide-in-from-bottom-2 duration-700 space-y-8">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+  const subTabs = [
+    { id: 'home', label: 'Home', icon: <Activity size={16} /> },
+    { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={16} /> },
+    { id: 'reports', label: 'Reports', icon: <FileText size={16} /> },
+    { id: 'overview', label: 'Overview', icon: <PieChart size={16} /> },
+  ]
+
+  const renderHomeSubTab = () => (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Attendance Square */}
+      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
+        <div className="flex items-center justify-between">
+          <div className="w-8 h-8 rounded-none bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+            <Calendar size={16} />
+          </div>
+          <span className="text-[10px] font-bold text-emerald-500">+12%</span>
+        </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Control Center</h1>
-          <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em] mt-1">Operational Overview • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-        </div>
-        <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-100">
-          <div className="px-4 py-2 text-center border-r border-gray-50">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Health Score</p>
-            <p className="text-sm font-black text-emerald-600">98.2%</p>
-          </div>
-          <div className="px-4 py-2 text-center">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Efficiency</p>
-            <p className="text-sm font-black text-indigo-600">High</p>
-          </div>
+          <p className="text-2xl font-black text-gray-900 leading-none">{stats.present.length}</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Present Today</p>
         </div>
       </div>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Attendance Card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-            <Calendar size={80} className="text-indigo-900" />
+      {/* Workforce Square */}
+      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
+        <div className="flex items-center justify-between">
+          <div className="w-8 h-8 rounded-none bg-blue-50 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+            <Users size={16} />
           </div>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-              <Calendar size={16} className="text-indigo-600" />
-            </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Attendance</span>
-          </div>
-          <div className="space-y-3 relative z-10">
-            {[
-              { label: 'Present', color: 'bg-emerald-500', count: stats.present.length, id: 'present' },
-              { label: 'Absent', color: 'bg-rose-500', count: stats.absent.length, id: 'absent' },
-              { label: 'On Leave', color: 'bg-amber-500', count: stats.leave.length, id: 'leave' }
-            ].map(cat => (
-              <div key={cat.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${cat.color} shadow-sm`} />
-                  <span className="text-[12px] font-bold text-gray-600">{cat.label}</span>
-                </div>
-                <span className="text-[13px] font-black text-gray-900">{cat.count}</span>
-              </div>
-            ))}
-          </div>
+          <Zap size={14} className="text-amber-500" />
         </div>
-
-        {/* Workforce Stats */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-            <Users size={80} className="text-indigo-900" />
-          </div>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-              <Users size={16} className="text-indigo-600" />
-            </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Workforce</span>
-          </div>
-          <div className="flex flex-col justify-between h-[100px]">
-            <div>
-              <p className="text-3xl font-black text-gray-900">{stats.totalActive}</p>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Active Personnel</p>
-            </div>
-            <div className="flex items-center gap-2 text-emerald-600 text-[11px] font-bold">
-              <TrendingUp size={14} /> +2 Since last month
-            </div>
-          </div>
-        </div>
-
-        {/* Recruitment Stats */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-            <Briefcase size={80} className="text-indigo-900" />
-          </div>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-              <Briefcase size={16} className="text-indigo-600" />
-            </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Hiring</span>
-          </div>
-          <div className="space-y-4 relative z-10">
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-2xl font-black text-gray-900">{stats.openJobs}</p>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Open Positions</p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-black text-indigo-600">{stats.newApplicants}</p>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">New Applicants</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Documentation Stats */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-            <Folder size={80} className="text-indigo-900" />
-          </div>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-              <Folder size={16} className="text-indigo-600" />
-            </div>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Documentation</span>
-          </div>
-          <div className="flex flex-col justify-between h-[100px]">
-            <div>
-              <p className="text-3xl font-black text-gray-900">{stats.totalDocs}</p>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Repository Items</p>
-            </div>
-            <div className="flex items-center gap-2 text-indigo-500 text-[11px] font-bold">
-              <ShieldCheck size={14} className="text-indigo-500" /> System Protected
-            </div>
-          </div>
+        <div>
+          <p className="text-2xl font-black text-gray-900 leading-none">{stats.totalActive}</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Team</p>
         </div>
       </div>
 
-      {/* Quick Actions & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-            <Target size={18} className="text-indigo-600" /> Administrative Hub
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'New Hire', icon: <Plus size={20} />, color: 'bg-indigo-600 text-white' },
-              { label: 'Post Job', icon: <Briefcase size={20} />, color: 'bg-gray-900 text-white' },
-              { label: 'Upload File', icon: <Upload size={20} />, color: 'bg-white text-gray-900 border border-gray-200' },
-              { label: 'Issue Letter', icon: <FileText size={20} />, color: 'bg-white text-gray-900 border border-gray-200' }
-            ].map(action => (
-              <button key={action.label} className={`h-[100px] rounded-2xl flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm ${action.color}`}>
-                {action.icon}
-                <span className="text-[11px] font-black uppercase tracking-widest">{action.label}</span>
-              </button>
-            ))}
+      {/* Recruitment Square */}
+      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
+        <div className="flex items-center justify-between">
+          <div className="w-8 h-8 rounded-none bg-purple-50 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
+            <Briefcase size={16} />
           </div>
+          <span className="text-[10px] font-bold text-indigo-500">OPEN</span>
         </div>
-
-        <div className="bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 p-6 flex flex-col items-center justify-center text-center">
-          <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-4">
-            <Clock3 size={20} className="text-gray-300" />
-          </div>
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Upcoming Events</p>
-          <p className="text-[13px] font-medium text-gray-500">No organizational events scheduled for the next 48 hours.</p>
+        <div>
+          <p className="text-2xl font-black text-gray-900 leading-none">{stats.openJobs}</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Active Jobs</p>
         </div>
       </div>
+
+      {/* Applicants Square */}
+      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
+        <div className="flex items-center justify-between">
+          <div className="w-8 h-8 rounded-none bg-rose-50 flex items-center justify-center group-hover:bg-rose-600 group-hover:text-white transition-colors">
+            <Users size={16} />
+          </div>
+          <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+        </div>
+        <div>
+          <p className="text-2xl font-black text-gray-900 leading-none">{stats.newApplicants}</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">New Hires</p>
+        </div>
+      </div>
+
+      {/* Documents Square */}
+      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
+        <div className="flex items-center justify-between">
+          <div className="w-8 h-8 rounded-none bg-amber-50 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
+            <Folder size={16} />
+          </div>
+        </div>
+        <div>
+          <p className="text-2xl font-black text-gray-900 leading-none">{stats.totalDocs}</p>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Docs Stored</p>
+        </div>
+      </div>
+
+      {/* Efficiency Square */}
+      <div className="aspect-square bg-indigo-600 border border-indigo-700 rounded-none shadow-md p-4 flex flex-col justify-between hover:bg-indigo-700 transition-all">
+        <div className="flex items-center justify-between">
+          <div className="w-8 h-8 rounded-none bg-white/20 flex items-center justify-center text-white">
+            <Zap size={16} />
+          </div>
+        </div>
+        <div>
+          <p className="text-2xl font-black text-white leading-none">94%</p>
+          <p className="text-[9px] font-bold text-white/70 uppercase tracking-widest mt-1">Efficiency</p>
+        </div>
+      </div>
+
+      {/* Add New Square */}
+      <button className="aspect-square bg-gray-50 border border-dashed border-gray-300 rounded-none p-4 flex flex-col items-center justify-center gap-2 hover:bg-gray-100 hover:border-gray-400 transition-all group">
+        <Plus size={24} className="text-gray-400 group-hover:text-gray-600 group-hover:scale-110 transition-all" />
+        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Custom Card</span>
+      </button>
     </div>
   )
-}
 
-function ShieldCheck({ size, className }) {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width={size} 
-      height={size} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
+    <div className="p-6 font-inter space-y-6">
+      {/* Sub-tab Navigation */}
+      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-none w-fit border border-gray-200">
+        {subTabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveSubTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeSubTab === tab.id 
+                ? 'bg-white text-indigo-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content Area */}
+      <div className="mt-8">
+        {activeSubTab === 'home' ? renderHomeSubTab() : (
+          <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-gray-200 rounded-none bg-gray-50/50">
+            <div className="w-12 h-12 bg-white rounded-none border border-gray-200 flex items-center justify-center mb-4 text-gray-300">
+              {subTabs.find(t => t.id === activeSubTab)?.icon}
+            </div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Module Initialization</p>
+            <p className="text-sm text-gray-500 mt-1 italic font-medium">This submodule is currently being configured for your organization.</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
