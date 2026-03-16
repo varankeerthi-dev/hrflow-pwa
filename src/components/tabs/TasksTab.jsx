@@ -22,7 +22,10 @@ import {
   ArrowRight,
   Calendar as CalendarIcon,
   Bell,
-  Info
+  Info,
+  Layout,
+  Table,
+  BarChart2
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
@@ -85,6 +88,7 @@ export default function TasksTab() {
   
   const [users, setUsers] = useState([])
   const [activeTab, setActiveTab] = useState('team')
+  const [viewMode, setViewMode] = useState('board') // 'board' | 'table' | 'dashboard'
   const [showAddModal, setShowAddModal] = useState(false)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [selectedReminder, setSelectedReminder] = useState(null)
@@ -306,6 +310,482 @@ export default function TasksTab() {
     return employees.filter(emp => users.some(u => u.email === emp.email))
   }, [employees, users])
 
+  const renderBoardView = () => (
+    <div className="flex gap-4 h-full min-w-full">
+      {STATUSES.map(status => (
+        <div 
+          key={status.id} 
+          className="flex flex-col min-w-[280px] flex-1"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, status.id)}
+        >
+          {/* Column Header */}
+          <div className={`${status.bgColor} rounded-t-xl border-b-2 ${
+            status.id === 'Completed' ? 'border-green-500' :
+            status.id === 'Review' ? 'border-purple-500' :
+            status.id === 'On Hold' ? 'border-amber-500' :
+            status.id === 'In Progress' ? 'border-orange-500' :
+            'border-blue-500'
+          }`}>
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <span className="p-1.5 rounded-lg bg-white shadow-sm border border-gray-200">
+                  {status.icon}
+                </span>
+                <span className="text-sm font-bold uppercase tracking-wider text-gray-700">
+                  {status.label}
+                </span>
+                <span className="text-xs font-bold text-gray-500 bg-white px-2.5 py-1 rounded-full shadow-sm">
+                  {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
+                </span>
+              </div>
+              <button className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-white rounded-lg transition-colors">
+                <MoreHorizontal size={16} />
+              </button>
+            </div>
+          </div>
+          {/* Task List Area */}
+          <div className={`flex-1 ${status.bgColor} rounded-b-xl p-3 space-y-3 min-h-[500px]`}>
+            {/* Inline Quick Add */}
+            <div className="group relative space-y-2 bg-white/50 p-2 rounded-xl border border-dashed border-gray-300">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Quick add task..."
+                  className="w-full bg-white border-2 border-transparent focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm hover:shadow pr-10"
+                  value={inlineInputs[status.id] || ''}
+                  onChange={(e) => setInlineInputs({ ...inlineInputs, [status.id]: e.target.value })}
+                  onKeyDown={(e) => handleInlineCreate(status.id, e)}
+                />
+                {!inlineInputs[status.id] && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-opacity group-focus-within:opacity-0">
+                    <Plus size={16} />
+                  </div>
+                )}
+              </div>
+
+              {/* Datepicker & Submit Arrow - Only show if input has text */}
+              {inlineInputs[status.id]?.trim() && (
+                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="relative flex-1 group/date">
+                    <CalendarIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 z-10 pointer-events-none" />
+                    <DatePicker
+                      selected={inlineDates[status.id]}
+                      onChange={(date) => setInlineDates({ ...inlineDates, [status.id]: date })}
+                      placeholderText="Set due date"
+                      dateFormat="MMM d, yyyy"
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 outline-none transition-all cursor-pointer hover:border-indigo-200"
+                    />
+                    {inlineDates[status.id] && (
+                      <button 
+                        onClick={() => setInlineDates({ ...inlineDates, [status.id]: null })}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 z-10"
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleInlineCreate(status.id)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-all shadow-sm hover:shadow active:scale-90 flex-shrink-0"
+                    title="Save Task"
+                  >
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* Tasks */}
+            {filteredTasks
+              .filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
+              .map(task => {
+                const assignees = getAssigneeInfo(task.assignedTo)
+                const dueDateText = formatDueDate(task.dueDate)
+                const dueDateColor = getDueDateColor(task.dueDate)
+                
+                return (
+                  <div
+                    key={task.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task.id)}
+                    onDragEnd={handleDragEnd}
+                    className="group bg-white border-2 border-gray-200 rounded-xl p-4 shadow hover:shadow-lg hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
+                  >
+                    {/* Priority & Status left border */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                      task.priority === 'urgent' ? 'bg-red-500' : 
+                      task.priority === 'important' ? 'bg-amber-500' :
+                      status.id === 'Completed' ? 'bg-green-500' : 
+                      status.id === 'Review' ? 'bg-purple-500' :
+                      status.id === 'On Hold' ? 'bg-amber-500' :
+                      status.id === 'In Progress' ? 'bg-orange-400' :
+                      'bg-blue-400'
+                    }`} />
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => toggleStatus(task)}
+                        className={`mt-1 flex-shrink-0 transition-colors ${
+                          task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'
+                        }`}
+                      >
+                        {task.status === 'Completed' ? <CheckCircle size={20} /> : <Circle size={20} />}
+                      </button>
+                      
+                      <div className="flex-1 min-w-0">
+                        {/* Title */}
+                        <h4 className={`text-sm font-semibold text-gray-800 leading-snug break-words mb-2 ${
+                          task.status === 'Completed' ? 'line-through text-gray-400' : ''
+                        }`}>
+                          {task.title}
+                        </h4>
+                        
+                        {/* Due Date & Assignees Row */}
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
+                          {/* Due Date */}
+                          {task.dueDate && (
+                            <div className={`flex items-center gap-1 text-xs font-semibold ${dueDateColor} px-2 py-1 rounded-md shadow-sm border border-gray-100`}>
+                              <Clock size={12} />
+                              <span>{dueDateText}</span>
+                            </div>
+                          )}
+                          
+                          {/* Assignees */}
+                          {assignees.length > 0 && (
+                            <div className="flex -space-x-2 overflow-hidden">
+                              {assignees.slice(0, 3).map(emp => (
+                                <div 
+                                  key={emp.id} 
+                                  className="w-6 h-6 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
+                                  title={emp.name}
+                                >
+                                  {emp.name.charAt(0)}
+                                </div>
+                              ))}
+                              {assignees.length > 3 && (
+                                <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500 shadow-sm">
+                                  +{assignees.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {task.description && (
+                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-2">
+                            {task.description}
+                          </p>
+                        )}
+                        
+                        {/* Notes Preview */}
+                        {task.notes && (
+                          <div className="mt-2 bg-amber-50 border-l-3 border-amber-400 px-2.5 py-1.5 rounded-md">
+                            <p className="text-xs text-amber-800 line-clamp-1 font-medium">
+                              📝 {task.notes}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Status-Specific Badges */}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          {/* Client Badge */}
+                          {(task.clientName || task.clientType) && (
+                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm border ${
+                              task.clientType 
+                                ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
+                                : 'bg-gray-50 text-gray-700 border-gray-200'
+                            }`}>
+                              <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
+                              <span className="truncate max-w-[100px]">{task.clientName || 'Client'}</span>
+                            </span>
+                          )}
+
+                          {/* Priority Badge */}
+                          {(task.priority || 'normal') !== 'normal' && (
+                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold shadow-sm ${
+                              task.priority === 'urgent' 
+                                ? 'bg-red-100 text-red-700 border border-red-200' 
+                                : 'bg-amber-100 text-amber-700 border border-amber-200'
+                            }`}>
+                              {task.priority === 'urgent' ? '🔴' : '⚠️'}
+                              {(task.priority || 'normal').charAt(0).toUpperCase() + (task.priority || 'normal').slice(1)}
+                            </span>
+                          )}
+                          
+                          {/* On Hold Badge */}
+                          {task.status === 'On Hold' && (
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
+                              ⏸️ On Hold
+                            </span>
+                          )}
+                          
+                          {/* Review Badge */}
+                          {task.status === 'Review' && (
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
+                              👀 In Review
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Completed Info */}
+                        {task.status === 'Completed' && task.completedAt && (
+                          <p className="text-xs text-green-600 mt-2 font-medium">
+                            ✓ Completed {formatDistanceToNow(task.completedAt.toDate(), { addSuffix: true })}
+                          </p>
+                        )}
+                        
+                        {/* Delete Button */}
+                        <div className="flex items-center justify-end mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => deleteTask(task.id)}
+                            className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  const renderTableView = () => (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Title</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Status</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Assignee</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Priority</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Due Date</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Client</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {filteredTasks.length === 0 ? (
+              <tr>
+                <td colSpan="7" className="px-6 py-12 text-center text-gray-400 italic">No tasks found</td>
+              </tr>
+            ) : (
+              filteredTasks.map(task => {
+                const assignees = getAssigneeInfo(task.assignedTo)
+                const statusInfo = STATUSES.find(s => s.id === task.status) || STATUSES[0]
+                const clientType = CLIENT_TYPES.find(ct => ct.id === task.clientType)
+                
+                return (
+                  <tr key={task.id} className="hover:bg-gray-50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => toggleStatus(task)}
+                          className={`flex-shrink-0 transition-colors ${
+                            task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'
+                          }`}
+                        >
+                          {task.status === 'Completed' ? <CheckCircle size={18} /> : <Circle size={18} />}
+                        </button>
+                        <span className={`text-sm font-semibold text-gray-700 ${task.status === 'Completed' ? 'line-through text-gray-400' : ''}`}>
+                          {task.title}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusInfo.bgColor} ${
+                        task.status === 'Completed' ? 'text-green-600' :
+                        task.status === 'Review' ? 'text-purple-600' :
+                        task.status === 'On Hold' ? 'text-amber-600' :
+                        task.status === 'In Progress' ? 'text-orange-600' :
+                        'text-blue-600'
+                      }`}>
+                        {statusInfo.icon}
+                        {task.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex -space-x-2">
+                        {assignees.map(emp => (
+                          <div 
+                            key={emp.id} 
+                            className="w-7 h-7 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
+                            title={emp.name}
+                          >
+                            {emp.name.charAt(0)}
+                          </div>
+                        ))}
+                        {assignees.length === 0 && <span className="text-xs text-gray-300">Unassigned</span>}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                        task.priority === 'urgent' ? 'bg-red-50 text-red-600' :
+                        task.priority === 'high' ? 'bg-amber-50 text-amber-600' :
+                        'bg-blue-50 text-blue-600'
+                      }`}>
+                        {task.priority || 'normal'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-medium ${getDueDateColor(task.dueDate)} px-2 py-1 rounded-md`}>
+                        {task.dueDate ? formatDueDate(task.dueDate) : 'No date'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {task.clientName ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-700 truncate max-w-[100px]">{task.clientName}</span>
+                          {clientType && <span title={clientType.label}>{clientType.icon}</span>}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-300">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => deleteTask(task.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+
+  const renderDashboardView = () => {
+    const stats = {
+      total: filteredTasks.length,
+      completed: filteredTasks.filter(t => t.status === 'Completed').length,
+      inProgress: filteredTasks.filter(t => t.status === 'In Progress').length,
+      todo: filteredTasks.filter(t => t.status === 'To Do' || t.status === 'Inbox' || t.status === 'To-do').length,
+      urgent: filteredTasks.filter(t => t.priority === 'urgent').length,
+      overdue: filteredTasks.filter(t => {
+        if (!t.dueDate || t.status === 'Completed') return false
+        const d = t.dueDate.toDate ? t.dueDate.toDate() : new Date(t.dueDate)
+        return d < new Date()
+      }).length
+    }
+
+    const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
+
+    return (
+      <div className="space-y-6">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Total Tasks</p>
+            <div className="flex items-end gap-2">
+              <span className="text-3xl font-black text-gray-900">{stats.total}</span>
+              <span className="text-sm font-bold text-indigo-500 mb-1">active</span>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Completion Rate</p>
+            <div className="flex items-end gap-2">
+              <span className="text-3xl font-black text-green-600">{completionRate}%</span>
+              <div className="flex-1 h-2 bg-gray-100 rounded-full mb-2 overflow-hidden">
+                <div className="h-full bg-green-500" style={{ width: `${completionRate}%` }} />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Urgent Tasks</p>
+            <div className="flex items-end gap-2">
+              <span className="text-3xl font-black text-red-600">{stats.urgent}</span>
+              <span className="text-sm font-bold text-red-400 mb-1">needs attention</span>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Overdue</p>
+            <div className="flex items-end gap-2">
+              <span className="text-3xl font-black text-amber-600">{stats.overdue}</span>
+              <span className="text-sm font-bold text-amber-400 mb-1">past due</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Breakdown Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-indigo-500" />
+              Status Breakdown
+            </h4>
+            <div className="space-y-4">
+              {STATUSES.map(status => {
+                const count = filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length
+                const percent = stats.total > 0 ? (count / stats.total) * 100 : 0
+                return (
+                  <div key={status.id} className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-gray-600 uppercase tracking-wider">{status.label}</span>
+                      <span className="text-gray-900">{count}</span>
+                    </div>
+                    <div className="h-2.5 bg-gray-50 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-1000 ${
+                          status.id === 'Completed' ? 'bg-green-500' :
+                          status.id === 'Review' ? 'bg-purple-500' :
+                          status.id === 'On Hold' ? 'bg-amber-500' :
+                          status.id === 'In Progress' ? 'bg-orange-500' :
+                          'bg-blue-500'
+                        }`} 
+                        style={{ width: `${percent}%` }} 
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              Priority Distribution
+            </h4>
+            <div className="flex h-48 items-end justify-around gap-2 px-4">
+              {['normal', 'high', 'urgent'].map(p => {
+                const count = filteredTasks.filter(t => t.priority === p).length
+                const height = stats.total > 0 ? (count / stats.total) * 100 : 5
+                return (
+                  <div key={p} className="flex-1 flex flex-col items-center gap-2 max-w-[60px]">
+                    <span className="text-[10px] font-black text-gray-500 uppercase">{count}</span>
+                    <div 
+                      className={`w-full rounded-t-lg transition-all duration-1000 ${
+                        p === 'urgent' ? 'bg-red-500 shadow-lg shadow-red-100' :
+                        p === 'high' ? 'bg-amber-500 shadow-lg shadow-amber-100' :
+                        'bg-indigo-500 shadow-lg shadow-indigo-100'
+                      }`}
+                      style={{ height: `${height}%`, minHeight: '4px' }}
+                    />
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{p}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const loginEnabledEmployees = useMemo(() => {
+    return employees.filter(emp => users.some(u => u.email === emp.email))
+  }, [employees, users])
+
   if (loading) return <div className="h-64 flex items-center justify-center"><Spinner /></div>
 
   return (
@@ -330,21 +810,55 @@ export default function TasksTab() {
           </button>
         </div>
 
-        <div className="flex gap-1">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.id 
-                  ? 'bg-gray-100 text-gray-900' 
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-1">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === tab.id 
+                    ? 'bg-gray-100 text-gray-900' 
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab !== 'reminders' && activeTab !== 'idea' && (
+            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
+              <button
+                onClick={() => setViewMode('board')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'board' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <Layout size={14} />
+                <span>Board</span>
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <Table size={14} />
+                <span>Table</span>
+              </button>
+              <button
+                onClick={() => setViewMode('dashboard')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <BarChart2 size={14} />
+                <span>Dashboard</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -503,247 +1017,14 @@ export default function TasksTab() {
               </div>
             )}
           </div>
+        ) : activeTab === 'idea' ? (
+          renderBoardView()
         ) : (
-          <div className="flex gap-4 h-full min-w-full">
-            {STATUSES.map(status => (
-              <div 
-                key={status.id} 
-                className="flex flex-col min-w-[280px] flex-1"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, status.id)}
-              >
-                {/* Column Header */}
-                <div className={`${status.bgColor} rounded-t-xl border-b-2 ${
-                  status.id === 'Completed' ? 'border-green-500' :
-                  status.id === 'Review' ? 'border-purple-500' :
-                  status.id === 'On Hold' ? 'border-amber-500' :
-                  status.id === 'In Progress' ? 'border-orange-500' :
-                  'border-blue-500'
-                }`}>
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="p-1.5 rounded-lg bg-white shadow-sm border border-gray-200">
-                        {status.icon}
-                      </span>
-                      <span className="text-sm font-bold uppercase tracking-wider text-gray-700">
-                        {status.label}
-                      </span>
-                      <span className="text-xs font-bold text-gray-500 bg-white px-2.5 py-1 rounded-full shadow-sm">
-                        {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
-                      </span>
-                    </div>
-                    <button className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-white rounded-lg transition-colors">
-                      <MoreHorizontal size={16} />
-                    </button>
-                  </div>
-                </div>
-                {/* Task List Area */}
-                <div className={`flex-1 ${status.bgColor} rounded-b-xl p-3 space-y-3 min-h-[500px]`}>
-                  {/* Inline Quick Add */}
-                  <div className="group relative space-y-2 bg-white/50 p-2 rounded-xl border border-dashed border-gray-300">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Quick add task..."
-                        className="w-full bg-white border-2 border-transparent focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm hover:shadow pr-10"
-                        value={inlineInputs[status.id] || ''}
-                        onChange={(e) => setInlineInputs({ ...inlineInputs, [status.id]: e.target.value })}
-                        onKeyDown={(e) => handleInlineCreate(status.id, e)}
-                      />
-                      {!inlineInputs[status.id] && (
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-opacity group-focus-within:opacity-0">
-                          <Plus size={16} />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Datepicker & Submit Arrow - Only show if input has text */}
-                    {inlineInputs[status.id]?.trim() && (
-                      <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <div className="relative flex-1 group/date">
-                          <CalendarIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 z-10 pointer-events-none" />
-                          <DatePicker
-                            selected={inlineDates[status.id]}
-                            onChange={(date) => setInlineDates({ ...inlineDates, [status.id]: date })}
-                            placeholderText="Set due date"
-                            dateFormat="MMM d, yyyy"
-                            className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 outline-none transition-all cursor-pointer hover:border-indigo-200"
-                          />
-                          {inlineDates[status.id] && (
-                            <button 
-                              onClick={() => setInlineDates({ ...inlineDates, [status.id]: null })}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 z-10"
-                            >
-                              <X size={10} />
-                            </button>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleInlineCreate(status.id)}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-all shadow-sm hover:shadow active:scale-90 flex-shrink-0"
-                          title="Save Task"
-                        >
-                          <ArrowRight size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {/* Tasks */}
-                  {filteredTasks
-                    .filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
-                    .map(task => {
-                      const assignees = getAssigneeInfo(task.assignedTo)
-                      const dueDateText = formatDueDate(task.dueDate)
-                      const dueDateColor = getDueDateColor(task.dueDate)
-                      
-                      return (
-                        <div
-                          key={task.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id)}
-                          onDragEnd={handleDragEnd}
-                          className="group bg-white border-2 border-gray-200 rounded-xl p-4 shadow hover:shadow-lg hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
-                        >
-                          {/* Priority & Status left border */}
-                          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                            task.priority === 'urgent' ? 'bg-red-500' : 
-                            task.priority === 'important' ? 'bg-amber-500' :
-                            status.id === 'Completed' ? 'bg-green-500' : 
-                            status.id === 'Review' ? 'bg-purple-500' :
-                            status.id === 'On Hold' ? 'bg-amber-500' :
-                            status.id === 'In Progress' ? 'bg-orange-400' :
-                            'bg-blue-400'
-                          }`} />
-                          <div className="flex gap-3">
-                            <button 
-                              onClick={() => toggleStatus(task)}
-                              className={`mt-1 flex-shrink-0 transition-colors ${
-                                task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'
-                              }`}
-                            >
-                              {task.status === 'Completed' ? <CheckCircle size={20} /> : <Circle size={20} />}
-                            </button>
-                            
-                            <div className="flex-1 min-w-0">
-                              {/* Title */}
-                              <h4 className={`text-sm font-semibold text-gray-800 leading-snug break-words mb-2 ${
-                                task.status === 'Completed' ? 'line-through text-gray-400' : ''
-                              }`}>
-                                {task.title}
-                              </h4>
-                              
-                              {/* Due Date & Assignees Row */}
-                              <div className="flex items-center gap-3 mb-2 flex-wrap">
-                                {/* Due Date */}
-                                {task.dueDate && (
-                                  <div className={`flex items-center gap-1 text-xs font-semibold ${dueDateColor} px-2 py-1 rounded-md shadow-sm border border-gray-100`}>
-                                    <Clock size={12} />
-                                    <span>{dueDateText}</span>
-                                  </div>
-                                )}
-                                
-                                {/* Assignees */}
-                                {assignees.length > 0 && (
-                                  <div className="flex -space-x-2 overflow-hidden">
-                                    {assignees.slice(0, 3).map(emp => (
-                                      <div 
-                                        key={emp.id} 
-                                        className="w-6 h-6 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
-                                        title={emp.name}
-                                      >
-                                        {emp.name.charAt(0)}
-                                      </div>
-                                    ))}
-                                    {assignees.length > 3 && (
-                                      <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500 shadow-sm">
-                                        +{assignees.length - 3}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              {task.description && (
-                                <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-2">
-                                  {task.description}
-                                </p>
-                              )}
-                              
-                              {/* Notes Preview */}
-                              {task.notes && (
-                                <div className="mt-2 bg-amber-50 border-l-3 border-amber-400 px-2.5 py-1.5 rounded-md">
-                                  <p className="text-xs text-amber-800 line-clamp-1 font-medium">
-                                    📝 {task.notes}
-                                  </p>
-                                </div>
-                              )}
-                              
-                              {/* Status-Specific Badges */}
-                              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                {/* Client Badge */}
-                                {(task.clientName || task.clientType) && (
-                                  <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm border ${
-                                    task.clientType 
-                                      ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
-                                      : 'bg-gray-50 text-gray-700 border-gray-200'
-                                  }`}>
-                                    <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
-                                    <span className="truncate max-w-[100px]">{task.clientName || 'Client'}</span>
-                                  </span>
-                                )}
-
-                                {/* Priority Badge */}
-                                {(task.priority || 'normal') !== 'normal' && (
-                                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold shadow-sm ${
-                                    task.priority === 'urgent' 
-                                      ? 'bg-red-100 text-red-700 border border-red-200' 
-                                      : 'bg-amber-100 text-amber-700 border border-amber-200'
-                                  }`}>
-                                    {task.priority === 'urgent' ? '🔴' : '⚠️'}
-                                    {(task.priority || 'normal').charAt(0).toUpperCase() + (task.priority || 'normal').slice(1)}
-                                  </span>
-                                )}
-                                
-                                {/* On Hold Badge */}
-                                {task.status === 'On Hold' && (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
-                                    ⏸️ On Hold
-                                  </span>
-                                )}
-                                
-                                {/* Review Badge */}
-                                {task.status === 'Review' && (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
-                                    👀 In Review
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Completed Info */}
-                              {task.status === 'Completed' && task.completedAt && (
-                                <p className="text-xs text-green-600 mt-2 font-medium">
-                                  ✓ Completed {formatDistanceToNow(task.completedAt.toDate(), { addSuffix: true })}
-                                </p>
-                              )}
-                              
-                              {/* Delete Button */}
-                              <div className="flex items-center justify-end mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                  onClick={() => deleteTask(task.id)}
-                                  className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            {viewMode === 'board' && renderBoardView()}
+            {viewMode === 'table' && renderTableView()}
+            {viewMode === 'dashboard' && renderDashboardView()}
+          </>
         )}
       </div>
 
