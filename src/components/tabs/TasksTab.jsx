@@ -18,11 +18,16 @@ import {
   Inbox,
   PlayCircle,
   Lightbulb,
-  X
+  X,
+  ArrowRight,
+  Calendar as CalendarIcon,
+  Bell,
+  Info
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useTasks } from '../../hooks/useTasks'
+import { useReminders } from '../../hooks/useReminders'
 import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
@@ -66,18 +71,24 @@ const CLIENT_TYPES = [
 const TABS = [
   { id: 'team', label: 'Team Task', icon: <User size={16} /> },
   { id: 'personal', label: 'Personal Task', icon: <User size={16} /> },
-  { id: 'idea', label: 'Idea Tab', icon: <Lightbulb size={16} /> }
+  { id: 'idea', label: 'Idea Tab', icon: <Lightbulb size={16} /> },
+  { id: 'reminders', label: 'Reminders', icon: <Bell size={16} /> }
 ]
 
 export default function TasksTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const { tasks, loading, addTask, updateTask, deleteTask } = useTasks(user?.orgId)
+  const { tasks, loading: tasksLoading, addTask, updateTask, deleteTask } = useTasks(user?.orgId)
+  const { reminders, loading: remindersLoading, addReminder, dismissReminder, deleteReminder } = useReminders(user?.orgId)
+  
+  const loading = tasksLoading || remindersLoading
   
   const [users, setUsers] = useState([])
   const [activeTab, setActiveTab] = useState('team')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showReminderModal, setShowReminderModal] = useState(false)
   const [inlineInputs, setInlineInputs] = useState({})
+  const [inlineDates, setInlineDates] = useState({})
   const [draggedTaskId, setDraggedTaskId] = useState(null)
   
   const [newTask, setNewTask] = useState({
@@ -93,6 +104,13 @@ export default function TasksTab() {
     // NEW CLIENT FIELDS
     clientName: '',
     clientType: null  // 'order' | 'complaint' | 'followup' | null
+  })
+  
+  const [newReminder, setNewReminder] = useState({
+    title: '',
+    content: '',
+    type: 'general',
+    targetUsers: []
   })
   const [clientFilter, setClientFilter] = useState('all')  // 'all' | 'order' | 'complaint' | 'followup' | 'internal'
 
@@ -122,17 +140,23 @@ export default function TasksTab() {
   }, [tasks, activeTab, clientFilter])
 
   const handleInlineCreate = async (status, e) => {
-    if (e.key === 'Enter' && inlineInputs[status]?.trim()) {
+    // If e is keydown event and key is not Enter, do nothing
+    if (e && e.key && e.key !== 'Enter') return;
+    
+    if (inlineInputs[status]?.trim()) {
       const title = inlineInputs[status].trim()
+      const dueDate = inlineDates[status] || null
       try {
         await addTask({
           title,
           status: status === 'Inbox' ? 'To Do' : status,  // Convert legacy Inbox to To Do
           isPersonal: activeTab === 'personal',
           category: activeTab === 'idea' ? 'idea' : 'task',
-          assignedTo: activeTab === 'personal' ? [user.uid] : []
+          assignedTo: activeTab === 'personal' ? [user.uid] : [],
+          dueDate
         })
         setInlineInputs({ ...inlineInputs, [status]: '' })
+        setInlineDates({ ...inlineDates, [status]: null })
       } catch (err) {
         alert('Failed to create task')
       }
@@ -163,6 +187,23 @@ export default function TasksTab() {
       })
     } catch (err) {
       alert('Failed to create task')
+    }
+  }
+
+  const handleCreateReminder = async (e) => {
+    e.preventDefault()
+    if (!newReminder.title.trim()) return
+    try {
+      await addReminder(newReminder)
+      setShowReminderModal(false)
+      setNewReminder({
+        title: '',
+        content: '',
+        type: 'general',
+        targetUsers: []
+      })
+    } catch (err) {
+      alert('Failed to create reminder')
     }
   }
 
@@ -266,13 +307,17 @@ export default function TasksTab() {
           <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
           <button 
             onClick={() => {
-              setNewTask({ ...newTask, isPersonal: activeTab === 'personal', category: activeTab === 'idea' ? 'idea' : 'task' })
-              setShowAddModal(true)
+              if (activeTab === 'reminders') {
+                setShowReminderModal(true)
+              } else {
+                setNewTask({ ...newTask, isPersonal: activeTab === 'personal', category: activeTab === 'idea' ? 'idea' : 'task' })
+                setShowAddModal(true)
+              }
             }}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95"
           >
             <Plus size={18} />
-            <span>New Task</span>
+            <span>{activeTab === 'reminders' ? 'New Announcement' : 'New Task'}</span>
           </button>
         </div>
 
@@ -350,215 +395,324 @@ export default function TasksTab() {
         </div>
       )}
 
-      {/* Kanban Board */}
+      {/* Main Content Area */}
       <div className="flex-1 overflow-x-auto p-6 bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="flex gap-4 h-full min-w-full">
-          {STATUSES.map(status => (
-            <div 
-              key={status.id} 
-              className="flex flex-col min-w-[280px] flex-1"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, status.id)}
-            >
-              {/* Column Header */}
-              <div className={`${status.bgColor} rounded-t-xl border-b-2 ${
-                status.id === 'Completed' ? 'border-green-500' :
-                status.id === 'Review' ? 'border-purple-500' :
-                status.id === 'On Hold' ? 'border-amber-500' :
-                status.id === 'In Progress' ? 'border-orange-500' :
-                'border-blue-500'
-              }`}>
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-1.5 rounded-lg bg-white shadow-sm border border-gray-200">
-                      {status.icon}
-                    </span>
-                    <span className="text-sm font-bold uppercase tracking-wider text-gray-700">
-                      {status.label}
-                    </span>
-                    <span className="text-xs font-bold text-gray-500 bg-white px-2.5 py-1 rounded-full shadow-sm">
-                      {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
-                    </span>
-                  </div>
-                  <button className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-white rounded-lg transition-colors">
-                    <MoreHorizontal size={16} />
-                  </button>
+        {activeTab === 'reminders' ? (
+          <div className="max-w-4xl mx-auto space-y-4">
+            {reminders.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Bell className="text-gray-300" size={32} />
                 </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">No announcements yet</h3>
+                <p className="text-gray-500 max-w-xs mx-auto">
+                  Announcements and reminders for the team will appear here.
+                </p>
               </div>
-              {/* Task List Area */}
-              <div className={`flex-1 ${status.bgColor} rounded-b-xl p-3 space-y-3 min-h-[500px]`}>
-                {/* Inline Quick Add */}
-                <div className="group relative">
-                  <input
-                    type="text"
-                    placeholder="Quick add task..."
-                    className="w-full bg-white border-2 border-transparent focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm hover:shadow"
-                    value={inlineInputs[status.id] || ''}
-                    onChange={(e) => setInlineInputs({ ...inlineInputs, [status.id]: e.target.value })}
-                    onKeyDown={(e) => handleInlineCreate(status.id, e)}
-                  />
-                  {!inlineInputs[status.id] && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-opacity group-focus-within:opacity-0">
-                      <Plus size={16} />
-                    </div>
-                  )}
-                </div>
-                {/* Tasks */}
-                {filteredTasks
-                  .filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
-                  .map(task => {
-                    const assignees = getAssigneeInfo(task.assignedTo)
-                    const dueDateText = formatDueDate(task.dueDate)
-                    const dueDateColor = getDueDateColor(task.dueDate)
+            ) : (
+              <div className="grid gap-4">
+                {reminders.map(reminder => (
+                  <div 
+                    key={reminder.id}
+                    className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group"
+                  >
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                      reminder.type === 'general' ? 'bg-indigo-500' : 
+                      reminder.type === 'targeted' ? 'bg-amber-500' : 'bg-blue-500'
+                    }`} />
                     
-                    return (
-                      <div
-                        key={task.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, task.id)}
-                        onDragEnd={handleDragEnd}
-                        className="group bg-white border-2 border-gray-200 rounded-xl p-4 shadow hover:shadow-lg hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
-                      >
-                        {/* Priority & Status left border */}
-                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                          task.priority === 'urgent' ? 'bg-red-500' : 
-                          task.priority === 'important' ? 'bg-amber-500' :
-                          status.id === 'Completed' ? 'bg-green-500' : 
-                          status.id === 'Review' ? 'bg-purple-500' :
-                          status.id === 'On Hold' ? 'bg-amber-500' :
-                          status.id === 'In Progress' ? 'bg-orange-400' :
-                          'bg-blue-400'
-                        }`} />
-                        <div className="flex gap-3">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                            reminder.type === 'general' ? 'bg-indigo-50 text-indigo-600' : 
+                            reminder.type === 'targeted' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
+                          }`}>
+                            {reminder.type}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {reminder.createdAt ? formatDistanceToNow(reminder.createdAt.toDate(), { addSuffix: true }) : 'just now'}
+                          </span>
+                        </div>
+                        <h4 className="text-lg font-bold text-gray-900 mb-1">{reminder.title}</h4>
+                        <p className="text-gray-600 text-sm whitespace-pre-wrap">{reminder.content}</p>
+                        
+                        <div className="mt-4 flex items-center gap-4 text-xs text-gray-400">
+                          <span className="flex items-center gap-1">
+                            <User size={12} />
+                            {reminder.createdByName}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col gap-2">
+                        {reminder.createdBy === user.uid ? (
                           <button 
-                            onClick={() => toggleStatus(task)}
-                            className={`mt-1 flex-shrink-0 transition-colors ${
-                              task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'
-                            }`}
+                            onClick={() => deleteReminder(reminder.id)}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Announcement"
                           >
-                            {task.status === 'Completed' ? <CheckCircle size={20} /> : <Circle size={20} />}
+                            <Trash2 size={16} />
                           </button>
-                          
-                          <div className="flex-1 min-w-0">
-                            {/* Title */}
-                            <h4 className={`text-sm font-semibold text-gray-800 leading-snug break-words mb-2 ${
-                              task.status === 'Completed' ? 'line-through text-gray-400' : ''
-                            }`}>
-                              {task.title}
-                            </h4>
-                            
-                            {/* Due Date & Assignees Row */}
-                            <div className="flex items-center gap-3 mb-2 flex-wrap">
-                              {/* Due Date */}
-                              {task.dueDate && (
-                                <div className={`flex items-center gap-1 text-xs font-semibold ${dueDateColor} px-2 py-1 rounded-md shadow-sm border border-gray-100`}>
-                                  <Clock size={12} />
-                                  <span>{dueDateText}</span>
-                                </div>
-                              )}
-                              
-                              {/* Assignees */}
-                              {assignees.length > 0 && (
-                                <div className="flex -space-x-2 overflow-hidden">
-                                  {assignees.slice(0, 3).map(emp => (
-                                    <div 
-                                      key={emp.id} 
-                                      className="w-6 h-6 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
-                                      title={emp.name}
-                                    >
-                                      {emp.name.charAt(0)}
-                                    </div>
-                                  ))}
-                                  {assignees.length > 3 && (
-                                    <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500 shadow-sm">
-                                      +{assignees.length - 3}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                        ) : (
+                          !reminder.dismissedBy?.includes(user.uid) && (
+                            <button 
+                              onClick={() => dismissReminder(reminder.id)}
+                              className="px-3 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 rounded-lg text-xs font-bold transition-colors border border-gray-100"
+                            >
+                              Dismiss
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-4 h-full min-w-full">
+            {STATUSES.map(status => (
+              <div 
+                key={status.id} 
+                className="flex flex-col min-w-[280px] flex-1"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, status.id)}
+              >
+                {/* Column Header */}
+                <div className={`${status.bgColor} rounded-t-xl border-b-2 ${
+                  status.id === 'Completed' ? 'border-green-500' :
+                  status.id === 'Review' ? 'border-purple-500' :
+                  status.id === 'On Hold' ? 'border-amber-500' :
+                  status.id === 'In Progress' ? 'border-orange-500' :
+                  'border-blue-500'
+                }`}>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-1.5 rounded-lg bg-white shadow-sm border border-gray-200">
+                        {status.icon}
+                      </span>
+                      <span className="text-sm font-bold uppercase tracking-wider text-gray-700">
+                        {status.label}
+                      </span>
+                      <span className="text-xs font-bold text-gray-500 bg-white px-2.5 py-1 rounded-full shadow-sm">
+                        {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
+                      </span>
+                    </div>
+                    <button className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-white rounded-lg transition-colors">
+                      <MoreHorizontal size={16} />
+                    </button>
+                  </div>
+                </div>
+                {/* Task List Area */}
+                <div className={`flex-1 ${status.bgColor} rounded-b-xl p-3 space-y-3 min-h-[500px]`}>
+                  {/* Inline Quick Add */}
+                  <div className="group relative space-y-2 bg-white/50 p-2 rounded-xl border border-dashed border-gray-300">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Quick add task..."
+                        className="w-full bg-white border-2 border-transparent focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 rounded-xl px-4 py-3 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm hover:shadow pr-10"
+                        value={inlineInputs[status.id] || ''}
+                        onChange={(e) => setInlineInputs({ ...inlineInputs, [status.id]: e.target.value })}
+                        onKeyDown={(e) => handleInlineCreate(status.id, e)}
+                      />
+                      {!inlineInputs[status.id] && (
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-opacity group-focus-within:opacity-0">
+                          <Plus size={16} />
+                        </div>
+                      )}
+                    </div>
 
-                            {task.description && (
-                              <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-2">
-                                {task.description}
-                              </p>
-                            )}
+                    {/* Datepicker & Submit Arrow - Only show if input has text */}
+                    {inlineInputs[status.id]?.trim() && (
+                      <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="relative flex-1 group/date">
+                          <CalendarIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 z-10 pointer-events-none" />
+                          <DatePicker
+                            selected={inlineDates[status.id]}
+                            onChange={(date) => setInlineDates({ ...inlineDates, [status.id]: date })}
+                            placeholderText="Set due date"
+                            dateFormat="MMM d, yyyy"
+                            className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 outline-none transition-all cursor-pointer hover:border-indigo-200"
+                          />
+                          {inlineDates[status.id] && (
+                            <button 
+                              onClick={() => setInlineDates({ ...inlineDates, [status.id]: null })}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 z-10"
+                            >
+                              <X size={10} />
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleInlineCreate(status.id)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition-all shadow-sm hover:shadow active:scale-90 flex-shrink-0"
+                          title="Save Task"
+                        >
+                          <ArrowRight size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {/* Tasks */}
+                  {filteredTasks
+                    .filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
+                    .map(task => {
+                      const assignees = getAssigneeInfo(task.assignedTo)
+                      const dueDateText = formatDueDate(task.dueDate)
+                      const dueDateColor = getDueDateColor(task.dueDate)
+                      
+                      return (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, task.id)}
+                          onDragEnd={handleDragEnd}
+                          className="group bg-white border-2 border-gray-200 rounded-xl p-4 shadow hover:shadow-lg hover:border-indigo-200 transition-all cursor-grab active:cursor-grabbing relative overflow-hidden"
+                        >
+                          {/* Priority & Status left border */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                            task.priority === 'urgent' ? 'bg-red-500' : 
+                            task.priority === 'important' ? 'bg-amber-500' :
+                            status.id === 'Completed' ? 'bg-green-500' : 
+                            status.id === 'Review' ? 'bg-purple-500' :
+                            status.id === 'On Hold' ? 'bg-amber-500' :
+                            status.id === 'In Progress' ? 'bg-orange-400' :
+                            'bg-blue-400'
+                          }`} />
+                          <div className="flex gap-3">
+                            <button 
+                              onClick={() => toggleStatus(task)}
+                              className={`mt-1 flex-shrink-0 transition-colors ${
+                                task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'
+                              }`}
+                            >
+                              {task.status === 'Completed' ? <CheckCircle size={20} /> : <Circle size={20} />}
+                            </button>
                             
-                            {/* Notes Preview */}
-                            {task.notes && (
-                              <div className="mt-2 bg-amber-50 border-l-3 border-amber-400 px-2.5 py-1.5 rounded-md">
-                                <p className="text-xs text-amber-800 line-clamp-1 font-medium">
-                                  📝 {task.notes}
-                                </p>
+                            <div className="flex-1 min-w-0">
+                              {/* Title */}
+                              <h4 className={`text-sm font-semibold text-gray-800 leading-snug break-words mb-2 ${
+                                task.status === 'Completed' ? 'line-through text-gray-400' : ''
+                              }`}>
+                                {task.title}
+                              </h4>
+                              
+                              {/* Due Date & Assignees Row */}
+                              <div className="flex items-center gap-3 mb-2 flex-wrap">
+                                {/* Due Date */}
+                                {task.dueDate && (
+                                  <div className={`flex items-center gap-1 text-xs font-semibold ${dueDateColor} px-2 py-1 rounded-md shadow-sm border border-gray-100`}>
+                                    <Clock size={12} />
+                                    <span>{dueDateText}</span>
+                                  </div>
+                                )}
+                                
+                                {/* Assignees */}
+                                {assignees.length > 0 && (
+                                  <div className="flex -space-x-2 overflow-hidden">
+                                    {assignees.slice(0, 3).map(emp => (
+                                      <div 
+                                        key={emp.id} 
+                                        className="w-6 h-6 rounded-full bg-indigo-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
+                                        title={emp.name}
+                                      >
+                                        {emp.name.charAt(0)}
+                                      </div>
+                                    ))}
+                                    {assignees.length > 3 && (
+                                      <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500 shadow-sm">
+                                        +{assignees.length - 3}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                            
-                            {/* Status-Specific Badges */}
-                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              {/* Client Badge */}
-                              {(task.clientName || task.clientType) && (
-                                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm border ${
-                                  task.clientType 
-                                    ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
-                                    : 'bg-gray-50 text-gray-700 border-gray-200'
-                                }`}>
-                                  <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
-                                  <span className="truncate max-w-[100px]">{task.clientName || 'Client'}</span>
-                                </span>
-                              )}
 
-                              {/* Priority Badge */}
-                              {(task.priority || 'normal') !== 'normal' && (
-                                <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold shadow-sm ${
-                                  task.priority === 'urgent' 
-                                    ? 'bg-red-100 text-red-700 border border-red-200' 
-                                    : 'bg-amber-100 text-amber-700 border border-amber-200'
-                                }`}>
-                                  {task.priority === 'urgent' ? '🔴' : '⚠️'}
-                                  {(task.priority || 'normal').charAt(0).toUpperCase() + (task.priority || 'normal').slice(1)}
-                                </span>
+                              {task.description && (
+                                <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-2">
+                                  {task.description}
+                                </p>
                               )}
                               
-                              {/* On Hold Badge */}
-                              {task.status === 'On Hold' && (
-                                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
-                                  ⏸️ On Hold
-                                </span>
+                              {/* Notes Preview */}
+                              {task.notes && (
+                                <div className="mt-2 bg-amber-50 border-l-3 border-amber-400 px-2.5 py-1.5 rounded-md">
+                                  <p className="text-xs text-amber-800 line-clamp-1 font-medium">
+                                    📝 {task.notes}
+                                  </p>
+                                </div>
                               )}
                               
-                              {/* Review Badge */}
-                              {task.status === 'Review' && (
-                                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
-                                  👀 In Review
-                                </span>
-                              )}
-                            </div>
+                              {/* Status-Specific Badges */}
+                              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                {/* Client Badge */}
+                                {(task.clientName || task.clientType) && (
+                                  <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-bold shadow-sm border ${
+                                    task.clientType 
+                                      ? `${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.bgColor} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.color} ${CLIENT_TYPES.find(ct => ct.id === task.clientType)?.borderColor}`
+                                      : 'bg-gray-50 text-gray-700 border-gray-200'
+                                  }`}>
+                                    <span>{task.clientType ? CLIENT_TYPES.find(ct => ct.id === task.clientType)?.icon : '👤'}</span>
+                                    <span className="truncate max-w-[100px]">{task.clientName || 'Client'}</span>
+                                  </span>
+                                )}
 
-                            {/* Completed Info */}
-                            {task.status === 'Completed' && task.completedAt && (
-                              <p className="text-xs text-green-600 mt-2 font-medium">
-                                ✓ Completed {formatDistanceToNow(task.completedAt.toDate(), { addSuffix: true })}
-                              </p>
-                            )}
-                            
-                            {/* Delete Button */}
-                            <div className="flex items-center justify-end mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button 
-                                onClick={() => deleteTask(task.id)}
-                                className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                                {/* Priority Badge */}
+                                {(task.priority || 'normal') !== 'normal' && (
+                                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold shadow-sm ${
+                                    task.priority === 'urgent' 
+                                      ? 'bg-red-100 text-red-700 border border-red-200' 
+                                      : 'bg-amber-100 text-amber-700 border border-amber-200'
+                                  }`}>
+                                    {task.priority === 'urgent' ? '🔴' : '⚠️'}
+                                    {(task.priority || 'normal').charAt(0).toUpperCase() + (task.priority || 'normal').slice(1)}
+                                  </span>
+                                )}
+                                
+                                {/* On Hold Badge */}
+                                {task.status === 'On Hold' && (
+                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 border border-amber-300 shadow-sm">
+                                    ⏸️ On Hold
+                                  </span>
+                                )}
+                                
+                                {/* Review Badge */}
+                                {task.status === 'Review' && (
+                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-300 shadow-sm">
+                                    👀 In Review
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Completed Info */}
+                              {task.status === 'Completed' && task.completedAt && (
+                                <p className="text-xs text-green-600 mt-2 font-medium">
+                                  ✓ Completed {formatDistanceToNow(task.completedAt.toDate(), { addSuffix: true })}
+                                </p>
+                              )}
+                              
+                              {/* Delete Button */}
+                              <div className="flex items-center justify-end mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={() => deleteTask(task.id)}
+                                  className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Add Task Modal */}
@@ -769,6 +923,105 @@ export default function TasksTab() {
               className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-indigo-700 transition-shadow shadow-lg shadow-indigo-100 active:scale-[0.98]"
             >
               Create Task
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Reminder Modal */}
+      <Modal 
+        isOpen={showReminderModal} 
+        onClose={() => setShowReminderModal(false)}
+        title="Create New Announcement"
+      >
+        <form onSubmit={handleCreateReminder} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Announcement Title</label>
+            <input
+              type="text"
+              required
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all placeholder:text-gray-300"
+              placeholder="What's the update?"
+              value={newReminder.title}
+              onChange={e => setNewReminder({ ...newReminder, title: e.target.value })}
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Content</label>
+            <textarea
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none transition-all min-h-[120px] resize-none placeholder:text-gray-300"
+              placeholder="Add details for the team..."
+              value={newReminder.content}
+              onChange={e => setNewReminder({ ...newReminder, content: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Audience</label>
+            <div className="flex gap-2">
+              {['general', 'targeted'].map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setNewReminder({ ...newReminder, type: type, targetUsers: [] })}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border-2 ${
+                    newReminder.type === type 
+                      ? 'bg-indigo-50 border-indigo-500 text-indigo-600'
+                      : 'border-gray-100 text-gray-400 hover:border-gray-200'
+                  }`}
+                >
+                  {type === 'general' ? 'Everyone' : 'Specific Users'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {newReminder.type === 'targeted' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Select Targets</label>
+              <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-xl min-h-[45px]">
+                {loginEnabledEmployees.map(emp => {
+                  const isSelected = newReminder.targetUsers?.includes(emp.id)
+                  return (
+                    <button
+                      key={emp.id}
+                      type="button"
+                      onClick={() => {
+                        const current = newReminder.targetUsers || []
+                        const updated = isSelected 
+                          ? current.filter(id => id !== emp.id)
+                          : [...current, emp.id]
+                        setNewReminder({ ...newReminder, targetUsers: updated })
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        isSelected 
+                          ? 'bg-indigo-600 text-white' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {emp.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4 border-t border-gray-50 mt-4">
+            <button
+              type="button"
+              onClick={() => setShowReminderModal(false)}
+              className="flex-1 px-4 py-3 border border-gray-200 text-gray-600 rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-indigo-700 transition-shadow shadow-lg shadow-indigo-100 active:scale-[0.98]"
+            >
+              Post Announcement
             </button>
           </div>
         </form>
