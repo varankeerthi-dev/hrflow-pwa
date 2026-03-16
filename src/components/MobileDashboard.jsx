@@ -211,6 +211,42 @@ export default function MobileDashboard() {
   const [showMenu, setShowMenu] = useState(false)
   const [loading, setLoading] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
+  
+  // Real-time unread counts
+  const [unreadChatCount, setUnreadChatCount] = useState(0)
+  const [pendingTaskCount, setPendingTaskCount] = useState(0)
+
+  // Chat unread listener
+  useEffect(() => {
+    if (!user?.orgId || !user?.uid) return
+    const q = query(
+      collection(db, 'organisations', user.orgId, 'chats'),
+      where('participantIds', 'array-contains', user.uid)
+    )
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let count = 0
+      snapshot.docs.forEach(doc => {
+        const data = doc.data()
+        count += (data.unreadCount?.[user.uid] || 0)
+      })
+      setUnreadChatCount(count)
+    })
+    return () => unsubscribe()
+  }, [user?.orgId, user?.uid])
+
+  // Task pending listener (Assigned to me and not completed)
+  useEffect(() => {
+    if (!user?.orgId || !user?.uid) return
+    const q = query(
+      collection(db, 'organisations', user.orgId, 'tasks'),
+      where('assignedTo', 'array-contains', user.uid),
+      where('status', '!=', 'Completed')
+    )
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPendingTaskCount(snapshot.size)
+    })
+    return () => unsubscribe()
+  }, [user?.orgId, user?.uid])
 
   const currentEmployee = useMemo(() => {
     if (!employees.length || !user?.email) return null
@@ -224,7 +260,7 @@ export default function MobileDashboard() {
       { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', color: 'text-purple-400', section: 'HRMS' },
       { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', color: 'text-cyan-400', section: 'HRMS', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
       { id: 'letters', label: 'HR Letters', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400', section: 'HRMS' },
-      { id: 'tasks', label: 'Tasks', icon: <CheckCircle className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', section: 'Productivity' },
+      { id: 'tasks', label: 'Tasks', icon: <CheckCircle className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', section: 'Productivity', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
       { id: 'recruitment', label: 'Recruitment', icon: <Briefcase className="h-4 w-4" />, module: 'Recruitment', color: 'text-blue-400', section: 'Operations' },
       { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', color: 'text-amber-400', section: 'Operations' },
       { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400', section: 'Core' },
@@ -232,11 +268,11 @@ export default function MobileDashboard() {
       { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400', section: 'Payroll' },
       { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400', section: 'Payroll' },
       { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400', section: 'Core' },
-      { id: 'chat', label: 'Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', section: 'Core' },
+      { id: 'chat', label: 'Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', section: 'Core', badge: unreadChatCount > 0 ? unreadChatCount : null },
       { id: 'shift-planning', label: 'Shift Plan', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400', section: 'Operations' },
       { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400', section: 'Core' },
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400', section: 'System' },
-    ], [stats.pendingCorrections])
+    ], [stats.pendingCorrections, unreadChatCount, pendingTaskCount])
 
     const moduleSections = useMemo(() => {
       const sections = {}

@@ -314,7 +314,7 @@ export default function TasksTab() {
   }, [employees, users])
 
   const renderBoardView = () => (
-    <div className="flex gap-4 h-full min-w-full">
+    <div className="flex gap-4 h-full min-w-full [@media(min-width:1400px)]:flex-nowrap flex-wrap lg:flex-nowrap">
       {STATUSES.map(status => (
         <div 
           key={status.id} 

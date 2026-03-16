@@ -27,6 +27,7 @@ import {
   Zap
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
+import { Card } from '../ui/index'
 
 export default function HomeTab() {
   const { user } = useAuth()

@@ -1,4 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react'
+
+/**
+ * ChatTab Component
+ * 
+ * Provides a real-time Team Chat interface similar to WhatsApp.
+ * Supports:
+ * - Direct messaging between organization members
+ * - Real-time message synchronization with Firestore
+ * - Image and file uploads to Firebase Storage
+ * - Unread message counts and presence indicators
+ * - Responsive layout: Dual-pane for web, single-pane for mobile
+ */
 import { 
   query, 
   orderBy, 
@@ -31,7 +43,8 @@ import {
   Smile,
   FileText
 } from 'lucide-react'
-import Spinner from '../ui/Spinner'
+import { Button, Card } from '../ui/index'
+import Modal from '../ui/Modal'
 
 export default function ChatTab() {
   const { user } = useAuth()
@@ -44,10 +57,15 @@ export default function ChatTab() {
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768)
   const [showChatList, setShowChatList] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [showNewGroupModal, setShowNewGroupModal] = useState(false)
+  const [groupName, setGroupName] = useState('')
+  const [selectedGroupParticipants, setSelectedGroupParticipants] = useState([])
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
 
+  // Handle window resizing for responsive layout
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768
@@ -58,7 +76,7 @@ export default function ChatTab() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Fetch chats
+  // Real-time listener for user's chats
   useEffect(() => {
     if (!user?.orgId) return
 
@@ -79,7 +97,7 @@ export default function ChatTab() {
     return () => unsubscribe()
   }, [user?.orgId, user?.uid])
 
-  // Fetch messages for selected chat
+  // Real-time listener for messages in the selected chat
   useEffect(() => {
     if (!user?.orgId || !selectedChat) {
       setMessages([])
@@ -114,6 +132,9 @@ export default function ChatTab() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  /**
+   * Sends a new text message
+   */
   const handleSendMessage = async (e) => {
     e.preventDefault()
     if (!newMessage.trim() || !selectedChat) return
@@ -152,6 +173,9 @@ export default function ChatTab() {
     }
   }
 
+  /**
+   * Handles file and image uploads to Firebase Storage and sends them as messages
+   */
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file || !selectedChat) return
@@ -195,6 +219,9 @@ export default function ChatTab() {
     }
   }
 
+  /**
+   * Initializes a new direct chat with a target user if it doesn't exist
+   */
   const startNewChat = async (targetUser) => {
     if (!user?.orgId) return
 
@@ -236,6 +263,65 @@ export default function ChatTab() {
     }
   }
 
+  const handleCreateGroup = async () => {
+    if (!groupName.trim() || selectedGroupParticipants.length === 0) return
+    
+    try {
+      const participantIds = [user.uid, ...selectedGroupParticipants]
+      const participants = {
+        [user.uid]: { name: user.name, photoURL: user.photoURL || null }
+      }
+      
+      selectedGroupParticipants.forEach(pid => {
+        const emp = employees.find(e => e.id === pid)
+        participants[pid] = { name: emp?.name || 'Unknown', photoURL: emp?.photoURL || null }
+      })
+
+      const unreadCount = {}
+      participantIds.forEach(pid => unreadCount[pid] = 0)
+
+      const chatData = {
+        name: groupName.trim(),
+        type: 'group',
+        participantIds,
+        participants,
+        createdAt: serverTimestamp(),
+        lastMessageAt: serverTimestamp(),
+        unreadCount,
+        createdBy: user.uid
+      }
+
+      const docRef = await addDoc(chatsCol(user.orgId), chatData)
+      setSelectedChat({ id: docRef.id, ...chatData })
+      setShowNewGroupModal(false)
+      setGroupName('')
+      setSelectedGroupParticipants([])
+      if (isMobileView) setShowChatList(false)
+    } catch (err) {
+      console.error('Error creating group:', err)
+    }
+  }
+
+  const handleAddTaskFromChat = async (msg) => {
+    try {
+      // Assuming useTasks is available or we just use addDoc directly
+      const taskData = {
+        title: `Task from Chat: ${msg.text.substring(0, 50)}...`,
+        description: `Originating from chat message: "${msg.text}"\nSent by: ${msg.senderName}`,
+        status: 'To Do',
+        assignedTo: [user.uid],
+        isPersonal: true,
+        category: 'task',
+        createdAt: serverTimestamp(),
+        createdBy: user.uid
+      }
+      await addDoc(collection(db, 'organisations', user.orgId, 'tasks'), taskData)
+      alert('Task created successfully!')
+    } catch (err) {
+      console.error('Error creating task from chat:', err)
+    }
+  }
+
   const filteredEmployees = employees.filter(emp => 
     emp.id !== user.uid && 
     (emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -265,8 +351,13 @@ export default function ChatTab() {
           <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight">Team Chat</h2>
             <div className="flex gap-2">
-              <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500"><Users size={20} /></button>
-              <button className="p-2 hover:bg-gray-100 rounded-full text-gray-500"><MoreVertical size={20} /></button>
+              <button 
+                onClick={() => setShowNewGroupModal(true)}
+                className="p-2 hover:bg-gray-100 rounded-full text-indigo-600"
+                title="New Group Chat"
+              >
+                <Users size={20} />
+              </button>
             </div>
           </div>
 
@@ -377,20 +468,22 @@ export default function ChatTab() {
                 </div>
               </div>
 
-              {/* Messages Area */}
+                  {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#f8f9fc] pattern-dots">
                 {messages.map((msg, idx) => {
                   const isMe = msg.senderId === user.uid
-                  const showAvatar = idx === 0 || messages[idx-1].senderId !== msg.senderId
                   
                   return (
                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                        {!isMe && (idx === 0 || messages[idx-1].senderId !== msg.senderId) && (
+                          <span className="text-[10px] font-bold text-gray-400 mb-1 ml-1 uppercase tracking-tight">{msg.senderName}</span>
+                        )}
                         <div className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm relative group ${
                           isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
                         }`}>
                           {msg.type === 'image' ? (
-                            <img src={msg.fileUrl} alt="Attachment" className="max-w-full rounded-lg mb-1" />
+                            <img src={msg.fileUrl} alt="Attachment" className="max-w-full rounded-lg mb-1 shadow-md" />
                           ) : msg.type === 'file' ? (
                             <a href={msg.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-black/5 rounded-lg mb-1">
                               <FileText size={20} />
@@ -398,9 +491,16 @@ export default function ChatTab() {
                             </a>
                           ) : null}
                           <p className="leading-relaxed">{msg.text}</p>
-                          <div className={`flex items-center gap-1 mt-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
+                          <div className={`flex items-center gap-2 mt-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
                             <span className="text-[9px] font-medium">{formatTime(msg.createdAt)}</span>
                             {isMe && <CheckCheck size={10} />}
+                            <button 
+                              onClick={() => handleAddTaskFromChat(msg)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 p-0.5 hover:bg-black/10 rounded cursor-pointer"
+                              title="Create Task"
+                            >
+                              <Plus size={12} />
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -430,21 +530,25 @@ export default function ChatTab() {
                     <input 
                       type="text" 
                       placeholder="Type your message..." 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                      className="w-full h-12 pl-4 pr-12 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none text-sm font-medium transition-all"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                     />
-                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-500">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-600 transition-colors"
+                    >
                       <Smile size={20} />
                     </button>
                   </div>
-                  <button 
+                  <Button 
                     type="submit" 
                     disabled={!newMessage.trim() || uploading}
-                    className="bg-indigo-600 text-white p-3 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                    className="h-12 w-12 !p-0 rounded-xl shadow-indigo-200"
                   >
-                    {uploading ? <Spinner size="sm" color="white" /> : <Send size={20} />}
-                  </button>
+                    {uploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={20} />}
+                  </Button>
                 </form>
               </div>
             </>
@@ -463,6 +567,85 @@ export default function ChatTab() {
               </button>
             </div>
           )}
+        </div>
+      )}
+      {/* Modals */}
+      <Modal 
+        isOpen={showNewGroupModal} 
+        onClose={() => setShowNewGroupModal(false)} 
+        title="Create Team Group"
+        size="lg"
+      >
+        <div className="space-y-6 py-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group Name</label>
+            <input 
+              type="text" 
+              placeholder="E.g. Sales Team, Marketing Dept" 
+              className="w-full h-12 px-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-600 outline-none text-sm font-bold"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Select Participants ({selectedGroupParticipants.length})</label>
+            <div className="max-h-60 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-xl">
+              {employees.filter(e => e.id !== user.uid).map(emp => (
+                <div 
+                  key={emp.id} 
+                  className="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => {
+                    if (selectedGroupParticipants.includes(emp.id)) {
+                      setSelectedGroupParticipants(selectedGroupParticipants.filter(id => id !== emp.id))
+                    } else {
+                      setSelectedGroupParticipants([...selectedGroupParticipants, emp.id])
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-700 font-bold text-xs">
+                      {emp.photoURL ? <img src={emp.photoURL} className="w-full h-full rounded-full object-cover" /> : emp.name?.[0]}
+                    </div>
+                    <span className="text-sm font-bold text-gray-700">{emp.name}</span>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                    selectedGroupParticipants.includes(emp.id) ? 'bg-indigo-600 border-indigo-600' : 'border-gray-200'
+                  }`}>
+                    {selectedGroupParticipants.includes(emp.id) && <Check size={12} className="text-white" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <Button 
+            className="w-full h-12" 
+            disabled={!groupName.trim() || selectedGroupParticipants.length === 0}
+            onClick={handleCreateGroup}
+          >
+            Create Team Group
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Emoji Picker Placeholder */}
+      {showEmojiPicker && (
+        <div className="fixed bottom-24 right-4 z-50 bg-white shadow-2xl rounded-2xl border border-gray-100 p-4 animate-in slide-in-from-bottom-4">
+          <div className="grid grid-cols-6 gap-2">
+            {['😊', '😂', '👍', '🔥', '🚀', '🙌', '❤️', '🎉', '💡', '✅', '⚠️', '📦'].map(emoji => (
+              <button 
+                key={emoji} 
+                onClick={() => {
+                  setNewMessage(prev => prev + emoji)
+                  setShowEmojiPicker(false)
+                }}
+                className="text-2xl hover:scale-125 transition-transform"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
