@@ -124,10 +124,10 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
 
   return (
     <div 
-      className="relative flex items-center rounded-md border border-gray-200 h-8 transition-all overflow-hidden"
+      className="relative flex items-center rounded-md border border-gray-200 min-h-[32px] transition-all overflow-hidden"
       style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
     >
-      <div className="flex-1 flex items-center min-w-0">
+      <div className="flex-1 flex flex-col items-center min-w-0 py-0.5">
         <input
           type="text"
           value={tempValue}
@@ -143,7 +143,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
           disabled={disabled}
           data-row={rowIdx}
           data-field={field}
-          className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400"
+          className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7"
           placeholder={placeholder || "--:--"}
         />
         {extra}
