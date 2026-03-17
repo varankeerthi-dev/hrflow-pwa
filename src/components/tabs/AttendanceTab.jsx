@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
-import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 
 function getInitials(name) {
@@ -534,7 +534,7 @@ export default function AttendanceTab() {
   return (
     <div className="flex flex-col h-full gap-3" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {/* Title Header - Sticky */}
-      <div className="bg-white px-6 py-4 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-10 gap-[20px]">
+      <div className="bg-white px-6 py-4 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-10 gap-[40px]">
         <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
         
         {/* Date & Action Bar moved here */}
@@ -542,27 +542,28 @@ export default function AttendanceTab() {
           <div className="flex items-center gap-4">
             <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
               <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
-              <div className="relative">
+              <div className="relative flex items-center">
                 <input 
                   type="date" 
                   value={selectedDate} 
                   onChange={e => setSelectedDate(e.target.value)} 
                   className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer opacity-0 absolute w-full left-0 top-0" 
                 />
-                <span 
-                  className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none"
+                <div 
+                  className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none gap-2"
                   onClick={(e) => {
                     const input = e.currentTarget.parentElement.querySelector('input[type="date"]');
                     input?.showPicker?.();
                   }}
                 >
+                  <Calendar size={14} className="text-gray-400" />
                   {new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
+                </div>
               </div>
               <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold">
+              <span className="text-lg font-bold leading-tight">
                 <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
                 <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
               </span>
@@ -729,14 +730,16 @@ export default function AttendanceTab() {
 
                     {/* Remarks */}
                     <td className="px-3">
-                      <input
-                        type="text"
-                        value={row.remarks || ''}
-                        onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
-                        className="border-none bg-transparent p-0 text-xs focus:ring-0 text-gray-600 w-full placeholder-gray-300"
-                        placeholder="..."
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      />
+                      <div className="bg-gray-50 border border-gray-100 rounded-md px-2 py-1">
+                        <input
+                          type="text"
+                          value={row.remarks || ''}
+                          onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
+                          className="border-none bg-transparent p-0 text-xs focus:ring-0 text-gray-600 w-full placeholder-gray-300"
+                          placeholder="..."
+                          style={{ fontFamily: "'Inter', sans-serif" }}
+                        />
+                      </div>
                     </td>
 
                     {/* Status Pills */}
