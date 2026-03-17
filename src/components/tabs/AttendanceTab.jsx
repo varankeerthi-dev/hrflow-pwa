@@ -424,58 +424,64 @@ export default function AttendanceTab() {
   return (
     <div className="flex flex-col h-full gap-3" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {/* Title Header - Sticky */}
-      <div className="bg-white px-6 py-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance Management</h1>
-          <p className="text-sm text-gray-500 mt-1" style={{ fontFamily: "'Roboto', sans-serif" }}>Daily Attendance & Shift Tracking</p>
-        </div>
-      </div>
-
-      {/* Date & Action Bar */}
-      <div className="bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-            <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
-            <div className="relative">
-              <input 
-                type="date" 
-                value={selectedDate} 
-                onChange={e => setSelectedDate(e.target.value)} 
-                className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer opacity-0 absolute w-full left-0 top-0" 
-              />
-              <span 
-                className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none"
-                onClick={(e) => {
-                  const input = e.currentTarget.parentElement.querySelector('input[type="date"]');
-                  input?.showPicker?.();
-                }}
-              >
-                {new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-              </span>
-            </div>
-            <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold">
-              <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
-              <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
-            </span>
-            {isSunday && <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide flex items-center gap-1">Sunday Routine</span>}
-          </div>
-        </div>
+      <div className="bg-white px-6 py-4 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-10 gap-[20px]">
+        <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
         
-        <div className="flex items-center gap-2">
-          {/* Reset All Button */}
-          <button 
-            onClick={() => setShowResetWarning(true)} 
-            disabled={!rows.length || saving}
-            className="h-9 px-3 bg-red-50 text-red-600 font-medium rounded-lg text-xs shadow-sm hover:bg-red-100 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed" 
-            style={{ fontFamily: "'Roboto', sans-serif" }}
-          >
-            <Trash2 size={14} /> Reset All
-          </button>
-          <button onClick={handleAddRow} className="h-9 px-3 bg-gray-100 text-gray-600 font-medium rounded-lg text-xs shadow-sm hover:bg-gray-200 transition-all flex items-center gap-1.5" style={{ fontFamily: "'Roboto', sans-serif" }}><Plus size={14} /> Add Row</button>
-          <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all" style={{ fontFamily: "'Roboto', sans-serif" }}>Generate Active</button>
+        {/* Date & Action Bar moved here */}
+        <div className="flex flex-1 justify-between items-center">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
+              <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
+              <div className="relative">
+                <input 
+                  type="date" 
+                  value={selectedDate} 
+                  onChange={e => setSelectedDate(e.target.value)} 
+                  className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer opacity-0 absolute w-full left-0 top-0" 
+                />
+                <span 
+                  className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none"
+                  onClick={(e) => {
+                    const input = e.currentTarget.parentElement.querySelector('input[type="date"]');
+                    input?.showPicker?.();
+                  }}
+                >
+                  {new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+              <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold">
+                <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
+                <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
+              </span>
+              {isSunday && <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide flex items-center gap-1">Sunday Routine</span>}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Card for Reset and Add Row */}
+            <div className="flex items-center gap-2 bg-[#361f1b] p-1 rounded-lg shadow-sm border border-[#4a2b26]">
+              <button 
+                onClick={() => setShowResetWarning(true)} 
+                disabled={!rows.length || saving}
+                className="h-8 px-3 text-red-200 font-medium rounded-md text-[11px] hover:bg-red-900/30 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed" 
+                style={{ fontFamily: "'Roboto', sans-serif" }}
+              >
+                <Trash2 size={13} /> Reset All
+              </button>
+              <div className="w-[1px] h-4 bg-[#4a2b26]"></div>
+              <button 
+                onClick={handleAddRow} 
+                className="h-8 px-3 text-gray-200 font-medium rounded-md text-[11px] hover:bg-white/10 transition-all flex items-center gap-1.5" 
+                style={{ fontFamily: "'Roboto', sans-serif" }}
+              >
+                <Plus size={13} /> Add Row
+              </button>
+            </div>
+            <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all" style={{ fontFamily: "'Roboto', sans-serif" }}>Generate Active</button>
+          </div>
         </div>
       </div>
 
