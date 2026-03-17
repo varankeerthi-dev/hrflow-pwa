@@ -2003,9 +2003,11 @@ export default function SettingsTab() {
                               onClick={() => {
                                 const emp = employees.find(e => e.email === u.email || e.id === u.employeeId);
                                 if (emp) {
-                                  setEditingEmp(emp);
+                                  // Fix: pass emp.id string, not the whole object
+                                  setEditingEmp(emp.id);
                                   setEditForm({ ...emp });
-                                  setActiveSubTab('employees');
+                                  // Fix: the tab id is 'employee', not 'employees'
+                                  setActiveSubTab('employee');
                                 } else {
                                   alert('No linked employee record found for this user.');
                                 }
