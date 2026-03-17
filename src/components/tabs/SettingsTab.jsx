@@ -541,14 +541,20 @@ export default function SettingsTab() {
       // Prepare clean employee data - remove any undefined values and include orgId
       const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
       const mwhCategory = mwhList.find(m => m.name === editForm.minDailyHoursCategory)
+      
+      // Destructure to separate Firestore-unfriendly objects
+      const { id, shift, ...baseEditForm } = editForm;
+
       const cleanEditForm = {
         ...Object.fromEntries(
-          Object.entries(editForm).filter(([_, v]) => v !== undefined && v !== null)
+          Object.entries(baseEditForm).filter(([_, v]) => v !== undefined && v !== null && typeof v !== 'function')
         ),
         orgId: user.orgId, // Ensure orgId is present for security rules
         minDailyHours: mwhCategory ? mwhCategory.hours : (editForm.minDailyHours || 8)
       }
-      delete cleanEditForm.minDailyHoursCategory
+      
+      if (cleanEditForm.minDailyHoursCategory) delete cleanEditForm.minDailyHoursCategory
+      if (cleanEditForm.id) delete cleanEditForm.id
       
       await updateEmployee(editingEmp, cleanEditForm)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
@@ -2980,13 +2986,33 @@ export default function SettingsTab() {
 
                         <div className="flex gap-2">
                           <button 
-                            onClick={() => { 
+                            onClick={async () => { 
                               const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
                               const mwhCategory = mwhList.find(m => m.hours === emp.minDailyHours) || mwhList.find(m => m.name === emp.minDailyHours)
                               const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
-                              setEditingEmp(emp); 
-                              setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || '' }); 
-                              setShowAddEmployee(false); 
+                              
+                              // Use emp.id here to fix the r.indexOf error
+                              setEditingEmp(emp.id); 
+                              setEditForm({ 
+                                ...emp, 
+                                loginEnabled: emp.loginEnabled || false,
+                                tempPassword: '',
+                                minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || '' 
+                              }); 
+                              
+                              // Fetch additional login info in the background
+                              try {
+                                const userDoc = await getDoc(doc(db, 'users', emp.id))
+                                if (userDoc.exists()) {
+                                  const userData = userDoc.data()
+                                  setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true }))
+                                }
+                              } catch (e) {
+                                console.warn('Could not fetch user login status:', e)
+                              }
+
+                              setShowInvitePage(false); 
+                              setActiveSubTab('employee');
                             }}
                             className="flex-1 h-9 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-sm flex items-center justify-center gap-2"
                           >
