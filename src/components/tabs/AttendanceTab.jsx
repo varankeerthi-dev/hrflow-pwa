@@ -89,7 +89,7 @@ function convertShorthand(val, period) {
   return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field }) => {
+const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder }) => {
   const [tempValue, setTempValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -142,8 +142,8 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
         disabled={disabled}
         data-row={rowIdx}
         data-field={field}
-        className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-300 disabled:text-gray-400"
-        placeholder="--:--"
+        className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400"
+        placeholder={placeholder || "--:--"}
       />
       <button
         type="button"
@@ -334,9 +334,9 @@ export default function AttendanceTab() {
       name: emp.name,
       date: selectedDate,
       inDate: selectedDate,
-      inTime: emp.shift?.startTime || '09:00',
+      inTime: '',
       outDate: selectedDate,
-      outTime: emp.shift?.endTime || '21:00',
+      outTime: '',
       otHours: '00:00',
       remarks: emp.site || '',
       isAbsent: false,
@@ -355,9 +355,9 @@ export default function AttendanceTab() {
       name: '',
       date: selectedDate,
       inDate: selectedDate,
-      inTime: '09:00',
+      inTime: '',
       outDate: selectedDate,
-      outTime: '21:00',
+      outTime: '',
       otHours: '00:00',
       remarks: '',
       isAbsent: false,
@@ -386,9 +386,9 @@ export default function AttendanceTab() {
         name: emp.name,
         date: selectedDate,
         inDate: selectedDate,
-        inTime: emp.shift?.startTime || '09:00',
+        inTime: '',
         outDate: selectedDate,
-        outTime: emp.shift?.endTime || '21:00',
+        outTime: '',
         otHours: '00:00',
         remarks: emp.site || '',
         isAbsent: false,
