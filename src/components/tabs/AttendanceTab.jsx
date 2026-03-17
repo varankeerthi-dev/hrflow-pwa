@@ -48,6 +48,116 @@ function displayShortDate(isoDate) {
   return `${months[d.getMonth()]} ${d.getDate()}`
 }
 
+// Helper for time formatting
+function formatTimeDisplay(time24) {
+  if (!time24) return '';
+  const [h, m] = time24.split(':').map(Number);
+  const p = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${p}`;
+}
+
+// Shorthand conversion logic
+function convertShorthand(val, period) {
+  const digits = val.replace(/\D/g, '');
+  let h, m;
+  if (digits.length === 3) {
+    h = parseInt(digits[0]);
+    m = parseInt(digits.slice(1));
+  } else if (digits.length === 4) {
+    h = parseInt(digits.slice(0, 2));
+    m = parseInt(digits.slice(2));
+  } else if (digits.length === 2) {
+    // Current hour context
+    h = new Date().getHours() % 12 || 12;
+    m = parseInt(digits);
+    if (m > 59) m = 50;
+  } else if (digits.length === 1) {
+    h = parseInt(digits);
+    m = 0;
+  } else {
+    return null;
+  }
+
+  if (h > 12) h = 12;
+  if (m > 59) m = 59;
+
+  let h24 = h;
+  if (period === 'PM' && h24 !== 12) h24 += 12;
+  if (period === 'AM' && h24 === 12) h24 = 0;
+  
+  return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field }) => {
+  const [tempValue, setTempValue] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setTempValue(value ? formatTimeDisplay(value) : '');
+    }
+  }, [value, isEditing]);
+
+  const handleKeyDown = (e) => {
+    if (disabled) return;
+    const key = e.key.toLowerCase();
+    if (key === 'a' || key === 'p') {
+      e.preventDefault();
+      const period = key === 'a' ? 'AM' : 'PM';
+      const time24 = convertShorthand(tempValue, period);
+      if (time24) {
+        onChange(time24);
+        setIsEditing(false);
+        // Auto-advance
+        setTimeout(() => {
+          let nextField = field === 'inTime' ? 'outTime' : 'inTime';
+          let nextRowIdx = field === 'outTime' ? rowIdx + 1 : rowIdx;
+          const nextInput = document.querySelector(`[data-row="${nextRowIdx}"][data-field="${nextField}"]`);
+          if (nextInput) {
+            nextInput.focus();
+          }
+        }, 50);
+      }
+    }
+  };
+
+  return (
+    <div 
+      className="relative flex items-center rounded-md border border-gray-200 h-8 transition-all overflow-hidden"
+      style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
+    >
+      <input
+        type="text"
+        value={tempValue}
+        onChange={(e) => { setTempValue(e.target.value); setIsEditing(true); }}
+        onFocus={(e) => { 
+          setIsEditing(true); 
+          e.target.select();
+        }}
+        onBlur={() => {
+          setTimeout(() => setIsEditing(false), 200);
+        }}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        data-row={rowIdx}
+        data-field={field}
+        className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-300 disabled:text-gray-400"
+        placeholder="--:--"
+      />
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onShowPicker(); }}
+        disabled={disabled}
+        className="pr-2 text-[14px] cursor-pointer hover:scale-125 transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
+        title="Open time picker"
+      >
+        🕐
+      </button>
+    </div>
+  );
+};
+
 // ─── Dropdown Copy Picker ───────────────────────────────────────────────────
 function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEmps, setSelectedEmps, onApply, onClose }) {
   const dropdownRef = useRef(null);
@@ -547,18 +657,15 @@ export default function AttendanceTab() {
                     {/* In Time */}
                     <td className="px-3 text-center">
                       <div className="flex items-center justify-center relative">
-                        <button
-                          onClick={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
+                        <TimeEditableCell
+                          value={row.inTime}
+                          onChange={(time) => updateRow(row.employeeId, 'inTime', time)}
+                          onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          className="text-sm font-medium text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif] disabled:text-gray-300"
-                        >
-                          {row.inTime ? (() => {
-                            const [h, m] = row.inTime.split(':').map(Number)
-                            const p = h >= 12 ? 'PM' : 'AM'
-                            const h12 = h % 12 || 12
-                            return `${h12}:${String(m).padStart(2, '0')} ${p}`
-                          })() : '--:--'}
-                        </button>
+                          backgroundColor="#e8f4f8"
+                          rowIdx={idx}
+                          field="inTime"
+                        />
                         {showInTimePicker === row.employeeId && (
                           <TimePicker
                             value={row.inTime || '09:00'}
@@ -572,18 +679,15 @@ export default function AttendanceTab() {
                     {/* Out Time */}
                     <td className="px-3 text-center">
                       <div className="flex items-center justify-center relative flex-col">
-                        <button
-                          onClick={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
+                        <TimeEditableCell
+                          value={row.outTime}
+                          onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
+                          onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
                           disabled={row.isAbsent || row.status === 'SunHoliday'}
-                          className="text-sm font-medium text-gray-800 bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed text-center w-full font-['Roboto',sans-serif] disabled:text-gray-300"
-                        >
-                          {row.outTime ? (() => {
-                            const [h, m] = row.outTime.split(':').map(Number)
-                            const p = h >= 12 ? 'PM' : 'AM'
-                            const h12 = h % 12 || 12
-                            return `${h12}:${String(m).padStart(2, '0')} ${p}`
-                          })() : '--:--'}
-                        </button>
+                          backgroundColor="#fff4e8"
+                          rowIdx={idx}
+                          field="outTime"
+                        />
                         {row.shiftType === 'Night' && row.outTime && (
                           <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
                             <ArrowRight size={10} />
