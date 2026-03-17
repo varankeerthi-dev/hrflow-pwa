@@ -42,7 +42,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if request.auth != null && (
         request.auth.uid == uid || 
-        (isOrgMember() && getUserOrgId() == resource.data.orgId)
+        (isOrgMember() && (getUserOrgId() == resource.data.orgId || isAdmin()))
       );
       allow list: if isOrgMember() && (isAdmin() || request.query.limit <= 100);
       allow create: if request.auth != null && (
