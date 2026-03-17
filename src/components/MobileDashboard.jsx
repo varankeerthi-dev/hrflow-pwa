@@ -613,7 +613,7 @@ export default function MobileDashboard() {
 
         {/* Content View */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="max-w-[1600px] mx-auto min-h-full">
+          <div className="w-full min-h-full">
             {renderTabContent()}
           </div>
         </div>

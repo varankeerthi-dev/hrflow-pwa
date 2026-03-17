@@ -533,8 +533,8 @@ export default function Dashboard() {
             </div>
           </nav>
 
-          <main className="flex-1 overflow-auto p-6 bg-[#f9fafb]/30">
-            <div className="max-w-7xl mx-auto h-full flex flex-col">
+          <main className="flex-1 overflow-auto bg-[#f9fafb]/30">
+            <div className="w-full h-full flex flex-col">
               {renderTabContent()}
             </div>
           </main>
