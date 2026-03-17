@@ -444,9 +444,9 @@ export default function Dashboard() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Quno-inspired Minimal Sidebar */}
         <aside 
-          className={`bg-white border-r border-gray-100 hidden md:flex flex-col shrink-0 transition-all duration-200 ${isCollapsed ? 'w-[56px]' : 'w-[220px]'}`}
+          className={`bg-white border-r border-gray-100 hidden md:flex flex-col shrink-0 transition-all duration-200 ${isCollapsed ? 'w-[56px]' : 'w-[200px]'}`}
         >
-          <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 px-1.5 py-2 space-y-0 overflow-y-auto no-scrollbar">
             {sections.map(section => {
               // Filter section tabs by user permissions
               const sectionTabs = tabs.filter(t => section.tabs.includes(t.id));
@@ -456,11 +456,11 @@ export default function Dashboard() {
               const isGroupActive = expandedGroups[section.id];
               
               return (
-                <div key={section.id} className="mb-1">
+                <div key={section.id} className="mb-0.5">
                   {!isCollapsed && (
                     <button
                       onClick={() => setExpandedGroups(prev => ({ ...prev, [section.id]: !prev[section.id] }))}
-                      className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-medium text-gray-400 uppercase tracking-wide hover:text-gray-600 transition-colors"
+                      className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide hover:text-orange-600 transition-colors"
                     >
                       <span>{section.title}</span>
                       <ChevronRight 
@@ -470,7 +470,7 @@ export default function Dashboard() {
                     </button>
                   )}
                   
-                  <div className={`space-y-0.5 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
+                  <div className={`space-y-0 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id
                       return (
@@ -481,13 +481,13 @@ export default function Dashboard() {
                             if (tab.id === 'summary') setSummarySubTab('summary')
                           }}
                           title={isCollapsed ? tab.label : ''}
-                          className={`w-full group flex items-center rounded-lg transition-all duration-150 ${isCollapsed ? 'justify-center px-0 py-2' : 'px-2.5 py-2 gap-3'} ${
+                          className={`w-full group flex items-center rounded-lg transition-all duration-150 ${isCollapsed ? 'justify-center px-0 py-1.5' : 'px-2 py-1.5 gap-2.5'} ${
                             isActive 
-                              ? 'bg-white shadow-sm text-gray-900 font-medium' 
-                              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                              ? 'bg-green-800 text-white font-medium shadow-sm' 
+                              : 'text-gray-500 hover:bg-orange-50 hover:text-orange-600'
                           }`}
                         >
-                          <span className={`shrink-0 ${isActive ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'}`}>
+                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-orange-500'}`}>
                             {React.cloneElement(tab.icon, { size: 18 })}
                           </span>
                           
@@ -511,10 +511,10 @@ export default function Dashboard() {
             })}
           </nav>
 
-          <div className="p-2 border-t border-gray-100">
+          <div className="p-1.5 border-t border-gray-100">
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className={`w-full flex items-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-2.5 py-2 gap-3'}`}
+              className={`w-full flex items-center rounded-lg text-gray-400 hover:bg-orange-50 hover:text-orange-600 transition-all ${isCollapsed ? 'justify-center py-1.5' : 'px-2 py-1.5 gap-2.5'}`}
             >
               <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform`} />
               {!isCollapsed && <span className="text-[13px]">Collapse</span>}
@@ -523,11 +523,11 @@ export default function Dashboard() {
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 overflow-x-auto flex items-center shrink-0">
-            <div className="flex px-2 h-14">
+          <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 overflow-x-auto flex items-center shrink-0 no-scrollbar">
+            <div className="flex px-1.5 h-12">
               {tabs.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-5 h-full flex items-center text-[11px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}>
-                  <span className="mr-2 text-[#6b7280]">{tab.icon}</span> {tab.label}
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-3 h-full flex items-center text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-green-800 text-green-800' : 'border-transparent text-gray-400 hover:text-orange-600'}`}>
+                  <span className={`mr-2 ${activeTab === tab.id ? 'text-green-800' : 'text-[#6b7280]'}`}>{tab.icon}</span> {tab.label}
                 </button>
               ))}
             </div>
