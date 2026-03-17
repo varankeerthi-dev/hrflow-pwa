@@ -89,7 +89,7 @@ function convertShorthand(val, period) {
   return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder }) => {
+const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder, extra }) => {
   const [tempValue, setTempValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -127,24 +127,27 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
       className="relative flex items-center rounded-md border border-gray-200 h-8 transition-all overflow-hidden"
       style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
     >
-      <input
-        type="text"
-        value={tempValue}
-        onChange={(e) => { setTempValue(e.target.value); setIsEditing(true); }}
-        onFocus={(e) => { 
-          setIsEditing(true); 
-          e.target.select();
-        }}
-        onBlur={() => {
-          setTimeout(() => setIsEditing(false), 200);
-        }}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        data-row={rowIdx}
-        data-field={field}
-        className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400"
-        placeholder={placeholder || "--:--"}
-      />
+      <div className="flex-1 flex items-center min-w-0">
+        <input
+          type="text"
+          value={tempValue}
+          onChange={(e) => { setTempValue(e.target.value); setIsEditing(true); }}
+          onFocus={(e) => { 
+            setIsEditing(true); 
+            e.target.select();
+          }}
+          onBlur={() => {
+            setTimeout(() => setIsEditing(false), 200);
+          }}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          data-row={rowIdx}
+          data-field={field}
+          className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400"
+          placeholder={placeholder || "--:--"}
+        />
+        {extra}
+      </div>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onShowPicker(); }}
@@ -688,13 +691,14 @@ export default function AttendanceTab() {
                           backgroundColor="#fff4e8"
                           rowIdx={idx}
                           field="outTime"
+                          placeholder="09:00 PM"
+                          extra={row.shiftType === 'Night' && row.outTime && (
+                            <div className="flex items-center gap-1 text-[9px] text-orange-600/70 font-bold whitespace-nowrap pr-1">
+                              <ArrowRight size={8} />
+                              <span>{displayShortDate(row.outDate)}</span>
+                            </div>
+                          )}
                         />
-                        {row.shiftType === 'Night' && row.outTime && (
-                          <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
-                            <ArrowRight size={10} />
-                            <span style={{ fontFamily: "'Inter', sans-serif" }}>{displayShortDate(row.outDate)}</span>
-                          </div>
-                        )}
                         {showOutTimePicker === row.employeeId && (
                           <TimePicker
                             value={row.outTime || '21:00'}
