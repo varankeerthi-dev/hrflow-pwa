@@ -44,6 +44,7 @@ service cloud.firestore {
         request.auth.uid == uid || 
         (isOrgMember() && getUserOrgId() == resource.data.orgId)
       );
+      allow list: if isOrgMember() && (isAdmin() || request.query.limit <= 100);
       allow create: if request.auth != null && (
         request.auth.uid == uid || 
         (isAdmin() && getUserOrgId() == request.resource.data.orgId)
