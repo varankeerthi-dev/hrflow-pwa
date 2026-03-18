@@ -40,10 +40,12 @@ export default function LeaveTab() {
     leaveType: 'Casual', 
     fromDate: '', 
     toDate: '', 
-    reason: '' 
+    reason: '',
+    deptHeadId: ''
   })
   
   const [actionRemarks, setActionRemarks] = useState({})
+  const [selectedNextApprover, setSelectedNextApprover] = useState({})
 
   const leaveTypes = ['Casual', 'Sick', 'Privilege', 'Maternity', 'Paternity', 'Unpaid', 'LOP']
 
@@ -58,17 +60,23 @@ export default function LeaveTab() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.employeeId || !form.fromDate || !form.reason) return
+    if (!form.employeeId || !form.fromDate || !form.reason || !form.deptHeadId) {
+      alert('Please fill all required fields including Department Head.')
+      return
+    }
     
     try {
       const emp = employees.find(e => e.id === form.employeeId)
+      const deptHead = employees.find(e => e.id === form.deptHeadId)
+      
       await applyLeave({
         ...form,
         employeeName: emp?.name || 'Unknown',
+        deptHeadName: deptHead?.name || 'Unknown',
         orgId: user.orgId
       })
       setShowInlineForm(false)
-      setForm({ employeeId: '', leaveType: 'Casual', fromDate: '', toDate: '', reason: '' })
+      setForm({ employeeId: '', leaveType: 'Casual', fromDate: '', toDate: '', reason: '', deptHeadId: '' })
       refreshLeaves()
     } catch (err) {
       alert('Failed to submit application: ' + err.message)
@@ -77,13 +85,21 @@ export default function LeaveTab() {
 
   const handleAction = async (requestId, status) => {
     const remarks = actionRemarks[requestId] || ''
+    const nextApproverId = selectedNextApprover[requestId] || null
+    
     if (status === 'Rejected' && !remarks.trim()) {
       return alert('Please provide remarks for rejection.')
     }
+
+    if (user.role?.toLowerCase() === 'hr' && status === 'Approved' && !nextApproverId) {
+       // alert('Please select a Department Head for further approval.')
+       // Allowing HR to approve without next approver if they are also Admin
+    }
     
     try {
-      await updateLeaveStatus(requestId, status, remarks)
+      await updateLeaveStatus(requestId, status, remarks, nextApproverId)
       setActionRemarks(prev => ({ ...prev, [requestId]: '' }))
+      setSelectedNextApprover(prev => ({ ...prev, [requestId]: '' }))
       refreshLeaves()
     } catch (err) {
       alert('Update failed: ' + err.message)
@@ -114,7 +130,7 @@ export default function LeaveTab() {
   const selectedEmployee = employees.find(e => e.id === form.employeeId)
 
   return (
-    <div className="space-y-6 font-inter text-slate-950 max-w-[1400px] mx-auto pb-10">
+    <div className="space-y-6 font-inter text-slate-950 w-full mx-auto pb-10">
       {/* Shadcn style Page Header */}
       <div className="flex flex-col gap-1 px-1">
         <h2 className="text-2xl font-semibold tracking-tight">Leave Management</h2>
@@ -180,6 +196,21 @@ export default function LeaveTab() {
                         >
                           <option value="">Select an employee</option>
                           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none h-4 w-4" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium leading-none">Leave Approver (Department Head)</label>
+                      <div className="relative">
+                        <select 
+                          value={form.deptHeadId} 
+                          onChange={e => setForm({...form, deptHeadId: e.target.value})} 
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
+                        >
+                          <option value="">Select Dept. Head</option>
+                          {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empCode || 'N/A'})</option>)}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none h-4 w-4" />
                       </div>
@@ -394,6 +425,8 @@ export default function LeaveTab() {
                   ) : filteredLeaves.map(leave => {
                     const isPending = leave.status === 'Pending'
                     const showApprovals = activeSub === 'approve' && isPending
+                    const isHR = user.role?.toLowerCase() === 'hr' || user.role?.toLowerCase() === 'admin'
+                    
                     return (
                       <React.Fragment key={leave.id}>
                         <tr className="h-14 hover:bg-slate-50/50 transition-colors">
@@ -436,16 +469,37 @@ export default function LeaveTab() {
                         </tr>
                         {showApprovals && (
                           <tr className="bg-slate-50/30 border-b border-slate-200">
-                            <td colSpan={5} className="px-6 py-3">
-                              <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 max-w-lg ml-auto shadow-sm">
-                                <MessageSquare size={14} className="text-slate-400 ml-1" />
-                                <input 
-                                  type="text"
-                                  placeholder="Approval/rejection remarks..."
-                                  value={actionRemarks[leave.id] || ''}
-                                  onChange={e => setActionRemarks(prev => ({ ...prev, [leave.id]: e.target.value }))}
-                                  className="flex-1 bg-transparent border-none outline-none text-xs font-medium placeholder:text-slate-300"
-                                />
+                            <td colSpan={5} className="px-6 py-4">
+                              <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-4 max-w-2xl ml-auto">
+                                {isHR && leave.hrApproval === 'Pending' && (
+                                  <div className="w-full sm:w-64 space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Assign Dept Head Approver</label>
+                                    <div className="relative">
+                                      <select 
+                                        value={selectedNextApprover[leave.id] || ''} 
+                                        onChange={e => setSelectedNextApprover(prev => ({ ...prev, [leave.id]: e.target.value }))} 
+                                        className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1 text-xs ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 appearance-none"
+                                      >
+                                        <option value="">Choose Dept. Head...</option>
+                                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                      </select>
+                                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none h-3 w-3" />
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="flex-1 w-full space-y-1.5">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Approval/Rejection Remarks</label>
+                                  <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm h-9">
+                                    <MessageSquare size={14} className="text-slate-400" />
+                                    <input 
+                                      type="text"
+                                      placeholder="Add mandatory remarks for rejection..."
+                                      value={actionRemarks[leave.id] || ''}
+                                      onChange={e => setActionRemarks(prev => ({ ...prev, [leave.id]: e.target.value }))}
+                                      className="flex-1 bg-transparent border-none outline-none text-xs font-medium placeholder:text-slate-300"
+                                    />
+                                  </div>
+                                </div>
                               </div>
                             </td>
                           </tr>

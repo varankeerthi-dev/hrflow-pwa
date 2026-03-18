@@ -962,45 +962,51 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
             </div>
           </div>
           {requestForm.type === 'Leave' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
-                  Leave Type
-                </label>
-                <select
-                  value={requestForm.leaveType}
-                  onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
-                  className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">Select Leave Type</option>
-                  <option value="Casual">Casual Leave</option>
-                  <option value="Sick">Sick Leave</option>
-                  <option value="Paid">Paid Leave</option>
-                  <option value="Personal">Personal Leave</option>
-                  <option value="LOP">Loss of Pay (LOP)</option>
-                </select>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
+                    Leave Classification
+                  </label>
+                  <select
+                    value={requestForm.leaveType}
+                    onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
+                    className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                  >
+                    <option value="Casual">Casual Leave</option>
+                    <option value="Sick">Sick Leave</option>
+                    <option value="Privilege">Privilege Leave</option>
+                    <option value="Maternity">Maternity Leave</option>
+                    <option value="Paternity">Paternity Leave</option>
+                    <option value="Unpaid">Unpaid Leave</option>
+                    <option value="LOP">Loss of Pay (LOP)</option>
+                  </select>
+                </div>
+                <div className="hidden">
+                  {/* Approver is selected by HR in the backend workflow */}
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
-                    From Date
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
+                    Commencement
                   </label>
                   <input
                     type="date"
                     value={requestForm.fromDate}
                     onChange={e => setRequestForm(f => ({ ...f, fromDate: e.target.value }))}
-                    className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
-                    To Date
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
+                    Conclusion
                   </label>
                   <input
                     type="date"
                     value={requestForm.toDate}
                     onChange={e => setRequestForm(f => ({ ...f, toDate: e.target.value }))}
-                    className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
               </div>

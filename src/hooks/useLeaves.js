@@ -58,6 +58,7 @@ export function useLeaves(orgId) {
         duration,
         status: 'Pending',
         hrApproval: 'Pending',
+        deptHeadApproval: 'Pending',
         mdApproval: 'Pending',
         createdAt: serverTimestamp(),
         createdBy: user.uid,
@@ -74,16 +75,30 @@ export function useLeaves(orgId) {
     }
   }
 
-  const updateLeaveStatus = async (requestId, status, remarks = '') => {
+  const updateLeaveStatus = async (requestId, status, remarks = '', nextApproverId = null) => {
     if (!orgId || !user) return
     setLoading(true)
     try {
-      const isHR = user.role?.toLowerCase() === 'hr' || user.role?.toLowerCase() === 'admin'
-      const isMD = user.role?.toLowerCase() === 'md' || user.role?.toLowerCase() === 'admin'
+      const role = user.role?.toLowerCase()
+      const isHR = role === 'hr' || role === 'admin'
+      const isMD = role === 'md' || role === 'admin'
+      
+      const requestRef = doc(db, 'organisations', orgId, 'requests', requestId)
+      const requestSnap = await getDoc(requestRef)
+      const requestData = requestSnap.data()
+      
+      const isDeptHead = user.uid === requestData.deptHeadId
 
       const updateData = {
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
+      }
+
+      if (isDeptHead) {
+        updateData.deptHeadApproval = status
+        updateData.deptHeadRemarks = remarks
+        updateData.deptHeadApprovedBy = user.uid
+        updateData.deptHeadApprovedAt = serverTimestamp()
       }
 
       if (isHR) {
@@ -91,6 +106,9 @@ export function useLeaves(orgId) {
         updateData.hrRemarks = remarks
         updateData.hrApprovedBy = user.uid
         updateData.hrApprovedAt = serverTimestamp()
+        if (nextApproverId) {
+          updateData.deptHeadId = nextApproverId
+        }
       }
 
       if (isMD) {
@@ -100,17 +118,12 @@ export function useLeaves(orgId) {
         updateData.mdApprovedAt = serverTimestamp()
       }
 
-      // If both approve, or if admin approves, the overall status becomes 'Approved'
+      // Logic: HR approves and assigns Dept Head OR MD approves finally
       if (status === 'Approved') {
-        // Simple logic for now: if admin or MD approves, it's final
-        if (isMD || user.role?.toLowerCase() === 'admin') {
+        if (isMD || role === 'admin') {
           updateData.status = 'Approved'
           
-          // Deduct from leave balance if approved
-          const requestRef = doc(db, 'organisations', orgId, 'requests', requestId)
-          const requestSnap = await getDoc(requestRef)
-          const requestData = requestSnap.data()
-          
+          // Deduct from leave balance if fully approved
           if (requestData && requestData.employeeId && requestData.duration) {
             const empRef = doc(db, 'organisations', orgId, 'employees', requestData.employeeId)
             const empSnap = await getDoc(empRef)
@@ -127,7 +140,7 @@ export function useLeaves(orgId) {
         updateData.status = 'Rejected'
       }
 
-      await updateDoc(doc(db, 'organisations', orgId, 'requests', requestId), updateData)
+      await updateDoc(requestRef, updateData)
     } catch (err) {
       console.error('Error updating leave status:', err)
       setError(err.message)
