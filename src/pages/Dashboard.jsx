@@ -270,28 +270,8 @@ export default function Dashboard() {
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
-  // RBAC: filter tabs based on user permissions
-  const tabs = useMemo(() => {
-    const userPerms = user?.permissions || {}
-    const isAdmin = user?.role?.toLowerCase() === 'admin'
-    
-    return allTabs.filter(tab => {
-      // Always allow portal for logged in users
-      if (tab.id === 'portal') return true
-      
-      // Admin bypass
-      if (isAdmin) return true
-      
-      // Special case: settings tab requires Settings module view permission
-      if (tab.id === 'settings') {
-        return userPerms['Settings']?.view === true
-      }
-
-      // Check if user has view permission for this module
-      const modulePerms = userPerms[tab.module] || {}
-      return modulePerms.view === true
-    })
-  }, [allTabs, user?.permissions, user?.role])
+  // Everyone is admin now
+  const tabs = allTabs
 
   const renderTabContent = () => {
     switch (activeTab) {
