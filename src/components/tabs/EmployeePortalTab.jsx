@@ -89,7 +89,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [requestForm, setRequestForm] = useState({
     type: 'Leave',
-    leaveType: '',
+    leaveType: 'Casual',
     fromDate: '',
     toDate: '',
     date: '',
@@ -191,7 +191,26 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   }
 
   const handleRequestSubmit = async () => {
-    if (!requestForm.reason) return
+    if (!requestForm.reason) {
+      alert('Please provide a reason/justification.')
+      return
+    }
+
+    if (requestForm.type === 'Leave' && (!requestForm.fromDate || !requestForm.toDate)) {
+      alert('Please select both From and To dates.')
+      return
+    }
+
+    if (requestForm.type === 'Permission' && (!requestForm.date || !requestForm.time)) {
+      alert('Please select date and time for permission.')
+      return
+    }
+
+    if (requestForm.type === 'Advance' && !requestForm.amount) {
+      alert('Please enter the advance amount.')
+      return
+    }
+
     setLoading(true)
     try {
       if (requestForm.type === 'Leave') {
@@ -235,6 +254,16 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
       }
       
       setShowRequestModal(false)
+      setRequestForm({
+        type: 'Leave',
+        leaveType: 'Casual',
+        fromDate: '',
+        toDate: '',
+        date: '',
+        time: '',
+        amount: '',
+        reason: '',
+      })
       fetchRequests()
     } catch (err) {
       alert('Failed to submit request: ' + err.message)
