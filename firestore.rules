@@ -2,53 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to get user's data
-    function getUserData() {
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(userPath) ? get(userPath).data : null;
-    }
-    
     // Basic helpers
     function isSignedIn() {
       return request.auth != null;
     }
 
     function getAuthUser() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) ? get(userPath).data : null;
     }
 
-    function isOrgMember(orgId) {
-      return isSignedIn() && getAuthUser().orgId == orgId;
+    function isRole(userData, roleName) {
+      return userData != null && "role" in userData && userData.role != null && userData.role.lower() == roleName.lower();
     }
 
-    // Role checks - optimized to avoid multiple gets
-    function hasRole(roleName) {
-      let data = getAuthUser();
-      return data != null && "role" in data && data.role != null && data.role.lower() == roleName.lower();
-    }
-
-    function isManagement(orgId) {
-      let data = getAuthUser();
-      return isOrgMember(orgId) && 
-             (data.role.lower() == 'admin' || data.role.lower() == 'hr' || data.role.lower() == 'md');
+    function isManagement(userData) {
+      return userData != null && "role" in userData && userData.role != null && 
+             (userData.role.lower() == 'admin' || userData.role.lower() == 'hr' || userData.role.lower() == 'md');
     }
     
     // Users collection
     match /users/{uid} {
-      // Users can read their own doc, or if they are in the same org and are management
       allow read: if isSignedIn() && (
         request.auth.uid == uid || 
-        (getAuthUser().orgId == resource.data.orgId && (hasRole('admin') || hasRole('hr') || hasRole('md')))
+        (isManagement(getAuthUser()) && getAuthUser().orgId == resource.data.orgId)
       );
-      // Allow management to see user list
-      allow list: if isSignedIn() && (hasRole('admin') || hasRole('hr') || hasRole('md'));
-      // Profile creation/updates
+      allow list: if isSignedIn() && isManagement(getAuthUser());
       allow create: if isSignedIn() && request.auth.uid == uid;
       allow update: if isSignedIn() && (
         request.auth.uid == uid || 
-        (getAuthUser().orgId == resource.data.orgId && hasRole('admin'))
+        (isRole(getAuthUser(), 'admin') && getAuthUser().orgId == resource.data.orgId)
       );
-      allow delete: if isSignedIn() && getAuthUser().orgId == resource.data.orgId && hasRole('admin');
+      allow delete: if isSignedIn() && isRole(getAuthUser(), 'admin') && getAuthUser().orgId == resource.data.orgId;
     }
     
     // Organisations collection
@@ -56,64 +41,64 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if isSignedIn() && getAuthUser().orgId == orgId;
       allow create: if isSignedIn();
-      allow update, delete: if isOrgMember(orgId) && hasRole('admin');
+      allow update, delete: if isSignedIn() && isRole(getAuthUser(), 'admin') && getAuthUser().orgId == orgId;
       
       // Generic rule for sub-collections
       match /{collection}/{docId} {
-        allow read: if isOrgMember(orgId);
-        allow write: if isManagement(orgId);
+        allow read: if isSignedIn() && getAuthUser().orgId == orgId;
+        allow write: if isSignedIn() && isManagement(getAuthUser()) && getAuthUser().orgId == orgId;
       }
 
       // Specific overrides
       
       // Requests (Leaves, Permissions, Advances, etc.)
       match /requests/{id} {
-        allow read, create: if isOrgMember(orgId);
-        allow update, delete: if isManagement(orgId);
+        allow read, create: if isSignedIn() && getAuthUser().orgId == orgId;
+        allow update, delete: if isSignedIn() && isManagement(getAuthUser()) && getAuthUser().orgId == orgId;
       }
 
       // Attendance: Org members can read/write their own and others (for team view)
       match /attendance/{attId} {
-        allow read, write: if isOrgMember(orgId);
-        allow delete: if isManagement(orgId);
+        allow read, write: if isSignedIn() && getAuthUser().orgId == orgId;
+        allow delete: if isSignedIn() && isManagement(getAuthUser()) && getAuthUser().orgId == orgId;
       }
       
-      // Legacy collections overrides
-      match /corrections/{id} { allow create: if isOrgMember(orgId); }
-      match /otRequests/{id} { allow create: if isOrgMember(orgId); }
-      match /otApprovals/{id} { allow read, create: if isOrgMember(orgId); }
-      match /advances/{id} { allow create: if isOrgMember(orgId); }
-      match /leaves/{id} { allow create: if isOrgMember(orgId); }
-      match /fines/{id} { allow create: if isOrgMember(orgId); }
-      match /activityLogs/{id} { allow read, create: if isOrgMember(orgId); }
-      match /logs/{id} { allow read, create: if isOrgMember(orgId); }
-      match /jobs/{id} { allow read: if isOrgMember(orgId); }
-      match /applicants/{id} { allow read, create: if isOrgMember(orgId); }
-      match /documents/{id} { allow read: if isOrgMember(orgId); }
+      // Legacy overrides
+      match /corrections/{id} { allow create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /otRequests/{id} { allow create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /otApprovals/{id} { allow read, create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /advances/{id} { allow create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /leaves/{id} { allow create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /fines/{id} { allow create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /activityLogs/{id} { allow read, create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /logs/{id} { allow read, create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /jobs/{id} { allow read: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /applicants/{id} { allow read, create: if isSignedIn() && getAuthUser().orgId == orgId; }
+      match /documents/{id} { allow read: if isSignedIn() && getAuthUser().orgId == orgId; }
       
       // Tasks
       match /tasks/{taskId} {
-        allow read: if isOrgMember(orgId) && (
+        allow read: if isSignedIn() && getAuthUser().orgId == orgId && (
           resource == null || !resource.data.isPersonal || resource.data.createdBy == request.auth.uid
         );
-        allow create: if isOrgMember(orgId) && request.resource.data.orgId == orgId;
-        allow update: if isOrgMember(orgId) && (
+        allow create: if isSignedIn() && getAuthUser().orgId == orgId && request.resource.data.orgId == orgId;
+        allow update: if isSignedIn() && getAuthUser().orgId == orgId && (
           !resource.data.isPersonal || resource.data.createdBy == request.auth.uid
         );
-        allow delete: if isOrgMember(orgId) && (
+        allow delete: if isSignedIn() && getAuthUser().orgId == orgId && (
           !resource.data.isPersonal || resource.data.createdBy == request.auth.uid
         );
       }
 
       // Team Chat
       match /chats/{chatId} {
-        allow read: if isOrgMember(orgId) && request.auth.uid in resource.data.participantIds;
-        allow create: if isOrgMember(orgId) && request.auth.uid in request.resource.data.participantIds;
-        allow update: if isOrgMember(orgId) && request.auth.uid in resource.data.participantIds;
+        allow read: if isSignedIn() && getAuthUser().orgId == orgId && request.auth.uid in resource.data.participantIds;
+        allow create: if isSignedIn() && getAuthUser().orgId == orgId && request.auth.uid in request.resource.data.participantIds;
+        allow update: if isSignedIn() && getAuthUser().orgId == orgId && request.auth.uid in resource.data.participantIds;
         
         match /messages/{messageId} {
-          allow read: if isOrgMember(orgId) && request.auth.uid in get(/databases/$(database)/documents/organisations/$(orgId)/chats/$(chatId)).data.participantIds;
-          allow create: if isOrgMember(orgId) && request.auth.uid in get(/databases/$(database)/documents/organisations/$(orgId)/chats/$(chatId)).data.participantIds;
+          allow read: if isSignedIn() && getAuthUser().orgId == orgId && request.auth.uid in get(/databases/$(database)/documents/organisations/$(orgId)/chats/$(chatId)).data.participantIds;
+          allow create: if isSignedIn() && getAuthUser().orgId == orgId && request.auth.uid in get(/databases/$(database)/documents/organisations/$(orgId)/chats/$(chatId)).data.participantIds;
         }
       }
     }
