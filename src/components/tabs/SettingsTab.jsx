@@ -1795,10 +1795,14 @@ const authNeedsUpdate = emailChanged || passwordChanged
                                       minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || ''
                                     })
                                     
-                                    // Fetch additional login info in the background
-                                    const userDoc = await getDoc(doc(db, 'users', emp.id))
-                                    const userData = userDoc.exists() ? userDoc.data() : {}
-                                    setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : (emp.loginEnabled || false) }))
+                                    // Fetch additional login info safely using query
+                                    if (emp.email) {
+                                      const uSnap = await getDocs(query(collection(db, 'users'), where('orgId', '==', user.orgId), where('email', '==', emp.email.toLowerCase().trim())))
+                                      if (!uSnap.empty) {
+                                        const userData = uSnap.docs[0].data()
+                                        setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true }))
+                                      }
+                                    }
                                   }}
                                   title="Edit employee"
                                   className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
@@ -3013,14 +3017,17 @@ const authNeedsUpdate = emailChanged || passwordChanged
                                 minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || '' 
                               }); 
                               
-                              // Fetch additional login info in the background
+                              // Fetch additional login info safely using query
                               try {
-                                const userDoc = await getDoc(doc(db, 'users', emp.id))
-                                if (userDoc.exists()) {
-                                  const userData = userDoc.data()
-                                  setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true }))
+                                if (emp.email) {
+                                  const uSnap = await getDocs(query(collection(db, 'users'), where('orgId', '==', user.orgId), where('email', '==', emp.email.toLowerCase().trim())))
+                                  if (!uSnap.empty) {
+                                    const userData = uSnap.docs[0].data()
+                                    setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true }))
+                                  }
                                 }
                               } catch (e) {
+
                                 console.warn('Could not fetch user login status:', e)
                               }
 
