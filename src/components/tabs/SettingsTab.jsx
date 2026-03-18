@@ -573,14 +573,18 @@ const passwordChanged = newPassword !== ''
 const authNeedsUpdate = emailChanged || passwordChanged
       
      if (editForm.loginEnabled && newEmail !== '' && authNeedsUpdate) {
-        
+        // CRITICAL: If editing self and already an admin, preserve admin role
+        const isEditingSelf = editingEmp === user.uid
+        const finalRole = (isEditingSelf && isAdmin) ? 'admin' : selectedRoleName
+        const finalPerms = (isEditingSelf && isAdmin) ? user.permissions : selectedRolePerms
+
         // Check if user with this email already exists in Firestore
         const usersSnap = await getDocs(query(
-          collection(db, 'users'), 
+          collection(db, 'users'),
           where('orgId', '==', user.orgId),
           where('email', '==', newEmail)
         ))
-        
+
         if (!usersSnap.empty) {
           // User with this email exists - just update the user document (email already in Firebase Auth)
           const userDocId = usersSnap.docs[0].id
@@ -590,8 +594,8 @@ const authNeedsUpdate = emailChanged || passwordChanged
               email: newEmail,
               name: safeName,
               orgId: user.orgId,
-              role: selectedRoleName,
-              permissions: selectedRolePerms,
+              role: finalRole,
+              permissions: finalPerms,
               employeeId: editingEmp,
               empCode: editForm.empCode,
               department: editForm.department || '',
@@ -600,6 +604,7 @@ const authNeedsUpdate = emailChanged || passwordChanged
             },
             { merge: true }
           )
+
           if (newPassword) {
             alert(`Login details updated. Password cannot be changed here. Use Firebase Console to reset password.`)
           }
