@@ -2,51 +2,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Check if user is signed in
+    // Basic helpers
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Get current user document directly from path to avoid multiple get() calls
     function getAuthUser() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) ? get(userPath).data : null;
     }
 
-    // Role check helper
-    function hasRole(userData, roleName) {
+    // Helper to check if UID is a permanent admin of the org
+    function isOrgAdmin(orgId) {
+      let orgPath = /databases/$(database)/documents/organisations/$(orgId);
+      return exists(orgPath) && request.auth.uid in get(orgPath).data.adminUids;
+    }
+
+    function isRole(userData, roleName) {
       return userData != null && "role" in userData && userData.role != null && userData.role.lower() == roleName.lower();
     }
 
-    // Management check helper (admin, hr, md)
-    function isManagement(userData) {
-      return userData != null && "role" in userData && userData.role != null && 
-             (userData.role.lower() == 'admin' || userData.role.lower() == 'hr' || userData.role.lower() == 'md');
+    function isManagement(userData, orgId) {
+      // Check role in user doc OR check if they are in adminUids of the org
+      return (userData != null && "role" in userData && userData.role != null && 
+             (userData.role.lower() == 'admin' || userData.role.lower() == 'hr' || userData.role.lower() == 'md')) ||
+             isOrgAdmin(orgId);
     }
     
     // USERS COLLECTION
     match /users/{uid} {
-      // Users can read their own doc.
-      // Management can read any user doc in their org.
       allow read: if isSignedIn() && (
         request.auth.uid == uid || 
-        (isManagement(getAuthUser()) && getAuthUser().orgId == resource.data.orgId)
+        (isSignedIn() && isManagement(getAuthUser(), getAuthUser().orgId))
       );
-      
-      // Management can list users.
-      allow list: if isSignedIn() && isManagement(getAuthUser());
-      
-      // Users can create their own doc during registration.
+      allow list: if isSignedIn() && isManagement(getAuthUser(), getAuthUser().orgId);
       allow create: if isSignedIn() && request.auth.uid == uid;
-      
-      // Users can update their own doc.
-      // Admin can update any user doc in their org.
       allow update: if isSignedIn() && (
         request.auth.uid == uid || 
-        (hasRole(getAuthUser(), 'admin') && getAuthUser().orgId == (resource != null ? resource.data.orgId : request.resource.data.orgId))
+        (isSignedIn() && isOrgAdmin(getAuthUser().orgId)) ||
+        (isRole(getAuthUser(), 'admin') && getAuthUser().orgId == (resource != null ? resource.data.orgId : request.resource.data.orgId))
       );
-      
-      // Admin can delete users in their org.
-      allow delete: if isSignedIn() && hasRole(getAuthUser(), 'admin') && getAuthUser().orgId == resource.data.orgId;
+      allow delete: if isSignedIn() && (isRole(getAuthUser(), 'admin') || isOrgAdmin(getAuthUser().orgId)) && getAuthUser().orgId == resource.data.orgId;
     }
     
     // ORGANISATIONS COLLECTION
@@ -54,30 +50,28 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if isSignedIn() && getAuthUser().orgId == orgId;
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && hasRole(getAuthUser(), 'admin') && getAuthUser().orgId == orgId;
+      allow update, delete: if isSignedIn() && (isRole(getAuthUser(), 'admin') || isOrgAdmin(orgId)) && getAuthUser().orgId == orgId;
       
-      // Generic rule for sub-collections (employees, shifts, etc.)
+      // Generic rule for sub-collections
       match /{collection}/{docId} {
         allow read: if isSignedIn() && getAuthUser().orgId == orgId;
-        allow write: if isSignedIn() && isManagement(getAuthUser()) && getAuthUser().orgId == orgId;
+        allow write: if isSignedIn() && isManagement(getAuthUser(), orgId) && getAuthUser().orgId == orgId;
       }
 
-      // Specific overrides for requests (Leaves, Advances, etc.)
+      // Specific overrides
       match /requests/{id} {
         allow read, create: if isSignedIn() && getAuthUser().orgId == orgId;
-        allow update, delete: if isSignedIn() && isManagement(getAuthUser()) && getAuthUser().orgId == orgId;
+        allow update, delete: if isSignedIn() && isManagement(getAuthUser(), orgId) && getAuthUser().orgId == orgId;
       }
 
-      // Specific overrides for attendance
       match /attendance/{attId} {
         allow read, write: if isSignedIn() && getAuthUser().orgId == orgId;
-        allow delete: if isSignedIn() && isManagement(getAuthUser()) && getAuthUser().orgId == orgId;
+        allow delete: if isSignedIn() && isManagement(getAuthUser(), orgId) && getAuthUser().orgId == orgId;
       }
       
-      // Ensure specific permissions for sensitive collections
       match /employees/{empId} {
         allow read: if isSignedIn() && getAuthUser().orgId == orgId;
-        allow write: if isSignedIn() && isManagement(getAuthUser()) && getAuthUser().orgId == orgId;
+        allow write: if isSignedIn() && isManagement(getAuthUser(), orgId) && getAuthUser().orgId == orgId;
       }
     }
     
