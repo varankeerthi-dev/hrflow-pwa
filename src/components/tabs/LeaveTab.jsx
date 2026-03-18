@@ -17,7 +17,9 @@ import {
   Check,
   X,
   MessageSquare,
-  AlertCircle
+  AlertCircle,
+  User as UserIcon,
+  ChevronDown
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
@@ -29,7 +31,7 @@ export default function LeaveTab() {
   
   const [activeSub, setActiveSub] = useState('dashboard')
   const [leaves, setLeaves] = useState([])
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [showInlineForm, setShowInlineForm] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('All')
   
@@ -43,7 +45,7 @@ export default function LeaveTab() {
   
   const [actionRemarks, setActionRemarks] = useState({})
 
-  const leaveTypes = ['Casual', 'Sick', 'Paid', 'Personal', 'Maternity', 'Paternity', 'Unpaid', 'LOP']
+  const leaveTypes = ['Casual', 'Sick', 'Privilege', 'Maternity', 'Paternity', 'Unpaid', 'LOP']
 
   const refreshLeaves = useCallback(async () => {
     const data = await fetchLeaves()
@@ -65,7 +67,7 @@ export default function LeaveTab() {
         employeeName: emp?.name || 'Unknown',
         orgId: user.orgId
       })
-      setShowAddModal(false)
+      setShowInlineForm(false)
       setForm({ employeeId: '', leaveType: 'Casual', fromDate: '', toDate: '', reason: '' })
       refreshLeaves()
     } catch (err) {
@@ -109,6 +111,8 @@ export default function LeaveTab() {
     { label: 'Total Volume', count: leaves.length, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' }
   ]
 
+  const selectedEmployee = employees.find(e => e.id === form.employeeId)
+
   return (
     <div className="space-y-6 font-inter text-gray-900">
       {/* SaaS Navigation Header */}
@@ -125,10 +129,14 @@ export default function LeaveTab() {
           ))}
         </div>
         <button 
-          onClick={() => setShowAddModal(true)}
-          className="h-[44px] px-8 bg-indigo-600 text-white font-black rounded-xl text-[11px] flex items-center gap-3 shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase tracking-[0.15em]"
+          onClick={() => {
+            setActiveSub('dashboard')
+            setShowInlineForm(!showInlineForm)
+          }}
+          className={`h-[44px] px-8 font-black rounded-xl text-[11px] flex items-center gap-3 shadow-xl transition-all uppercase tracking-[0.15em] ${showInlineForm ? 'bg-gray-100 text-gray-600 shadow-none border border-gray-200' : 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'}`}
         >
-          <PlusCircle size={18} strokeWidth={2.5} /> New Application
+          {showInlineForm ? <X size={18} strokeWidth={2.5} /> : <PlusCircle size={18} strokeWidth={2.5} />} 
+          {showInlineForm ? 'Cancel Application' : 'New Application'}
         </button>
       </div>
 
@@ -142,6 +150,139 @@ export default function LeaveTab() {
               </div>
             ))}
           </div>
+
+          {/* Inline Application Form */}
+          {showInlineForm && (
+            <div className="bg-white rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-900/5 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="bg-indigo-600 px-8 py-4 flex items-center justify-between">
+                <h3 className="text-white text-[11px] font-black uppercase tracking-[0.2em]">New Absence Protocol Initialization</h3>
+                <div className="bg-white/10 px-3 py-1 rounded-full text-[9px] text-white/80 font-bold uppercase tracking-widest">Step 1: Resource Mapping</div>
+              </div>
+              
+              <form onSubmit={handleSubmit} className="p-10 space-y-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  <div className="space-y-8">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-1 flex items-center gap-2">
+                        <UserIcon size={14} className="text-indigo-500" /> Name of the employee
+                      </label>
+                      <div className="relative group">
+                        <select 
+                          value={form.employeeId} 
+                          onChange={e => setForm({...form, employeeId: e.target.value})} 
+                          className="w-full h-[54px] border border-gray-100 rounded-xl px-6 text-sm font-black bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none cursor-pointer appearance-none transition-all"
+                        >
+                          <option value="">Select Resource...</option>
+                          {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empCode || 'N/A'})</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-indigo-500 transition-colors" size={18} />
+                      </div>
+                    </div>
+
+                    {form.employeeId && (
+                      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm animate-in zoom-in-95 duration-500">
+                        <div className="bg-gray-50 px-6 py-3 border-b border-gray-100 flex items-center justify-between">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Entitlement Dashboard</span>
+                          <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded uppercase">{selectedEmployee?.name}</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="border-b border-gray-50">
+                                <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Leave Type</th>
+                                <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Allocated</th>
+                                <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Used</th>
+                                <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center text-indigo-600">Available</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {[
+                                { type: 'Casual Leave', total: 0, used: 0 },
+                                { type: 'Privilege Leave', total: 0, used: 0 },
+                                { type: 'Sick Leave', total: 0, used: 0 }
+                              ].map((row, i) => (
+                                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                                  <td className="px-6 py-4 text-[11px] font-black text-gray-700 uppercase">{row.type}</td>
+                                  <td className="px-6 py-4 text-[12px] font-black text-gray-500 text-center">{row.total}</td>
+                                  <td className="px-6 py-4 text-[12px] font-black text-gray-500 text-center">{row.used}</td>
+                                  <td className="px-6 py-4 text-[12px] font-black text-indigo-600 text-center">{row.total - row.used}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Commencement (From Date)</label>
+                        <input 
+                          type="date" 
+                          value={form.fromDate} 
+                          onChange={e => setForm({...form, fromDate: e.target.value})} 
+                          className="w-full h-[54px] border border-gray-100 rounded-xl px-6 text-sm font-black bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Conclusion (To Date)</label>
+                        <input 
+                          type="date" 
+                          value={form.toDate} 
+                          onChange={e => setForm({...form, toDate: e.target.value})} 
+                          className="w-full h-[54px] border border-gray-100 rounded-xl px-6 text-sm font-black bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Classification & Priority</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {leaveTypes.slice(0, 4).map(type => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setForm({...form, leaveType: type})}
+                            className={`py-3 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${form.leaveType === type ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-200 hover:text-indigo-500'}`}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Formal Justification</label>
+                      <textarea 
+                        value={form.reason} 
+                        onChange={e => setForm({...form, reason: e.target.value})} 
+                        className="w-full border border-gray-100 rounded-xl p-6 text-sm font-medium outline-none bg-gray-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 h-[100px] transition-all resize-none" 
+                        placeholder="Provide comprehensive context for this request..." 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-6 border-t border-gray-50 gap-4">
+                  <button 
+                    type="button"
+                    onClick={() => setShowInlineForm(false)}
+                    className="h-[52px] px-10 bg-gray-50 text-gray-400 font-black rounded-xl hover:bg-gray-100 transition-all uppercase tracking-[0.2em] text-[11px]"
+                  >
+                    Discard
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="h-[52px] px-12 bg-indigo-600 text-white font-black rounded-xl shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all uppercase tracking-[0.2em] text-[11px] flex items-center gap-3"
+                  >
+                    <CheckCircle size={18} /> Finalize Protocol
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -152,7 +293,7 @@ export default function LeaveTab() {
                 {leaves.slice(0, 5).map(leave => (
                   <div key={leave.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center font-black text-indigo-600 text-xs">
+                      <div className="w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center font-black text-indigo-600 text-xs shadow-inner">
                         {leave.employeeName?.[0]}
                       </div>
                       <div>
@@ -339,83 +480,6 @@ export default function LeaveTab() {
           </p>
         </div>
       )}
-
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Resource Absence Protocol">
-        <form onSubmit={handleSubmit} className="p-8 space-y-8 max-w-md mx-auto font-inter">
-          <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex gap-3 mb-2">
-            <AlertCircle className="text-amber-600 shrink-0" size={20} />
-            <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-              Applying for leave as an administrator will automatically initialize the approval workflow. Please ensure all data points are accurate.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Resource Selection</label>
-            <select 
-              value={form.employeeId} 
-              onChange={e => setForm({...form, employeeId: e.target.value})} 
-              className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer appearance-none transition-all"
-            >
-              <option value="">Choose Employee...</option>
-              {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empCode || 'N/A'})</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Classification</label>
-            <div className="grid grid-cols-2 gap-2">
-              {leaveTypes.map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setForm({...form, leaveType: type})}
-                  className={`py-2.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all ${form.leaveType === type ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'}`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Commencement</label>
-              <input 
-                type="date" 
-                value={form.fromDate} 
-                onChange={e => setForm({...form, fromDate: e.target.value})} 
-                className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none" 
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Conclusion</label>
-              <input 
-                type="date" 
-                value={form.toDate} 
-                onChange={e => setForm({...form, toDate: e.target.value})} 
-                className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none" 
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Formal Justification</label>
-            <textarea 
-              value={form.reason} 
-              onChange={e => setForm({...form, reason: e.target.value})} 
-              className="w-full border border-gray-200 rounded-xl p-5 text-sm font-medium outline-none bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 h-[120px] transition-all resize-none" 
-              placeholder="Provide comprehensive details for this absence request..." 
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            className="w-full h-[52px] bg-indigo-600 text-white font-black py-3 rounded-xl shadow-2xl shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase tracking-[0.25em] text-[12px]"
-          >
-            Finalize Application
-          </button>
-        </form>
-      </Modal>
     </div>
   )
 }
