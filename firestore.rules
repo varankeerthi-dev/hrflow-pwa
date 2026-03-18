@@ -4,33 +4,49 @@ service cloud.firestore {
     
     // Helper function to get user's data
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) ? get(userPath).data : null;
     }
     
     // Helper function to get user's orgId
     function getUserOrgId() {
-      return request.auth != null ? getUserData().orgId : null;
+      let data = getUserData();
+      return request.auth != null && data != null ? data.orgId : null;
     }
     
     // Helper function to check if user is admin
     function isAdmin() {
+      let data = getUserData();
       return request.auth != null && 
-        "role" in getUserData() && 
-        getUserData().role != null && 
-        getUserData().role.lower() == 'admin';
+        data != null &&
+        "role" in data && 
+        data.role != null && 
+        data.role.lower() == 'admin';
     }
     
     // Helper function to check if user is HR
     function isHR() {
+      let data = getUserData();
       return request.auth != null && 
-        "role" in getUserData() && 
-        getUserData().role != null && 
-        getUserData().role.lower() == 'hr';
+        data != null &&
+        "role" in data && 
+        data.role != null && 
+        data.role.lower() == 'hr';
+    }
+
+    // Helper function to check if user is MD (Managing Director)
+    function isMD() {
+      let data = getUserData();
+      return request.auth != null && 
+        data != null &&
+        "role" in data && 
+        data.role != null && 
+        data.role.lower() == 'md';
     }
     
-    // Helper function to check if user is admin or HR
-    function isAdminOrHR() {
-      return isAdmin() || isHR();
+    // Helper function to check if user is admin, HR or MD
+    function isManagement() {
+      return isAdmin() || isHR() || isMD();
     }
     
     // Helper function to check if user belongs to an org
@@ -63,21 +79,28 @@ service cloud.firestore {
       allow create: if request.auth != null && (getUserOrgId() == null || getUserOrgId() == orgId);
       allow update, delete: if isAdmin() && getUserOrgId() == orgId;
       
-      // Generic rule for sub-collections: Org members can read, Admin/HR can write
+      // Generic rule for sub-collections: Org members can read, Management can write
       match /{collection}/{docId} {
         allow read: if isOrgMember() && getUserOrgId() == orgId;
-        allow write: if isAdminOrHR() && getUserOrgId() == orgId;
+        allow write: if isManagement() && getUserOrgId() == orgId;
       }
 
       // Specific overrides
       
+      // Requests (Leaves, Permissions, Advances, etc.)
+      match /requests/{id} {
+        allow read, create: if isOrgMember() && getUserOrgId() == orgId;
+        allow update, delete: if isManagement() && getUserOrgId() == orgId;
+      }
+
       // Attendance: Org members can read/write their own and others (for team view)
       match /attendance/{attId} {
         allow read, write: if isOrgMember() && getUserOrgId() == orgId;
-        allow delete: if isAdminOrHR() && getUserOrgId() == orgId;
+        allow delete: if isManagement() && getUserOrgId() == orgId;
       }
       
       // Corrections, OT Requests, Advances, Leaves, Fines: Org members can create
+      // (Mostly migrated to /requests, but keeping these for backward compatibility)
       match /corrections/{id} { allow create: if isOrgMember() && getUserOrgId() == orgId; }
       match /otRequests/{id} { allow create: if isOrgMember() && getUserOrgId() == orgId; }
       match /otApprovals/{id} { allow read, create: if isOrgMember() && getUserOrgId() == orgId; }
