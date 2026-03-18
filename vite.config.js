@@ -26,6 +26,7 @@ export default defineConfig({
     })
   ],
   build: {
+    sourcemap: true,  // ✅ ADDED: Enable source maps for production debugging
     rollupOptions: {
       external: [
         '@capacitor/core',

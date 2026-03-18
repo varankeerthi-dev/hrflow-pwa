@@ -560,19 +560,25 @@ export default function SettingsTab() {
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
 
       // Handle login - only if email or password changed
-      const originalEmp = employees.find(e => e.id === editingEmp)
-      const emailChanged = (editForm.email || '').toLowerCase().trim() !== (originalEmp?.email || '').toLowerCase().trim()
-      const passwordChanged = !!editForm.tempPassword && editForm.tempPassword.trim() !== ''
-      const authNeedsUpdate = emailChanged || passwordChanged
+const originalEmp = employees.find(e => e.id === editingEmp)
+
+// Validate strings before using them
+const newEmail = typeof editForm.email === 'string' ? editForm.email.toLowerCase().trim() : ''
+const oldEmail = typeof originalEmp?.email === 'string' ? originalEmp.email.toLowerCase().trim() : ''
+const newPassword = typeof editForm.tempPassword === 'string' ? editForm.tempPassword.trim() : ''
+const safeName = typeof editForm.name === 'string' ? editForm.name.trim() : 'Unknown'
+
+const emailChanged = newEmail !== '' && newEmail !== oldEmail
+const passwordChanged = newPassword !== ''
+const authNeedsUpdate = emailChanged || passwordChanged
       
-      if (editForm.loginEnabled && editForm.email && authNeedsUpdate) {
-        const tempPassword = editForm.tempPassword ? editForm.tempPassword.trim() : ''
+     if (editForm.loginEnabled && newEmail !== '' && authNeedsUpdate) {
         
         // Check if user with this email already exists in Firestore
         const usersSnap = await getDocs(query(
           collection(db, 'users'), 
           where('orgId', '==', user.orgId),
-          where('email', '==', editForm.email)
+          where('email', '==', newEmail)
         ))
         
         if (!usersSnap.empty) {
@@ -581,8 +587,8 @@ export default function SettingsTab() {
           await setDoc(
             doc(db, 'users', userDocId),
             {
-              email: editForm.email,
-              name: editForm.name,
+              email: newEmail,
+              name: safeName,
               orgId: user.orgId,
               role: selectedRoleName,
               permissions: selectedRolePerms,
@@ -594,20 +600,20 @@ export default function SettingsTab() {
             },
             { merge: true }
           )
-          if (tempPassword) {
+          if (newPassword) {
             alert(`Login details updated. Password cannot be changed here. Use Firebase Console to reset password.`)
           }
         } else {
           // No user with this email - create new auth user
           try {
-            const cred = await createUserWithEmailAndPassword(secondaryAuth, editForm.email, tempPassword || `HRFlow${Date.now()}`)
-            await updateProfile(cred.user, { displayName: editForm.name })
+            const cred = await createUserWithEmailAndPassword(secondaryAuth, newEmail, newPassword || `HRFlow${Date.now()}`)
+            await updateProfile(cred.user, { displayName: safeName })
 
             await setDoc(
               doc(db, 'users', cred.user.uid),
             {
-              email: editForm.email,
-              name: editForm.name,
+              email: newEmail,
+              name: safeName,
               orgId: user.orgId,
               role: selectedRoleName,
               permissions: selectedRolePerms,
@@ -621,8 +627,8 @@ export default function SettingsTab() {
               { merge: true }
             )
 
-            if (tempPassword) {
-              alert(`Login enabled! Temporary password: ${tempPassword}\n\nPlease share this password with the employee.`)
+            if (newPassword) {
+              alert(`Login enabled! Temporary password: ${newPassword}\n\nPlease share this password with the employee.`)
             } else {
               alert(`Login enabled! A temporary password has been generated. Please reset the password to share with the employee.`)
             }
@@ -636,20 +642,20 @@ export default function SettingsTab() {
             }
           }
         }
-      } else if (editForm.loginEnabled && editForm.email && !authNeedsUpdate) {
+   } else if (editForm.loginEnabled && newEmail !== '' && !authNeedsUpdate) {
         // Login details unchanged - just update the user doc silently
         const usersSnap = await getDocs(query(
           collection(db, 'users'), 
           where('orgId', '==', user.orgId),
-          where('email', '==', editForm.email)
+          where('email', '==', newEmail)
         ))
         if (!usersSnap.empty) {
           const userDocId = usersSnap.docs[0].id
           await setDoc(
             doc(db, 'users', userDocId),
             {
-              email: editForm.email,
-              name: editForm.name,
+              email: newEmail,
+              name: safeName,
               orgId: user.orgId,
               role: selectedRoleName,
               permissions: selectedRolePerms,
@@ -662,13 +668,13 @@ export default function SettingsTab() {
             { merge: true }
           )
         }
-      } else if (!editForm.loginEnabled && editForm.email) {
+      } else if (!editForm.loginEnabled && newEmail !== '') {
         // Disable login - update user doc
         try {
           const usersSnap = await getDocs(query(
             collection(db, 'users'), 
             where('orgId', '==', user.orgId),
-            where('email', '==', editForm.email)
+            where('email', '==', newEmail)
           ))
           if (!usersSnap.empty) {
             const userDocId = usersSnap.docs[0].id
