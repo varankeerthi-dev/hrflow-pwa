@@ -9,6 +9,7 @@ import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
 import TimePicker from '../ui/TimePicker'
+import { useLeaves } from '../../hooks/useLeaves'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { 
@@ -193,45 +194,50 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     if (!requestForm.reason) return
     setLoading(true)
     try {
-      const base = {
-        employeeId,
-        employeeName: employee?.name || user.name,
-        type: requestForm.type,
-        status: 'Pending',
-        createdAt: serverTimestamp(),
-        reason: requestForm.reason,
-      }
-
-      let payload = base
       if (requestForm.type === 'Leave') {
-        payload = {
-          ...base,
-          leaveType: requestForm.leaveType || '',
+        await applyLeave({
+          employeeId,
+          employeeName: employee?.name || user.name,
+          leaveType: requestForm.leaveType || 'Casual',
           fromDate: requestForm.fromDate,
           toDate: requestForm.toDate || requestForm.fromDate,
+          reason: requestForm.reason,
+          orgId: user.orgId
+        })
+      } else {
+        const base = {
+          employeeId,
+          employeeName: employee?.name || user.name,
+          type: requestForm.type,
+          status: 'Pending',
+          createdAt: serverTimestamp(),
+          reason: requestForm.reason,
+          hrApproval: 'Pending',
+          mdApproval: 'Pending',
+          orgId: user.orgId
         }
-      } else if (requestForm.type === 'Permission') {
-        payload = {
-          ...base,
-          permissionDate: requestForm.date,
-          permissionTime: requestForm.time,
-        }
-      } else if (requestForm.type === 'Advance') {
-        payload = {
-          ...base,
-          amount: Number(requestForm.amount || 0),
-        }
-      }
 
-      await addDoc(collection(db, 'organisations', user.orgId, 'requests'), {
-        ...payload,
-        hrApproval: 'Pending',
-        mdApproval: 'Pending',
-      })
+        let payload = base
+        if (requestForm.type === 'Permission') {
+          payload = {
+            ...base,
+            permissionDate: requestForm.date,
+            permissionTime: requestForm.time,
+          }
+        } else if (requestForm.type === 'Advance') {
+          payload = {
+            ...base,
+            amount: Number(requestForm.amount || 0),
+          }
+        }
+
+        await addDoc(collection(db, 'organisations', user.orgId, 'requests'), payload)
+      }
+      
       setShowRequestModal(false)
       fetchRequests()
     } catch (err) {
-      alert('Failed to submit request')
+      alert('Failed to submit request: ' + err.message)
     } finally {
       setLoading(false)
     }
