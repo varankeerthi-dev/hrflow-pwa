@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
-import { db } from '../../lib/firebase'
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { 
   Users, 
   Calendar, 
@@ -10,9 +8,7 @@ import {
   AlertCircle, 
   CheckCircle2, 
   TrendingUp, 
-  ArrowRight,
-  ShieldAlert,
-  Zap
+  ArrowRight
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 
@@ -25,11 +21,9 @@ export default function HomeTab() {
     present: 0,
     pendingLeave: 0
   })
-  const [repairing, setRepairing] = useState(false)
 
   useEffect(() => {
     if (!employees) return
-    const today = new Date().toISOString().split('T')[0]
     setStats({
       total: employees.length,
       active: employees.filter(e => e.status === 'Active').length,
@@ -38,49 +32,8 @@ export default function HomeTab() {
     })
   }, [employees])
 
-  const repairAdminAccess = async () => {
-    if (!user?.uid || !user?.orgId) return
-    setRepairing(true)
-    try {
-      // Force role to admin in the users collection
-      await setDoc(doc(db, 'users', user.uid), {
-        role: 'admin',
-        orgId: user.orgId,
-        updatedAt: serverTimestamp()
-      }, { merge: true })
-      
-      alert('Admin role restored in database! Please refresh the page to apply changes.')
-      window.location.reload()
-    } catch (err) {
-      console.error('Repair failed:', err)
-      alert('Repair failed: ' + err.message)
-    } finally {
-      setRepairing(false)
-    }
-  }
-
   return (
     <div className="p-6 space-y-8 font-inter max-w-7xl mx-auto">
-      {/* Emergency Access Recovery - Only shown if permissions might be broken */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
-            <ShieldAlert size={24} />
-          </div>
-          <div>
-            <h3 className="text-sm font-black text-amber-900 uppercase tracking-tight">Access Recovery Terminal</h3>
-            <p className="text-xs text-amber-700 font-medium">Click this if you encounter "Insufficient Permissions" errors while you are the owner.</p>
-          </div>
-        </div>
-        <button 
-          onClick={repairAdminAccess}
-          disabled={repairing}
-          className="h-11 px-8 bg-amber-600 text-white font-black rounded-xl text-[11px] uppercase tracking-widest hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 disabled:opacity-50 flex items-center gap-2"
-        >
-          {repairing ? <Spinner /> : <Zap size={16} fill="currentColor" />} Force Admin Access
-        </button>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard label="Total Headcount" value={stats.total} icon={<Users className="text-indigo-500" />} color="bg-indigo-50" />
         <StatCard label="Active Status" value={stats.active} icon={<CheckCircle2 className="text-emerald-500" />} color="bg-emerald-50" />
