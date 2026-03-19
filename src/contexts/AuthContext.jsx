@@ -151,7 +151,7 @@ export function AuthProvider({ children }) {
       email,
       name,
       orgId: resolvedOrgId,
-      role: resolvedOrgId ? 'employee' : null,
+      role: resolvedOrgId ? 'admin' : null,
       createdAt: new Date().toISOString(),
     }
     await setDoc(doc(db, 'users', firebaseUser.uid), userDoc)

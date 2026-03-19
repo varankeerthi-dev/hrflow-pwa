@@ -6,23 +6,9 @@ export function usePermission() {
   
   const hasPermission = (module, action) => {
     if (!user) return false
-    
-    // Admin has full access
-    if (user.role === 'admin') return true
-    
-    // Check cached permissions
-    const permissions = user.permissions || {}
-    const modulePerms = permissions[module]
-    
-    if (!modulePerms) return false
-    
-    // Full access check
-    if (modulePerms.full) return true
-    
-    // Check specific permission
-    return modulePerms[action] || false
+    return true // Everyone is admin now
   }
-  
+
   const canView = (module) => hasPermission(module, 'view')
   const canCreate = (module) => hasPermission(module, 'create')
   const canEdit = (module) => hasPermission(module, 'edit')
