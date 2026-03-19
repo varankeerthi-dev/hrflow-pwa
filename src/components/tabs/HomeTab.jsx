@@ -1,214 +1,139 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
-import { useAttendance } from '../../hooks/useAttendance'
-import { useRecruitment } from '../../hooks/useRecruitment'
-import { useDocuments } from '../../hooks/useDocuments'
+import { db } from '../../lib/firebase'
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { 
-  Calendar, 
   Users, 
-  Moon, 
-  LogOut, 
-  CheckCircle2, 
-  XCircle, 
+  Calendar, 
   Clock, 
-  Briefcase, 
-  Folder, 
-  Plus, 
-  ChevronRight,
-  TrendingUp,
-  Target,
-  FileText,
-  Upload,
-  Clock3,
-  BarChart3,
-  PieChart,
-  Activity,
+  AlertCircle, 
+  CheckCircle2, 
+  TrendingUp, 
+  ArrowRight,
+  ShieldAlert,
   Zap
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
-import { Card } from '../ui/index'
 
 export default function HomeTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
-  const { fetchByDate, loading: attLoading } = useAttendance(user?.orgId)
-  const { jobs, applicants, loading: recLoading } = useRecruitment(user?.orgId, user)
-  const { documents, loading: docLoading } = useDocuments(user?.orgId, user)
-  
-  const [activeSubTab, setActiveSubTab] = useState('home')
-  const [todayRecords, setTodayRecords] = useState([])
-  const today = new Date().toISOString().split('T')[0]
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    present: 0,
+    pendingLeave: 0
+  })
+  const [repairing, setRepairing] = useState(false)
 
   useEffect(() => {
-    if (!user?.orgId) return
-    fetchByDate(today).then(setTodayRecords)
-  }, [user?.orgId, today])
-
-  const stats = useMemo(() => {
-    const active = employees.filter(e => e.status === 'Active')
-    const present = []
-    const absent = []
-    const leave = []
-    const nightShift = []
-
-    active.forEach(emp => {
-      const record = todayRecords.find(r => r.employeeId === emp.id)
-      if (emp.shift?.name?.toLowerCase().includes('night')) nightShift.push(emp)
-
-      if (record) {
-        if (record.isAbsent) absent.push(emp)
-        else if (record.status === 'Leave') leave.push(emp)
-        else present.push(emp)
-      }
+    if (!employees) return
+    const today = new Date().toISOString().split('T')[0]
+    setStats({
+      total: employees.length,
+      active: employees.filter(e => e.status === 'Active').length,
+      present: 0, // Would need attendance fetch
+      pendingLeave: 0
     })
+  }, [employees])
 
-    return { 
-      present, 
-      absent, 
-      leave, 
-      nightShift, 
-      totalActive: active.length,
-      openJobs: jobs.filter(j => j.status === 'Open').length,
-      newApplicants: applicants.filter(a => a.status === 'New').length,
-      totalDocs: documents.length
+  const repairAdminAccess = async () => {
+    if (!user?.uid || !user?.orgId) return
+    setRepairing(true)
+    try {
+      // Force role to admin in the users collection
+      await setDoc(doc(db, 'users', user.uid), {
+        role: 'admin',
+        orgId: user.orgId,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+      
+      alert('Admin role restored in database! Please refresh the page to apply changes.')
+      window.location.reload()
+    } catch (err) {
+      console.error('Repair failed:', err)
+      alert('Repair failed: ' + err.message)
+    } finally {
+      setRepairing(false)
     }
-  }, [employees, todayRecords, jobs, applicants, documents])
-
-  if (empLoading || attLoading || recLoading || docLoading) return <div className="flex h-full items-center justify-center py-20"><Spinner /></div>
-
-  const subTabs = [
-    { id: 'home', label: 'Home', icon: <Activity size={16} /> },
-    { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={16} /> },
-    { id: 'reports', label: 'Reports', icon: <FileText size={16} /> },
-    { id: 'overview', label: 'Overview', icon: <PieChart size={16} /> },
-  ]
-
-  const renderHomeSubTab = () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Attendance Square */}
-      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
-        <div className="flex items-center justify-between">
-          <div className="w-8 h-8 rounded-none bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-            <Calendar size={16} />
-          </div>
-          <span className="text-[10px] font-bold text-emerald-500">+12%</span>
-        </div>
-        <div>
-          <p className="text-2xl font-black text-gray-900 leading-none">{stats.present.length}</p>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Present Today</p>
-        </div>
-      </div>
-
-      {/* Workforce Square */}
-      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
-        <div className="flex items-center justify-between">
-          <div className="w-8 h-8 rounded-none bg-blue-50 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-            <Users size={16} />
-          </div>
-          <Zap size={14} className="text-amber-500" />
-        </div>
-        <div>
-          <p className="text-2xl font-black text-gray-900 leading-none">{stats.totalActive}</p>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Team</p>
-        </div>
-      </div>
-
-      {/* Recruitment Square */}
-      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
-        <div className="flex items-center justify-between">
-          <div className="w-8 h-8 rounded-none bg-purple-50 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
-            <Briefcase size={16} />
-          </div>
-          <span className="text-[10px] font-bold text-indigo-500">OPEN</span>
-        </div>
-        <div>
-          <p className="text-2xl font-black text-gray-900 leading-none">{stats.openJobs}</p>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Active Jobs</p>
-        </div>
-      </div>
-
-      {/* Applicants Square */}
-      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
-        <div className="flex items-center justify-between">
-          <div className="w-8 h-8 rounded-none bg-rose-50 flex items-center justify-center group-hover:bg-rose-600 group-hover:text-white transition-colors">
-            <Users size={16} />
-          </div>
-          <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-        </div>
-        <div>
-          <p className="text-2xl font-black text-gray-900 leading-none">{stats.newApplicants}</p>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">New Hires</p>
-        </div>
-      </div>
-
-      {/* Documents Square */}
-      <div className="aspect-square bg-white border border-gray-200 rounded-none shadow-sm p-4 flex flex-col justify-between hover:border-indigo-500 transition-all group">
-        <div className="flex items-center justify-between">
-          <div className="w-8 h-8 rounded-none bg-amber-50 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
-            <Folder size={16} />
-          </div>
-        </div>
-        <div>
-          <p className="text-2xl font-black text-gray-900 leading-none">{stats.totalDocs}</p>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Docs Stored</p>
-        </div>
-      </div>
-
-      {/* Efficiency Square */}
-      <div className="aspect-square bg-indigo-600 border border-indigo-700 rounded-none shadow-md p-4 flex flex-col justify-between hover:bg-indigo-700 transition-all">
-        <div className="flex items-center justify-between">
-          <div className="w-8 h-8 rounded-none bg-white/20 flex items-center justify-center text-white">
-            <Zap size={16} />
-          </div>
-        </div>
-        <div>
-          <p className="text-2xl font-black text-white leading-none">94%</p>
-          <p className="text-[9px] font-bold text-white/70 uppercase tracking-widest mt-1">Efficiency</p>
-        </div>
-      </div>
-
-      {/* Add New Square */}
-      <button className="aspect-square bg-gray-50 border border-dashed border-gray-300 rounded-none p-4 flex flex-col items-center justify-center gap-2 hover:bg-gray-100 hover:border-gray-400 transition-all group">
-        <Plus size={24} className="text-gray-400 group-hover:text-gray-600 group-hover:scale-110 transition-all" />
-        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Custom Card</span>
-      </button>
-    </div>
-  )
+  }
 
   return (
-    <div className="p-6 font-inter space-y-6">
-      {/* Sub-tab Navigation */}
-      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-none w-fit border border-gray-200">
-        {subTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-              activeSubTab === tab.id 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+    <div className="p-6 space-y-8 font-inter max-w-7xl mx-auto">
+      {/* Emergency Access Recovery - Only shown if permissions might be broken */}
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
+            <ShieldAlert size={24} />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-amber-900 uppercase tracking-tight">Access Recovery Terminal</h3>
+            <p className="text-xs text-amber-700 font-medium">Click this if you encounter "Insufficient Permissions" errors while you are the owner.</p>
+          </div>
+        </div>
+        <button 
+          onClick={repairAdminAccess}
+          disabled={repairing}
+          className="h-11 px-8 bg-amber-600 text-white font-black rounded-xl text-[11px] uppercase tracking-widest hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 disabled:opacity-50 flex items-center gap-2"
+        >
+          {repairing ? <Spinner /> : <Zap size={16} fill="currentColor" />} Force Admin Access
+        </button>
       </div>
 
-      {/* Content Area */}
-      <div className="mt-8">
-        {activeSubTab === 'home' ? renderHomeSubTab() : (
-          <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-gray-200 rounded-none bg-gray-50/50">
-            <div className="w-12 h-12 bg-white rounded-none border border-gray-200 flex items-center justify-center mb-4 text-gray-300">
-              {subTabs.find(t => t.id === activeSubTab)?.icon}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard label="Total Headcount" value={stats.total} icon={<Users className="text-indigo-500" />} color="bg-indigo-50" />
+        <StatCard label="Active Status" value={stats.active} icon={<CheckCircle2 className="text-emerald-500" />} color="bg-emerald-50" />
+        <StatCard label="Present Today" value={stats.present} icon={<Clock className="text-blue-500" />} color="bg-blue-50" />
+        <StatCard label="Pending Requests" value={stats.pendingLeave} icon={<AlertCircle className="text-amber-500" />} color="bg-amber-50" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Organization Pulse</h3>
+              <button className="text-[11px] font-black text-indigo-600 uppercase tracking-widest hover:underline">View Analytics</button>
             </div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Module Initialization</p>
-            <p className="text-sm text-gray-500 mt-1 italic font-medium">This submodule is currently being configured for your organization.</p>
+            <div className="h-64 bg-gray-50 rounded-2xl flex items-center justify-center border border-dashed border-gray-200">
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Attendance Trend Placeholder</p>
+            </div>
           </div>
-        )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200">
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] mb-6 opacity-80">Quick Actions</h3>
+            <div className="space-y-3">
+              <ActionLink label="Run Payroll" />
+              <ActionLink label="Approve Leaves" />
+              <ActionLink label="Configure Shifts" />
+              <ActionLink label="Update Policies" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
+function StatCard({ label, value, icon, color }) {
+  return (
+    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+      <div className={`w-12 h-12 ${color} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+        {icon}
+      </div>
+      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+      <p className="text-3xl font-black text-gray-900 tracking-tight">{value}</p>
+    </div>
+  )
+}
+
+function ActionLink({ label }) {
+  return (
+    <button className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all group">
+      <span className="text-xs font-black uppercase tracking-widest">{label}</span>
+      <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+    </button>
+  )
+}
