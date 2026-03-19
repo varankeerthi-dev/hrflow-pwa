@@ -443,6 +443,18 @@ export default function AttendanceTab() {
 
   const handleSubmit = async () => {
     if (!rows.length) return
+
+    // Validation: At least one time (In or Out) is mandatory for 'Present' or 'SunWorked' status
+    const invalidRows = rows.filter(r => 
+      (r.status === 'Present' || r.status === 'SunWorked') && 
+      (!r.inTime && !r.outTime)
+    )
+
+    if (invalidRows.length > 0) {
+      alert(`Validation Error: Please provide at least In Time or Out Time for: ${invalidRows.map(r => r.name).join(', ')}`)
+      return
+    }
+
     const hasOverlap = rows.some(row => existingRecords.some(ex => ex.employeeId === row.employeeId))
     if (hasOverlap && !showWarning) {
       setShowWarning(true)
