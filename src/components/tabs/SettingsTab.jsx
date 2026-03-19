@@ -93,7 +93,7 @@ export default function SettingsTab() {
     if (!visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {
       setActiveSubTab(visibleSubTabs[0].id)
     }
-  }, [userPermissions])
+  }, [adminPermissions])
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
