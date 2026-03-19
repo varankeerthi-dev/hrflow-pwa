@@ -62,11 +62,9 @@ export default function SettingsTab() {
     ]
   })
 
-  const userPermissions = user?.permissions || {}
-  const isAdmin = user?.role?.toLowerCase() === 'admin'
+  const isAdmin = true // RBAC removed - simplicity first
   const allSubTabs = [
     { id: 'organization', label: 'Organization', module: 'Settings' },
-    { id: 'user_roles', label: 'User & Roles', module: 'Settings' },
     { id: 'employee', label: 'Employees', module: 'Employees' },
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
@@ -75,22 +73,13 @@ export default function SettingsTab() {
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' }
   ]
   
-  const visibleSubTabs = useMemo(() => {
-    if (isAdmin) return allSubTabs
-    return allSubTabs.filter(tab => {
-      // Special check for 'Roles' since it's a sub-module of 'User & Roles'
-      if (tab.id === 'user_roles') {
-        return userPermissions['Settings']?.view === true || userPermissions['Roles']?.view === true
-      }
-      return userPermissions[tab.module]?.view === true
-    })
-  }, [userPermissions, isAdmin])
+  const visibleSubTabs = allSubTabs
 
   useEffect(() => {
     if (!visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {
       setActiveSubTab(visibleSubTabs[0].id)
     }
-  }, [userPermissions])
+  }, [user])
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
