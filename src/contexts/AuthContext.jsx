@@ -53,7 +53,7 @@ async function readUserDoc(uid) {
         ]
         
         modules.forEach(m => {
-          defaultPermissions[m] = { view: false, create: false, edit: false, delete: false, approve: false, export: false, full: false }
+          defaultPermissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
         })
 
         if (userData.role) {
@@ -72,13 +72,19 @@ async function readUserDoc(uid) {
           console.log('readUserDoc: No role, using minimal permissions')
         }
 
-        // Sync to Firestore user doc for rules
-        if (JSON.stringify(snap.data().permissions) !== JSON.stringify(userData.permissions)) {
-          await setDoc(userRef, { permissions: userData.permissions }, { merge: true })
-          console.log('readUserDoc: Synced permissions to Firestore user doc')
+        // Sync to Firestore user doc for rules - wrap in try-catch to avoid blocking auth
+        try {
+          if (JSON.stringify(snap.data().permissions) !== JSON.stringify(userData.permissions)) {
+            await setDoc(userRef, { permissions: userData.permissions }, { merge: true })
+            console.log('readUserDoc: Synced permissions to Firestore user doc')
+          }
+        } catch (syncErr) {
+          console.warn('readUserDoc: Could not sync permissions (probably rules restriction):', syncErr)
         }
       } catch (err) {
         console.warn('readUserDoc: Could not read org or roles:', err)
+        // Fallback to admin permissions if org fetch fails
+        userData.permissions = defaultPermissions
       }
     }
     return { uid, ...userData }

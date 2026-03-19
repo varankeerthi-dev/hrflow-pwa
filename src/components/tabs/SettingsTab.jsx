@@ -62,23 +62,11 @@ export default function SettingsTab() {
     ]
   })
 
-  const isAdmin = true // Everyone is admin now
-  const adminPermissions = useMemo(() => {
-    const modules = [
-      'Attendance', 'Correction', 'Leave', 'Approvals', 'Summary', 'HRLetters',
-      'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
-      'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
-      'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
-      'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
-    ]
-    return modules.reduce((acc, mod) => {
-      acc[mod] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
-      return acc
-    }, {})
-  }, [])
-
+  const userPermissions = user?.permissions || {}
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
   const allSubTabs = [
     { id: 'organization', label: 'Organization', module: 'Settings' },
+    { id: 'user_roles', label: 'User & Roles', module: 'Settings' },
     { id: 'employee', label: 'Employees', module: 'Employees' },
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
@@ -87,13 +75,22 @@ export default function SettingsTab() {
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' }
   ]
   
-  const visibleSubTabs = allSubTabs
+  const visibleSubTabs = useMemo(() => {
+    if (isAdmin) return allSubTabs
+    return allSubTabs.filter(tab => {
+      // Special check for 'Roles' since it's a sub-module of 'User & Roles'
+      if (tab.id === 'user_roles') {
+        return userPermissions['Settings']?.view === true || userPermissions['Roles']?.view === true
+      }
+      return userPermissions[tab.module]?.view === true
+    })
+  }, [userPermissions, isAdmin])
 
   useEffect(() => {
     if (!visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {
       setActiveSubTab(visibleSubTabs[0].id)
     }
-  }, [adminPermissions])
+  }, [userPermissions])
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
@@ -2170,7 +2167,20 @@ const authNeedsUpdate = emailChanged || passwordChanged
                     className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                   />
                 </div>
-
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Access Role</label>
+                  <select 
+                    value={editForm.role || 'employee'} 
+                    onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  >
+                    <option value="employee">Employee (Default)</option>
+                    <option value="admin">Admin (All Access)</option>
+                    {roles.map(r => (
+                      <option key={r.id} value={r.name}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -2482,6 +2492,26 @@ const authNeedsUpdate = emailChanged || passwordChanged
                   {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
                     <option key={m.id} value={m.name}>{m.name} - {m.hours} Hours</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
+                <select
+                  value={newEmployee.role}
+                  onChange={e => setNewEmployee(s => ({ ...s, role: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  {roles.length > 0 ? roles.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  )) : (
+                    <>
+                      <option value="">Select Role...</option>
+                      <option value="Admin">Admin</option>
+                      <option value="HR">HR</option>
+                      <option value="Employee">Employee</option>
+                      <option value="Manager">Manager</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div>

@@ -135,7 +135,8 @@ export default function AdvanceExpenseTab() {
       // Enter into report split section
       setActiveModule('Reports')
     } catch (err) {
-      alert('Failed to save')
+      console.error('Submission error:', err)
+      alert(`Failed to save: ${err.message}`)
     } finally {
       setSubmitting(false)
     }
