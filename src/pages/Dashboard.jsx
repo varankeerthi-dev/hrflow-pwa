@@ -224,13 +224,17 @@ export default function Dashboard() {
       return (normalizedUserEmail && empEmail === normalizedUserEmail) || e.id === user.uid
     }) || employees[0]
   }, [employees, user])
-
-  useEffect(() => {
-    if (!user?.orgId) return
+useEffect(() => {
+  if (user?.orgId) {
     getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
       if (snap.exists()) setOrgSettings(snap.data())
     })
-  }, [user?.orgId])
+  }
+  // Debug globals
+  window.user = user
+  window.db = db
+}, [user])
+
 
   useEffect(() => {
     setRolePermissions(null)
