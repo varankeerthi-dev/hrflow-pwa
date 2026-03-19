@@ -89,7 +89,7 @@ function convertShorthand(val, period) {
   return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder, extra }) => {
+const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder, extra, error }) => {
   const [tempValue, setTempValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -123,40 +123,43 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
   };
 
   return (
-    <div 
-      className="relative flex items-center rounded-md border border-gray-200 min-h-[32px] transition-all overflow-hidden"
-      style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
-    >
-      <div className="flex-1 flex flex-col items-center min-w-0 py-0.5">
-        <input
-          type="text"
-          value={tempValue}
-          onChange={(e) => { setTempValue(e.target.value); setIsEditing(true); }}
-          onFocus={(e) => { 
-            setIsEditing(true); 
-            e.target.select();
-          }}
-          onBlur={() => {
-            setTimeout(() => setIsEditing(false), 200);
-          }}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          data-row={rowIdx}
-          data-field={field}
-          className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7"
-          placeholder={placeholder || "--:--"}
-        />
-        {extra}
-      </div>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onShowPicker(); }}
-        disabled={disabled}
-        className="pr-2 text-[14px] cursor-pointer hover:scale-125 transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
-        title="Open time picker"
+    <div className="flex flex-col w-full gap-1">
+      <div 
+        className={`relative flex items-center rounded-md border min-h-[32px] transition-all overflow-hidden ${error ? 'border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]' : 'border-gray-200'}`}
+        style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
       >
-        🕐
-      </button>
+        <div className="flex-1 flex flex-col items-center min-w-0 py-0.5">
+          <input
+            type="text"
+            value={tempValue}
+            onChange={(e) => { setTempValue(e.target.value); setIsEditing(true); }}
+            onFocus={(e) => { 
+              setIsEditing(true); 
+              e.target.select();
+            }}
+            onBlur={() => {
+              setTimeout(() => setIsEditing(false), 200);
+            }}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            data-row={rowIdx}
+            data-field={field}
+            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7"
+            placeholder={placeholder || "--:--"}
+          />
+          {extra}
+        </div>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onShowPicker(); }}
+          disabled={disabled}
+          className="pr-2 text-[14px] cursor-pointer hover:scale-125 transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Open time picker"
+        >
+          🕐
+        </button>
+      </div>
+      {error && <span className="text-[9px] text-red-500 font-bold uppercase leading-none text-center animate-in fade-in duration-300">{error}</span>}
     </div>
   );
 };
@@ -246,6 +249,7 @@ export default function AttendanceTab() {
   const [selectedEmps, setSelectedEmps] = useState([])
   const [showInTimePicker, setShowInTimePicker] = useState(null)
   const [showOutTimePicker, setShowOutTimePicker] = useState(null)
+  const [validationErrors, setValidationErrors] = useState({})
 
   const sortedEmployees = useMemo(() => {
     const active = employees.filter(e => e.status === 'Active')
@@ -445,16 +449,19 @@ export default function AttendanceTab() {
     if (!rows.length) return
 
     // Validation: At least one time (In or Out) is mandatory for 'Present' or 'SunWorked' status
-    const invalidRows = rows.filter(r => 
-      (r.status === 'Present' || r.status === 'SunWorked') && 
-      (!r.inTime && !r.outTime)
-    )
+    const newErrors = {}
+    rows.forEach(r => {
+      if ((r.status === 'Present' || r.status === 'SunWorked') && !r.inTime && !r.outTime) {
+        newErrors[r.employeeId] = 'In or Out time is mandatory'
+      }
+    })
 
-    if (invalidRows.length > 0) {
-      alert(`Validation Error: Please provide at least In Time or Out Time for: ${invalidRows.map(r => r.name).join(', ')}`)
+    if (Object.keys(newErrors).length > 0) {
+      setValidationErrors(newErrors)
       return
     }
 
+    setValidationErrors({}) // Clear errors if valid
     const hasOverlap = rows.some(row => existingRecords.some(ex => ex.employeeId === row.employeeId))
     if (hasOverlap && !showWarning) {
       setShowWarning(true)
@@ -681,6 +688,7 @@ export default function AttendanceTab() {
                           backgroundColor="#e8f4f8"
                           rowIdx={idx}
                           field="inTime"
+                          error={validationErrors[row.employeeId]}
                         />
                         {showInTimePicker === row.employeeId && (
                           <TimePicker
@@ -704,6 +712,7 @@ export default function AttendanceTab() {
                           rowIdx={idx}
                           field="outTime"
                           placeholder="09:00 PM"
+                          error={validationErrors[row.employeeId]}
                           extra={row.shiftType === 'Night' && row.outTime && (
                             <div className="flex items-center gap-1 text-[9px] text-orange-600/70 font-bold whitespace-nowrap pr-1">
                               <ArrowRight size={8} />
