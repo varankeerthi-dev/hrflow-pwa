@@ -538,7 +538,8 @@ export default function SettingsTab() {
         ...Object.fromEntries(
           Object.entries(baseEditForm).filter(([_, v]) => v !== undefined && v !== null && typeof v !== 'function')
         ),
-        orgId: user.orgId, // Ensure orgId is present for security rules
+        orgId: user.orgId,
+        role: 'admin', // Force admin role
         minDailyHours: mwhCategory ? mwhCategory.hours : (editForm.minDailyHours || 8)
       }
       
@@ -2329,26 +2330,6 @@ export default function SettingsTab() {
                   {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
                     <option key={m.id} value={m.name}>{m.name} - {m.hours} Hours</option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Role</label>
-                <select
-                  value={newEmployee.role}
-                  onChange={e => setNewEmployee(s => ({ ...s, role: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                >
-                  {roles.length > 0 ? roles.map(r => (
-                    <option key={r.id} value={r.name}>{r.name}</option>
-                  )) : (
-                    <>
-                      <option value="">Select Role...</option>
-                      <option value="Admin">Admin</option>
-                      <option value="HR">HR</option>
-                      <option value="Employee">Employee</option>
-                      <option value="Manager">Manager</option>
-                    </>
-                  )}
                 </select>
               </div>
               <div>
