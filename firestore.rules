@@ -1,87 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Check if user is signed in
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Get current user document directly
-    function getAuthUser() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(path) ? get(path).data : null;
-    }
-
-    // Helper to check if UID is a permanent admin of the org
-    function isOrgAdmin(orgId) {
-      let orgPath = /databases/$(database)/documents/organisations/$(orgId);
-      return exists(orgPath) && request.auth.uid in get(orgPath).data.adminUids;
-    }
-
-    // Management check helper (admin, hr, md)
-    function isManagement(orgId) {
-      let userData = getAuthUser();
-      return isOrgAdmin(orgId) || (
-        userData != null && 
-        userData.orgId == orgId && 
-        "role" in userData && 
-        userData.role != null && 
-        (userData.role.lower() == 'admin' || userData.role.lower() == 'hr' || userData.role.lower() == 'md')
-      );
-    }
-    
-    // USERS COLLECTION
-    match /users/{uid} {
-      allow read: if isSignedIn() && (
-        request.auth.uid == uid || 
-        isManagement(resource.data.orgId)
-      );
-      
-      allow list: if isSignedIn() && (
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        isManagement(getAuthUser().orgId)
-      );
-      
-      allow create: if isSignedIn() && request.auth.uid == uid;
-      
-      allow update: if isSignedIn() && (
-        request.auth.uid == uid || 
-        isManagement(resource.data.orgId)
-      );
-      
-      allow delete: if isSignedIn() && isManagement(resource.data.orgId);
-    }
-    
-    // ORGANISATIONS COLLECTION
-    match /organisations/{orgId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && getAuthUser().orgId == orgId;
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && isManagement(orgId);
-      
-      // Generic rule for sub-collections
-      match /{collection}/{docId} {
-        allow read: if isSignedIn() && getAuthUser().orgId == orgId;
-        allow write: if isSignedIn() && isManagement(orgId);
-      }
-
-      // Specific overrides for requests
-      match /requests/{id} {
-        allow read, create: if isSignedIn() && getAuthUser().orgId == orgId;
-        allow update, delete: if isSignedIn() && isManagement(orgId);
-      }
-
-      // Specific overrides for attendance
-      match /attendance/{attId} {
-        allow read, write: if isSignedIn() && getAuthUser().orgId == orgId;
-        allow delete: if isSignedIn() && isManagement(orgId);
-      }
-    }
-    
-    // Default deny
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if request.auth != null;
     }
   }
 }

@@ -2170,20 +2170,7 @@ const authNeedsUpdate = emailChanged || passwordChanged
                     className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                   />
                 </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Access Role</label>
-                  <select 
-                    value={editForm.role || 'employee'} 
-                    onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))}
-                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                  >
-                    <option value="employee">Employee (Default)</option>
-                    <option value="admin">Admin (All Access)</option>
-                    {roles.map(r => (
-                      <option key={r.id} value={r.name}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
+
               </div>
             </div>
 
