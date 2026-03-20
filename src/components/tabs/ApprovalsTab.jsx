@@ -49,6 +49,7 @@ export default function ApprovalsTab() {
   const [paymentQueue, setPaymentQueue] = useState([])
   const [recentPayments, setRecentPayments] = useState([])
   const [requests, setRequests] = useState([])
+  const [leaveApprovalSetting, setLeaveApprovalSetting] = useState(null)
   
   // For the Advance/Expense action toggles
   const [actionState, setActionState] = useState({}) // { id: { status, remarks, showToggle, paymentMethod, paymentRef, partialAmount } }
@@ -57,6 +58,18 @@ export default function ApprovalsTab() {
   const isAccountant = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
   const isMD = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'md'
   const isHR = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'hr'
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const fetchSettings = async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'), where('moduleName', '==', 'Leave'))
+      const snap = await getDocs(q)
+      if (!snap.empty) {
+        setLeaveApprovalSetting(snap.docs[0].data())
+      }
+    }
+    fetchSettings()
+  }, [user?.orgId])
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -201,20 +214,86 @@ export default function ApprovalsTab() {
     }
 
     try {
+      const req = requests.find(r => r.id === id)
       const updateData = { 
-        status,
-        remarks: state?.remarks || '',
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
       }
 
-      if (isHR) {
-        updateData.hrApproval = status
-        updateData.hrRemarks = state?.remarks || ''
-      }
-      if (isMD) {
-        updateData.mdApproval = status
-        updateData.mdRemarks = state?.remarks || ''
+      if (req.type === 'Leave' || req.type === 'Permission') {
+        const type = req.approvalType || 'single'
+        
+        if (type === 'single') {
+          // Any authorized role can approve
+          const canSingleAct = user.role?.toLowerCase() === 'admin' || leaveApprovalSetting?.approvers?.includes(user.role)
+          if (!canSingleAct) return alert('You are not authorized to approve this request.')
+          
+          updateData.status = status
+          updateData.remarks = state?.remarks || ''
+          updateData.approvedBy = user.uid
+          updateData.approvedAt = serverTimestamp()
+        } else {
+          // Multi-stage progression
+          const currentStage = req.currentStage || 0
+          const totalStages = req.totalStages || 1
+          const isLastStage = currentStage === totalStages - 1
+          
+          // Check if current user is the correct approver for this stage
+          const isMDUser = user.role?.toLowerCase() === 'md' || user.role?.toLowerCase() === 'admin'
+          const isAssignedApprover = user.uid === req.approverIds?.[currentStage]
+          
+          // Instruction: "last must be MD only"
+          const canActThisStage = isLastStage ? isMDUser : (isAssignedApprover || isHR)
+
+          if (!canActThisStage) return alert('It is not your turn to approve this request.')
+
+          if (isLastStage) {
+            // MD / Final Stage
+            updateData.mdApproval = status
+            updateData.mdRemarks = state?.remarks || ''
+            updateData.mdApprovedBy = user.uid
+            updateData.mdApprovedAt = serverTimestamp()
+            
+            if (status === 'Approved') {
+              updateData.status = 'Approved'
+            } else {
+              updateData.status = status
+            }
+          } else {
+            // Intermediate Stages
+            updateData.deptHeadApproval = status
+            updateData.deptHeadRemarks = state?.remarks || ''
+            updateData.deptHeadApprovedBy = user.uid
+            updateData.deptHeadApprovedAt = serverTimestamp()
+            
+            if (status === 'Approved') {
+              updateData.currentStage = currentStage + 1
+              // If it was the only stage (not possible with totalStages > 1 but safe)
+              if (totalStages === 1) updateData.status = 'Approved'
+            } else {
+              updateData.status = status
+            }
+          }
+        }
+        
+        // Admin bypass
+        if (user.role?.toLowerCase() === 'admin') {
+          updateData.status = status
+          updateData.deptHeadApproval = status
+          updateData.mdApproval = status
+        }
+      } else {
+        // Fallback for non-leave types
+        updateData.status = status
+        updateData.remarks = state?.remarks || ''
+        if (isHR) {
+          updateData.hrApproval = status
+          updateData.hrRemarks = state?.remarks || ''
+        }
+        if (isMD) {
+          updateData.mdApproval = status
+          updateData.mdRemarks = state?.remarks || ''
+        }
       }
 
       await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), updateData)
@@ -699,17 +778,25 @@ export default function ApprovalsTab() {
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested Date</th>
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested by</th>
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Type</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Type</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Approver Name</th>
+                      
+                      {leaveApprovalSetting?.type === 'multi' ? (
+                        <>
+                          <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Dept Head</th>
+                          <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">MD Approval</th>
+                        </>
+                      ) : (
+                        <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Approval Status</th>
+                      )}
+
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Period</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Final Status</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-16 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
+                        <td colSpan={leaveApprovalSetting?.type === 'multi' ? 8 : 7} className="py-16 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
                       </tr>
                     ) : (
                       requests.filter(r => r.status === 'Pending' || r.status === 'Hold').map(req => {
@@ -725,6 +812,15 @@ export default function ApprovalsTab() {
                         const isSelf = req.createdBy === req.employeeId
                         const creator = employees.find(e => e.id === req.createdBy)
                         const requestedByLabel = isSelf ? req.employeeName : `${creator?.name || 'HR/Admin'} on behalf of ${req.employeeName}`
+
+                        const isTargetDeptHead = user.uid === req?.deptHeadId || isHR
+                        const isTargetMD = isMD
+
+                        // Single approval authorization logic
+                        const canSingleApprove = leaveApprovalSetting?.type === 'single' && (
+                          user.role?.toLowerCase() === 'admin' || 
+                          leaveApprovalSetting.approvers?.includes(user.role)
+                        )
 
                         return (
                           <React.Fragment key={req.id}>
@@ -743,35 +839,66 @@ export default function ApprovalsTab() {
                                   {req.type}
                                 </span>
                               </td>
-                              <td className="px-6">
-                                <span className="text-[11px] font-semibold text-slate-600">{req.leaveType || '--'}</span>
-                              </td>
-                              <td className="px-6 text-center">
-                                <span className="text-[11px] font-bold text-gray-600">{req.deptHeadName || '--'}</span>
-                              </td>
+
+                              {leaveApprovalSetting?.type === 'multi' ? (
+                                <>
+                                  <td className="px-6">
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-[11px] font-bold text-gray-600">{req.deptHeadName || 'Not Assigned'}</span>
+                                      <div className="flex items-center gap-2">
+                                        {getStatusIcon(req.deptHeadApproval || 'Pending')}
+                                        {isTargetDeptHead && (req.deptHeadApproval === 'Pending' || req.deptHeadApproval === 'Hold') && (
+                                          <div className="flex gap-1">
+                                            <button onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} className="p-1 hover:bg-emerald-50 rounded text-emerald-600"><CheckCircle2 size={14} /></button>
+                                            <button onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')} className="p-1 hover:bg-rose-50 rounded text-rose-600"><XCircle size={14} /></button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 text-center">
+                                    <div className="flex items-center justify-center gap-2">
+                                      {getStatusIcon(req.mdApproval || 'Pending')}
+                                      {isTargetMD && (req.mdApproval === 'Pending' || req.mdApproval === 'Hold') && (
+                                        <div className="flex gap-1">
+                                          <button onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} className="p-1 hover:bg-emerald-50 rounded text-emerald-600"><CheckCircle2 size={14} /></button>
+                                          <button onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')} className="p-1 hover:bg-rose-50 rounded text-rose-600"><XCircle size={14} /></button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </>
+                              ) : (
+                                <td className="px-6 text-center">
+                                  <div className="flex items-center justify-center gap-3">
+                                    {getStatusIcon(req.status)}
+                                    {canSingleApprove && (req.status === 'Pending' || req.status === 'Hold') && (
+                                      <div className="flex gap-1.5">
+                                        <button onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} className="h-7 px-3 bg-emerald-50 text-emerald-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">Approve</button>
+                                        <button onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')} className="h-7 px-3 bg-rose-50 text-rose-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">Reject</button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+
                               <td className="px-6">
                                 <p className="text-[11px] font-medium text-gray-600">
                                   {req.type === 'Leave' ? `${formatDate(req.fromDate)} - ${formatDate(req.toDate)}` : formatDate(req.permissionDate)}
                                 </p>
                               </td>
                               <td className="px-6 text-center">
-                                <div className="flex flex-col items-center">
-                                  <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${req.status === 'Hold' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-600'}`}>
-                                    {req.status === 'Hold' ? 'Pending (Hold)' : 'Pending'}
-                                  </div>
+                                <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${req.status === 'Hold' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-600'}`}>
+                                  {req.status === 'Hold' ? 'Hold' : 'Pending'}
                                 </div>
                               </td>
-                              <td className="px-6">
-                                <div className="flex justify-end gap-1.5">
-                                  <button onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} className="h-7 px-3 bg-emerald-50 text-emerald-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">Approve</button>
-                                  <button onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')} className="h-7 px-3 bg-rose-50 text-rose-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">Reject</button>
-                                  <button onClick={() => handleUpdateRequestStatus(req.id, 'Hold')} className="h-7 px-3 bg-slate-50 text-slate-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-slate-600 hover:text-white transition-all">Hold</button>
-                                </div>
+                              <td className="px-6 text-right">
+                                <button onClick={() => handleDeleteRequest(req.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
                               </td>
                             </tr>
                             {(req.status === 'Pending' || req.status === 'Hold') && (
                               <tr className="bg-gray-50/20">
-                                <td colSpan={8} className="px-6 py-1.5">
+                                <td colSpan={leaveApprovalSetting?.type === 'multi' ? 8 : 7} className="px-6 py-1.5">
                                   <div className="flex flex-col md:flex-row items-center justify-end gap-4">
                                     {req.physicalFormSubmitted && (
                                       <span className="text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded border border-emerald-100 flex items-center gap-1">

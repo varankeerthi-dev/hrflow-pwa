@@ -87,6 +87,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const [loading, setLoading] = useState(false)
   const [requests, setRequests] = useState([])
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [approvalSetting, setApprovalSetting] = useState(null)
   const [requestForm, setRequestForm] = useState({
     type: 'Leave',
     leaveType: 'Casual',
@@ -96,7 +97,20 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     time: '',
     amount: '',
     reason: '',
+    approverIds: [],
   })
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const fetchSettings = async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'), where('moduleName', '==', 'Leave'))
+      const snap = await getDocs(q)
+      if (!snap.empty) {
+        setApprovalSetting(snap.docs[0].data())
+      }
+    }
+    fetchSettings()
+  }, [user?.orgId])
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [month, setMonth] = useState(() => {
     const d = new Date()
@@ -214,15 +228,24 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     setLoading(true)
     try {
       if (requestForm.type === 'Leave') {
-        await applyLeave({
+        const payload = {
           employeeId,
           employeeName: employee?.name || user.name,
           leaveType: requestForm.leaveType || 'Casual',
           fromDate: requestForm.fromDate,
           toDate: requestForm.toDate || requestForm.fromDate,
           reason: requestForm.reason,
-          orgId: user.orgId
-        })
+          orgId: user.orgId,
+          approvalType: approvalSetting?.type || 'single',
+          currentStage: 0,
+          totalStages: approvalSetting?.type === 'multi' ? approvalSetting.stages.length : 1,
+          approverIds: requestForm.approverIds || [],
+          deptHeadId: approvalSetting?.type === 'multi' ? (requestForm.approverIds?.[0] || '') : '',
+          deptHeadName: approvalSetting?.type === 'multi' 
+            ? (employees.find(e => e.id === requestForm.approverIds?.[0])?.name || 'Unknown')
+            : 'Unknown'
+        }
+        await applyLeave(payload)
       } else {
         const base = {
           employeeId,
@@ -850,15 +873,21 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                 <div key={req.id} className="bg-white p-8 rounded-[12px] border border-gray-100 shadow-sm flex flex-col relative overflow-hidden group hover:shadow-lg transition-all">
                   <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-xl text-[9px] font-black uppercase tracking-[0.2em] ${
                     req.status === 'Rejected' ? 'bg-red-100 text-red-700 border-l border-b border-red-200' :
-                    req.mdApproval === 'Approved' ? 'bg-green-100 text-green-700 border-l border-b border-green-200' :
+                    req.status === 'Approved' ? 'bg-green-100 text-green-700 border-l border-b border-green-200' :
                     'bg-amber-50 text-amber-600 border-l border-b border-amber-100'
                   }`}>
                     {(() => {
                       if (req.status === 'Rejected') return 'Rejected'
-                      if (req.mdApproval === 'Approved') return 'Approved'
+                      if (req.status === 'Approved') return 'Approved'
                       if (req.status === 'Hold') return 'Pending'
-                      if (req.deptHeadApproval === 'Approved' && req.mdApproval === 'Pending') return 'Waiting MD Approval'
-                      if (req.deptHeadApproval === 'Pending' && req.mdApproval === 'Pending') return 'Dept Head Approval Pending'
+                      
+                      // For multi-stage approvals
+                      if (req.approvalType === 'multi') {
+                        if (req.mdApproval === 'Approved') return 'Approved'
+                        if (req.deptHeadApproval === 'Approved' && req.mdApproval === 'Pending') return 'Waiting MD Approval'
+                        if (req.deptHeadApproval === 'Pending' && req.mdApproval === 'Pending') return 'Dept Head Approval Pending'
+                      }
+                      
                       return req.status
                     })()}
                   </div>
@@ -1003,29 +1032,51 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           </div>
           {requestForm.type === 'Leave' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
-                    Leave Classification
-                  </label>
-                  <select
-                    value={requestForm.leaveType}
-                    onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
-                    className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
-                  >
-                    <option value="Casual">Casual Leave</option>
-                    <option value="Sick">Sick Leave</option>
-                    <option value="Privilege">Privilege Leave</option>
-                    <option value="Maternity">Maternity Leave</option>
-                    <option value="Paternity">Paternity Leave</option>
-                    <option value="Unpaid">Unpaid Leave</option>
-                    <option value="LOP">Loss of Pay (LOP)</option>
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
+                      Leave Classification
+                    </label>
+                    <select
+                      value={requestForm.leaveType}
+                      onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
+                      className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                    >
+                      <option value="Casual">Casual Leave</option>
+                      <option value="Sick">Sick Leave</option>
+                      <option value="Privilege">Privilege Leave</option>
+                      <option value="Maternity">Maternity Leave</option>
+                      <option value="Paternity">Paternity Leave</option>
+                      <option value="Unpaid">Unpaid Leave</option>
+                      <option value="LOP">Loss of Pay (LOP)</option>
+                    </select>
+                  </div>
+                  
+                  {/* Dynamic Approver logic */}
+                  {approvalSetting?.type === 'multi' && approvalSetting.stages?.length > 1 && (
+                    <>
+                      {approvalSetting.stages.slice(0, -1).map((stage, idx) => (
+                        <div key={idx} className="space-y-2">
+                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
+                            Approver {idx + 1} ({stage.role || 'Dept Head'})
+                          </label>
+                          <select 
+                            value={requestForm.approverIds?.[idx] || ''} 
+                            onChange={e => {
+                              const newApprovers = [...(requestForm.approverIds || [])]
+                              newApprovers[idx] = e.target.value
+                              setRequestForm({...requestForm, approverIds: newApprovers}) 
+                            }} 
+                            className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                          >
+                            <option value="">Select Approver</option>
+                            {employees.filter(emp => emp.id !== employeeId).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
-                <div className="hidden">
-                  {/* Approver is selected by HR in the backend workflow */}
-                </div>
-              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">

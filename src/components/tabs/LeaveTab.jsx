@@ -34,6 +34,7 @@ export default function LeaveTab() {
   const [showInlineForm, setShowInlineForm] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('All')
+  const [approvalSetting, setApprovalSetting] = useState(null)
   
   const [form, setForm] = useState({ 
     employeeId: '', 
@@ -42,9 +43,22 @@ export default function LeaveTab() {
     toDate: '', 
     reason: '',
     deptHeadId: '',
+    approverIds: [], // For multi-stage
     physicalFormSubmitted: false,
     deterrentLeave: false
   })
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const fetchSettings = async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'), where('moduleName', '==', 'Leave'))
+      const snap = await getDocs(q)
+      if (!snap.empty) {
+        setApprovalSetting(snap.docs[0].data())
+      }
+    }
+    fetchSettings()
+  }, [user?.orgId])
 
   const [actionRemarks, setActionRemarks] = useState({})
   const [selectedNextApprover, setSelectedNextApprover] = useState({})
@@ -65,21 +79,40 @@ export default function LeaveTab() {
     e.preventDefault()
     
     if (!form.employeeId) return alert('Please select the employee.')
-    if (!form.deptHeadId) return alert('Please select the Department Head/Approver.')
+    
+    // Validate approvers for multi-stage
+    if (approvalSetting?.type === 'multi' && approvalSetting.stages?.length > 1) {
+      const requiredApproversCount = approvalSetting.stages.length - 1
+      for (let i = 0; i < requiredApproversCount; i++) {
+        if (!form.approverIds[i]) {
+          return alert(`Please select Approver ${i + 1} (${approvalSetting.stages[i].role || 'Dept Head'})`)
+        }
+      }
+    }
+
     if (!form.fromDate) return alert('Please select the From Date.')
     if (!form.toDate) return alert('Please select the To Date.')
     if (!form.reason.trim()) return alert('Please provide a reason.')
     
     try {
       const emp = employees.find(e => e.id === form.employeeId)
-      const deptHead = employees.find(e => e.id === form.deptHeadId)
       
-      await applyLeave({
+      const payload = {
         ...form,
         employeeName: emp?.name || 'Unknown',
-        deptHeadName: deptHead?.name || 'Unknown',
-        orgId: user.orgId
-      })
+        orgId: user.orgId,
+        approvalType: approvalSetting?.type || 'single',
+        currentStage: 0, // Start at stage 0
+        totalStages: approvalSetting?.type === 'multi' ? approvalSetting.stages.length : 1,
+        // deptHeadId is set to the first approver in the list if multi
+        deptHeadId: approvalSetting?.type === 'multi' ? form.approverIds[0] : (form.deptHeadId || ''),
+        deptHeadName: approvalSetting?.type === 'multi' 
+          ? (employees.find(e => e.id === form.approverIds[0])?.name || 'Unknown')
+          : (employees.find(e => e.id === form.deptHeadId)?.name || 'Unknown')
+      }
+
+      await applyLeave(payload)
+      
       setShowInlineForm(false)
       setForm({ 
         employeeId: '', 
@@ -88,6 +121,7 @@ export default function LeaveTab() {
         toDate: '', 
         reason: '', 
         deptHeadId: '',
+        approverIds: [],
         physicalFormSubmitted: false,
         deterrentLeave: false
       })
@@ -218,20 +252,40 @@ export default function LeaveTab() {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-slate-500 uppercase">Approver (Dept. Head)</label>
-                        <div className="relative">
-                          <select 
-                            value={form.deptHeadId} 
-                            onChange={e => setForm({...form, deptHeadId: e.target.value})} 
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 appearance-none"
-                          >
-                            <option value="">Select Dept. Head</option>
-                            {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none h-4 w-4" />
+                      {/* Dynamic Approver logic */}
+                      {approvalSetting?.type === 'multi' && approvalSetting.stages?.length > 1 && (
+                        <>
+                          {approvalSetting.stages.slice(0, -1).map((stage, idx) => (
+                            <div key={idx} className="space-y-2">
+                              <label className="text-xs font-medium text-slate-500 uppercase">
+                                Approver {idx + 1} ({stage.role || 'Dept Head'})
+                              </label>
+                              <div className="relative">
+                                <select 
+                                  value={form.approverIds[idx] || ''} 
+                                  onChange={e => {
+                                    const newApprovers = [...form.approverIds]
+                                    newApprovers[idx] = e.target.value
+                                    setForm({...form, approverIds: newApprovers, deptHeadId: newApprovers[0]}) 
+                                  }} 
+                                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 appearance-none"
+                                >
+                                  <option value="">Select Approver</option>
+                                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none h-4 w-4" />
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {(!approvalSetting || approvalSetting.type === 'single') && (
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-start gap-2">
+                          <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-slate-500 font-medium">Any authorized person (Admin/HR/MD) can approve this request as per Single Approval policy.</p>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {form.employeeId && (
