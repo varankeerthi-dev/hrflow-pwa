@@ -41,9 +41,11 @@ export default function LeaveTab() {
     fromDate: '', 
     toDate: '', 
     reason: '',
-    deptHeadId: ''
+    deptHeadId: '',
+    physicalFormSubmitted: false,
+    deterrentLeave: false
   })
-  
+
   const [actionRemarks, setActionRemarks] = useState({})
   const [selectedNextApprover, setSelectedNextApprover] = useState({})
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7))
@@ -79,7 +81,16 @@ export default function LeaveTab() {
         orgId: user.orgId
       })
       setShowInlineForm(false)
-      setForm({ employeeId: '', leaveType: 'Casual', fromDate: '', toDate: '', reason: '', deptHeadId: '' })
+      setForm({ 
+        employeeId: '', 
+        leaveType: 'Casual', 
+        fromDate: '', 
+        toDate: '', 
+        reason: '', 
+        deptHeadId: '',
+        physicalFormSubmitted: false,
+        deterrentLeave: false
+      })
       refreshLeaves()
     } catch (err) {
       alert('Failed to submit application: ' + err.message)
@@ -294,6 +305,34 @@ export default function LeaveTab() {
                         className="flex min-h-[60px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" 
                         placeholder="Why is this leave requested?" 
                       />
+                    </div>
+
+                    <div className="flex flex-wrap gap-6 pt-2">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${form.physicalFormSubmitted ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300 group-hover:border-indigo-400'}`}>
+                          {form.physicalFormSubmitted && <Check size={12} className="text-white" strokeWidth={4} />}
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          className="hidden" 
+                          checked={form.physicalFormSubmitted}
+                          onChange={e => setForm({...form, physicalFormSubmitted: e.target.checked})}
+                        />
+                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">Physical form submitted</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${form.deterrentLeave ? 'bg-rose-600 border-rose-600' : 'bg-white border-slate-300 group-hover:border-rose-400'}`}>
+                          {form.deterrentLeave && <Check size={12} className="text-white" strokeWidth={4} />}
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          className="hidden" 
+                          checked={form.deterrentLeave}
+                          onChange={e => setForm({...form, deterrentLeave: e.target.checked})}
+                        />
+                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">Deterrent leave</span>
+                      </label>
                     </div>
                   </div>
                 </div>

@@ -848,8 +848,19 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
               {requests.map(req => (
                 <div key={req.id} className="bg-white p-8 rounded-[12px] border border-gray-100 shadow-sm flex flex-col relative overflow-hidden group hover:shadow-lg transition-all">
-                  <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-xl text-[9px] font-black uppercase tracking-[0.2em] ${req.status === 'Approved' ? 'bg-green-100 text-green-700 border-l border-b border-green-200' : req.status === 'Rejected' ? 'bg-red-100 text-red-700 border-l border-b border-red-200' : 'bg-amber-50 text-amber-600 border-l border-b border-amber-100'}`}>
-                    {req.status}
+                  <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-xl text-[9px] font-black uppercase tracking-[0.2em] ${
+                    req.status === 'Rejected' ? 'bg-red-100 text-red-700 border-l border-b border-red-200' :
+                    req.mdApproval === 'Approved' ? 'bg-green-100 text-green-700 border-l border-b border-green-200' :
+                    'bg-amber-50 text-amber-600 border-l border-b border-amber-100'
+                  }`}>
+                    {(() => {
+                      if (req.status === 'Rejected') return 'Rejected'
+                      if (req.mdApproval === 'Approved') return 'Approved'
+                      if (req.status === 'Hold') return 'Pending'
+                      if (req.deptHeadApproval === 'Approved' && req.mdApproval === 'Pending') return 'Waiting MD Approval'
+                      if (req.deptHeadApproval === 'Pending' && req.mdApproval === 'Pending') return 'Dept Head Approval Pending'
+                      return req.status
+                    })()}
                   </div>
                   <div className="mb-6 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 group-hover:text-indigo-600 transition-colors">

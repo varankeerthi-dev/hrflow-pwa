@@ -697,10 +697,11 @@ export default function ApprovalsTab() {
                   <thead>
                     <tr className="bg-gray-50/50 h-[44px] border-b border-gray-100">
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested Date</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested by</th>
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Type</th>
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Type</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Approver Name</th>
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Period</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Remarks</th>
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
                       <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
                     </tr>
@@ -708,7 +709,7 @@ export default function ApprovalsTab() {
                   <tbody className="divide-y divide-gray-50">
                     {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-16 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
+                        <td colSpan={8} className="py-16 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
                       </tr>
                     ) : (
                       requests.filter(r => r.status === 'Pending' || r.status === 'Hold').map(req => {
@@ -720,13 +721,21 @@ export default function ApprovalsTab() {
                         const createdAt = req.createdAt?.toDate ? req.createdAt.toDate() : new Date()
                         const requestedDate = `${String(createdAt.getDate()).padStart(2, '0')}/${String(createdAt.getMonth() + 1).padStart(2, '0')}/${String(createdAt.getFullYear()).slice(-2)}`
                         
+                        // Logic for "Requested by"
+                        const isSelf = req.createdBy === req.employeeId
+                        const creator = employees.find(e => e.id === req.createdBy)
+                        const requestedByLabel = isSelf ? req.employeeName : `${creator?.name || 'HR/Admin'} on behalf of ${req.employeeName}`
+
                         return (
                           <React.Fragment key={req.id}>
                             <tr className="h-[60px] hover:bg-gray-50/30 transition-colors">
                               <td className="px-6">
+                                <span className="text-[12px] font-bold text-gray-700">{requestedDate}</span>
+                              </td>
+                              <td className="px-6">
                                 <div className="flex flex-col">
-                                  <span className="text-[12px] font-bold text-gray-700">{requestedDate}</span>
-                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{req.employeeName}</span>
+                                  <span className="text-[11px] font-bold text-gray-800">{requestedByLabel}</span>
+                                  {!isSelf && <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">Proxy Request</span>}
                                 </div>
                               </td>
                               <td className="px-6 text-center">
@@ -737,13 +746,13 @@ export default function ApprovalsTab() {
                               <td className="px-6">
                                 <span className="text-[11px] font-semibold text-slate-600">{req.leaveType || '--'}</span>
                               </td>
+                              <td className="px-6 text-center">
+                                <span className="text-[11px] font-bold text-gray-600">{req.deptHeadName || '--'}</span>
+                              </td>
                               <td className="px-6">
                                 <p className="text-[11px] font-medium text-gray-600">
                                   {req.type === 'Leave' ? `${formatDate(req.fromDate)} - ${formatDate(req.toDate)}` : formatDate(req.permissionDate)}
                                 </p>
-                              </td>
-                              <td className="px-6">
-                                <p className="text-[10px] text-gray-400 italic line-clamp-1 max-w-[200px]">"{req.reason}"</p>
                               </td>
                               <td className="px-6 text-center">
                                 <div className="flex flex-col items-center">
@@ -762,16 +771,28 @@ export default function ApprovalsTab() {
                             </tr>
                             {(req.status === 'Pending' || req.status === 'Hold') && (
                               <tr className="bg-gray-50/20">
-                                <td colSpan={7} className="px-6 py-1.5">
-                                  <div className="flex items-center gap-3 bg-white p-1.5 rounded-lg border border-gray-100 max-w-sm ml-auto">
-                                    <MessageSquare size={12} className="text-gray-400 shrink-0 ml-1" />
-                                    <input 
-                                      type="text" 
-                                      placeholder="Remarks..."
-                                      value={actionState[req.id]?.remarks || ''}
-                                      onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], remarks: e.target.value } }))}
-                                      className="flex-1 bg-transparent border-none text-[10px] font-medium outline-none placeholder:text-gray-300"
-                                    />
+                                <td colSpan={8} className="px-6 py-1.5">
+                                  <div className="flex flex-col md:flex-row items-center justify-end gap-4">
+                                    {req.physicalFormSubmitted && (
+                                      <span className="text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded border border-emerald-100 flex items-center gap-1">
+                                        <CheckCircle2 size={10} /> Physical Form Submitted
+                                      </span>
+                                    )}
+                                    {req.deterrentLeave && (
+                                      <span className="text-[9px] font-black text-rose-600 uppercase bg-rose-50 px-2 py-1 rounded border border-rose-100 flex items-center gap-1">
+                                        <AlertCircle size={10} /> Deterrent Leave
+                                      </span>
+                                    )}
+                                    <div className="flex items-center gap-3 bg-white p-1.5 rounded-lg border border-gray-100 max-w-sm">
+                                      <MessageSquare size={12} className="text-gray-400 shrink-0 ml-1" />
+                                      <input 
+                                        type="text" 
+                                        placeholder="Remarks..."
+                                        value={actionState[req.id]?.remarks || ''}
+                                        onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], remarks: e.target.value } }))}
+                                        className="flex-1 bg-transparent border-none text-[10px] font-medium outline-none placeholder:text-gray-300"
+                                      />
+                                    </div>
                                   </div>
                                 </td>
                               </tr>
