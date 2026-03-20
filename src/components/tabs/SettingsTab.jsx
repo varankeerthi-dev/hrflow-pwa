@@ -881,168 +881,135 @@ export default function SettingsTab() {
   }
 
   const renderApprovalSettings = () => {
+    const modules = [
+      { id: 'Leave', label: 'Leave & Permission' },
+      { id: 'Advance', label: 'Salary Advance' },
+      { id: 'Expense', label: 'Expense Reimbursement' }
+    ]
+
     return (
-      <div className="space-y-4 no-print">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Approval Settings</h2>
-              <p className="text-sm text-gray-500">Configure approval workflows for different modules</p>
-            </div>
-            <button
-              onClick={() => {
-                setEditingApproval(null)
-                setNewApproval({ moduleName: 'Leave', type: 'single', approvers: [], stages: [{ role: '', amountLimit: '' }] })
-                setShowAddApproval(true)
-              }}
-              className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 flex items-center gap-2"
-            >
-              <Plus size={16} /> New Approval
-            </button>
+      <div className="space-y-6 no-print">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+          <div className="mb-8">
+            <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest">Approval Workflows</h2>
+            <p className="text-xs text-gray-400 font-medium mt-1">Configure how requests are approved in your organization.</p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 border-y border-gray-100">
-                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Module</th>
-                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Approvers / Stages</th>
-                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {approvalSettings.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-gray-400">No approval settings configured.</td>
-                  </tr>
-                ) : approvalSettings.map(setting => (
-                  <tr key={setting.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">
-                      <span className="font-semibold text-gray-900">{setting.moduleName}</span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${setting.type === 'multi' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-                        {setting.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-600">
-                      {setting.type === 'single' ? (
-                        <div className="flex flex-wrap gap-1">
-                          {setting.approvers?.map(a => <span key={a} className="bg-gray-100 px-2 py-0.5 rounded text-xs">{a}</span>)}
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          {setting.stages?.map((s, i) => (
-                            <div key={i} className="flex items-center gap-2 text-xs">
-                              <span className="font-bold text-gray-400">{i + 1}.</span>
-                              <span className="font-medium">{s.role}</span>
-                              {s.amountLimit && <span className="text-indigo-600 font-mono">(&le; {s.amountLimit})</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => { setEditingApproval(setting); setNewApproval(setting); setShowAddApproval(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit size={16} /></button>
-                        <button onClick={() => handleDeleteApproval(setting.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {modules.map(mod => {
+              const current = approvalSettings.find(s => s.moduleName === mod.id)
+              return (
+                <div key={mod.id} className="bg-gray-50/50 rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all group">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-black text-gray-800 uppercase tracking-tight text-sm">{mod.label}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${current ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          {current ? `${current.type} Approval` : 'Not Configured'}
+                        </span>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-gray-100 shadow-sm group-hover:border-indigo-200 transition-colors">
+                      <Edit size={14} className="text-gray-400 group-hover:text-indigo-600" />
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <button
+                      onClick={() => {
+                        if (current) {
+                          setEditingApproval(current)
+                          setNewApproval(current)
+                        } else {
+                          setEditingApproval(null)
+                          setNewApproval({ moduleName: mod.id, type: 'single', approvers: [], stages: [{ role: '', amountLimit: '' }] })
+                        }
+                        setShowAddApproval(true)
+                      }}
+                      className="w-full py-2.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] text-gray-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm"
+                    >
+                      {current ? 'Update Policy' : 'Configure Policy'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
 
         {showAddApproval && (
           <Modal 
             isOpen={showAddApproval} 
-            title={editingApproval ? "Edit Approval" : "New Approval"} 
+            title={`Configure Approval: ${newApproval.moduleName}`} 
             onClose={() => setShowAddApproval(false)}
           >
-            <div className="space-y-5 p-1">
+            <div className="space-y-8 p-1">
+              {/* Policy Selection Cards */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Module Name</label>
-                  <select
-                    value={newApproval.moduleName}
-                    onChange={(e) => setNewApproval({ ...newApproval, moduleName: e.target.value })}
-                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/5 transition-all"
-                  >
-                    <option value="Leave">Leave</option>
-                    <option value="Advance amount approval">Advance amount approval</option>
-                    <option value="Expense amount approval">Expense amount approval</option>
-                    <option value="Any other approval">Any other approval</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Approval Type</label>
-                  <div className="flex gap-2 p-1 bg-gray-50 rounded-lg border border-gray-200">
-                    <button
-                      onClick={() => setNewApproval({ ...newApproval, type: 'single' })}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${newApproval.type === 'single' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      Single
-                    </button>
-                    <button
-                      onClick={() => setNewApproval({ ...newApproval, type: 'multi' })}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${newApproval.type === 'multi' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      Multi
-                    </button>
+                <button
+                  onClick={() => setNewApproval({ ...newApproval, type: 'single' })}
+                  className={`relative p-5 rounded-2xl border-2 text-left transition-all ${newApproval.type === 'single' ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-100 hover:border-gray-200'}`}
+                >
+                  <div className={`w-10 h-10 rounded-xl mb-4 flex items-center justify-center ${newApproval.type === 'single' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                    <Check size={20} />
                   </div>
-                </div>
+                  <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">Single Approval</h4>
+                  <p className="text-[10px] text-gray-400 font-medium mt-1 leading-relaxed">Any authorized person from the selected roles can approve.</p>
+                  {newApproval.type === 'single' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
+                </button>
+
+                <button
+                  onClick={() => setNewApproval({ ...newApproval, type: 'multi' })}
+                  className={`relative p-5 rounded-2xl border-2 text-left transition-all ${newApproval.type === 'multi' ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-100 hover:border-gray-200'}`}
+                >
+                  <div className={`w-10 h-10 rounded-xl mb-4 flex items-center justify-center ${newApproval.type === 'multi' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                    <Filter size={20} />
+                  </div>
+                  <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">Multi-Stage</h4>
+                  <p className="text-[10px] text-gray-400 font-medium mt-1 leading-relaxed">Required sequential approval from multiple members.</p>
+                  {newApproval.type === 'multi' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
+                </button>
               </div>
 
               {newApproval.type === 'single' ? (
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Who can approve? (Choose multiple)</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Admin', 'HR', 'MD', 'Accountant', 'Finance'].map(role => (
-                      <button
-                        key={role}
-                        onClick={() => {
-                          const current = newApproval.approvers || []
-                          const updated = current.includes(role) ? current.filter(r => r !== role) : [...current, role]
-                          setNewApproval({ ...newApproval, approvers: updated })
-                        }}
-                        className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-all ${newApproval.approvers?.includes(role) ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}
-                      >
-                        {role}
-                      </button>
-                    ))}
-                  </div>
-                  {(newApproval.moduleName.includes('Advance') || newApproval.moduleName.includes('Expense')) && (
-                    <div className="mt-4 space-y-1.5">
-                      <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Amount Limit (Optional - Any if blank)</label>
-                      <input
-                        type="number"
-                        placeholder="Set amount limit or choose any"
-                        value={newApproval.amountLimit || ''}
-                        onChange={(e) => setNewApproval({ ...newApproval, amountLimit: e.target.value })}
-                        className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/5"
-                      />
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4">Select Authorized Roles</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Admin', 'HR', 'MD', 'Accountant', 'Finance'].map(role => (
+                        <button
+                          key={role}
+                          onClick={() => {
+                            const current = newApproval.approvers || []
+                            const updated = current.includes(role) ? current.filter(r => r !== role) : [...current, role]
+                            setNewApproval({ ...newApproval, approvers: updated })
+                          }}
+                          className={`px-4 py-2.5 text-[11px] font-bold rounded-xl border transition-all ${newApproval.approvers?.includes(role) ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                        >
+                          {role}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Approval Stages (Dynamic)</label>
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Workflow Stages</label>
                     <button
                       onClick={() => setNewApproval({ ...newApproval, stages: [...(newApproval.stages || []), { role: '', amountLimit: '' }] })}
-                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase"
+                      className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-widest"
                     >
                       + Add Stage
                     </button>
                   </div>
                   <div className="space-y-3">
                     {newApproval.stages?.map((stage, idx) => (
-                      <div key={idx} className="flex gap-3 items-end bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <div key={idx} className="flex gap-3 items-end bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group/stage">
+                        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[10px] font-black text-indigo-600 shadow-sm">{idx + 1}</div>
                         <div className="flex-1 space-y-1.5">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase">Stage {idx + 1} Role</label>
+                          <label className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Stage Approver</label>
                           <select
                             value={stage.role}
                             onChange={(e) => {
@@ -1050,55 +1017,50 @@ export default function SettingsTab() {
                               updated[idx].role = e.target.value
                               setNewApproval({ ...newApproval, stages: updated })
                             }}
-                            className="w-full h-9 px-2 bg-white border border-gray-200 rounded-lg text-xs outline-none"
+                            className="w-full h-10 px-3 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">Select Role</option>
                             {['Admin', 'HR', 'MD', 'Accountant', 'Finance'].map(r => <option key={r} value={r}>{r}</option>)}
                           </select>
                         </div>
-                        <div className="flex-1 space-y-1.5">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase">Limit (Optional)</label>
-                          <input
-                            type="number"
-                            placeholder="e.g. 500"
-                            value={stage.amountLimit || ''}
-                            onChange={(e) => {
-                              const updated = [...newApproval.stages]
-                              updated[idx].amountLimit = e.target.value
-                              setNewApproval({ ...newApproval, stages: updated })
-                            }}
-                            className="w-full h-9 px-2 bg-white border border-gray-200 rounded-lg text-xs outline-none"
-                          />
-                        </div>
                         <button
                           onClick={() => setNewApproval({ ...newApproval, stages: newApproval.stages.filter((_, i) => i !== idx) })}
-                          className="h-9 w-9 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors"
+                          className="h-10 w-10 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors bg-white border border-gray-200 rounded-xl shadow-sm"
                         >
-                          <X size={16} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     ))}
+                    {newApproval.moduleName === 'Leave' && (
+                      <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
+                        <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-amber-700 font-medium">For Leave module, the final stage must be <span className="font-black">MD</span>.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              <div className="flex gap-3 pt-4 border-t border-gray-100 mt-6">
+              <div className="flex gap-3 pt-6 border-t border-gray-100">
                 <button
                   onClick={() => setShowAddApproval(false)}
-                  className="flex-1 h-11 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-gray-200 transition-all"
+                  className="flex-1 h-12 bg-gray-50 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-100 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveApproval}
-                  className="flex-1 h-11 bg-gray-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-gray-800 shadow-lg shadow-gray-200 transition-all"
+                  className="flex-1 h-12 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all"
                 >
-                  Save Approval
+                  Save Policy
                 </button>
               </div>
             </div>
           </Modal>
         )}
+      </div>
+    )
+  }
       </div>
     )
   }

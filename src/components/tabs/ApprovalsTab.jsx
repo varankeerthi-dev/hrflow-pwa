@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import { formatINR } from '../../lib/salaryUtils'
+import { logActivity } from '../../hooks/useActivityLog'
 import { 
   CheckCircle2, 
   XCircle, 
@@ -54,10 +55,11 @@ export default function ApprovalsTab() {
   // For the Advance/Expense action toggles
   const [actionState, setActionState] = useState({}) // { id: { status, remarks, showToggle, paymentMethod, paymentRef, partialAmount } }
 
-  const canApprove = user?.role?.toLowerCase() === 'admin' || user?.permissions?.Approvals?.approve === true
-  const isAccountant = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
-  const isMD = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'md'
-  const isHR = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'hr'
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
+  const canApprove = isAdmin || user?.permissions?.Approvals?.approve === true
+  const isAccountant = isAdmin || user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
+  const isMD = isAdmin || user?.role?.toLowerCase() === 'md'
+  const isHR = isAdmin || user?.role?.toLowerCase() === 'hr'
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -197,6 +199,17 @@ export default function ApprovalsTab() {
         }
       }
 
+      // Admin Logging
+      if (isAdmin && (state.status === 'Approve' || state.status === 'Approved')) {
+        const itemSnap = await getDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id))
+        const itemData = itemSnap.data()
+        await logActivity(user.orgId, user, {
+          module: 'AdvanceExpense',
+          action: 'Approved by admin',
+          detail: `${itemData?.type || 'Advance/Expense'} for ${itemData?.employeeName} approved by admin bypass`
+        })
+      }
+
       await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
       alert('Status updated successfully')
       fetchData()
@@ -225,7 +238,7 @@ export default function ApprovalsTab() {
         
         if (type === 'single') {
           // Any authorized role can approve
-          const canSingleAct = user.role?.toLowerCase() === 'admin' || leaveApprovalSetting?.approvers?.includes(user.role)
+          const canSingleAct = isAdmin || leaveApprovalSetting?.approvers?.includes(user.role)
           if (!canSingleAct) return alert('You are not authorized to approve this request.')
           
           updateData.status = status
@@ -239,7 +252,7 @@ export default function ApprovalsTab() {
           const isLastStage = currentStage === totalStages - 1
           
           // Check if current user is the correct approver for this stage
-          const isMDUser = user.role?.toLowerCase() === 'md' || user.role?.toLowerCase() === 'admin'
+          const isMDUser = user.role?.toLowerCase() === 'md' || isAdmin
           const isAssignedApprover = user.uid === req.approverIds?.[currentStage]
           
           // Instruction: "last must be MD only"
@@ -277,7 +290,7 @@ export default function ApprovalsTab() {
         }
         
         // Admin bypass
-        if (user.role?.toLowerCase() === 'admin') {
+        if (isAdmin) {
           updateData.status = status
           updateData.deptHeadApproval = status
           updateData.mdApproval = status
@@ -294,6 +307,15 @@ export default function ApprovalsTab() {
           updateData.mdApproval = status
           updateData.mdRemarks = state?.remarks || ''
         }
+      }
+
+      // Admin Logging for requests
+      if (isAdmin && (status === 'Approve' || status === 'Approved')) {
+        await logActivity(user.orgId, user, {
+          module: req.type || 'Requests',
+          action: 'Approved by admin',
+          detail: `${req.type || 'Request'} for ${req.employeeName} set to ${status} by admin bypass`
+        })
       }
 
       await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), updateData)
@@ -352,6 +374,16 @@ export default function ApprovalsTab() {
       }
 
       alert('Payment processed and salary advance linked successfully')
+      
+      // Admin Logging
+      if (isAdmin) {
+        await logActivity(user.orgId, user, {
+          module: 'PaymentQueue',
+          action: 'Approved by admin',
+          detail: `Payment for ${itemData?.employeeName} (₹${itemData?.partialAmount || itemData?.amount}) processed by admin`
+        })
+      }
+
       fetchData()
     } catch (err) {
       console.error('Payment processing error:', err)
