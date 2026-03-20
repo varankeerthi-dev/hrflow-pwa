@@ -828,12 +828,33 @@ export default function SettingsTab() {
   const handleSaveApproval = async () => {
     if (!user?.orgId) return
     try {
+      // Rule: For Leave multi-approval, the last stage must be MD
+      if (newApproval.moduleName === 'Leave' && newApproval.type === 'multi') {
+        if (!newApproval.stages?.length) {
+          return alert('Please add at least one approval stage')
+        }
+        const lastStage = newApproval.stages[newApproval.stages.length - 1]
+        if (lastStage.role !== 'MD') {
+          return alert('For Leave multi-approval, the final stage must be assigned to MD.')
+        }
+      }
+
       const payload = {
         ...newApproval,
         updatedAt: serverTimestamp()
       }
+
+      // Check if a setting for this module already exists (to prevent duplicates)
+      const existingSetting = approvalSettings.find(s => s.moduleName === newApproval.moduleName)
+
       if (editingApproval) {
         await updateDoc(doc(db, 'organisations', user.orgId, 'approvalSettings', editingApproval.id), payload)
+      } else if (existingSetting) {
+        if (confirm(`An approval setting for "${newApproval.moduleName}" already exists. Overwrite it?`)) {
+          await updateDoc(doc(db, 'organisations', user.orgId, 'approvalSettings', existingSetting.id), payload)
+        } else {
+          return
+        }
       } else {
         await addDoc(collection(db, 'organisations', user.orgId, 'approvalSettings'), {
           ...payload,
