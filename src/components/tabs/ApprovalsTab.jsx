@@ -684,151 +684,111 @@ export default function ApprovalsTab() {
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Requests Table (60% width on LG) */}
-            <div className="lg:col-span-2 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-4 bg-indigo-600 rounded-full"></div>
-                  <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">Pending Leave & Permissions</h3>
-                </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 bg-indigo-600 rounded-full"></div>
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">Pending Leave & Permissions</h3>
               </div>
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50/50 h-[44px] border-b border-gray-100">
-                        <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested Date</th>
-                        <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Type</th>
-                        <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Period</th>
-                        <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
-                        <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden w-full">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/50 h-[44px] border-b border-gray-100">
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested Date</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Type</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Type</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Period</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Remarks</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
+                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-16 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="py-16 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
-                        </tr>
-                      ) : (
-                        requests.filter(r => r.status === 'Pending' || r.status === 'Hold').map(req => {
-                          const formatDate = (date) => {
-                            if (!date) return '--/--/--'
-                            const [y, m, d] = date.split('-')
-                            return `${d}/${m}/${y.slice(-2)}`
-                          }
-                          const createdAt = req.createdAt?.toDate ? req.createdAt.toDate() : new Date()
-                          const requestedDate = `${String(createdAt.getDate()).padStart(2, '0')}/${String(createdAt.getMonth() + 1).padStart(2, '0')}/${String(createdAt.getFullYear()).slice(-2)}`
-                          
-                          return (
-                            <React.Fragment key={req.id}>
-                              <tr className="h-[60px] hover:bg-gray-50/30 transition-colors">
-                                <td className="px-6">
-                                  <div className="flex flex-col">
-                                    <span className="text-[12px] font-bold text-gray-700">{requestedDate}</span>
-                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{req.employeeName}</span>
+                    ) : (
+                      requests.filter(r => r.status === 'Pending' || r.status === 'Hold').map(req => {
+                        const formatDate = (date) => {
+                          if (!date) return '--/--/--'
+                          const [y, m, d] = date.split('-')
+                          return `${d}/${m}/${y.slice(-2)}`
+                        }
+                        const createdAt = req.createdAt?.toDate ? req.createdAt.toDate() : new Date()
+                        const requestedDate = `${String(createdAt.getDate()).padStart(2, '0')}/${String(createdAt.getMonth() + 1).padStart(2, '0')}/${String(createdAt.getFullYear()).slice(-2)}`
+                        
+                        return (
+                          <React.Fragment key={req.id}>
+                            <tr className="h-[60px] hover:bg-gray-50/30 transition-colors">
+                              <td className="px-6">
+                                <div className="flex flex-col">
+                                  <span className="text-[12px] font-bold text-gray-700">{requestedDate}</span>
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{req.employeeName}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 text-center">
+                                <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${req.type === 'Leave' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
+                                  {req.type}
+                                </span>
+                              </td>
+                              <td className="px-6">
+                                <span className="text-[11px] font-semibold text-slate-600">{req.leaveType || '--'}</span>
+                              </td>
+                              <td className="px-6">
+                                <p className="text-[11px] font-medium text-gray-600">
+                                  {req.type === 'Leave' ? `${formatDate(req.fromDate)} - ${formatDate(req.toDate)}` : formatDate(req.permissionDate)}
+                                </p>
+                              </td>
+                              <td className="px-6">
+                                <p className="text-[10px] text-gray-400 italic line-clamp-1 max-w-[200px]">"{req.reason}"</p>
+                              </td>
+                              <td className="px-6 text-center">
+                                <div className="flex flex-col items-center">
+                                  <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${req.status === 'Hold' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-600'}`}>
+                                    {req.status === 'Hold' ? 'Pending (Hold)' : 'Pending'}
                                   </div>
-                                </td>
-                                <td className="px-6 text-center">
-                                  <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${req.type === 'Leave' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
-                                    {req.type}
-                                  </span>
-                                </td>
-                                <td className="px-6">
-                                  <p className="text-[12px] font-medium text-gray-600">
-                                    {req.type === 'Leave' ? `${formatDate(req.fromDate)} - ${formatDate(req.toDate)}` : formatDate(req.permissionDate)}
-                                  </p>
-                                  <p className="text-[10px] text-gray-400 italic line-clamp-1 max-w-[150px]">"{req.reason}"</p>
-                                </td>
-                                <td className="px-6 text-center">
-                                  <div className="flex flex-col items-center">
-                                    <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${req.status === 'Hold' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-600'}`}>
-                                      {req.status === 'Hold' ? 'Pending (Hold)' : 'Pending'}
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-6">
-                                  <div className="flex justify-end gap-1.5">
-                                    <button onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} className="h-7 px-3 bg-emerald-50 text-emerald-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">Approve</button>
-                                    <button onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')} className="h-7 px-3 bg-rose-50 text-rose-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">Reject</button>
-                                    <button onClick={() => handleUpdateRequestStatus(req.id, 'Hold')} className="h-7 px-3 bg-slate-50 text-slate-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-slate-600 hover:text-white transition-all">Hold</button>
+                                </div>
+                              </td>
+                              <td className="px-6">
+                                <div className="flex justify-end gap-1.5">
+                                  <button onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} className="h-7 px-3 bg-emerald-50 text-emerald-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">Approve</button>
+                                  <button onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')} className="h-7 px-3 bg-rose-50 text-rose-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">Reject</button>
+                                  <button onClick={() => handleUpdateRequestStatus(req.id, 'Hold')} className="h-7 px-3 bg-slate-50 text-slate-700 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-slate-600 hover:text-white transition-all">Hold</button>
+                                </div>
+                              </td>
+                            </tr>
+                            {(req.status === 'Pending' || req.status === 'Hold') && (
+                              <tr className="bg-gray-50/20">
+                                <td colSpan={7} className="px-6 py-1.5">
+                                  <div className="flex items-center gap-3 bg-white p-1.5 rounded-lg border border-gray-100 max-w-sm ml-auto">
+                                    <MessageSquare size={12} className="text-gray-400 shrink-0 ml-1" />
+                                    <input 
+                                      type="text" 
+                                      placeholder="Remarks..."
+                                      value={actionState[req.id]?.remarks || ''}
+                                      onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], remarks: e.target.value } }))}
+                                      className="flex-1 bg-transparent border-none text-[10px] font-medium outline-none placeholder:text-gray-300"
+                                    />
                                   </div>
                                 </td>
                               </tr>
-                              {(req.status === 'Pending' || req.status === 'Hold') && (
-                                <tr className="bg-gray-50/20">
-                                  <td colSpan={5} className="px-6 py-1.5">
-                                    <div className="flex items-center gap-3 bg-white p-1.5 rounded-lg border border-gray-100 max-w-sm ml-auto">
-                                      <MessageSquare size={12} className="text-gray-400 shrink-0 ml-1" />
-                                      <input 
-                                        type="text" 
-                                        placeholder="Remarks..."
-                                        value={actionState[req.id]?.remarks || ''}
-                                        onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], remarks: e.target.value } }))}
-                                        className="flex-1 bg-transparent border-none text-[10px] font-medium outline-none placeholder:text-gray-300"
-                                      />
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          )
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Upcoming Leave (30% width on LG) */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">Upcoming This Month</h3>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden min-h-[300px]">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50/50 h-[44px] border-b border-gray-100">
-                        <th className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
-                        <th className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Leave Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {(() => {
-                        const today = new Date()
-                        const thisMonth = today.toISOString().substring(0, 7)
-                        const upcoming = requests.filter(r => 
-                          r.status === 'Approved' && 
-                          (r.fromDate?.startsWith(thisMonth) || r.permissionDate?.startsWith(thisMonth)) &&
-                          (new Date(r.fromDate || r.permissionDate) >= today)
+                            )}
+                          </React.Fragment>
                         )
-                        if (upcoming.length === 0) return <tr><td colSpan={2} className="py-12 text-center text-[10px] font-bold text-gray-300 uppercase italic">No upcoming leaves</td></tr>
-                        return upcoming.map(r => (
-                          <tr key={r.id} className="h-12 hover:bg-gray-50/30">
-                            <td className="px-4">
-                              <span className="text-[12px] font-bold text-gray-700">{r.employeeName}</span>
-                            </td>
-                            <td className="px-4 text-right">
-                              <span className="text-[11px] font-black text-indigo-500">
-                                {r.fromDate ? r.fromDate.split('-').reverse().join('/') : r.permissionDate.split('-').reverse().join('/')}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          {/* Recent Leave Updates (40% width, bottom right) */}
-          <div className="flex justify-end">
-            <div className="w-full lg:w-[40%] space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Leave Updates (Left side of the bottom row) */}
+            <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-1 h-4 bg-slate-400 rounded-full"></div>
                 <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">Recent Leave (This Month Past)</h3>
@@ -866,6 +826,50 @@ export default function ApprovalsTab() {
                             <td className="px-4 text-right">
                               <span className={`text-[9px] font-black uppercase tracking-widest ${r.status === 'Approved' ? 'text-emerald-500' : 'text-rose-500'}`}>
                                 {r.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Upcoming Leave (Right side of the bottom row) */}
+            <div className="space-y-4" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">Upcoming This Month</h3>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50/50 h-[44px] border-b border-gray-100">
+                        <th className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
+                        <th className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Leave Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {(() => {
+                        const today = new Date()
+                        const thisMonth = today.toISOString().substring(0, 7)
+                        const upcoming = requests.filter(r => 
+                          r.status === 'Approved' && 
+                          (r.fromDate?.startsWith(thisMonth) || r.permissionDate?.startsWith(thisMonth)) &&
+                          (new Date(r.fromDate || r.permissionDate) >= today)
+                        )
+                        if (upcoming.length === 0) return <tr><td colSpan={2} className="py-12 text-center text-[10px] font-bold text-gray-300 uppercase italic">No upcoming leaves</td></tr>
+                        return upcoming.map(r => (
+                          <tr key={r.id} className="h-12 hover:bg-gray-50/30">
+                            <td className="px-4">
+                              <span className="text-[12px] font-bold text-gray-700">{r.employeeName}</span>
+                            </td>
+                            <td className="px-4 text-right">
+                              <span className="text-[11px] font-black text-indigo-500">
+                                {r.fromDate ? r.fromDate.split('-').reverse().join('/') : r.permissionDate.split('-').reverse().join('/')}
                               </span>
                             </td>
                           </tr>

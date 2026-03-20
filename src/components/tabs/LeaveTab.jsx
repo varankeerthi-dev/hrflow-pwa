@@ -104,7 +104,10 @@ export default function LeaveTab() {
     }
   }
 
-  const filteredByMonthLeaves = leaves.filter(l => l.fromDate?.startsWith(selectedMonth))
+  const filteredByMonthLeaves = leaves.filter(l => {
+    const date = l.fromDate || l.permissionDate
+    return date?.startsWith(selectedMonth)
+  })
 
   const filteredLeaves = leaves.filter(l => {
     const matchesSearch = (l.employeeName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
