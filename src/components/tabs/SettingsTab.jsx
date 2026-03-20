@@ -1061,9 +1061,6 @@ export default function SettingsTab() {
       </div>
     )
   }
-      </div>
-    )
-  }
 
   const handlePrintRoster = () => { window.print() }
 
