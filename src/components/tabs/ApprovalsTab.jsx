@@ -882,6 +882,3 @@ export default function ApprovalsTab() {
     </div>
   )
 }
-    </div>
-  )
-}
