@@ -46,6 +46,7 @@ export default function LeaveTab() {
   
   const [actionRemarks, setActionRemarks] = useState({})
   const [selectedNextApprover, setSelectedNextApprover] = useState({})
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7))
 
   const leaveTypes = ['Casual', 'Sick', 'Privilege', 'Maternity', 'Paternity', 'Unpaid', 'LOP']
 
@@ -103,6 +104,8 @@ export default function LeaveTab() {
     }
   }
 
+  const filteredByMonthLeaves = leaves.filter(l => l.fromDate?.startsWith(selectedMonth))
+
   const filteredLeaves = leaves.filter(l => {
     const matchesSearch = (l.employeeName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (l.reason || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -118,10 +121,10 @@ export default function LeaveTab() {
   ]
 
   const stats = [
-    { label: 'Pending', count: leaves.filter(l => l.status === 'Pending').length },
-    { label: 'Approved', count: leaves.filter(l => l.status === 'Approved').length },
-    { label: 'Rejected', count: leaves.filter(l => l.status === 'Rejected').length },
-    { label: 'Total', count: leaves.length }
+    { label: 'Pending', count: filteredByMonthLeaves.filter(l => l.status === 'Pending').length },
+    { label: 'Approved', count: filteredByMonthLeaves.filter(l => l.status === 'Approved').length },
+    { label: 'Rejected', count: filteredByMonthLeaves.filter(l => l.status === 'Rejected').length },
+    { label: 'Total', count: filteredByMonthLeaves.length }
   ]
 
   return (
@@ -157,11 +160,21 @@ export default function LeaveTab() {
 
       {activeSub === 'dashboard' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 w-fit shadow-sm">
+            <Calendar size={14} className="text-slate-400" />
+            <input 
+              type="month" 
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="bg-transparent border-none text-[11px] font-bold uppercase tracking-wider focus:ring-0 cursor-pointer text-slate-600 outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {stats.map(stat => (
-              <div key={stat.label} className="rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm p-3 md:p-4">
-                <h3 className="tracking-tight text-[10px] font-medium text-slate-500 uppercase">{stat.label}</h3>
-                <div className="text-lg md:text-xl font-bold mt-0.5">{stat.count}</div>
+              <div key={stat.label} className="rounded-lg border border-slate-200 bg-white text-slate-950 shadow-sm p-2.5 px-4 flex justify-between items-center">
+                <h3 className="tracking-tight text-[10px] font-bold text-slate-500 uppercase">{stat.label}</h3>
+                <div className="text-base font-bold text-slate-900">{stat.count}</div>
               </div>
             ))}
           </div>
@@ -309,7 +322,7 @@ export default function LeaveTab() {
                 </h3>
               </div>
               <div className="p-3 md:p-4 space-y-3">
-                {leaves.slice(0, 5).map(leave => (
+                {filteredByMonthLeaves.slice(0, 5).map(leave => (
                   <div key={leave.id} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-3">
                       <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-900 text-[10px]">
@@ -325,7 +338,7 @@ export default function LeaveTab() {
                     </div>
                   </div>
                 ))}
-                {leaves.length === 0 && <p className="text-center py-4 text-slate-400 text-xs italic">No recent activity</p>}
+                {filteredByMonthLeaves.length === 0 && <p className="text-center py-4 text-slate-400 text-xs italic">No activity for this month</p>}
               </div>
             </div>
             
@@ -337,8 +350,8 @@ export default function LeaveTab() {
               </div>
               <div className="p-3 md:p-4 space-y-3">
                 {leaveTypes.map(type => {
-                  const count = leaves.filter(l => l.leaveType === type).length
-                  const percentage = leaves.length ? (count / leaves.length) * 100 : 0
+                  const count = filteredByMonthLeaves.filter(l => l.leaveType === type).length
+                  const percentage = filteredByMonthLeaves.length ? (count / filteredByMonthLeaves.length) * 100 : 0
                   if (count === 0) return null
                   return (
                     <div key={type} className="space-y-1">
@@ -352,7 +365,7 @@ export default function LeaveTab() {
                     </div>
                   )
                 })}
-                {leaves.length === 0 && <p className="text-center py-4 text-slate-400 text-xs italic">No data available</p>}
+                {filteredByMonthLeaves.length === 0 && <p className="text-center py-4 text-slate-400 text-xs italic">No data for this month</p>}
               </div>
             </div>
           </div>
