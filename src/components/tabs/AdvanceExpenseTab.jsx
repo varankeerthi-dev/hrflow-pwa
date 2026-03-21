@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore'
-import { Wallet, Plus, Trash2, FileDown, Eye, Edit2 } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { formatINR } from '../../lib/salaryUtils'
 import jsPDF from 'jspdf'
@@ -87,6 +87,12 @@ export default function AdvanceExpenseTab() {
   useEffect(() => { fetchEntries() }, [user?.orgId])
   useEffect(() => { fetchCategories() }, [user?.orgId])
 
+  useEffect(() => {
+    if (user?.orgId && (activeModule === 'Summary' || activeModule === 'Escalation')) {
+      fetchEntries()
+    }
+  }, [activeModule, user?.orgId])
+
   const handleAddRow = () => {
     const myId = !canSelectAll ? getMyEmpId() : ''
     setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '' }])
@@ -166,6 +172,66 @@ export default function AdvanceExpenseTab() {
 
   const advances = entries.filter(e => e.type === 'Advance')
   const expenses = entries.filter(e => e.type === 'Expense')
+
+  const effectiveAmount = (e) => {
+    if (e.status === 'Partial' && e.partialAmount != null && e.partialAmount !== '')
+      return Number(e.partialAmount)
+    return Number(e.amount || 0)
+  }
+
+  const summary = useMemo(() => {
+    const adv = entries.filter((e) => e.type === 'Advance')
+    const exp = entries.filter((e) => e.type === 'Expense')
+    const statusKey = (e) => e.status || 'Pending'
+    const roll = (list) => {
+      const map = {}
+      for (const e of list) {
+        const k = statusKey(e)
+        if (!map[k]) map[k] = { count: 0, sum: 0 }
+        map[k].count += 1
+        map[k].sum += Number(e.amount || 0)
+      }
+      return map
+    }
+    const advSum = adv.reduce((s, e) => s + Number(e.amount || 0), 0)
+    const expSum = exp.reduce((s, e) => s + Number(e.amount || 0), 0)
+    const awaitingPay = entries.filter(
+      (e) =>
+        (e.mdApproval === 'Approved' || e.mdApproval === 'Partial') &&
+        e.paymentStatus !== 'Paid'
+    )
+    const paid = entries.filter((e) => e.paymentStatus === 'Paid')
+    const eff = (e) => {
+      if (e.status === 'Partial' && e.partialAmount != null && e.partialAmount !== '')
+        return Number(e.partialAmount)
+      return Number(e.amount || 0)
+    }
+    return {
+      advSum,
+      expSum,
+      advCount: adv.length,
+      expCount: exp.length,
+      byStatus: roll(entries),
+      awaitingPaymentSum: awaitingPay.reduce((s, e) => s + eff(e), 0),
+      awaitingPaymentCount: awaitingPay.length,
+      paidSum: paid.reduce((s, e) => s + eff(e), 0),
+      paidCount: paid.length
+    }
+  }, [entries])
+
+  const escalation = useMemo(() => {
+    const needsHr = entries.filter(
+      (e) => e.status === 'Pending' && (e.hrApproval === 'Pending' || !e.hrApproval)
+    )
+    const needsMd = entries.filter(
+      (e) =>
+        e.status === 'Pending' &&
+        e.hrApproval === 'Approved' &&
+        (e.mdApproval === 'Pending' || !e.mdApproval)
+    )
+    const onHold = entries.filter((e) => e.status === 'Hold')
+    return { needsHr, needsMd, onHold }
+  }, [entries])
 
   const exportPDF = () => {
     const doc = new jsPDF()
@@ -451,10 +517,202 @@ export default function AdvanceExpenseTab() {
         </div>
       )}
 
-      {/* Placeholders for other modules */}
-      {(activeModule === 'Escalation' || activeModule === 'Summary') && (
-        <div className="bg-white rounded-[12px] border border-gray-100 overflow-hidden shadow-sm p-12 text-center text-gray-400">
-          <p className="text-sm font-medium uppercase tracking-widest">{activeModule} - Coming Soon</p>
+      {/* Summary */}
+      {activeModule === 'Summary' && (
+        <div className="space-y-6">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Spinner />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-amber-50 to-white rounded-xl border border-amber-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-amber-800/80 mb-2">
+                    <PieChart size={18} />
+                    <span className="text-[11px] font-black uppercase tracking-widest">Advances</span>
+                  </div>
+                  <p className="text-2xl font-black text-amber-900">{formatINR(summary.advSum)}</p>
+                  <p className="text-[11px] text-amber-700/70 font-bold mt-1">{summary.advCount} records</p>
+                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl border border-blue-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-blue-800/80 mb-2">
+                    <PieChart size={18} />
+                    <span className="text-[11px] font-black uppercase tracking-widest">Expenses</span>
+                  </div>
+                  <p className="text-2xl font-black text-blue-900">{formatINR(summary.expSum)}</p>
+                  <p className="text-[11px] text-blue-700/70 font-bold mt-1">{summary.expCount} records</p>
+                </div>
+                <div className="bg-gradient-to-br from-violet-50 to-white rounded-xl border border-violet-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-violet-800/80 mb-2">
+                    <Clock size={18} />
+                    <span className="text-[11px] font-black uppercase tracking-widest">Awaiting payment</span>
+                  </div>
+                  <p className="text-2xl font-black text-violet-900">{formatINR(summary.awaitingPaymentSum)}</p>
+                  <p className="text-[11px] text-violet-700/70 font-bold mt-1">{summary.awaitingPaymentCount} in queue</p>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-50 to-white rounded-xl border border-emerald-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-emerald-800/80 mb-2">
+                    <CheckCircle2 size={18} />
+                    <span className="text-[11px] font-black uppercase tracking-widest">Paid out</span>
+                  </div>
+                  <p className="text-2xl font-black text-emerald-900">{formatINR(summary.paidSum)}</p>
+                  <p className="text-[11px] text-emerald-700/70 font-bold mt-1">{summary.paidCount} settled</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[12px] border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 bg-[#f8fafc]">
+                  <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">By request status</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Counts and amounts across all advance & expense entries</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[480px]">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Status</th>
+                        <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider text-right">Count</th>
+                        <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider text-right">Total amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(summary.byStatus).length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="p-8 text-center text-gray-400 text-sm">
+                            No entries yet
+                          </td>
+                        </tr>
+                      ) : (
+                        Object.entries(summary.byStatus)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([st, { count, sum }]) => (
+                            <tr key={st} className="border-b border-gray-100 hover:bg-gray-50/80">
+                              <td className="p-3">
+                                <span
+                                  className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                    st === 'Approved'
+                                      ? 'bg-emerald-50 text-emerald-700'
+                                      : st === 'Rejected'
+                                        ? 'bg-rose-50 text-rose-700'
+                                        : st === 'Hold'
+                                          ? 'bg-gray-100 text-gray-600'
+                                          : st === 'Partial'
+                                            ? 'bg-blue-50 text-blue-700'
+                                            : 'bg-amber-50 text-amber-700'
+                                  }`}
+                                >
+                                  {st}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right text-[13px] font-bold text-gray-800">{count}</td>
+                              <td className="p-3 text-right text-[13px] font-black text-gray-900">{formatINR(sum)}</td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Escalation — items waiting on HR, MD, or hold */}
+      {activeModule === 'Escalation' && (
+        <div className="space-y-6">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Spinner />
+            </div>
+          ) : (
+            <>
+              <p className="text-[13px] text-gray-600 max-w-2xl">
+                Requests that still need action in the approval chain. Use{' '}
+                <span className="font-bold text-gray-800">Approvals</span> to resolve them.
+              </p>
+
+              {[
+                {
+                  key: 'needsHr',
+                  title: 'Awaiting HR',
+                  subtitle: 'Not yet submitted to MD',
+                  rows: escalation.needsHr,
+                  accent: 'border-l-4 border-l-indigo-500 bg-indigo-50/40'
+                },
+                {
+                  key: 'needsMd',
+                  title: 'Awaiting MD',
+                  subtitle: 'HR approved — MD decision pending',
+                  rows: escalation.needsMd,
+                  accent: 'border-l-4 border-l-amber-500 bg-amber-50/30'
+                },
+                {
+                  key: 'onHold',
+                  title: 'On hold',
+                  subtitle: 'Paused pending clarification',
+                  rows: escalation.onHold,
+                  accent: 'border-l-4 border-l-gray-400 bg-gray-50/80'
+                }
+              ].map((block) => (
+                <div
+                  key={block.key}
+                  className={`rounded-[12px] border border-gray-200 shadow-sm overflow-hidden ${block.accent}`}
+                >
+                  <div className="px-5 py-4 border-b border-gray-200/80 bg-white/60 flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
+                      <div>
+                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">{block.title}</h3>
+                        <p className="text-[11px] text-gray-500 font-medium mt-0.5">{block.subtitle}</p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-black text-gray-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-200">
+                      {block.rows.length}
+                    </span>
+                  </div>
+                  <div className="bg-white overflow-x-auto">
+                    {block.rows.length === 0 ? (
+                      <p className="text-center text-gray-400 text-sm py-10">None right now</p>
+                    ) : (
+                      <table className="w-full text-left border-collapse min-w-[640px]">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Date</th>
+                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Type</th>
+                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Employee</th>
+                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider text-right">Amount</th>
+                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">HR</th>
+                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">MD</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {block.rows.map((row) => (
+                            <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50/80">
+                              <td className="p-3 text-[12px] text-gray-600">{row.date || '—'}</td>
+                              <td className="p-3">
+                                <span
+                                  className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                                    row.type === 'Advance' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                  }`}
+                                >
+                                  {row.type || '—'}
+                                </span>
+                              </td>
+                              <td className="p-3 text-[12px] font-bold text-gray-800">{row.employeeName || '—'}</td>
+                              <td className="p-3 text-right text-[13px] font-black text-gray-900">{formatINR(effectiveAmount(row))}</td>
+                              <td className="p-3 text-[11px] font-bold text-gray-600">{row.hrApproval || 'Pending'}</td>
+                              <td className="p-3 text-[11px] font-bold text-gray-600">{row.mdApproval || 'Pending'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
