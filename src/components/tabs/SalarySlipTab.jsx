@@ -455,9 +455,16 @@ export default function SalarySlipTab() {
               <div className="flex gap-8">
                 <div className="flex-1 max-w-4xl bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden relative mx-auto" style={{ minWidth: '850px' }}>
                   <div className="flex justify-end gap-3 p-4 bg-gray-50/50 border-b border-gray-100 no-print">
-                    <PDFDownloadLink document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee.name.replace(/\s+/g, '_')}_${slipData.month}.pdf`} className="h-[36px] bg-indigo-50 text-indigo-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-indigo-100 flex items-center gap-2">
-                      {({ loading }) => <><Download size={14} />{loading ? 'Preparing...' : 'Download PDF'}</>}
-                    </PDFDownloadLink>
+                    {slipData.employee && (
+                      <PDFDownloadLink 
+                        key={`${slipData.employee.id}_${slipData.month}`}
+                        document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} 
+                        fileName={`SalarySlip_${slipData.employee.name.replace(/\s+/g, '_')}_${slipData.month}.pdf`} 
+                        className="h-[36px] bg-indigo-50 text-indigo-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-indigo-100 flex items-center gap-2"
+                      >
+                        {({ loading }) => <><Download size={14} />{loading ? 'Preparing...' : 'Download PDF'}</>}
+                      </PDFDownloadLink>
+                    )}
                     <button onClick={() => window.print()} className="h-[36px] bg-purple-50 text-purple-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-purple-100 flex items-center gap-2"><Printer size={14} /> Print</button>
                     <button onClick={handleFinalizeSlip} disabled={loading} className="h-[36px] bg-gray-900 text-white px-6 rounded-lg text-[11px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-black flex items-center gap-2 transition-all">
                       <CheckCircle2 size={14} /> Confirm & Record
