@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { formatINR } from '../../lib/salaryUtils'
 import jsPDF from 'jspdf'
@@ -17,6 +17,13 @@ export default function AdvanceExpenseTab() {
   const [activeModule, setActiveModule] = useState('Add Expense')
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
   
+  // Reports Filter States
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM
+  const [reportFilterName, setReportFilterName] = useState('')
+  const [reportFilterCategory, setReportFilterCategory] = useState('')
+  const [filteredEntries, setFilteredEntries] = useState([])
+  const [reportApplied, setReportApplied] = useState(false)
+
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
   const canSelectAll = isAdmin || isAccountant
@@ -252,35 +259,72 @@ export default function AdvanceExpenseTab() {
     return { needsHr, needsMd, onHold }
   }, [entries])
 
+  const handleMonthChange = (direction) => {
+    const [year, month] = reportMonth.split('-').map(Number)
+    const d = new Date(year, month - 1)
+    d.setMonth(d.getMonth() + direction)
+    setReportMonth(d.toISOString().slice(0, 7))
+  }
+
+  const applyReportFilters = () => {
+    setLoading(true)
+    try {
+      const filtered = entries.filter(e => {
+        const matchesMonth = e.date?.startsWith(reportMonth)
+        const matchesName = !reportFilterName || e.employeeName?.toLowerCase().includes(reportFilterName.toLowerCase())
+        const matchesCategory = !reportFilterCategory || e.category?.toLowerCase().includes(reportFilterCategory.toLowerCase())
+        return matchesMonth && matchesName && matchesCategory
+      })
+      setFilteredEntries(filtered)
+      setReportApplied(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const advForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Advance'), [filteredEntries])
+  const expForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Expense'), [filteredEntries])
+
   const exportPDF = () => {
     const doc = new jsPDF()
+    const [year, month] = reportMonth.split('-')
+    const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' })
+    
     doc.setFontSize(16)
-    doc.text('Advances & Expenses Report', 14, 15)
+    doc.text(`Advances & Expenses Report - ${monthName} ${year}`, 14, 15)
     
-    doc.setFontSize(12)
-    doc.text('Advances', 14, 25)
-    doc.autoTable({
-      startY: 30,
-      head: [['Date', 'Amount', 'Remarks', 'Ref']],
-      body: advances.map(a => [a.date, formatINR(a.amount), a.reason, a.id.slice(-6).toUpperCase()]),
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [79, 70, 229] }
-    })
+    const dataToUseAdv = reportApplied ? advForReport : advances
+    const dataToUseExp = reportApplied ? expForReport : expenses
+
+    if (dataToUseAdv.length > 0) {
+      doc.setFontSize(12)
+      doc.text('Advances', 14, 25)
+      doc.autoTable({
+        startY: 30,
+        head: [['Date', 'Employee', 'Category', 'Amount', 'Status']],
+        body: dataToUseAdv.map(a => [a.date, a.employeeName, a.category, formatINR(a.amount), a.status]),
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [245, 158, 11] } // Amber-500
+      })
+    }
     
-    const finalY = doc.lastAutoTable.finalY || 30
+    const finalY = (doc.lastAutoTable?.finalY || 25) + 10
     
-    doc.text('Expenses', 14, finalY + 10)
-    doc.autoTable({
-      startY: finalY + 15,
-      head: [['Date', 'Category', 'Amount', 'Reference']],
-      body: expenses.map(e => [e.date, e.category, formatINR(e.amount), e.id.slice(-6).toUpperCase()]),
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [79, 70, 229] }
-    })
+    if (dataToUseExp.length > 0) {
+      doc.setFontSize(12)
+      doc.text('Expenses', 14, finalY)
+      doc.autoTable({
+        startY: finalY + 5,
+        head: [['Date', 'Employee', 'Category', 'Amount', 'Status']],
+        body: dataToUseExp.map(e => [e.date, e.employeeName, e.category, formatINR(e.amount), e.status]),
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [37, 99, 235] } // Blue-600
+      })
+    }
     
-    doc.save('Advances_Expenses_Report.pdf')
+    doc.save(`Adv_Exp_Report_${reportMonth}.pdf`)
   }
 
   return (
@@ -415,22 +459,88 @@ export default function AdvanceExpenseTab() {
 
       {/* Reports Module */}
       {activeModule === 'Reports' && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <button 
-              onClick={exportPDF}
-              className="h-[40px] px-6 bg-red-50 text-red-600 font-bold rounded-lg text-[13px] flex items-center gap-2 shadow-sm hover:bg-red-100 transition-all uppercase tracking-widest"
-            >
-              <FileDown size={16} /> Export PDF
-            </button>
+        <div className="space-y-6">
+          {/* Enhanced Filter Bar */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+              {/* Month Navigation */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1">
+                  <Calendar size={12} /> Select Month
+                </label>
+                <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
+                  <button onClick={() => handleMonthChange(-1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="flex-1 text-center font-bold text-gray-700 text-sm">
+                    {new Date(reportMonth + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}
+                  </div>
+                  <button onClick={() => handleMonthChange(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Name Filter */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1">
+                  <Search size={12} /> Search Name
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="Employee name..." 
+                  value={reportFilterName}
+                  onChange={e => setReportFilterName(e.target.value)}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50/50"
+                />
+              </div>
+
+              {/* Category Filter */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1">
+                  <Filter size={12} /> Category
+                </label>
+                <input 
+                  list="categories-list"
+                  placeholder="All categories..." 
+                  value={reportFilterCategory}
+                  onChange={e => setReportFilterCategory(e.target.value)}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50/50"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button 
+                  onClick={applyReportFilters}
+                  className="flex-1 h-10 bg-indigo-600 text-white font-black rounded-lg text-[11px] uppercase tracking-widest shadow-md hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                  Apply
+                </button>
+                <button 
+                  onClick={exportPDF}
+                  disabled={!reportApplied || filteredEntries.length === 0}
+                  className="h-10 px-4 bg-emerald-600 text-white font-black rounded-lg text-[11px] uppercase tracking-widest shadow-md hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  title="Export to PDF"
+                >
+                  <FileDown size={16} />
+                </button>
+              </div>
+            </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Advances Panel */}
             <div className="bg-amber-50/50 rounded-[12px] border border-amber-200 overflow-hidden shadow-sm">
               <div className="p-4 bg-amber-100/50 border-b border-amber-200 flex items-center justify-between">
-                <h3 className="font-black text-amber-900 uppercase tracking-widest text-[13px]">Advances</h3>
-                <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-amber-700 shadow-sm border border-amber-100">{advances.length} Records</span>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-amber-900 uppercase tracking-widest text-[13px]">Advances</h3>
+                  {reportApplied && <span className="text-[10px] font-bold text-amber-600 bg-white px-2 py-0.5 rounded border border-amber-100">Filtered</span>}
+                </div>
+                <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-amber-700 shadow-sm border border-amber-100">
+                  {reportApplied ? advForReport.length : advances.length} Records
+                </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -438,52 +548,33 @@ export default function AdvanceExpenseTab() {
                     <tr className="bg-amber-50/80 border-b border-amber-100">
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Date</th>
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Amount</th>
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Remarks</th>
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Ref</th>
+                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Status</th>
                       <th className="p-3 w-[70px]"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {loading ? (
-                      <tr><td colSpan={5} className="text-center py-8"><Spinner /></td></tr>
-                    ) : advances.length === 0 ? (
-                      <tr><td colSpan={5} className="text-center py-8 text-gray-400 text-sm">No advances found</td></tr>
-                    ) : advances.map(a => (
+                    {(reportApplied ? advForReport : advances).length === 0 ? (
+                      <tr><td colSpan={4} className="text-center py-12 text-gray-400 text-sm italic">No records found for this criteria</td></tr>
+                    ) : (reportApplied ? advForReport : advances).map(a => (
                       <tr key={a.id} className="border-b border-amber-100 hover:bg-amber-100/40 transition-colors group">
-                        {editingId === a.id ? (
-                          <td colSpan={5} className="p-3">
-                            <div className="flex gap-2 items-center">
-                              <input type="date" value={editForm.date} onChange={e => setEditForm({...editForm, date: e.target.value})} className="border p-1 text-xs rounded w-24" />
-                              <select value={editForm.employeeId} onChange={e => setEditForm({...editForm, employeeId: e.target.value})} className="border p-1 text-xs rounded">
-                                {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                              </select>
-                              <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="border p-1 text-xs rounded w-20" />
-                              <input type="text" value={editForm.reason} onChange={e => setEditForm({...editForm, reason: e.target.value})} className="border p-1 text-xs rounded flex-1" />
-                              <button onClick={handleUpdate} className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 active:bg-green-700 transition-colors">Save</button>
-                              <button onClick={() => setEditingId(null)} className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-400 active:bg-gray-500 transition-colors">Cancel</button>
-                            </div>
-                          </td>
-                        ) : (
-                          <>
-                            <td className="p-3">
-                              <div className="flex flex-col">
-                                <span className="text-[12px] text-gray-500">{a.date}</span>
-                                <span className="text-[11px] font-bold text-gray-800">{a.employeeName}</span>
-                              </div>
-                            </td>
-                            <td className="p-3 text-[13px] font-bold text-gray-900">{formatINR(a.amount)}</td>
-                            <td className="p-3 text-[12px] text-gray-600">{a.reason || '-'}</td>
-                            <td className="p-3 text-[11px] text-gray-400 font-mono">{a.id.slice(-6).toUpperCase()}</td>
-                            <td className="p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => handleEdit(a)} className="text-gray-400 hover:text-blue-600 p-1">
-                                <Edit2 size={14} />
-                              </button>
-                              <button onClick={async () => { if(confirm('Permanently delete this entry?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', a.id)); fetchEntries(); } }} className="text-gray-400 hover:text-red-600 p-1">
-                                <Trash2 size={14} />
-                              </button>
-                            </td>
-                          </>
-                        )}
+                        <td className="p-3">
+                          <div className="flex flex-col">
+                            <span className="text-[12px] text-gray-500">{a.date}</span>
+                            <span className="text-[11px] font-bold text-gray-800">{a.employeeName}</span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-[13px] font-bold text-gray-900">{formatINR(a.amount)}</td>
+                        <td className="p-3">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                            a.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : 
+                            a.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-600'
+                          }`}>{a.status}</span>
+                        </td>
+                        <td className="p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleEdit(a)} className="text-gray-400 hover:text-blue-600 p-1">
+                            <Edit2 size={14} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -494,8 +585,13 @@ export default function AdvanceExpenseTab() {
             {/* Expenses Panel */}
             <div className="bg-blue-50/50 rounded-[12px] border border-blue-200 overflow-hidden shadow-sm">
               <div className="p-4 bg-blue-100/50 border-b border-blue-200 flex items-center justify-between">
-                <h3 className="font-black text-blue-900 uppercase tracking-widest text-[13px]">Expenses</h3>
-                <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-blue-700 shadow-sm border border-blue-100">{expenses.length} Records</span>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-blue-900 uppercase tracking-widest text-[13px]">Expenses</h3>
+                  {reportApplied && <span className="text-[10px] font-bold text-blue-600 bg-white px-2 py-0.5 rounded border border-blue-100">Filtered</span>}
+                </div>
+                <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-blue-700 shadow-sm border border-blue-100">
+                  {reportApplied ? expForReport.length : expenses.length} Records
+                </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -504,51 +600,27 @@ export default function AdvanceExpenseTab() {
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Date</th>
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Category</th>
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Amount</th>
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Reference</th>
                       <th className="p-3 w-[70px]"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {loading ? (
-                      <tr><td colSpan={5} className="text-center py-8"><Spinner /></td></tr>
-                    ) : expenses.length === 0 ? (
-                      <tr><td colSpan={5} className="text-center py-8 text-gray-400 text-sm">No expenses found</td></tr>
-                    ) : expenses.map(e => (
+                    {(reportApplied ? expForReport : expenses).length === 0 ? (
+                      <tr><td colSpan={4} className="text-center py-12 text-gray-400 text-sm italic">No records found for this criteria</td></tr>
+                    ) : (reportApplied ? expForReport : expenses).map(e => (
                       <tr key={e.id} className="border-b border-blue-100 hover:bg-blue-100/40 transition-colors group">
-                        {editingId === e.id ? (
-                          <td colSpan={5} className="p-3">
-                            <div className="flex gap-2 items-center">
-                              <input type="date" value={editForm.date} onChange={ev => setEditForm({...editForm, date: ev.target.value})} className="border p-1 text-xs rounded w-24" />
-                              <select value={editForm.employeeId} onChange={ev => setEditForm({...editForm, employeeId: ev.target.value})} className="border p-1 text-xs rounded">
-                                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                              </select>
-                              <input list="categories-list" value={editForm.category} onChange={ev => setEditForm({...editForm, category: ev.target.value})} className="no-arrow border p-1 text-xs rounded w-24" />
-                              <input type="number" value={editForm.amount} onChange={ev => setEditForm({...editForm, amount: ev.target.value})} className="border p-1 text-xs rounded w-20" />
-                              <button onClick={handleUpdate} className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 active:bg-green-700 transition-colors">Save</button>
-                              <button onClick={() => setEditingId(null)} className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-400 active:bg-gray-500 transition-colors">Cancel</button>
-                            </div>
-                          </td>
-                        ) : (
-                          <>
-                            <td className="p-3">
-                              <div className="flex flex-col">
-                                <span className="text-[12px] text-gray-500">{e.date}</span>
-                                <span className="text-[11px] font-bold text-gray-800">{e.employeeName}</span>
-                              </div>
-                            </td>
-                            <td className="p-3 text-[12px] font-bold text-gray-700">{e.category}</td>
-                            <td className="p-3 text-[13px] font-bold text-gray-900">{formatINR(e.amount)}</td>
-                            <td className="p-3 text-[11px] text-gray-400 font-mono">{e.id.slice(-6).toUpperCase()}</td>
-                            <td className="p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => handleEdit(e)} className="text-gray-400 hover:text-blue-600 p-1">
-                                <Edit2 size={14} />
-                              </button>
-                              <button onClick={async () => { if(confirm('Permanently delete this entry?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', e.id)); fetchEntries(); } }} className="text-gray-400 hover:text-red-600 p-1">
-                                <Trash2 size={14} />
-                              </button>
-                            </td>
-                          </>
-                        )}
+                        <td className="p-3">
+                          <div className="flex flex-col">
+                            <span className="text-[12px] text-gray-500">{e.date}</span>
+                            <span className="text-[11px] font-bold text-gray-800">{e.employeeName}</span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-[12px] font-bold text-gray-700">{e.category}</td>
+                        <td className="p-3 text-[13px] font-bold text-gray-900">{formatINR(e.amount)}</td>
+                        <td className="p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleEdit(e)} className="text-gray-400 hover:text-blue-600 p-1">
+                            <Edit2 size={14} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
