@@ -274,7 +274,12 @@ export default function SalarySlipTab() {
       await logActivity(user.orgId, user, {
         module: 'Loans', action: 'Deleted', detail: `Loan ${loanId} permanently removed`
       })
+      
+      // Clear slip data to force recalculation if currently viewing a slip
+      setSlipData(null)
+      
       fetchLoans()
+      alert('Loan deleted and contributions updated.')
     } catch (err) {
       alert('Delete failed: ' + err.message)
     }
