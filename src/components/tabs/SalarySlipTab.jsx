@@ -184,6 +184,8 @@ export default function SalarySlipTab() {
     fetchLoans()
   }, [user?.orgId])
 
+  const [editingLoanId, setEditingLoanId] = useState(null)
+
   const fetchLoans = async () => {
     try {
       const q = query(collection(db, 'organisations', user.orgId, 'loans'), orderBy('createdAt', 'desc'))
@@ -206,25 +208,51 @@ export default function SalarySlipTab() {
         ...loanForm,
         employeeName: emp?.name || 'Unknown',
         totalAmount: Number(loanForm.totalAmount),
-        remainingAmount: Number(loanForm.totalAmount),
         emiAmount: Number(loanForm.emiAmount),
-        status: 'Active',
-        monthOverrides: {},
-        createdAt: serverTimestamp(),
-        createdBy: user.uid
+        updatedAt: serverTimestamp()
       }
-      await addDoc(collection(db, 'organisations', user.orgId, 'loans'), docData)
-      await logActivity(user.orgId, user, {
-        module: 'Loans', action: 'Created', detail: `Loan of ${loanForm.totalAmount} created for ${emp?.name}`
-      })
-      alert('Loan added successfully')
+
+      if (editingLoanId) {
+        await updateDoc(doc(db, 'organisations', user.orgId, 'loans', editingLoanId), docData)
+        await logActivity(user.orgId, user, {
+          module: 'Loans', action: 'Updated', detail: `Loan details updated for ${emp?.name}`
+        })
+        alert('Loan updated successfully')
+      } else {
+        const newData = {
+          ...docData,
+          remainingAmount: Number(loanForm.totalAmount),
+          status: 'Active',
+          monthOverrides: {},
+          createdAt: serverTimestamp(),
+          createdBy: user.uid
+        }
+        await addDoc(collection(db, 'organisations', user.orgId, 'loans'), newData)
+        await logActivity(user.orgId, user, {
+          module: 'Loans', action: 'Created', detail: `Loan of ${loanForm.totalAmount} created for ${emp?.name}`
+        })
+        alert('Loan added successfully')
+      }
+      
       setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' })
+      setEditingLoanId(null)
       fetchLoans()
     } catch (err) {
       alert('Failed: ' + err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleEditLoan = (loan) => {
+    setEditingLoanId(loan.id)
+    setEditLoanForm({
+      employeeId: loan.employeeId,
+      totalAmount: loan.totalAmount,
+      emiAmount: loan.emiAmount,
+      startMonth: loan.startMonth,
+      remarks: loan.remarks || ''
+    })
   }
 
   const handleUpdateOverride = async (loanId) => {
@@ -465,7 +493,6 @@ export default function SalarySlipTab() {
                         {({ loading }) => <><Download size={14} />{loading ? 'Preparing...' : 'Download PDF'}</>}
                       </PDFDownloadLink>
                     )}
-                    <button onClick={() => window.print()} className="h-[36px] bg-purple-50 text-purple-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-purple-100 flex items-center gap-2"><Printer size={14} /> Print</button>
                     <button onClick={handleFinalizeSlip} disabled={loading} className="h-[36px] bg-gray-900 text-white px-6 rounded-lg text-[11px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-black flex items-center gap-2 transition-all">
                       <CheckCircle2 size={14} /> Confirm & Record
                     </button>
@@ -527,7 +554,9 @@ export default function SalarySlipTab() {
                   <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2 px-1">Employee</label><select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select...</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
                   <div className="grid grid-cols-2 gap-4"><div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2 px-1">Total (₹)</label><input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 font-bold bg-gray-50/50" /></div><div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2 px-1">EMI (₹)</label><input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 font-bold bg-gray-50/50" /></div></div>
                   <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2 px-1">Starts From</label><input type="month" value={loanForm.startMonth} onChange={e => setEditLoanForm({...loanForm, startMonth: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 font-bold bg-gray-50/50" /></div>
-                  <button onClick={handleCreateLoan} disabled={loading} className="w-full h-[46px] bg-gray-900 text-white font-black rounded-xl text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all">Activate Loan</button>
+                  <button onClick={handleCreateLoan} disabled={loading} className="w-full h-[46px] bg-gray-900 text-white font-black rounded-xl text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all">
+                    {editingLoanId ? 'Update Loan Details' : 'Activate Loan Schedule'}
+                  </button>
                 </div>
               </div>
               <div className="xl:col-span-2 space-y-6">
@@ -535,7 +564,21 @@ export default function SalarySlipTab() {
                   <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/30"><h3 className="font-black uppercase text-sm tracking-widest flex items-center gap-2"><History size={18} className="text-gray-400" /> Active Schedules</h3></div>
                   <div className="overflow-x-auto"><table className="w-full text-left border-collapse"><thead><tr className="bg-gray-50/50 text-[10px] font-black uppercase text-gray-400 tracking-widest border-b border-gray-100"><th className="px-6 py-4">Employee</th><th className="px-6 py-4 text-right">Total</th><th className="px-6 py-4 text-right">Remaining</th><th className="px-6 py-4 text-center">EMI</th><th className="px-6 py-4 text-right">Actions</th></tr></thead><tbody className="divide-y divide-gray-50">
                     {loans.length === 0 ? (<tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic font-medium">No active loans</td></tr>) : loans.map(l => (
-                      <tr key={l.id} className="group hover:bg-gray-50 transition-colors"><td className="px-6 py-4"><p className="text-sm font-bold text-gray-900">{l.employeeName}</p></td><td className="px-6 py-4 text-right font-bold text-gray-600">{formatINR(l.totalAmount)}</td><td className="px-6 py-4 text-right font-black text-indigo-600">{formatINR(l.remainingAmount)}</td><td className="px-6 py-4 text-center"><span className="bg-gray-100 px-2 py-1 rounded text-[10px] font-bold">{formatINR(l.emiAmount)}</span></td><td className="px-6 py-4 text-right"><button onClick={() => setSelectedLoan(l)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg"><AlertCircle size={18} /></button></td></tr>
+                      <tr key={l.id} className="group hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-bold text-gray-900">{l.employeeName}</p>
+                          <p className="text-[10px] text-gray-400 font-medium">{l.remarks}</p>
+                        </td>
+                        <td className="px-6 py-4 text-right font-bold text-gray-600">{formatINR(l.totalAmount)}</td>
+                        <td className="px-6 py-4 text-right font-black text-indigo-600">{formatINR(l.remainingAmount)}</td>
+                        <td className="px-6 py-4 text-center"><span className="bg-gray-100 px-2 py-1 rounded text-[10px] font-bold">{formatINR(l.emiAmount)}</span></td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => handleEditLoan(l)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Loan Details"><Edit2 size={16} /></button>
+                            <button onClick={() => setSelectedLoan(l)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Special Case Adjustment"><AlertCircle size={18} /></button>
+                          </div>
+                        </td>
+                      </tr>
                     ))}
                   </tbody></table></div>
                 </div>
