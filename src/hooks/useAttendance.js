@@ -86,7 +86,26 @@ export function useAttendance(orgId) {
     }
   }, [orgId])
 
-  return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary, deleteByDate }
+  const fetchRange = useCallback(async (startDate, endDate) => {
+    if (!orgId || !startDate || !endDate) return []
+    setLoading(true)
+    try {
+      const q = query(
+        attendanceCol(orgId), 
+        where('date', '>=', startDate), 
+        where('date', '<=', endDate)
+      )
+      const snapshot = await getDocs(q)
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+    } catch (e) {
+      setError(e.message)
+      return []
+    } finally {
+      setLoading(false)
+    }
+  }, [orgId])
+
+  return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary, deleteByDate, fetchRange }
 }
 
 export function calcOT(inTime, outTime, inDate, outDate, workHours) {

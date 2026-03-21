@@ -295,19 +295,26 @@ export default function AdvanceExpenseTab() {
 
       {/* Sub-modules Nav */}
       <div className="flex border-b border-gray-200 overflow-x-auto">
-        {modules.map(mod => (
-          <button
-            key={mod}
-            onClick={() => setActiveModule(mod)}
-            className={`whitespace-nowrap px-6 py-3 text-sm font-semibold uppercase tracking-widest transition-all ${
-              activeModule === mod 
-                ? 'border-b-2 border-indigo-600 text-indigo-600' 
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            {mod}
-          </button>
-        ))}
+        {modules.map(mod => {
+          const isActive = activeModule === mod
+          let colorClass = 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          
+          if (isActive) {
+            if (mod === 'Add Advance') colorClass = 'border-b-2 border-amber-600 text-amber-700 bg-amber-50/30'
+            else if (mod === 'Add Expense') colorClass = 'border-b-2 border-blue-600 text-blue-700 bg-blue-50/30'
+            else colorClass = 'border-b-2 border-indigo-600 text-indigo-600'
+          }
+
+          return (
+            <button
+              key={mod}
+              onClick={() => setActiveModule(mod)}
+              className={`whitespace-nowrap px-6 py-3 text-sm font-black uppercase tracking-widest transition-all ${colorClass}`}
+            >
+              {mod}
+            </button>
+          )
+        })}
       </div>
 
       {/* Add Expense / Add Advance Module */}
