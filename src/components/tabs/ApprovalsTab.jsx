@@ -55,6 +55,33 @@ function pickToStoredApproval(pick) {
   return pick
 }
 
+/** Text-only styling: HR vs MD use distinct palettes for the same logical status */
+function approvalStatusTextClass(status, lane) {
+  const s = (status || 'Pending').toLowerCase()
+  const isHr = lane === 'hr'
+  if (s === 'approved' || s === 'approve') {
+    return isHr
+      ? 'text-sky-700'
+      : 'text-violet-700'
+  }
+  if (s === 'rejected') {
+    return isHr ? 'text-rose-600' : 'text-red-700'
+  }
+  if (s === 'partial') {
+    return isHr ? 'text-cyan-700' : 'text-indigo-700'
+  }
+  if (s === 'hold') {
+    return isHr ? 'text-slate-500' : 'text-zinc-600'
+  }
+  return isHr ? 'text-amber-700' : 'text-orange-800'
+}
+
+function paidAtToDateKey(ts) {
+  if (!ts?.toDate) return null
+  const d = ts.toDate()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function ApprovalsTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -63,6 +90,7 @@ export default function ApprovalsTab() {
   const [loading, setLoading] = useState(false)
   const [advExpenses, setAdvExpenses] = useState([])
   const [recentAdvExpenses, setRecentAdvExpenses] = useState([])
+  const [currentMonthPaidAdvances, setCurrentMonthPaidAdvances] = useState([])
   const [paymentQueue, setPaymentQueue] = useState([])
   const [recentPayments, setRecentPayments] = useState([])
   const [requests, setRequests] = useState([])
@@ -71,6 +99,7 @@ export default function ApprovalsTab() {
   // For the Advance/Expense action toggles
   const [actionState, setActionState] = useState({}) // hrPick, mdPick, remarks, partialAmount, paymentMethod, paymentRef, ...
   const [advMenuOpen, setAdvMenuOpen] = useState(null) // `${id}-hr` | `${id}-md` | null
+  const [advanceRightTab, setAdvanceRightTab] = useState('month-reports') // 'month-reports' | 'recent-updates'
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const canApprove = isAdmin || user?.permissions?.Approvals?.approve === true
@@ -116,6 +145,23 @@ export default function ApprovalsTab() {
         )
         const snap = await getDocs(q)
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+        const now = new Date()
+        const cmStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const cmEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+        const monthPaid = data
+          .filter((item) => {
+            if (item.type !== 'Advance' || item.paymentStatus !== 'Paid') return false
+            const d = item.paidAt?.toDate ? item.paidAt.toDate() : null
+            if (!d) return false
+            return d >= cmStart && d <= cmEnd
+          })
+          .sort((a, b) => {
+            const ta = a.paidAt?.toMillis?.() ?? 0
+            const tb = b.paidAt?.toMillis?.() ?? 0
+            return tb - ta
+          })
+        setCurrentMonthPaidAdvances(monthPaid)
         
         if (activeSubTab === 'payment-queue') {
           // Show only MD approved items that are not paid
@@ -134,7 +180,7 @@ export default function ApprovalsTab() {
             return status === 'Approved' || status === 'Partial' || status === 'Rejected'
           })
           setAdvExpenses(active)
-          setRecentAdvExpenses(recent.slice(0, 10))
+          setRecentAdvExpenses(recent.slice(0, 8))
         }
         
         // Initialize action states
@@ -647,8 +693,9 @@ export default function ApprovalsTab() {
           </div>
         </>
       ) : activeSubTab === 'advance-expense' ? (
-        <div className="space-y-12">
-          {/* Active List (Pending & Hold) — shadcn-style table */}
+        <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:gap-6">
+          {/* Main queue — up to 70% width, left-aligned */}
+          <div className="w-full shrink-0 lg:max-w-[70%] lg:basis-[70%] lg:pr-2">
           <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full caption-bottom text-sm border-collapse">
@@ -661,7 +708,7 @@ export default function ApprovalsTab() {
                     <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
                     <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">HR status</th>
                     <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">MD status</th>
-                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[120px]">Action</th>
+                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">HR / MD</th>
                   </tr>
                 </thead>
                 <tbody className="[&_tr:last-child]:border-0">
@@ -709,7 +756,7 @@ export default function ApprovalsTab() {
                                       type="button"
                                       onMouseDown={(e) => e.stopPropagation()}
                                       onClick={() => setAdvMenuOpen((o) => (o === hrMenuId ? null : hrMenuId))}
-                                      className="min-h-[28px] w-full max-w-[132px] rounded-md border border-zinc-200 bg-white px-2 py-1 text-center text-[11px] font-medium text-zinc-800 shadow-sm outline-none ring-offset-2 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400"
+                                      className="min-h-[28px] w-full max-w-[132px] rounded-md border border-sky-300 bg-sky-50/40 px-2 py-1 text-center text-[11px] font-medium text-sky-950 shadow-sm outline-none ring-offset-2 hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400"
                                     >
                                       {rowState.hrPick}
                                     </button>
@@ -740,13 +787,13 @@ export default function ApprovalsTab() {
                                     <button
                                       type="button"
                                       onClick={() => handleHrAdvExpenseSubmit(item.id)}
-                                      className="h-8 w-full max-w-[132px] rounded-md bg-zinc-900 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-zinc-800"
+                                      className="h-8 w-full max-w-[132px] rounded-md bg-sky-800 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-sky-900"
                                     >
                                       Submit
                                     </button>
                                   </>
                                 ) : (
-                                  <span className="text-center text-[11px] font-medium text-zinc-500">{item.hrApproval || 'Pending'}</span>
+                                  <span className={`text-center text-[11px] font-semibold ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>{item.hrApproval || 'Pending'}</span>
                                 )}
                               </div>
                             </td>
@@ -764,7 +811,7 @@ export default function ApprovalsTab() {
                                       type="button"
                                       onMouseDown={(e) => e.stopPropagation()}
                                       onClick={() => setAdvMenuOpen((o) => (o === mdMenuId ? null : mdMenuId))}
-                                      className="min-h-[28px] w-full max-w-[132px] rounded-md border border-zinc-200 bg-white px-2 py-1 text-center text-[11px] font-medium text-zinc-800 shadow-sm outline-none ring-offset-2 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400"
+                                      className="min-h-[28px] w-full max-w-[132px] rounded-md border border-violet-300 bg-violet-50/50 px-2 py-1 text-center text-[11px] font-medium text-violet-950 shadow-sm outline-none ring-offset-2 hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-400"
                                     >
                                       {rowState.mdPick}
                                     </button>
@@ -795,26 +842,26 @@ export default function ApprovalsTab() {
                                     <button
                                       type="button"
                                       onClick={() => handleMdAdvExpenseSubmit(item.id)}
-                                      className="h-8 w-full max-w-[132px] rounded-md bg-zinc-900 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-zinc-800"
+                                      className="h-8 w-full max-w-[132px] rounded-md bg-violet-800 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-violet-900"
                                     >
                                       Submit
                                     </button>
                                   </>
                                 ) : (
-                                  <span className="text-center text-[11px] font-medium text-zinc-500">{item.mdApproval || 'Pending'}</span>
+                                  <span className={`text-center text-[11px] font-semibold ${approvalStatusTextClass(item.mdApproval, 'md')}`}>{item.mdApproval || 'Pending'}</span>
                                 )}
                               </div>
                             </td>
-                            <td className="px-3 py-3 align-middle">
-                              <div className="flex flex-col items-end gap-1.5">
-                                <div className="w-full max-w-[140px] rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-right">
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">HR</p>
-                                  <p className="text-[11px] font-semibold text-zinc-900">{item.hrApproval || 'Pending'}</p>
-                                </div>
-                                <div className="w-full max-w-[140px] rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-right">
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">MD</p>
-                                  <p className="text-[11px] font-semibold text-zinc-900">{item.mdApproval || 'Pending'}</p>
-                                </div>
+                            <td className="px-3 py-3 align-middle text-right">
+                              <div className="inline-flex flex-col items-end gap-0.5 text-[11px] font-semibold leading-tight">
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                  HR{' '}
+                                  <span className={approvalStatusTextClass(item.hrApproval, 'hr')}>{item.hrApproval || 'Pending'}</span>
+                                </span>
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                  MD{' '}
+                                  <span className={approvalStatusTextClass(item.mdApproval, 'md')}>{item.mdApproval || 'Pending'}</span>
+                                </span>
                               </div>
                             </td>
                           </tr>
@@ -883,82 +930,135 @@ export default function ApprovalsTab() {
               </table>
             </div>
           </div>
+          </div>
 
-          {/* Recent Updates List (Approved, Partial, Rejected) */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1.5 h-5 bg-emerald-500 rounded-full"></div>
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Recent Updates</h3>
+          {/* Right column: vertical tabs + panel (compact blocks up to ~50vw, hug right) */}
+          <div className="flex min-w-0 flex-1 flex-row-reverse justify-end gap-0">
+            <div
+              className="flex w-11 shrink-0 flex-col gap-1 border-l border-zinc-200 bg-zinc-50/80 py-2 pl-1"
+              role="tablist"
+              aria-label="Advance sidebar"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={advanceRightTab === 'month-reports'}
+                onClick={() => setAdvanceRightTab('month-reports')}
+                className={`flex min-h-[7rem] items-center justify-center rounded-l-md px-1 py-2 text-center text-[10px] font-black uppercase leading-snug tracking-wide transition-colors ${
+                  advanceRightTab === 'month-reports'
+                    ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-zinc-200'
+                    : 'text-zinc-500 hover:bg-white/80 hover:text-zinc-800'
+                }`}
+                style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+              >
+                Last month advance reports
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={advanceRightTab === 'recent-updates'}
+                onClick={() => setAdvanceRightTab('recent-updates')}
+                className={`flex min-h-[5rem] items-center justify-center rounded-l-md px-1 py-2 text-center text-[10px] font-black uppercase leading-snug tracking-wide transition-colors ${
+                  advanceRightTab === 'recent-updates'
+                    ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-zinc-200'
+                    : 'text-zinc-500 hover:bg-white/80 hover:text-zinc-800'
+                }`}
+                style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+              >
+                Recent updates
+              </button>
             </div>
-            
-            <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full caption-bottom text-sm border-collapse">
-                  <thead className="border-b border-zinc-200 bg-zinc-50/80">
-                    <tr className="border-b border-zinc-200">
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Type</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Employee</th>
-                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
-                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[148px]">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="[&_tr:last-child]:border-0">
-                    {recentAdvExpenses.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="p-8 text-center align-middle text-xs font-medium text-zinc-400">No recent updates</td>
-                      </tr>
+
+            <div className="min-w-0 w-full max-w-[50vw] pr-2">
+              {advanceRightTab === 'month-reports' ? (
+                <div className="ml-auto w-full max-w-full rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
+                  <div className="border-b border-zinc-100 px-3 py-2">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Last month advance reports</h3>
+                    <p className="mt-0.5 text-[9px] font-medium text-zinc-400">
+                      Paid advances this calendar month (by payment received date)
+                    </p>
+                  </div>
+                  <ul className="max-h-[min(24rem,55vh)] divide-y divide-zinc-100 overflow-y-auto">
+                    {currentMonthPaidAdvances.length === 0 ? (
+                      <li className="px-3 py-6 text-center text-[10px] font-medium text-zinc-400">No paid advances this month</li>
                     ) : (
-                      recentAdvExpenses.map(item => (
-                        <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/80">
-                          <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-900">
-                            {formatAdvDateDMY(item.date)}
-                          </td>
-                          <td className="px-3 py-3 align-middle">
-                            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${item.type === 'Advance' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
-                              {item.type}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3 align-middle text-sm font-medium text-zinc-900">{item.employeeName}</td>
-                          <td className="px-3 py-3 align-middle text-right">
-                            <div className="flex flex-col items-end gap-0.5">
-                              <span className={`text-sm font-semibold tabular-nums ${item.status === 'Partial' ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>{formatINR(item.amount)}</span>
-                              {item.status === 'Partial' && item.partialAmount != null && (
-                                <span className="text-sm font-semibold tabular-nums text-indigo-600">{formatINR(item.partialAmount)}</span>
-                              )}
+                      currentMonthPaidAdvances.map((item) => {
+                        const receivedKey = paidAtToDateKey(item.paidAt) || item.date
+                        const payAmt = item.partialAmount != null ? item.partialAmount : item.amount
+                        return (
+                          <li key={item.id} className="flex items-start justify-between gap-2 px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-[11px] font-semibold text-zinc-900">{item.employeeName}</p>
+                              <p className="text-[9px] font-medium text-zinc-500">Received {formatAdvDateDMY(receivedKey)}</p>
                             </div>
-                          </td>
-                          <td className="px-3 py-3 align-middle">
-                            <div className="flex flex-col items-end gap-1.5">
-                              <div className="w-full max-w-[160px] rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-right">
-                                <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">HR</p>
-                                <p className="text-[11px] font-semibold text-zinc-900">{item.hrApproval || 'Pending'}</p>
-                              </div>
-                              <div className="w-full max-w-[160px] rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-right">
-                                <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">MD</p>
-                                <p className="text-[11px] font-semibold text-zinc-900">{item.mdApproval || 'Pending'}</p>
-                              </div>
-                              <div
-                                className={`w-full max-w-[160px] rounded-md border px-2.5 py-1.5 text-right text-[11px] font-semibold ${
-                                  item.status === 'Approved'
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                    : item.status === 'Partial'
-                                      ? 'border-blue-200 bg-blue-50 text-blue-800'
-                                      : item.status === 'Rejected'
-                                        ? 'border-rose-200 bg-rose-50 text-rose-800'
-                                        : 'border-zinc-200 bg-white text-zinc-600'
-                                }`}
-                              >
-                                Final: {item.status}
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                            <p className="shrink-0 text-[11px] font-bold tabular-nums text-indigo-600">{formatINR(payAmt)}</p>
+                          </li>
+                        )
+                      })
                     )}
-                  </tbody>
-                </table>
-              </div>
+                  </ul>
+                </div>
+              ) : (
+                <div className="ml-auto w-full max-w-full">
+                  <div className="mb-2 flex items-center gap-1.5 justify-end">
+                    <div className="h-3 w-0.5 rounded-full bg-emerald-500" />
+                    <h3 className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Recent updates</h3>
+                  </div>
+                  <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
+                    <div className="max-h-[min(20rem,50vh)] overflow-y-auto">
+                      <table className="w-full caption-bottom border-collapse text-[10px]">
+                        <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50/95">
+                          <tr>
+                            <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Dt</th>
+                            <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Who</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">₹</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">HR / MD</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {recentAdvExpenses.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="px-2 py-4 text-center font-medium text-zinc-400">None</td>
+                            </tr>
+                          ) : (
+                            recentAdvExpenses.map((item) => (
+                              <tr key={item.id} className="border-b border-zinc-50 hover:bg-zinc-50/60">
+                                <td className="whitespace-nowrap px-2 py-1.5 align-top font-medium text-zinc-700">
+                                  {formatAdvDateDMY(item.date)}
+                                </td>
+                                <td className="max-w-[5.5rem] truncate px-2 py-1.5 align-top font-medium text-zinc-800" title={item.employeeName}>
+                                  {item.employeeName}
+                                </td>
+                                <td className="whitespace-nowrap px-2 py-1.5 align-top text-right font-semibold tabular-nums text-zinc-800">
+                                  {item.status === 'Partial' && item.partialAmount != null ? formatINR(item.partialAmount) : formatINR(item.amount)}
+                                </td>
+                                <td className="px-2 py-1.5 align-top text-right leading-tight">
+                                  <span className={approvalStatusTextClass(item.hrApproval, 'hr')}>{item.hrApproval || '—'}</span>
+                                  <span className="text-zinc-300"> / </span>
+                                  <span className={approvalStatusTextClass(item.mdApproval, 'md')}>{item.mdApproval || '—'}</span>
+                                  <span
+                                    className={`mt-0.5 block text-[9px] font-bold uppercase ${
+                                      item.status === 'Approved'
+                                        ? 'text-emerald-600'
+                                        : item.status === 'Partial'
+                                          ? 'text-indigo-600'
+                                          : item.status === 'Rejected'
+                                            ? 'text-rose-600'
+                                            : 'text-zinc-500'
+                                    }`}
+                                  >
+                                    {item.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
