@@ -362,6 +362,21 @@ export default function ApprovalsTab() {
     }
   }
 
+  const handleRevoke = async (id) => {
+    if (!isAdmin && !isHR && !isMD) return alert('No permission to revoke')
+    if (!confirm('Move this item back to pending queue?')) return
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), {
+        status: 'Pending',
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+      })
+      fetchData()
+    } catch (err) {
+      alert('Failed to revoke')
+    }
+  }
+
   const handleUpdateRequestStatus = async (id, status) => {
     if (!canApprove) return alert('No permission')
     const state = actionState[id]
@@ -728,6 +743,7 @@ export default function ApprovalsTab() {
                       <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Requested By</th>
                       <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Created By</th>
                       <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Remarks</th>
                       <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">HR status</th>
                       <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">MD status</th>
                       <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">HR / MD</th>
@@ -736,7 +752,7 @@ export default function ApprovalsTab() {
                   <tbody className="[&_tr:last-child]:border-0">
                     {advExpenses.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="p-10 text-center align-middle text-xs font-medium text-zinc-400">No pending records found</td>
+                        <td colSpan={10} className="p-10 text-center align-middle text-xs font-medium text-zinc-400">No pending records found</td>
                       </tr>
                     ) : (
                       advExpenses.map(item => {
@@ -773,6 +789,9 @@ export default function ApprovalsTab() {
                               </td>
                               <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-600 whitespace-nowrap">{item.createdBy || 'Self'}</td>
                               <td className="px-3 py-1.5 align-middle text-right text-[13px] font-black tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
+                              <td className="px-3 py-1.5 align-middle text-[11px] text-zinc-500 max-w-[150px] truncate" title={item.reason || item.category}>
+                                {item.reason || item.category || '—'}
+                              </td>
                               <td className="px-3 py-1.5 align-middle">
                                 <div
                                   className="relative mx-auto flex w-full max-w-[140px] flex-col items-center gap-1"
@@ -1002,7 +1021,7 @@ export default function ApprovalsTab() {
                             </tr>
                             {((isHR && rowState.hrPick === 'Partial') || (isMD && rowState.mdPick === 'Partial')) && (
                               <tr className="border-b border-zinc-100 bg-zinc-50/50">
-                                <td colSpan={9} className="px-3 py-3 align-middle">
+                                <td colSpan={10} className="px-3 py-3 align-middle">
                                   <div className="flex flex-col gap-3 md:flex-row md:items-center">
                                     {rowState.hrPick === 'Partial' && isHR && (
                                       <div className="flex min-w-[200px] items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
@@ -1118,21 +1137,28 @@ export default function ApprovalsTab() {
                         <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50/95">
                           <tr>
                             <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Req. Dt</th>
+                            <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Type</th>
                             <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Who</th>
                             <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">₹</th>
-                            <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">HR / MD</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">Approvals</th>
+                            <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">Action</th>
                           </tr>
                         </thead>
                         <tbody>
                           {recentAdvExpenses.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-2 py-4 text-center font-medium text-zinc-400">None</td>
+                              <td colSpan={6} className="px-2 py-4 text-center font-medium text-zinc-400">None</td>
                             </tr>
                           ) : (
                             recentAdvExpenses.map((item) => (
                               <tr key={item.id} className="border-b border-zinc-50 hover:bg-zinc-50/60">
                                 <td className="whitespace-nowrap px-2 py-1.5 align-top font-medium text-zinc-700">
                                   {formatAdvDateDMY(item.date)}
+                                </td>
+                                <td className="px-2 py-1.5 align-top font-medium">
+                                  <span className={`px-1 rounded ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                                    {item.type?.charAt(0)}
+                                  </span>
                                 </td>
                                 <td className="max-w-[5.5rem] truncate px-2 py-1.5 align-top font-medium text-zinc-800" title={item.employeeName}>
                                   {item.employeeName}
@@ -1141,22 +1167,32 @@ export default function ApprovalsTab() {
                                   {item.status === 'Partial' && item.partialAmount != null ? formatINR(item.partialAmount) : formatINR(item.amount)}
                                 </td>
                                 <td className="px-2 py-1.5 align-top text-right leading-tight">
-                                  <span className={approvalStatusTextClass(item.hrApproval, 'hr')}>{item.hrApproval || '—'}</span>
-                                  <span className="text-zinc-300"> / </span>
-                                  <span className={approvalStatusTextClass(item.mdApproval, 'md')}>{item.mdApproval || '—'}</span>
-                                  <span
-                                    className={`mt-0.5 block text-[9px] font-bold uppercase ${
-                                      item.status === 'Approved'
-                                        ? 'text-emerald-600'
-                                        : item.status === 'Partial'
-                                          ? 'text-indigo-600'
-                                          : item.status === 'Rejected'
-                                            ? 'text-rose-600'
-                                            : 'text-zinc-500'
-                                    }`}
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    <span className={`font-bold ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>H: {item.hrApproval || '—'}</span>
+                                    <span className={`font-bold ${approvalStatusTextClass(item.mdApproval, 'md')}`}>M: {item.mdApproval || '—'}</span>
+                                    <span
+                                      className={`mt-0.5 text-[8px] font-black uppercase ${
+                                        item.status === 'Approved'
+                                          ? 'text-emerald-600'
+                                          : item.status === 'Partial'
+                                            ? 'text-indigo-600'
+                                            : item.status === 'Rejected'
+                                              ? 'text-rose-600'
+                                              : 'text-zinc-500'
+                                      }`}
+                                    >
+                                      {item.status}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-2 py-1.5 align-top text-right">
+                                  <button
+                                    onClick={() => handleRevoke(item.id)}
+                                    className="p-1 text-zinc-400 hover:text-orange-600 transition-colors"
+                                    title="Revoke to Pending"
                                   >
-                                    {item.status}
-                                  </span>
+                                    <CheckCircle2 size={12} className="rotate-180" />
+                                  </button>
                                 </td>
                               </tr>
                             ))
