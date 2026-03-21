@@ -91,7 +91,143 @@ export default function ApprovalsTab() {
   const [successStatus, setSuccessStatus] = useState({}) // { [id]: 'Success message' }
   const [errorStatus, setErrorStatus] = useState({}) // { [id]: 'Error message' }
   const [advExpenses, setAdvExpenses] = useState([])
-  // ... rest of state stays same ...
+  const [recentAdvExpenses, setRecentAdvExpenses] = useState([])
+  const [currentMonthPaidAdvances, setCurrentMonthPaidAdvances] = useState([])
+  const [paymentQueue, setPaymentQueue] = useState([])
+  const [recentPayments, setRecentPayments] = useState([])
+  const [requests, setRequests] = useState([])
+  const [leaveApprovalSetting, setLeaveApprovalSetting] = useState(null)
+  
+  // For the Advance/Expense action toggles
+  const [actionState, setActionState] = useState({}) // hrPick, mdPick, remarks, partialAmount, paymentMethod, paymentRef, ...
+  const [advMenuOpen, setAdvMenuOpen] = useState(null) // `${id}-hr` | `${id}-md` | null
+  const [advanceRightTab, setAdvanceRightTab] = useState('month-reports') // 'month-reports' | 'recent-updates'
+
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
+  const canApprove = isAdmin || user?.permissions?.Approvals?.approve === true
+  const isAccountant = isAdmin || user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
+  const isMD = isAdmin || user?.role?.toLowerCase() === 'md'
+  const isHR = isAdmin || user?.role?.toLowerCase() === 'hr'
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const fetchSettings = async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'), where('moduleName', '==', 'Leave'))
+      const snap = await getDocs(q)
+      if (!snap.empty) {
+        setLeaveApprovalSetting(snap.docs[0].data())
+      }
+    }
+    fetchSettings()
+  }, [user?.orgId])
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    fetchData()
+  }, [user?.orgId, activeSubTab])
+
+  useEffect(() => {
+    if (!advMenuOpen) return
+    const close = (e) => {
+      const root = e.target.closest?.('[data-adv-dropdown-root]')
+      if (root) return
+      setAdvMenuOpen(null)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [advMenuOpen])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      if (activeSubTab === 'advance-expense' || activeSubTab === 'payment-queue') {
+        const q = query(
+          collection(db, 'organisations', user.orgId, 'advances_expenses'),
+          orderBy('date', 'desc')
+        )
+        const snap = await getDocs(q)
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+        const now = new Date()
+        const cmStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const cmEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+        const monthPaid = data
+          .filter((item) => {
+            if (item.type !== 'Advance' || item.paymentStatus !== 'Paid') return false
+            const d = item.paidAt?.toDate ? item.paidAt.toDate() : null
+            if (!d) return false
+            return d >= cmStart && d <= cmEnd
+          })
+          .sort((a, b) => {
+            const ta = a.paidAt?.toMillis?.() ?? 0
+            const tb = b.paidAt?.toMillis?.() ?? 0
+            return tb - ta
+          })
+        setCurrentMonthPaidAdvances(monthPaid)
+        
+        if (activeSubTab === 'payment-queue') {
+          // Show only MD approved items that are not paid
+          setPaymentQueue(data.filter(item => (item.mdApproval === 'Approved' || item.mdApproval === 'Partial') && item.paymentStatus !== 'Paid'))
+          // Show only Paid items for recent payment history
+          setRecentPayments(data.filter(item => item.paymentStatus === 'Paid').slice(0, 10)) // last 10 payments
+        } else {
+          // Filter: Approved, Partially Approved, and Rejected move to Recent Updates
+          // Hold and Pending stay in the active list.
+          const active = data.filter(item => {
+            const status = item.status || 'Pending'
+            return status === 'Pending' || status === 'Hold'
+          })
+          const recent = data.filter(item => {
+            const status = item.status || 'Pending'
+            return status === 'Approved' || status === 'Partial' || status === 'Rejected'
+          })
+          setAdvExpenses(active)
+          setRecentAdvExpenses(recent.slice(0, 8))
+        }
+        
+        // Initialize action states
+        const initialActionState = {}
+        data.forEach(item => {
+          initialActionState[item.id] = { 
+            status: item.status || 'Pending', 
+            remarks: item.remarks || '', 
+            showToggle: false,
+            paymentMethod: 'Bank Transfer',
+            paymentRef: '',
+            partialAmount: item.partialAmount || item.amount || '',
+            hrPick: storedApprovalToPick(item.hrApproval),
+            mdPick: storedApprovalToPick(item.mdApproval),
+            hrPartialAmount: item.hrPartialAmount ?? item.amount ?? ''
+          }
+        })
+        setActionState(initialActionState)
+
+      } else {
+        const q = query(
+          collection(db, 'organisations', user.orgId, 'requests'),
+          orderBy('createdAt', 'desc')
+        )
+        const snap = await getDocs(q)
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setRequests(data)
+
+        // Initialize action states for regular requests too (for remarks)
+        const initialActionState = {}
+        data.forEach(item => {
+          initialActionState[item.id] = { 
+            status: item.status || 'Pending', 
+            remarks: item.remarks || '', 
+            showToggle: false
+          }
+        })
+        setActionState(prev => ({ ...prev, ...initialActionState }))
+      }
+    } catch (err) {
+      console.error('Error fetching approvals:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Helper to show temporary status
   const showFeedback = (id, msg, isError = false) => {
