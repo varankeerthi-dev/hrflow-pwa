@@ -18,14 +18,14 @@ import { logActivity } from '../../hooks/useActivityLog'
 
 // PDF Styles
 const pdfStyles = StyleSheet.create({
-  page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#111827' },
+  page: { padding: 40, fontSize: 10, fontFamily: 'Inter', color: '#111827' },
   header: { borderBottomWidth: 3, borderBottomColor: '#111827', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 50, height: 50, objectFit: 'contain' },
-  orgTitle: { fontSize: 24, fontWeight: 'bold', textTransform: 'uppercase' },
+  orgTitle: { fontSize: 24, fontFamily: 'Product Sans', fontWeight: 'bold', textTransform: 'uppercase' },
   headerSubtitle: { fontSize: 9, color: '#9CA3AF', fontWeight: 'bold', marginTop: 5, letterSpacing: 1 },
   headerRight: { textAlign: 'right' },
-  payslipTitle: { fontSize: 16, fontWeight: 'bold', textTransform: 'uppercase' },
+  payslipTitle: { fontSize: 16, fontFamily: 'Product Sans', fontWeight: 'bold', textTransform: 'uppercase' },
   periodBadge: { marginTop: 5, backgroundColor: '#EEF2FF', color: '#4F46E5', padding: '4 8', borderRadius: 10, fontSize: 10, fontWeight: 'bold' },
   identificationSection: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   idGrid: { width: '60%' },
@@ -53,6 +53,17 @@ const pdfStyles = StyleSheet.create({
   wordsText: { fontSize: 10, fontWeight: 'bold', color: '#374151', fontStyle: 'italic' },
   wordsAmount: { fontWeight: 'bold', textTransform: 'uppercase', color: '#111827' },
   footerTag: { fontSize: 8, color: '#9CA3AF', marginTop: 15, fontWeight: 'bold', letterSpacing: 2 }
+})
+
+// Register Fonts for PDF
+import { Font } from '@react-pdf/renderer'
+Font.register({
+  family: 'Inter',
+  src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2'
+})
+Font.register({
+  family: 'Product Sans',
+  src: 'https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJfc-7eS3JBrS_WRA.woff2'
 })
 
 // PDF Component
@@ -253,6 +264,34 @@ export default function SalarySlipTab() {
       startMonth: loan.startMonth,
       remarks: loan.remarks || ''
     })
+  }
+
+  const handleDeleteLoan = async (loanId) => {
+    if (!isAdmin) return alert('Only admins can delete loans')
+    if (!confirm('Are you sure you want to permanently delete this loan? This action cannot be undone.')) return
+    try {
+      await deleteDoc(doc(db, 'organisations', user.orgId, 'loans', loanId))
+      await logActivity(user.orgId, user, {
+        module: 'Loans', action: 'Deleted', detail: `Loan ${loanId} permanently removed`
+      })
+      fetchLoans()
+    } catch (err) {
+      alert('Delete failed: ' + err.message)
+    }
+  }
+
+  const handleUpdateOverride = async (loanId) => {
+    if (!isAdmin) return alert('Only admins can delete loans')
+    if (!confirm('Are you sure you want to permanently delete this loan? This action cannot be undone.')) return
+    try {
+      await deleteDoc(doc(db, 'organisations', user.orgId, 'loans', loanId))
+      await logActivity(user.orgId, user, {
+        module: 'Loans', action: 'Deleted', detail: `Loan ${loanId} permanently removed`
+      })
+      fetchLoans()
+    } catch (err) {
+      alert('Delete failed: ' + err.message)
+    }
   }
 
   const handleUpdateOverride = async (loanId) => {
@@ -576,6 +615,7 @@ export default function SalarySlipTab() {
                           <div className="flex justify-end gap-1">
                             <button onClick={() => handleEditLoan(l)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Loan Details"><Edit2 size={16} /></button>
                             <button onClick={() => setSelectedLoan(l)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Special Case Adjustment"><AlertCircle size={18} /></button>
+                            <button onClick={() => handleDeleteLoan(l.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete Loan"><Trash2 size={16} /></button>
                           </div>
                         </td>
                       </tr>
