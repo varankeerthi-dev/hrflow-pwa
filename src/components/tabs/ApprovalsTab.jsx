@@ -25,18 +25,34 @@ import {
   Clock, 
   AlertCircle, 
   PauseCircle, 
-  ChevronDown,
-  ChevronUp,
   MessageSquare,
-  Search,
-  Filter,
-  FileText,
-  Calendar as CalendarIcon,
   Trash2
 } from 'lucide-react'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
+}
+
+/** Display stored YYYY-MM-DD or loose strings as dd/mm/yyyy */
+function formatAdvDateDMY(dateStr) {
+  if (!dateStr) return '—'
+  const s = String(dateStr).trim()
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`
+  return s
+}
+
+const ADV_PICK_OPTIONS = ['Approve', 'Partial', 'Hold', 'Rejected']
+
+function storedApprovalToPick(stored) {
+  if (!stored || stored === 'Pending') return 'Approve'
+  if (stored === 'Approved') return 'Approve'
+  return stored
+}
+
+function pickToStoredApproval(pick) {
+  if (pick === 'Approve') return 'Approved'
+  return pick
 }
 
 export default function ApprovalsTab() {
@@ -53,7 +69,8 @@ export default function ApprovalsTab() {
   const [leaveApprovalSetting, setLeaveApprovalSetting] = useState(null)
   
   // For the Advance/Expense action toggles
-  const [actionState, setActionState] = useState({}) // { id: { status, remarks, showToggle, paymentMethod, paymentRef, partialAmount } }
+  const [actionState, setActionState] = useState({}) // hrPick, mdPick, remarks, partialAmount, paymentMethod, paymentRef, ...
+  const [advMenuOpen, setAdvMenuOpen] = useState(null) // `${id}-hr` | `${id}-md` | null
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const canApprove = isAdmin || user?.permissions?.Approvals?.approve === true
@@ -77,6 +94,17 @@ export default function ApprovalsTab() {
     if (!user?.orgId) return
     fetchData()
   }, [user?.orgId, activeSubTab])
+
+  useEffect(() => {
+    if (!advMenuOpen) return
+    const close = (e) => {
+      const root = e.target.closest?.('[data-adv-dropdown-root]')
+      if (root) return
+      setAdvMenuOpen(null)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [advMenuOpen])
 
   const fetchData = async () => {
     setLoading(true)
@@ -118,7 +146,10 @@ export default function ApprovalsTab() {
             showToggle: false,
             paymentMethod: 'Bank Transfer',
             paymentRef: '',
-            partialAmount: item.partialAmount || item.amount || ''
+            partialAmount: item.partialAmount || item.amount || '',
+            hrPick: storedApprovalToPick(item.hrApproval),
+            mdPick: storedApprovalToPick(item.mdApproval),
+            hrPartialAmount: item.hrPartialAmount ?? item.amount ?? ''
           }
         })
         setActionState(initialActionState)
@@ -150,57 +181,102 @@ export default function ApprovalsTab() {
     }
   }
 
-  const handleUpdateAdvExpense = async (id) => {
-    if (!canApprove) return alert('No permission')
+  const handleHrAdvExpenseSubmit = async (id) => {
+    if (!isHR) return alert('No permission')
     const state = actionState[id]
     if (!state) return
 
-    if (['Partial', 'Rejected', 'Hold'].includes(state.status) && !state.remarks.trim()) {
-      return alert(`Please provide remarks for ${state.status} status`)
+    const pick = state.hrPick || 'Approve'
+    const item = advExpenses.find((x) => x.id === id)
+
+    if (['Partial', 'Rejected', 'Hold'].includes(pick) && !state.remarks?.trim()) {
+      return alert(`Please provide remarks for ${pick}`)
+    }
+    if (pick === 'Partial' && (!state.hrPartialAmount || parseFloat(state.hrPartialAmount) <= 0)) {
+      return alert('Please provide a valid HR partial amount')
     }
 
-    if (state.status === 'Partial' && (!state.partialAmount || parseFloat(state.partialAmount) <= 0)) {
+    try {
+      const hrApproval = pickToStoredApproval(pick)
+      const updateData = {
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid,
+        hrApproval,
+        hrApprovedBy: user.uid,
+        hrApprovedAt: serverTimestamp(),
+        hrRemarks: state.remarks || ''
+      }
+
+      if (pick === 'Partial') {
+        updateData.hrPartialAmount = parseFloat(state.hrPartialAmount)
+      }
+
+      if (pick === 'Rejected') {
+        updateData.status = 'Rejected'
+      } else if (pick === 'Hold') {
+        updateData.status = 'Hold'
+      } else if (pick === 'Approve' || pick === 'Partial') {
+        if (item?.status === 'Hold') updateData.status = 'Pending'
+      }
+
+      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
+      setAdvMenuOpen(null)
+      alert('HR status updated')
+      fetchData()
+    } catch (err) {
+      alert('Failed to update HR status')
+    }
+  }
+
+  const handleMdAdvExpenseSubmit = async (id) => {
+    if (!isMD) return alert('No permission')
+    const state = actionState[id]
+    if (!state) return
+
+    const item = advExpenses.find((x) => x.id === id)
+    const hrOk = ['Approved', 'Partial'].includes(item?.hrApproval || '')
+    if (!hrOk && !isAdmin) {
+      return alert('HR must approve (or partial) before MD action')
+    }
+
+    const pick = state.mdPick || 'Approve'
+
+    if (['Partial', 'Rejected', 'Hold'].includes(pick) && !state.remarks?.trim()) {
+      return alert(`Please provide remarks for ${pick}`)
+    }
+    if (pick === 'Partial' && (!state.partialAmount || parseFloat(state.partialAmount) <= 0)) {
       return alert('Please provide a valid partial amount')
     }
 
     try {
       const updateData = {
         updatedAt: serverTimestamp(),
-        updatedBy: user.uid
+        updatedBy: user.uid,
+        mdApprovedBy: user.uid,
+        mdApprovedAt: serverTimestamp(),
+        mdRemarks: state.remarks || ''
       }
 
-      // HR or MD approval marking
-      if (isHR) {
-        // HR can only "Submit" to move to next stage (MD)
-        // Actually, user said: "If the employee ask for advance, let HR choose submit"
-        // This implies HR just approves the move to MD.
-        updateData.hrApproval = 'Approved' 
-        updateData.hrApprovedBy = user.uid
-        updateData.hrApprovedAt = serverTimestamp()
-        updateData.hrRemarks = state.remarks
-        // HR submit doesn't necessarily change the overall status unless it's a rejection (but user didn't mention HR rejection here)
-      }
-      
-      if (isMD) {
-        updateData.status = state.status === 'Approve' ? 'Approved' : state.status
-        updateData.mdApproval = state.status === 'Approve' ? 'Approved' : state.status
-        updateData.mdApprovedBy = user.uid
-        updateData.mdApprovedAt = serverTimestamp()
-        updateData.mdRemarks = state.remarks
-        
-        if (state.status === 'Partial') {
-          updateData.partialAmount = parseFloat(state.partialAmount)
-        }
-
-        // If MD approves/partials, set main fields for accountant
-        if (state.status === 'Approve' || state.status === 'Partial') {
-          updateData.approved_by = user.uid
-          updateData.approved_at = serverTimestamp()
-        }
+      if (pick === 'Approve') {
+        updateData.status = 'Approved'
+        updateData.mdApproval = 'Approved'
+        updateData.approved_by = user.uid
+        updateData.approved_at = serverTimestamp()
+      } else if (pick === 'Partial') {
+        updateData.status = 'Partial'
+        updateData.mdApproval = 'Partial'
+        updateData.partialAmount = parseFloat(state.partialAmount)
+        updateData.approved_by = user.uid
+        updateData.approved_at = serverTimestamp()
+      } else if (pick === 'Rejected') {
+        updateData.status = 'Rejected'
+        updateData.mdApproval = 'Rejected'
+      } else if (pick === 'Hold') {
+        updateData.status = 'Hold'
+        updateData.mdApproval = 'Hold'
       }
 
-      // Admin Logging
-      if (isAdmin && (state.status === 'Approve' || state.status === 'Approved')) {
+      if (isAdmin && pick === 'Approve') {
         const itemSnap = await getDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id))
         const itemData = itemSnap.data()
         await logActivity(user.orgId, user, {
@@ -211,10 +287,11 @@ export default function ApprovalsTab() {
       }
 
       await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
-      alert('Status updated successfully')
+      setAdvMenuOpen(null)
+      alert('MD status updated')
       fetchData()
     } catch (err) {
-      alert('Failed to update status')
+      alert('Failed to update MD status')
     }
   }
 
@@ -465,7 +542,7 @@ export default function ApprovalsTab() {
                       return (
                         <tr key={item.id} className="h-[64px] hover:bg-gray-50/30 transition-colors">
                           <td className="px-6">
-                            <span className="text-[13px] font-bold text-gray-700">{item.date}</span>
+                            <span className="text-[13px] font-bold text-gray-700">{formatAdvDateDMY(item.date)}</span>
                           </td>
                           <td className="px-6">
                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
@@ -523,49 +600,43 @@ export default function ApprovalsTab() {
               <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500">Recent Payment History</h3>
             </div>
             
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="rounded-lg border border-zinc-200 bg-white shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50 h-[40px] border-b border-gray-100">
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Paid Date</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Method</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Reference</th>
+                <table className="w-full caption-bottom text-sm border-collapse">
+                  <thead className="border-b border-zinc-200 bg-zinc-50/80">
+                    <tr className="border-b border-zinc-200">
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Paid Date</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Employee</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Type</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
+                      <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Method</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Reference</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="[&_tr:last-child]:border-0">
                     {recentPayments.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-[11px] font-bold text-gray-300 uppercase tracking-widest italic opacity-60">No payment history available</td>
+                        <td colSpan={6} className="p-8 text-center align-middle text-xs font-medium text-zinc-400">No payment history available</td>
                       </tr>
                     ) : (
                       recentPayments.map(item => (
-                        <tr key={item.id} className="h-[56px] hover:bg-gray-50/20 transition-colors">
-                          <td className="px-6">
-                            <span className="text-[12px] font-bold text-gray-500 italic">
-                              {item.paidAt?.toDate ? item.paidAt.toDate().toLocaleDateString() : item.date}
-                            </span>
+                        <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/60">
+                          <td className="px-3 py-3 align-middle whitespace-nowrap text-sm text-zinc-600">
+                            {item.paidAt?.toDate
+                              ? formatAdvDateDMY(
+                                  `${item.paidAt.toDate().getFullYear()}-${String(item.paidAt.toDate().getMonth() + 1).padStart(2, '0')}-${String(item.paidAt.toDate().getDate()).padStart(2, '0')}`
+                                )
+                              : formatAdvDateDMY(item.date)}
                           </td>
-                          <td className="px-6">
-                            <span className="text-[12px] font-bold text-gray-700">{item.employeeName}</span>
-                          </td>
-                          <td className="px-6">
-                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                          <td className="px-3 py-3 align-middle text-sm font-medium text-zinc-900">{item.employeeName}</td>
+                          <td className="px-3 py-3 align-middle">
+                            <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${item.type === 'Advance' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
                               {item.type}
                             </span>
                           </td>
-                          <td className="px-6 text-right font-inter">
-                            <span className="text-[13px] font-black text-gray-900">{formatINR(item.amount)}</span>
-                          </td>
-                          <td className="px-6 text-center">
-                            <span className="text-[11px] font-medium text-gray-500">{item.paymentMethod}</span>
-                          </td>
-                          <td className="px-6 text-right">
-                            <span className="text-[11px] font-mono text-indigo-400 font-bold tracking-tighter">{item.paymentRef}</span>
-                          </td>
+                          <td className="px-3 py-3 align-middle text-right text-sm font-semibold tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
+                          <td className="px-3 py-3 align-middle text-center text-sm text-zinc-600">{item.paymentMethod}</td>
+                          <td className="px-3 py-3 align-middle text-right font-mono text-xs font-semibold text-indigo-600">{item.paymentRef}</td>
                         </tr>
                       ))
                     )}
@@ -577,131 +648,227 @@ export default function ApprovalsTab() {
         </>
       ) : activeSubTab === 'advance-expense' ? (
         <div className="space-y-12">
-          {/* Active List (Pending & Hold) */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* Active List (Pending & Hold) — shadcn-style table */}
+          <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
-                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
-                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested By</th>
-                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Created By</th>
-                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
-                    <th className="px-12 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">HR Status</th>
-                    <th className="px-12 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">MD Status</th>
-                    <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Submit</th>
+              <table className="w-full caption-bottom text-sm border-collapse">
+                <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+                  <tr className="border-b border-zinc-200">
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Type</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Requested By</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Created By</th>
+                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
+                    <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">HR status</th>
+                    <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">MD status</th>
+                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[120px]">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="[&_tr:last-child]:border-0">
                   {advExpenses.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending records found</td>
+                      <td colSpan={8} className="p-10 text-center align-middle text-xs font-medium text-zinc-400">No pending records found</td>
                     </tr>
                   ) : (
                     advExpenses.map(item => {
-                      const statusState = actionState[item.id] || { status: 'Pending', remarks: '', showToggle: false, partialAmount: item.amount }
+                      const rowState = actionState[item.id] || { remarks: '', partialAmount: item.amount, hrPick: 'Approve', mdPick: 'Approve', hrPartialAmount: item.amount }
+                      const hrMenuId = `${item.id}-hr`
+                      const mdMenuId = `${item.id}-md`
                       return (
                         <React.Fragment key={item.id}>
-                          <tr className="h-[64px] hover:bg-gray-50/30 transition-colors">
-                            <td className="px-6 whitespace-nowrap">
-                              <span className="text-[12px] font-bold text-gray-700">{item.date}</span>
+                          <tr className="border-b border-zinc-100 transition-colors hover:bg-zinc-50/80">
+                            <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-900">
+                              {formatAdvDateDMY(item.date)}
                             </td>
-                            <td className="px-6">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                            <td className="px-3 py-3 align-middle">
+                              <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${item.type === 'Advance' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
                                 {item.type}
                               </span>
                             </td>
-                            <td className="px-6">
+                            <td className="px-3 py-3 align-middle">
                               <div className="flex items-center gap-2">
-                                <div className="w-5 h-5 rounded-md bg-gray-100 flex items-center justify-center text-[8px] font-black text-gray-500">
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 text-[9px] font-bold text-zinc-600">
                                   {getInitials(item.employeeName)}
                                 </div>
-                                <span className="text-[12px] font-bold text-gray-800 whitespace-nowrap">{item.employeeName}</span>
+                                <span className="text-sm font-medium text-zinc-900 whitespace-nowrap">{item.employeeName}</span>
                               </div>
                             </td>
-                            <td className="px-6">
-                              <span className="text-[11px] font-medium text-gray-500 whitespace-nowrap">{item.createdBy || 'Self'}</span>
-                            </td>
-                            <td className="px-6 text-right font-inter">
-                              <span className="text-[12px] font-black text-gray-900">{formatINR(item.amount)}</span>
-                            </td>
-                            <td className="px-12 text-center">
-                              <div className="flex justify-center">
-                                {getStatusIcon(item.hrApproval || 'Pending')}
-                              </div>
-                            </td>
-                            <td className="px-12 text-center">
-                              <div className="flex justify-center">
-                                {getStatusIcon(item.mdApproval || 'Pending')}
-                              </div>
-                            </td>
-                            <td className="px-6">
-                              <div className="flex justify-end items-center gap-3">
-                                {isMD ? (
-                                  <div className="relative">
-                                    <button 
-                                      onClick={() => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], showToggle: !prev[item.id]?.showToggle } }))}
-                                      className="h-[30px] px-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-white transition-all whitespace-nowrap"
+                            <td className="px-3 py-3 align-middle text-sm text-zinc-600 whitespace-nowrap">{item.createdBy || 'Self'}</td>
+                            <td className="px-3 py-3 align-middle text-right text-sm font-semibold tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
+                            <td className="px-3 py-3 align-middle">
+                              <div
+                                className="relative mx-auto flex w-full max-w-[160px] flex-col items-center gap-2"
+                                data-adv-dropdown-root
+                              >
+                                <div className="flex h-8 items-center justify-center text-zinc-500">
+                                  {getStatusIcon(item.hrApproval || 'Pending')}
+                                </div>
+                                {isHR ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onClick={() => setAdvMenuOpen((o) => (o === hrMenuId ? null : hrMenuId))}
+                                      className="min-h-[28px] w-full max-w-[132px] rounded-md border border-zinc-200 bg-white px-2 py-1 text-center text-[11px] font-medium text-zinc-800 shadow-sm outline-none ring-offset-2 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400"
                                     >
-                                      {statusState.status}
-                                      {statusState.showToggle ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                      {rowState.hrPick}
                                     </button>
-                                    
-                                    {statusState.showToggle && (
-                                      <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-100 shadow-xl rounded-xl z-20 py-1">
-                                        {['Approve', 'Hold', 'Partial', 'Rejected'].map(s => (
-                                          <button 
-                                            key={s}
-                                            onClick={() => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], status: s, showToggle: false } }))}
-                                            className="w-full px-4 py-2 text-left text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                    {advMenuOpen === hrMenuId && (
+                                      <div
+                                        className="absolute left-1/2 top-full z-30 mt-1 w-[128px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                        data-adv-dropdown-root
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                      >
+                                        {ADV_PICK_OPTIONS.map((opt) => (
+                                          <button
+                                            key={opt}
+                                            type="button"
+                                            onClick={() => {
+                                              setActionState((prev) => ({
+                                                ...prev,
+                                                [item.id]: { ...prev[item.id], hrPick: opt }
+                                              }))
+                                              setAdvMenuOpen(null)
+                                            }}
+                                            className="w-full px-2.5 py-1.5 text-left text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
                                           >
-                                            {s}
+                                            {opt}
                                           </button>
                                         ))}
                                       </div>
                                     )}
-                                  </div>
-                                ) : isHR ? (
-                                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Ready to Submit</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleHrAdvExpenseSubmit(item.id)}
+                                      className="h-8 w-full max-w-[132px] rounded-md bg-zinc-900 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-zinc-800"
+                                    >
+                                      Submit
+                                    </button>
+                                  </>
                                 ) : (
-                                  <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest italic">Awaiting Action</span>
+                                  <span className="text-center text-[11px] font-medium text-zinc-500">{item.hrApproval || 'Pending'}</span>
                                 )}
-
-                                <button 
-                                  onClick={() => handleUpdateAdvExpense(item.id)}
-                                  className="h-[30px] px-4 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.1em] shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
-                                >
-                                  {isHR && !isMD ? 'Submit' : 'Submit'}
-                                </button>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 align-middle">
+                              <div
+                                className="relative mx-auto flex w-full max-w-[160px] flex-col items-center gap-2"
+                                data-adv-dropdown-root
+                              >
+                                <div className="flex h-8 items-center justify-center text-zinc-500">
+                                  {getStatusIcon(item.mdApproval || 'Pending')}
+                                </div>
+                                {isMD ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onClick={() => setAdvMenuOpen((o) => (o === mdMenuId ? null : mdMenuId))}
+                                      className="min-h-[28px] w-full max-w-[132px] rounded-md border border-zinc-200 bg-white px-2 py-1 text-center text-[11px] font-medium text-zinc-800 shadow-sm outline-none ring-offset-2 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400"
+                                    >
+                                      {rowState.mdPick}
+                                    </button>
+                                    {advMenuOpen === mdMenuId && (
+                                      <div
+                                        className="absolute left-1/2 top-full z-30 mt-1 w-[128px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                        data-adv-dropdown-root
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                      >
+                                        {ADV_PICK_OPTIONS.map((opt) => (
+                                          <button
+                                            key={opt}
+                                            type="button"
+                                            onClick={() => {
+                                              setActionState((prev) => ({
+                                                ...prev,
+                                                [item.id]: { ...prev[item.id], mdPick: opt }
+                                              }))
+                                              setAdvMenuOpen(null)
+                                            }}
+                                            className="w-full px-2.5 py-1.5 text-left text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
+                                          >
+                                            {opt}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMdAdvExpenseSubmit(item.id)}
+                                      className="h-8 w-full max-w-[132px] rounded-md bg-zinc-900 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-zinc-800"
+                                    >
+                                      Submit
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="text-center text-[11px] font-medium text-zinc-500">{item.mdApproval || 'Pending'}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 align-middle">
+                              <div className="flex flex-col items-end gap-1.5">
+                                <div className="w-full max-w-[140px] rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-right">
+                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">HR</p>
+                                  <p className="text-[11px] font-semibold text-zinc-900">{item.hrApproval || 'Pending'}</p>
+                                </div>
+                                <div className="w-full max-w-[140px] rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-right">
+                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">MD</p>
+                                  <p className="text-[11px] font-semibold text-zinc-900">{item.mdApproval || 'Pending'}</p>
+                                </div>
                               </div>
                             </td>
                           </tr>
-                          {/* Remarks and Partial Amount Inputs */}
                           {(isHR || isMD) && (
-                            <tr className="bg-gray-50/20">
-                              <td colSpan={8} className="px-6 py-3">
-                                <div className="flex flex-col md:flex-row gap-4">
-                                  {statusState.status === 'Partial' && isMD && (
-                                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-indigo-100 w-full md:w-64">
-                                      <span className="text-[9px] font-black text-indigo-500 uppercase ml-1">Partial Amt:</span>
-                                      <input 
-                                        type="number" 
-                                        value={statusState.partialAmount}
-                                        onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], partialAmount: e.target.value } }))}
-                                        className="flex-1 bg-transparent border-none text-[11px] font-black text-indigo-600 outline-none"
-                                        placeholder="Enter amount"
+                            <tr className="border-b border-zinc-100 bg-zinc-50/50">
+                              <td colSpan={8} className="px-3 py-3 align-middle">
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                                  {rowState.hrPick === 'Partial' && isHR && (
+                                    <div className="flex min-w-[200px] items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
+                                      <span className="text-[10px] font-semibold uppercase text-zinc-500">HR partial</span>
+                                      <input
+                                        type="number"
+                                        value={rowState.hrPartialAmount ?? ''}
+                                        onChange={(e) =>
+                                          setActionState((prev) => ({
+                                            ...prev,
+                                            [item.id]: { ...prev[item.id], hrPartialAmount: e.target.value }
+                                          }))
+                                        }
+                                        className="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold text-zinc-900 outline-none"
+                                        placeholder="Amount"
                                       />
                                     </div>
                                   )}
-                                  <div className="flex-1 flex items-center gap-3 bg-white p-2 rounded-xl border border-gray-100">
-                                    <MessageSquare size={14} className="text-gray-400 shrink-0 ml-1" />
-                                    <input 
-                                      type="text" 
-                                      placeholder={`Enter remarks for ${statusState.status} status...`}
-                                      value={statusState.remarks}
-                                      onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], remarks: e.target.value } }))}
-                                      className="flex-1 bg-transparent border-none text-[11px] font-medium outline-none placeholder:text-gray-300"
+                                  {rowState.mdPick === 'Partial' && isMD && (
+                                    <div className="flex min-w-[200px] items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
+                                      <span className="text-[10px] font-semibold uppercase text-zinc-500">MD partial</span>
+                                      <input
+                                        type="number"
+                                        value={rowState.partialAmount ?? ''}
+                                        onChange={(e) =>
+                                          setActionState((prev) => ({
+                                            ...prev,
+                                            [item.id]: { ...prev[item.id], partialAmount: e.target.value }
+                                          }))
+                                        }
+                                        className="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold text-zinc-900 outline-none"
+                                        placeholder="Amount"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
+                                    <MessageSquare size={16} className="shrink-0 text-zinc-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Remarks (required for Partial, Hold, Reject)"
+                                      value={rowState.remarks || ''}
+                                      onChange={(e) =>
+                                        setActionState((prev) => ({
+                                          ...prev,
+                                          [item.id]: { ...prev[item.id], remarks: e.target.value }
+                                        }))
+                                      }
+                                      className="min-w-0 flex-1 border-0 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
                                     />
                                   </div>
                                 </div>
@@ -724,65 +891,67 @@ export default function ApprovalsTab() {
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Recent Updates</h3>
             </div>
             
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50 h-[40px] border-b border-gray-100">
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
-                      <th className="px-12 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">HR Status</th>
-                      <th className="px-12 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">MD Status</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Final Status</th>
+                <table className="w-full caption-bottom text-sm border-collapse">
+                  <thead className="border-b border-zinc-200 bg-zinc-50/80">
+                    <tr className="border-b border-zinc-200">
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Type</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Employee</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[148px]">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="[&_tr:last-child]:border-0">
                     {recentAdvExpenses.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest italic opacity-60">No recent updates</td>
+                        <td colSpan={5} className="p-8 text-center align-middle text-xs font-medium text-zinc-400">No recent updates</td>
                       </tr>
                     ) : (
                       recentAdvExpenses.map(item => (
-                        <tr key={item.id} className="h-[52px] hover:bg-gray-50/20 transition-colors">
-                          <td className="px-6 whitespace-nowrap">
-                            <span className="text-[11px] font-bold text-gray-500">{item.date}</span>
+                        <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/80">
+                          <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-900">
+                            {formatAdvDateDMY(item.date)}
                           </td>
-                          <td className="px-6">
-                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                          <td className="px-3 py-3 align-middle">
+                            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${item.type === 'Advance' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
                               {item.type}
                             </span>
                           </td>
-                          <td className="px-6">
-                            <span className="text-[11px] font-bold text-gray-700">{item.employeeName}</span>
-                          </td>
-                          <td className="px-6 text-right font-inter">
-                            <div className="flex flex-col items-end">
-                              <span className={`text-[12px] font-black ${item.status === 'Partial' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{formatINR(item.amount)}</span>
-                              {item.status === 'Partial' && item.partialAmount && (
-                                <span className="text-[12px] font-black text-indigo-600">{formatINR(item.partialAmount)}</span>
+                          <td className="px-3 py-3 align-middle text-sm font-medium text-zinc-900">{item.employeeName}</td>
+                          <td className="px-3 py-3 align-middle text-right">
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className={`text-sm font-semibold tabular-nums ${item.status === 'Partial' ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>{formatINR(item.amount)}</span>
+                              {item.status === 'Partial' && item.partialAmount != null && (
+                                <span className="text-sm font-semibold tabular-nums text-indigo-600">{formatINR(item.partialAmount)}</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-12 text-center">
-                            <div className="flex justify-center">
-                              {getStatusIcon(item.hrApproval || 'Pending')}
+                          <td className="px-3 py-3 align-middle">
+                            <div className="flex flex-col items-end gap-1.5">
+                              <div className="w-full max-w-[160px] rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-right">
+                                <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">HR</p>
+                                <p className="text-[11px] font-semibold text-zinc-900">{item.hrApproval || 'Pending'}</p>
+                              </div>
+                              <div className="w-full max-w-[160px] rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-right">
+                                <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">MD</p>
+                                <p className="text-[11px] font-semibold text-zinc-900">{item.mdApproval || 'Pending'}</p>
+                              </div>
+                              <div
+                                className={`w-full max-w-[160px] rounded-md border px-2.5 py-1.5 text-right text-[11px] font-semibold ${
+                                  item.status === 'Approved'
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                    : item.status === 'Partial'
+                                      ? 'border-blue-200 bg-blue-50 text-blue-800'
+                                      : item.status === 'Rejected'
+                                        ? 'border-rose-200 bg-rose-50 text-rose-800'
+                                        : 'border-zinc-200 bg-white text-zinc-600'
+                                }`}
+                              >
+                                Final: {item.status}
+                              </div>
                             </div>
-                          </td>
-                          <td className="px-12 text-center">
-                            <div className="flex justify-center">
-                              {getStatusIcon(item.mdApproval || 'Pending')}
-                            </div>
-                          </td>
-                          <td className="px-6 text-right">
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${
-                              item.status === 'Approved' ? 'text-emerald-500' : 
-                              item.status === 'Partial' ? 'text-blue-500' : 
-                              item.status === 'Rejected' ? 'text-red-500' : 'text-gray-400'
-                            }`}>
-                              {item.status}
-                            </span>
                           </td>
                         </tr>
                       ))
