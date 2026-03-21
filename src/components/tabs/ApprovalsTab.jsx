@@ -27,7 +27,8 @@ import {
   PauseCircle, 
   MessageSquare,
   Trash2,
-  Pencil
+  Pencil,
+  Check
 } from 'lucide-react'
 
 function getInitials(name) {
@@ -750,40 +751,37 @@ export default function ApprovalsTab() {
 
                         return (
                           <React.Fragment key={item.id}>
-                            <tr className="border-b border-zinc-100 transition-colors hover:bg-zinc-50/80">
-                              <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-900">
+                            <tr className="border-b-2 border-zinc-100 transition-colors hover:bg-zinc-50/80">
+                              <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
                                 {submittedDate}
                               </td>
-                              <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-900">
+                              <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[13px] font-black text-amber-900 bg-amber-50/50">
                                 {formatAdvDateDMY(item.date)}
                               </td>
-                              <td className="px-3 py-3 align-middle">
+                              <td className="px-3 py-1.5 align-middle">
                                 <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${item.type === 'Advance' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
                                   {item.type}
                                 </span>
                               </td>
-                              <td className="px-3 py-3 align-middle">
+                              <td className="px-3 py-1.5 align-middle">
                                 <div className="flex items-center gap-2">
-                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 text-[9px] font-bold text-zinc-600">
+                                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 text-[8px] font-bold text-zinc-600">
                                     {getInitials(item.employeeName)}
                                   </div>
-                                  <span className="text-sm font-medium text-zinc-900 whitespace-nowrap">{item.employeeName}</span>
+                                  <span className="text-[13px] font-bold text-zinc-900 whitespace-nowrap">{item.employeeName}</span>
                                 </div>
                               </td>
-                              <td className="px-3 py-3 align-middle text-sm text-zinc-600 whitespace-nowrap">{item.createdBy || 'Self'}</td>
-                              <td className="px-3 py-3 align-middle text-right text-sm font-semibold tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
-                              <td className="px-3 py-3 align-middle">
+                              <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-600 whitespace-nowrap">{item.createdBy || 'Self'}</td>
+                              <td className="px-3 py-1.5 align-middle text-right text-[13px] font-black tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
+                              <td className="px-3 py-1.5 align-middle">
                                 <div
-                                  className="relative mx-auto flex w-full max-w-[120px] flex-col items-center gap-1.5"
+                                  className="relative mx-auto flex w-full max-w-[140px] flex-col items-center gap-1"
                                   data-adv-dropdown-root
                                 >
-                                  <div className="flex h-6 items-center justify-center text-zinc-500">
-                                    {getStatusIcon(item.hrApproval || 'Pending')}
-                                  </div>
                                   {isHR ? (
                                     <>
                                       {(!item.hrApproval || item.hrApproval === 'Pending') ? (
-                                        <>
+                                        <div className="flex flex-col items-center gap-1 w-full">
                                           <div className="flex items-center gap-1 w-full">
                                             <button
                                               type="button"
@@ -792,6 +790,13 @@ export default function ApprovalsTab() {
                                               className="h-7 flex-1 rounded-md border border-sky-300 bg-sky-50/40 px-1 text-center text-[10px] font-bold text-sky-950 shadow-sm hover:bg-sky-50"
                                             >
                                               {rowState.hrPick.slice(0, 8)}
+                                            </button>
+                                            <button 
+                                              onClick={() => handleHrAdvExpenseSubmit(item.id)}
+                                              className="h-7 w-7 flex items-center justify-center rounded-md bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 transition-all"
+                                              title="Submit HR Action"
+                                            >
+                                              <Check size={14} strokeWidth={3} />
                                             </button>
                                             {['Partial', 'Hold', 'Rejected'].includes(rowState.hrPick) && (
                                               <div className="relative">
@@ -818,76 +823,72 @@ export default function ApprovalsTab() {
                                               </div>
                                             )}
                                           </div>
-                                          {advMenuOpen === hrMenuId && (
-                                            <div
-                                              className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
-                                              data-adv-dropdown-root
-                                              onMouseDown={(e) => e.stopPropagation()}
-                                            >
-                                              {ADV_PICK_OPTIONS.map((opt) => (
-                                                <button
-                                                  key={opt}
-                                                  type="button"
-                                                  onClick={() => {
-                                                    setActionState((prev) => ({
-                                                      ...prev,
-                                                      [item.id]: { ...prev[item.id], hrPick: opt }
-                                                    }))
-                                                    setAdvMenuOpen(null)
-                                                  }}
-                                                  className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
-                                                >
-                                                  {opt}
-                                                </button>
-                                              ))}
-                                            </div>
-                                          )}
-                                          <button
-                                            type="button"
-                                            onClick={() => handleHrAdvExpenseSubmit(item.id)}
-                                            className="h-6 w-full max-w-[80px] rounded bg-sky-800 text-[9px] font-black uppercase tracking-wider text-white hover:bg-sky-900"
-                                          >
-                                            Submit
-                                          </button>
-                                        </>
+                                          {successStatus[item.id] && <span className="text-[9px] font-bold text-emerald-600">Updated!</span>}
+                                          {errorStatus[item.id] && <span className="text-[9px] font-bold text-rose-600">{errorStatus[item.id]}</span>}
+                                        </div>
                                       ) : (
-                                        <div className="flex flex-col items-center gap-1">
-                                          <span className={`text-center text-[10px] font-bold ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>
-                                            {getPastTenseStatus(item.hrApproval)}
-                                          </span>
+                                        <div className="flex flex-col items-center gap-0.5">
+                                          <div className="flex items-center gap-1.5">
+                                            {getStatusIcon(item.hrApproval)}
+                                            <span className={`text-center text-[10px] font-black uppercase ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>
+                                              {getPastTenseStatus(item.hrApproval)}
+                                            </span>
+                                          </div>
                                           <button 
                                             onClick={() => {
                                               const pick = storedApprovalToPick(item.hrApproval)
                                               setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], hrPick: pick, remarks: item.hrRemarks || '' } }))
                                               updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', item.id), { hrApproval: 'Pending', updatedAt: serverTimestamp() })
                                             }}
-                                            className="p-1 text-zinc-400 hover:text-sky-600 transition-colors"
-                                            title="Edit action"
+                                            className="p-1 text-zinc-300 hover:text-sky-600 transition-colors"
+                                            title="Edit HR action"
                                           >
                                             <Pencil size={10} />
                                           </button>
                                         </div>
                                       )}
-                                      {successStatus[item.id] && <span className="text-[9px] font-bold text-emerald-600 animate-pulse">Updated!</span>}
-                                      {errorStatus[item.id] && <span className="text-[9px] font-bold text-rose-600">{errorStatus[item.id]}</span>}
+                                      {advMenuOpen === hrMenuId && (
+                                        <div
+                                          className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                          data-adv-dropdown-root
+                                          onMouseDown={(e) => e.stopPropagation()}
+                                        >
+                                          {ADV_PICK_OPTIONS.map((opt) => (
+                                            <button
+                                              key={opt}
+                                              type="button"
+                                              onClick={() => {
+                                                setActionState((prev) => ({
+                                                  ...prev,
+                                                  [item.id]: { ...prev[item.id], hrPick: opt }
+                                                }))
+                                                setAdvMenuOpen(null)
+                                              }}
+                                              className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
+                                            >
+                                              {opt}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
                                     </>
                                   ) : (
-                                    <span className={`text-center text-[10px] font-bold ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>{item.hrApproval || 'Pending'}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      {getStatusIcon(item.hrApproval)}
+                                      <span className={`text-center text-[10px] font-black uppercase ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>{item.hrApproval || 'Pending'}</span>
+                                    </div>
                                   )}
                                 </div>
                               </td>
-                              <td className="px-3 py-3 align-middle">
+                              <td className="px-3 py-1.5 align-middle">
                                 <div
-                                  className="relative mx-auto flex w-full max-w-[120px] flex-col items-center gap-1.5"
+                                  className="relative mx-auto flex w-full max-w-[140px] flex-col items-center gap-1"
                                   data-adv-dropdown-root
                                 >
-                                  <div className="flex h-6 items-center justify-center text-zinc-500">
-                                    {getStatusIcon(item.mdApproval || 'Pending')}
-                                  </div>
                                   {isMD ? (
                                     <>
                                       {(!item.mdApproval || item.mdApproval === 'Pending') ? (
-                                        <>
+                                        <div className="flex flex-col items-center gap-1 w-full">
                                           <div className="flex items-center gap-1 w-full">
                                             <button
                                               type="button"
@@ -896,6 +897,13 @@ export default function ApprovalsTab() {
                                               className="h-7 flex-1 rounded-md border border-violet-300 bg-violet-50/50 px-1 text-center text-[10px] font-bold text-violet-950 shadow-sm hover:bg-violet-50"
                                             >
                                               {rowState.mdPick.slice(0, 8)}
+                                            </button>
+                                            <button 
+                                              onClick={() => handleMdAdvExpenseSubmit(item.id)}
+                                              className="h-7 w-7 flex items-center justify-center rounded-md bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 transition-all"
+                                              title="Submit MD Action"
+                                            >
+                                              <Check size={14} strokeWidth={3} />
                                             </button>
                                             {['Partial', 'Hold', 'Rejected'].includes(rowState.mdPick) && (
                                               <div className="relative">
@@ -922,71 +930,70 @@ export default function ApprovalsTab() {
                                               </div>
                                             )}
                                           </div>
-                                          {advMenuOpen === mdMenuId && (
-                                            <div
-                                              className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
-                                              data-adv-dropdown-root
-                                              onMouseDown={(e) => e.stopPropagation()}
-                                            >
-                                              {ADV_PICK_OPTIONS.map((opt) => (
-                                                <button
-                                                  key={opt}
-                                                  type="button"
-                                                  onClick={() => {
-                                                    setActionState((prev) => ({
-                                                      ...prev,
-                                                      [item.id]: { ...prev[item.id], mdPick: opt }
-                                                    }))
-                                                    setAdvMenuOpen(null)
-                                                  }}
-                                                  className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
-                                                >
-                                                  {opt}
-                                                </button>
-                                              ))}
-                                            </div>
-                                          )}
-                                          <button
-                                            type="button"
-                                            onClick={() => handleMdAdvExpenseSubmit(item.id)}
-                                            className="h-6 w-full max-w-[80px] rounded bg-violet-800 text-[9px] font-black uppercase tracking-wider text-white hover:bg-violet-900"
-                                          >
-                                            Submit
-                                          </button>
-                                        </>
+                                          {successStatus[item.id] && <span className="text-[9px] font-bold text-emerald-600">Updated!</span>}
+                                          {errorStatus[item.id] && <span className="text-[9px] font-bold text-rose-600">{errorStatus[item.id]}</span>}
+                                        </div>
                                       ) : (
-                                        <div className="flex flex-col items-center gap-1">
-                                          <span className={`text-center text-[10px] font-bold ${approvalStatusTextClass(item.mdApproval, 'md')}`}>
-                                            {getPastTenseStatus(item.mdApproval)}
-                                          </span>
+                                        <div className="flex flex-col items-center gap-0.5">
+                                          <div className="flex items-center gap-1.5">
+                                            {getStatusIcon(item.mdApproval)}
+                                            <span className={`text-center text-[10px] font-black uppercase ${approvalStatusTextClass(item.mdApproval, 'md')}`}>
+                                              {getPastTenseStatus(item.mdApproval)}
+                                            </span>
+                                          </div>
                                           <button 
                                             onClick={() => {
                                               const pick = storedApprovalToPick(item.mdApproval)
                                               setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], mdPick: pick, remarks: item.mdRemarks || '' } }))
                                               updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', item.id), { mdApproval: 'Pending', updatedAt: serverTimestamp() })
                                             }}
-                                            className="p-1 text-zinc-400 hover:text-violet-600 transition-colors"
-                                            title="Edit action"
+                                            className="p-1 text-zinc-300 hover:text-violet-600 transition-colors"
+                                            title="Edit MD action"
                                           >
                                             <Pencil size={10} />
                                           </button>
                                         </div>
                                       )}
-                                      {successStatus[item.id] && <span className="text-[9px] font-bold text-emerald-600 animate-pulse">Updated!</span>}
-                                      {errorStatus[item.id] && <span className="text-[9px] font-bold text-rose-600">{errorStatus[item.id]}</span>}
+                                      {advMenuOpen === mdMenuId && (
+                                        <div
+                                          className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                          data-adv-dropdown-root
+                                          onMouseDown={(e) => e.stopPropagation()}
+                                        >
+                                          {ADV_PICK_OPTIONS.map((opt) => (
+                                            <button
+                                              key={opt}
+                                              type="button"
+                                              onClick={() => {
+                                                setActionState((prev) => ({
+                                                  ...prev,
+                                                  [item.id]: { ...prev[item.id], mdPick: opt }
+                                                }))
+                                                setAdvMenuOpen(null)
+                                              }}
+                                              className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
+                                            >
+                                              {opt}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
                                     </>
                                   ) : (
-                                    <span className={`text-center text-[10px] font-bold ${approvalStatusTextClass(item.mdApproval, 'md')}`}>{item.mdApproval || 'Pending'}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      {getStatusIcon(item.mdApproval)}
+                                      <span className={`text-center text-[10px] font-black uppercase ${approvalStatusTextClass(item.mdApproval, 'md')}`}>{item.mdApproval || 'Pending'}</span>
+                                    </div>
                                   )}
                                 </div>
                               </td>
-                              <td className="px-3 py-3 align-middle text-right">
-                                <div className="inline-flex flex-col items-end gap-0.5 text-[11px] font-semibold leading-tight">
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                              <td className="px-3 py-1.5 align-middle text-right">
+                                <div className="inline-flex flex-col items-end gap-0.5 text-[10px] font-semibold leading-tight">
+                                  <span className="text-[8px] font-bold uppercase tracking-wider text-zinc-400">
                                     HR{' '}
                                     <span className={approvalStatusTextClass(item.hrApproval, 'hr')}>{item.hrApproval || 'Pending'}</span>
                                   </span>
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                  <span className="text-[8px] font-bold uppercase tracking-wider text-zinc-400">
                                     MD{' '}
                                     <span className={approvalStatusTextClass(item.mdApproval, 'md')}>{item.mdApproval || 'Pending'}</span>
                                   </span>
