@@ -568,7 +568,7 @@ export default function ApprovalsTab() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
-                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Requesting date</th>
                     <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Type</th>
                     <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
                     <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
@@ -693,247 +693,257 @@ export default function ApprovalsTab() {
           </div>
         </>
       ) : activeSubTab === 'advance-expense' ? (
-        <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:gap-6">
-          {/* Main queue — up to 70% width, left-aligned */}
-          <div className="w-full shrink-0 lg:max-w-[70%] lg:basis-[70%] lg:pr-2">
-          <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full caption-bottom text-sm border-collapse">
-                <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
-                  <tr className="border-b border-zinc-200">
-                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
-                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Type</th>
-                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Requested By</th>
-                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Created By</th>
-                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
-                    <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">HR status</th>
-                    <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">MD status</th>
-                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">HR / MD</th>
-                  </tr>
-                </thead>
-                <tbody className="[&_tr:last-child]:border-0">
-                  {advExpenses.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="p-10 text-center align-middle text-xs font-medium text-zinc-400">No pending records found</td>
+        <div className="flex w-full flex-col gap-8">
+          {/* Main queue — Full width */}
+          <div className="w-full">
+            <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full caption-bottom text-sm border-collapse">
+                  <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+                    <tr className="border-b border-zinc-200">
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Submitted date</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Requesting date</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Type</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Requested By</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Created By</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
+                      <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">HR status</th>
+                      <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">MD status</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">HR / MD</th>
                     </tr>
-                  ) : (
-                    advExpenses.map(item => {
-                      const rowState = actionState[item.id] || { remarks: '', partialAmount: item.amount, hrPick: 'Approve', mdPick: 'Approve', hrPartialAmount: item.amount }
-                      const hrMenuId = `${item.id}-hr`
-                      const mdMenuId = `${item.id}-md`
-                      return (
-                        <React.Fragment key={item.id}>
-                          <tr className="border-b border-zinc-100 transition-colors hover:bg-zinc-50/80">
-                            <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-900">
-                              {formatAdvDateDMY(item.date)}
-                            </td>
-                            <td className="px-3 py-3 align-middle">
-                              <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${item.type === 'Advance' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
-                                {item.type}
-                              </span>
-                            </td>
-                            <td className="px-3 py-3 align-middle">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 text-[9px] font-bold text-zinc-600">
-                                  {getInitials(item.employeeName)}
-                                </div>
-                                <span className="text-sm font-medium text-zinc-900 whitespace-nowrap">{item.employeeName}</span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 align-middle text-sm text-zinc-600 whitespace-nowrap">{item.createdBy || 'Self'}</td>
-                            <td className="px-3 py-3 align-middle text-right text-sm font-semibold tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
-                            <td className="px-3 py-3 align-middle">
-                              <div
-                                className="relative mx-auto flex w-full max-w-[160px] flex-col items-center gap-2"
-                                data-adv-dropdown-root
-                              >
-                                <div className="flex h-8 items-center justify-center text-zinc-500">
-                                  {getStatusIcon(item.hrApproval || 'Pending')}
-                                </div>
-                                {isHR ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                      onClick={() => setAdvMenuOpen((o) => (o === hrMenuId ? null : hrMenuId))}
-                                      className="min-h-[28px] w-full max-w-[132px] rounded-md border border-sky-300 bg-sky-50/40 px-2 py-1 text-center text-[11px] font-medium text-sky-950 shadow-sm outline-none ring-offset-2 hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400"
-                                    >
-                                      {rowState.hrPick}
-                                    </button>
-                                    {advMenuOpen === hrMenuId && (
-                                      <div
-                                        className="absolute left-1/2 top-full z-30 mt-1 w-[128px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
-                                        data-adv-dropdown-root
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                      >
-                                        {ADV_PICK_OPTIONS.map((opt) => (
-                                          <button
-                                            key={opt}
-                                            type="button"
-                                            onClick={() => {
-                                              setActionState((prev) => ({
-                                                ...prev,
-                                                [item.id]: { ...prev[item.id], hrPick: opt }
-                                              }))
-                                              setAdvMenuOpen(null)
-                                            }}
-                                            className="w-full px-2.5 py-1.5 text-left text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
-                                          >
-                                            {opt}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleHrAdvExpenseSubmit(item.id)}
-                                      className="h-8 w-full max-w-[132px] rounded-md bg-sky-800 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-sky-900"
-                                    >
-                                      Submit
-                                    </button>
-                                  </>
-                                ) : (
-                                  <span className={`text-center text-[11px] font-semibold ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>{item.hrApproval || 'Pending'}</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 align-middle">
-                              <div
-                                className="relative mx-auto flex w-full max-w-[160px] flex-col items-center gap-2"
-                                data-adv-dropdown-root
-                              >
-                                <div className="flex h-8 items-center justify-center text-zinc-500">
-                                  {getStatusIcon(item.mdApproval || 'Pending')}
-                                </div>
-                                {isMD ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                      onClick={() => setAdvMenuOpen((o) => (o === mdMenuId ? null : mdMenuId))}
-                                      className="min-h-[28px] w-full max-w-[132px] rounded-md border border-violet-300 bg-violet-50/50 px-2 py-1 text-center text-[11px] font-medium text-violet-950 shadow-sm outline-none ring-offset-2 hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-400"
-                                    >
-                                      {rowState.mdPick}
-                                    </button>
-                                    {advMenuOpen === mdMenuId && (
-                                      <div
-                                        className="absolute left-1/2 top-full z-30 mt-1 w-[128px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
-                                        data-adv-dropdown-root
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                      >
-                                        {ADV_PICK_OPTIONS.map((opt) => (
-                                          <button
-                                            key={opt}
-                                            type="button"
-                                            onClick={() => {
-                                              setActionState((prev) => ({
-                                                ...prev,
-                                                [item.id]: { ...prev[item.id], mdPick: opt }
-                                              }))
-                                              setAdvMenuOpen(null)
-                                            }}
-                                            className="w-full px-2.5 py-1.5 text-left text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
-                                          >
-                                            {opt}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleMdAdvExpenseSubmit(item.id)}
-                                      className="h-8 w-full max-w-[132px] rounded-md bg-violet-800 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-violet-900"
-                                    >
-                                      Submit
-                                    </button>
-                                  </>
-                                ) : (
-                                  <span className={`text-center text-[11px] font-semibold ${approvalStatusTextClass(item.mdApproval, 'md')}`}>{item.mdApproval || 'Pending'}</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 align-middle text-right">
-                              <div className="inline-flex flex-col items-end gap-0.5 text-[11px] font-semibold leading-tight">
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                                  HR{' '}
-                                  <span className={approvalStatusTextClass(item.hrApproval, 'hr')}>{item.hrApproval || 'Pending'}</span>
+                  </thead>
+                  <tbody className="[&_tr:last-child]:border-0">
+                    {advExpenses.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="p-10 text-center align-middle text-xs font-medium text-zinc-400">No pending records found</td>
+                      </tr>
+                    ) : (
+                      advExpenses.map(item => {
+                        const rowState = actionState[item.id] || { remarks: '', partialAmount: item.amount, hrPick: 'Approve', mdPick: 'Approve', hrPartialAmount: item.amount }
+                        const hrMenuId = `${item.id}-hr`
+                        const mdMenuId = `${item.id}-md`
+                        
+                        const createdAt = item.createdAt?.toDate ? item.createdAt.toDate() : (item.createdAt ? new Date(item.createdAt) : null)
+                        const submittedDate = createdAt 
+                          ? `${String(createdAt.getDate()).padStart(2, '0')}/${String(createdAt.getMonth() + 1).padStart(2, '0')}/${String(createdAt.getFullYear()).slice(-2)}`
+                          : '—'
+
+                        return (
+                          <React.Fragment key={item.id}>
+                            <tr className="border-b border-zinc-100 transition-colors hover:bg-zinc-50/80">
+                              <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-900">
+                                {submittedDate}
+                              </td>
+                              <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-900">
+                                {formatAdvDateDMY(item.date)}
+                              </td>
+                              <td className="px-3 py-3 align-middle">
+                                <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${item.type === 'Advance' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
+                                  {item.type}
                                 </span>
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                                  MD{' '}
-                                  <span className={approvalStatusTextClass(item.mdApproval, 'md')}>{item.mdApproval || 'Pending'}</span>
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
-                          {(isHR || isMD) && (
-                            <tr className="border-b border-zinc-100 bg-zinc-50/50">
-                              <td colSpan={8} className="px-3 py-3 align-middle">
-                                <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                                  {rowState.hrPick === 'Partial' && isHR && (
-                                    <div className="flex min-w-[200px] items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
-                                      <span className="text-[10px] font-semibold uppercase text-zinc-500">HR partial</span>
-                                      <input
-                                        type="number"
-                                        value={rowState.hrPartialAmount ?? ''}
-                                        onChange={(e) =>
-                                          setActionState((prev) => ({
-                                            ...prev,
-                                            [item.id]: { ...prev[item.id], hrPartialAmount: e.target.value }
-                                          }))
-                                        }
-                                        className="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold text-zinc-900 outline-none"
-                                        placeholder="Amount"
-                                      />
-                                    </div>
-                                  )}
-                                  {rowState.mdPick === 'Partial' && isMD && (
-                                    <div className="flex min-w-[200px] items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
-                                      <span className="text-[10px] font-semibold uppercase text-zinc-500">MD partial</span>
-                                      <input
-                                        type="number"
-                                        value={rowState.partialAmount ?? ''}
-                                        onChange={(e) =>
-                                          setActionState((prev) => ({
-                                            ...prev,
-                                            [item.id]: { ...prev[item.id], partialAmount: e.target.value }
-                                          }))
-                                        }
-                                        className="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold text-zinc-900 outline-none"
-                                        placeholder="Amount"
-                                      />
-                                    </div>
-                                  )}
-                                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
-                                    <MessageSquare size={16} className="shrink-0 text-zinc-400" />
-                                    <input
-                                      type="text"
-                                      placeholder="Remarks (required for Partial, Hold, Reject)"
-                                      value={rowState.remarks || ''}
-                                      onChange={(e) =>
-                                        setActionState((prev) => ({
-                                          ...prev,
-                                          [item.id]: { ...prev[item.id], remarks: e.target.value }
-                                        }))
-                                      }
-                                      className="min-w-0 flex-1 border-0 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
-                                    />
+                              </td>
+                              <td className="px-3 py-3 align-middle">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 text-[9px] font-bold text-zinc-600">
+                                    {getInitials(item.employeeName)}
                                   </div>
+                                  <span className="text-sm font-medium text-zinc-900 whitespace-nowrap">{item.employeeName}</span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 align-middle text-sm text-zinc-600 whitespace-nowrap">{item.createdBy || 'Self'}</td>
+                              <td className="px-3 py-3 align-middle text-right text-sm font-semibold tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
+                              <td className="px-3 py-3 align-middle">
+                                <div
+                                  className="relative mx-auto flex w-full max-w-[160px] flex-col items-center gap-2"
+                                  data-adv-dropdown-root
+                                >
+                                  <div className="flex h-8 items-center justify-center text-zinc-500">
+                                    {getStatusIcon(item.hrApproval || 'Pending')}
+                                  </div>
+                                  {isHR ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        onClick={() => setAdvMenuOpen((o) => (o === hrMenuId ? null : hrMenuId))}
+                                        className="min-h-[28px] w-full max-w-[132px] rounded-md border border-sky-300 bg-sky-50/40 px-2 py-1 text-center text-[11px] font-medium text-sky-950 shadow-sm outline-none ring-offset-2 hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400"
+                                      >
+                                        {rowState.hrPick}
+                                      </button>
+                                      {advMenuOpen === hrMenuId && (
+                                        <div
+                                          className="absolute left-1/2 top-full z-30 mt-1 w-[128px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                          data-adv-dropdown-root
+                                          onMouseDown={(e) => e.stopPropagation()}
+                                        >
+                                          {ADV_PICK_OPTIONS.map((opt) => (
+                                            <button
+                                              key={opt}
+                                              type="button"
+                                              onClick={() => {
+                                                setActionState((prev) => ({
+                                                  ...prev,
+                                                  [item.id]: { ...prev[item.id], hrPick: opt }
+                                                }))
+                                                setAdvMenuOpen(null)
+                                              }}
+                                              className="w-full px-2.5 py-1.5 text-left text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
+                                            >
+                                              {opt}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleHrAdvExpenseSubmit(item.id)}
+                                        className="h-8 w-full max-w-[132px] rounded-md bg-sky-800 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-sky-900"
+                                      >
+                                        Submit
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className={`text-center text-[11px] font-semibold ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>{item.hrApproval || 'Pending'}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 align-middle">
+                                <div
+                                  className="relative mx-auto flex w-full max-w-[160px] flex-col items-center gap-2"
+                                  data-adv-dropdown-root
+                                >
+                                  <div className="flex h-8 items-center justify-center text-zinc-500">
+                                    {getStatusIcon(item.mdApproval || 'Pending')}
+                                  </div>
+                                  {isMD ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        onClick={() => setAdvMenuOpen((o) => (o === mdMenuId ? null : mdMenuId))}
+                                        className="min-h-[28px] w-full max-w-[132px] rounded-md border border-violet-300 bg-violet-50/50 px-2 py-1 text-center text-[11px] font-medium text-violet-950 shadow-sm outline-none ring-offset-2 hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-400"
+                                      >
+                                        {rowState.mdPick}
+                                      </button>
+                                      {advMenuOpen === mdMenuId && (
+                                        <div
+                                          className="absolute left-1/2 top-full z-30 mt-1 w-[128px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                          data-adv-dropdown-root
+                                          onMouseDown={(e) => e.stopPropagation()}
+                                        >
+                                          {ADV_PICK_OPTIONS.map((opt) => (
+                                            <button
+                                              key={opt}
+                                              type="button"
+                                              onClick={() => {
+                                                setActionState((prev) => ({
+                                                  ...prev,
+                                                  [item.id]: { ...prev[item.id], mdPick: opt }
+                                                }))
+                                                setAdvMenuOpen(null)
+                                              }}
+                                              className="w-full px-2.5 py-1.5 text-left text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
+                                            >
+                                              {opt}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMdAdvExpenseSubmit(item.id)}
+                                        className="h-8 w-full max-w-[132px] rounded-md bg-violet-800 px-2 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-violet-900"
+                                      >
+                                        Submit
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className={`text-center text-[11px] font-semibold ${approvalStatusTextClass(item.mdApproval, 'md')}`}>{item.mdApproval || 'Pending'}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 align-middle text-right">
+                                <div className="inline-flex flex-col items-end gap-0.5 text-[11px] font-semibold leading-tight">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                    HR{' '}
+                                    <span className={approvalStatusTextClass(item.hrApproval, 'hr')}>{item.hrApproval || 'Pending'}</span>
+                                  </span>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                    MD{' '}
+                                    <span className={approvalStatusTextClass(item.mdApproval, 'md')}>{item.mdApproval || 'Pending'}</span>
+                                  </span>
                                 </div>
                               </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
+                            {(isHR || isMD) && (
+                              <tr className="border-b border-zinc-100 bg-zinc-50/50">
+                                <td colSpan={9} className="px-3 py-3 align-middle">
+                                  <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                                    {rowState.hrPick === 'Partial' && isHR && (
+                                      <div className="flex min-w-[200px] items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
+                                        <span className="text-[10px] font-semibold uppercase text-zinc-500">HR partial</span>
+                                        <input
+                                          type="number"
+                                          value={rowState.hrPartialAmount ?? ''}
+                                          onChange={(e) =>
+                                            setActionState((prev) => ({
+                                              ...prev,
+                                              [item.id]: { ...prev[item.id], hrPartialAmount: e.target.value }
+                                            }))
+                                          }
+                                          className="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold text-zinc-900 outline-none"
+                                          placeholder="Amount"
+                                        />
+                                      </div>
+                                    )}
+                                    {rowState.mdPick === 'Partial' && isMD && (
+                                      <div className="flex min-w-[200px] items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
+                                        <span className="text-[10px] font-semibold uppercase text-zinc-500">MD partial</span>
+                                        <input
+                                          type="number"
+                                          value={rowState.partialAmount ?? ''}
+                                          onChange={(e) =>
+                                            setActionState((prev) => ({
+                                              ...prev,
+                                              [item.id]: { ...prev[item.id], partialAmount: e.target.value }
+                                            }))
+                                          }
+                                          className="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold text-zinc-900 outline-none"
+                                          placeholder="Amount"
+                                        />
+                                      </div>
+                                    )}
+                                    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2">
+                                      <MessageSquare size={16} className="shrink-0 text-zinc-400" />
+                                      <input
+                                        type="text"
+                                        placeholder="Remarks (required for Partial, Hold, Reject)"
+                                        value={rowState.remarks || ''}
+                                        onChange={(e) =>
+                                          setActionState((prev) => ({
+                                            ...prev,
+                                            [item.id]: { ...prev[item.id], remarks: e.target.value }
+                                          }))
+                                        }
+                                        className="min-w-0 flex-1 border-0 bg-transparent text-sm text-zinc-800 outline-none placeholder:text-zinc-400"
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-          </div>
 
-          {/* Right column: vertical tabs + panel (compact blocks up to ~50vw, hug right) */}
-          <div className="flex min-w-0 flex-1 flex-row-reverse justify-end gap-0">
+          {/* Sidebar content moved below table — Keep constrained width */}
+          <div className="flex min-w-0 flex-row-reverse justify-end gap-0">
             <div
               className="flex w-11 shrink-0 flex-col gap-1 border-l border-zinc-200 bg-zinc-50/80 py-2 pl-1"
               role="tablist"
@@ -1009,7 +1019,7 @@ export default function ApprovalsTab() {
                       <table className="w-full caption-bottom border-collapse text-[10px]">
                         <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50/95">
                           <tr>
-                            <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Dt</th>
+                            <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Req. Dt</th>
                             <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Who</th>
                             <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">₹</th>
                             <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">HR / MD</th>

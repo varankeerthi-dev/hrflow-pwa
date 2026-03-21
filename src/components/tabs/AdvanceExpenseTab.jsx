@@ -314,7 +314,7 @@ export default function AdvanceExpenseTab() {
             <table className="w-full text-left border-collapse border border-gray-200 min-w-[900px]">
               <thead>
                 <tr className="bg-gray-100 border-b border-gray-200">
-                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">Date</th>
+                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">Requesting date</th>
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[200px]">Employee</th>
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[140px]">Category</th>
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[100px]">Amount</th>
