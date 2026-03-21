@@ -26,7 +26,8 @@ import {
   AlertCircle, 
   PauseCircle, 
   MessageSquare,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react'
 
 function getInitials(name) {
@@ -48,6 +49,15 @@ function storedApprovalToPick(stored) {
   if (!stored || stored === 'Pending') return 'Approve'
   if (stored === 'Approved') return 'Approve'
   return stored
+}
+
+function getPastTenseStatus(status) {
+  const s = (status || '').toLowerCase()
+  if (s === 'approved') return 'Approved'
+  if (s === 'rejected') return 'Rejected'
+  if (s === 'hold') return 'Hold'
+  if (s === 'partial') return 'Partially Approved'
+  return status
 }
 
 function pickToStoredApproval(pick) {
@@ -174,15 +184,20 @@ export default function ApprovalsTab() {
           // Filter: Approved, Partially Approved, and Rejected move to Recent Updates
           // Hold and Pending stay in the active list.
           const active = data.filter(item => {
-            const status = item.status || 'Pending'
-            return status === 'Pending' || status === 'Hold'
-          })
-          const recent = data.filter(item => {
-            const status = item.status || 'Pending'
-            return status === 'Approved' || status === 'Partial' || status === 'Rejected'
-          })
-          setAdvExpenses(active)
-          setRecentAdvExpenses(recent.slice(0, 8))
+          const status = item.status || 'Pending'
+          return status === 'Pending' || status === 'Hold'
+        })
+        const recent = data.filter(item => {
+          const status = item.status || 'Pending'
+          return status === 'Approved' || status === 'Partial' || status === 'Rejected'
+        })
+        setAdvExpenses(active)
+        setRecentAdvExpenses(recent.slice(0, 8))
+
+        // This month advances: Paid advances for employees in the main queue
+        const activeEmpIds = new Set(active.map(x => x.employeeId))
+        const monthPaidFiltered = monthPaid.filter(item => activeEmpIds.has(item.employeeId))
+        setCurrentMonthPaidAdvances(monthPaidFiltered)
         }
         
         // Initialize action states
@@ -767,71 +782,92 @@ export default function ApprovalsTab() {
                                   </div>
                                   {isHR ? (
                                     <>
-                                      <div className="flex items-center gap-1 w-full">
-                                        <button
-                                          type="button"
-                                          onMouseDown={(e) => e.stopPropagation()}
-                                          onClick={() => setAdvMenuOpen((o) => (o === hrMenuId ? null : hrMenuId))}
-                                          className="h-7 flex-1 rounded-md border border-sky-300 bg-sky-50/40 px-1 text-center text-[10px] font-bold text-sky-950 shadow-sm hover:bg-sky-50"
-                                        >
-                                          {rowState.hrPick.slice(0, 8)}
-                                        </button>
-                                        {['Partial', 'Hold', 'Rejected'].includes(rowState.hrPick) && (
-                                          <div className="relative">
-                                            <button 
+                                      {(!item.hrApproval || item.hrApproval === 'Pending') ? (
+                                        <>
+                                          <div className="flex items-center gap-1 w-full">
+                                            <button
                                               type="button"
-                                              className={`p-1 rounded-md ${rowState.remarks ? 'text-sky-600 bg-sky-100' : 'text-zinc-400 bg-zinc-100'}`}
-                                              onClick={() => setAdvMenuOpen(o => o === `${item.id}-hr-rem` ? null : `${item.id}-hr-rem`)}
+                                              onMouseDown={(e) => e.stopPropagation()}
+                                              onClick={() => setAdvMenuOpen((o) => (o === hrMenuId ? null : hrMenuId))}
+                                              className="h-7 flex-1 rounded-md border border-sky-300 bg-sky-50/40 px-1 text-center text-[10px] font-bold text-sky-950 shadow-sm hover:bg-sky-50"
                                             >
-                                              <MessageSquare size={12} />
+                                              {rowState.hrPick.slice(0, 8)}
                                             </button>
-                                            {advMenuOpen === `${item.id}-hr-rem` && (
-                                              <div className="absolute right-0 bottom-full z-40 mb-2 w-48 rounded-lg border border-zinc-200 bg-white p-2 shadow-xl">
-                                                <p className="mb-1 text-[9px] font-black uppercase text-zinc-400">HR Remarks</p>
-                                                <textarea
-                                                  autoFocus
-                                                  className="w-full rounded border border-zinc-100 p-1.5 text-[11px] outline-none focus:border-sky-400"
-                                                  rows={2}
-                                                  placeholder="Reason required..."
-                                                  value={rowState.remarks || ''}
-                                                  onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], remarks: e.target.value } }))}
-                                                />
+                                            {['Partial', 'Hold', 'Rejected'].includes(rowState.hrPick) && (
+                                              <div className="relative">
+                                                <button 
+                                                  type="button"
+                                                  className={`p-1 rounded-md ${rowState.remarks ? 'text-sky-600 bg-sky-100' : 'text-zinc-400 bg-zinc-100'}`}
+                                                  onClick={() => setAdvMenuOpen(o => o === `${item.id}-hr-rem` ? null : `${item.id}-hr-rem`)}
+                                                >
+                                                  <MessageSquare size={12} />
+                                                </button>
+                                                {advMenuOpen === `${item.id}-hr-rem` && (
+                                                  <div className="absolute right-0 bottom-full z-40 mb-2 w-48 rounded-lg border border-zinc-200 bg-white p-2 shadow-xl">
+                                                    <p className="mb-1 text-[9px] font-black uppercase text-zinc-400">HR Remarks</p>
+                                                    <textarea
+                                                      autoFocus
+                                                      className="w-full rounded border border-zinc-100 p-1.5 text-[11px] outline-none focus:border-sky-400"
+                                                      rows={2}
+                                                      placeholder="Reason required..."
+                                                      value={rowState.remarks || ''}
+                                                      onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], remarks: e.target.value } }))}
+                                                    />
+                                                  </div>
+                                                )}
                                               </div>
                                             )}
                                           </div>
-                                        )}
-                                      </div>
-                                      {advMenuOpen === hrMenuId && (
-                                        <div
-                                          className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
-                                          data-adv-dropdown-root
-                                          onMouseDown={(e) => e.stopPropagation()}
-                                        >
-                                          {ADV_PICK_OPTIONS.map((opt) => (
-                                            <button
-                                              key={opt}
-                                              type="button"
-                                              onClick={() => {
-                                                setActionState((prev) => ({
-                                                  ...prev,
-                                                  [item.id]: { ...prev[item.id], hrPick: opt }
-                                                }))
-                                                setAdvMenuOpen(null)
-                                              }}
-                                              className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
+                                          {advMenuOpen === hrMenuId && (
+                                            <div
+                                              className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                              data-adv-dropdown-root
+                                              onMouseDown={(e) => e.stopPropagation()}
                                             >
-                                              {opt}
-                                            </button>
-                                          ))}
+                                              {ADV_PICK_OPTIONS.map((opt) => (
+                                                <button
+                                                  key={opt}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setActionState((prev) => ({
+                                                      ...prev,
+                                                      [item.id]: { ...prev[item.id], hrPick: opt }
+                                                    }))
+                                                    setAdvMenuOpen(null)
+                                                  }}
+                                                  className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
+                                                >
+                                                  {opt}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => handleHrAdvExpenseSubmit(item.id)}
+                                            className="h-6 w-full max-w-[80px] rounded bg-sky-800 text-[9px] font-black uppercase tracking-wider text-white hover:bg-sky-900"
+                                          >
+                                            Submit
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className={`text-center text-[10px] font-bold ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>
+                                            {getPastTenseStatus(item.hrApproval)}
+                                          </span>
+                                          <button 
+                                            onClick={() => {
+                                              const pick = storedApprovalToPick(item.hrApproval)
+                                              setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], hrPick: pick, remarks: item.hrRemarks || '' } }))
+                                              updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', item.id), { hrApproval: 'Pending', updatedAt: serverTimestamp() })
+                                            }}
+                                            className="p-1 text-zinc-400 hover:text-sky-600 transition-colors"
+                                            title="Edit action"
+                                          >
+                                            <Pencil size={10} />
+                                          </button>
                                         </div>
                                       )}
-                                      <button
-                                        type="button"
-                                        onClick={() => handleHrAdvExpenseSubmit(item.id)}
-                                        className="h-6 w-full max-w-[80px] rounded bg-sky-800 text-[9px] font-black uppercase tracking-wider text-white hover:bg-sky-900"
-                                      >
-                                        Submit
-                                      </button>
                                       {successStatus[item.id] && <span className="text-[9px] font-bold text-emerald-600 animate-pulse">Updated!</span>}
                                       {errorStatus[item.id] && <span className="text-[9px] font-bold text-rose-600">{errorStatus[item.id]}</span>}
                                     </>
@@ -850,71 +886,92 @@ export default function ApprovalsTab() {
                                   </div>
                                   {isMD ? (
                                     <>
-                                      <div className="flex items-center gap-1 w-full">
-                                        <button
-                                          type="button"
-                                          onMouseDown={(e) => e.stopPropagation()}
-                                          onClick={() => setAdvMenuOpen((o) => (o === mdMenuId ? null : mdMenuId))}
-                                          className="h-7 flex-1 rounded-md border border-violet-300 bg-violet-50/50 px-1 text-center text-[10px] font-bold text-violet-950 shadow-sm hover:bg-violet-50"
-                                        >
-                                          {rowState.mdPick.slice(0, 8)}
-                                        </button>
-                                        {['Partial', 'Hold', 'Rejected'].includes(rowState.mdPick) && (
-                                          <div className="relative">
-                                            <button 
+                                      {(!item.mdApproval || item.mdApproval === 'Pending') ? (
+                                        <>
+                                          <div className="flex items-center gap-1 w-full">
+                                            <button
                                               type="button"
-                                              className={`p-1 rounded-md ${rowState.remarks ? 'text-violet-600 bg-violet-100' : 'text-zinc-400 bg-zinc-100'}`}
-                                              onClick={() => setAdvMenuOpen(o => o === `${item.id}-md-rem` ? null : `${item.id}-md-rem`)}
+                                              onMouseDown={(e) => e.stopPropagation()}
+                                              onClick={() => setAdvMenuOpen((o) => (o === mdMenuId ? null : mdMenuId))}
+                                              className="h-7 flex-1 rounded-md border border-violet-300 bg-violet-50/50 px-1 text-center text-[10px] font-bold text-violet-950 shadow-sm hover:bg-violet-50"
                                             >
-                                              <MessageSquare size={12} />
+                                              {rowState.mdPick.slice(0, 8)}
                                             </button>
-                                            {advMenuOpen === `${item.id}-md-rem` && (
-                                              <div className="absolute right-0 bottom-full z-40 mb-2 w-48 rounded-lg border border-zinc-200 bg-white p-2 shadow-xl">
-                                                <p className="mb-1 text-[9px] font-black uppercase text-zinc-400">MD Remarks</p>
-                                                <textarea
-                                                  autoFocus
-                                                  className="w-full rounded border border-zinc-100 p-1.5 text-[11px] outline-none focus:border-violet-400"
-                                                  rows={2}
-                                                  placeholder="Reason required..."
-                                                  value={rowState.remarks || ''}
-                                                  onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], remarks: e.target.value } }))}
-                                                />
+                                            {['Partial', 'Hold', 'Rejected'].includes(rowState.mdPick) && (
+                                              <div className="relative">
+                                                <button 
+                                                  type="button"
+                                                  className={`p-1 rounded-md ${rowState.remarks ? 'text-violet-600 bg-violet-100' : 'text-zinc-400 bg-zinc-100'}`}
+                                                  onClick={() => setAdvMenuOpen(o => o === `${item.id}-md-rem` ? null : `${item.id}-md-rem`)}
+                                                >
+                                                  <MessageSquare size={12} />
+                                                </button>
+                                                {advMenuOpen === `${item.id}-md-rem` && (
+                                                  <div className="absolute right-0 bottom-full z-40 mb-2 w-48 rounded-lg border border-zinc-200 bg-white p-2 shadow-xl">
+                                                    <p className="mb-1 text-[9px] font-black uppercase text-zinc-400">MD Remarks</p>
+                                                    <textarea
+                                                      autoFocus
+                                                      className="w-full rounded border border-zinc-100 p-1.5 text-[11px] outline-none focus:border-violet-400"
+                                                      rows={2}
+                                                      placeholder="Reason required..."
+                                                      value={rowState.remarks || ''}
+                                                      onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], remarks: e.target.value } }))}
+                                                    />
+                                                  </div>
+                                                )}
                                               </div>
                                             )}
                                           </div>
-                                        )}
-                                      </div>
-                                      {advMenuOpen === mdMenuId && (
-                                        <div
-                                          className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
-                                          data-adv-dropdown-root
-                                          onMouseDown={(e) => e.stopPropagation()}
-                                        >
-                                          {ADV_PICK_OPTIONS.map((opt) => (
-                                            <button
-                                              key={opt}
-                                              type="button"
-                                              onClick={() => {
-                                                setActionState((prev) => ({
-                                                  ...prev,
-                                                  [item.id]: { ...prev[item.id], mdPick: opt }
-                                                }))
-                                                setAdvMenuOpen(null)
-                                              }}
-                                              className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
+                                          {advMenuOpen === mdMenuId && (
+                                            <div
+                                              className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                              data-adv-dropdown-root
+                                              onMouseDown={(e) => e.stopPropagation()}
                                             >
-                                              {opt}
-                                            </button>
-                                          ))}
+                                              {ADV_PICK_OPTIONS.map((opt) => (
+                                                <button
+                                                  key={opt}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setActionState((prev) => ({
+                                                      ...prev,
+                                                      [item.id]: { ...prev[item.id], mdPick: opt }
+                                                    }))
+                                                    setAdvMenuOpen(null)
+                                                  }}
+                                                  className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
+                                                >
+                                                  {opt}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => handleMdAdvExpenseSubmit(item.id)}
+                                            className="h-6 w-full max-w-[80px] rounded bg-violet-800 text-[9px] font-black uppercase tracking-wider text-white hover:bg-violet-900"
+                                          >
+                                            Submit
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className={`text-center text-[10px] font-bold ${approvalStatusTextClass(item.mdApproval, 'md')}`}>
+                                            {getPastTenseStatus(item.mdApproval)}
+                                          </span>
+                                          <button 
+                                            onClick={() => {
+                                              const pick = storedApprovalToPick(item.mdApproval)
+                                              setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], mdPick: pick, remarks: item.mdRemarks || '' } }))
+                                              updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', item.id), { mdApproval: 'Pending', updatedAt: serverTimestamp() })
+                                            }}
+                                            className="p-1 text-zinc-400 hover:text-violet-600 transition-colors"
+                                            title="Edit action"
+                                          >
+                                            <Pencil size={10} />
+                                          </button>
                                         </div>
                                       )}
-                                      <button
-                                        type="button"
-                                        onClick={() => handleMdAdvExpenseSubmit(item.id)}
-                                        className="h-6 w-full max-w-[80px] rounded bg-violet-800 text-[9px] font-black uppercase tracking-wider text-white hover:bg-violet-900"
-                                      >
-                                        Submit
-                                      </button>
                                       {successStatus[item.id] && <span className="text-[9px] font-bold text-emerald-600 animate-pulse">Updated!</span>}
                                       {errorStatus[item.id] && <span className="text-[9px] font-bold text-rose-600">{errorStatus[item.id]}</span>}
                                     </>
@@ -999,7 +1056,7 @@ export default function ApprovalsTab() {
                     : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
               >
-                Last month reports
+                This month advances
               </button>
               <button
                 onClick={() => setAdvanceRightTab('recent-updates')}
@@ -1017,9 +1074,9 @@ export default function ApprovalsTab() {
               {advanceRightTab === 'month-reports' ? (
                 <div className="w-full rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
                   <div className="border-b border-zinc-100 px-3 py-2">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Last month advance reports</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">This month advances</h3>
                     <p className="mt-0.5 text-[9px] font-medium text-zinc-400">
-                      Paid advances this calendar month (by payment received date)
+                      Paid advances for employees in the queue (this month)
                     </p>
                   </div>
                   <ul className="max-h-[min(24rem,55vh)] divide-y divide-zinc-100 overflow-y-auto">
