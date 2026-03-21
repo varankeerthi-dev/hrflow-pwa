@@ -281,20 +281,6 @@ export default function SalarySlipTab() {
   }
 
   const handleUpdateOverride = async (loanId) => {
-    if (!isAdmin) return alert('Only admins can delete loans')
-    if (!confirm('Are you sure you want to permanently delete this loan? This action cannot be undone.')) return
-    try {
-      await deleteDoc(doc(db, 'organisations', user.orgId, 'loans', loanId))
-      await logActivity(user.orgId, user, {
-        module: 'Loans', action: 'Deleted', detail: `Loan ${loanId} permanently removed`
-      })
-      fetchLoans()
-    } catch (err) {
-      alert('Delete failed: ' + err.message)
-    }
-  }
-
-  const handleUpdateOverride = async (loanId) => {
     if (!overrideForm.month) return alert('Select month')
     try {
       const loanRef = doc(db, 'organisations', user.orgId, 'loans', loanId)
