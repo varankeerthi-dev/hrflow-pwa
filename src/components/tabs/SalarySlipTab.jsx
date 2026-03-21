@@ -8,9 +8,151 @@ import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimest
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 import { Wallet, Search, Download, Printer, Save, Clock, Banknote, FileText } from 'lucide-react'
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer'
+
+// PDF Styles
+const pdfStyles = StyleSheet.create({
+  page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#111827' },
+  header: { borderBottomWidth: 3, borderBottomColor: '#111827', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logo: { width: 50, height: 50, objectFit: 'contain' },
+  orgTitle: { fontSize: 24, fontWeight: 'black', textTransform: 'uppercase' },
+  headerSubtitle: { fontSize: 9, color: '#9CA3AF', fontWeight: 'bold', marginTop: 5, letterSpacing: 1 },
+  headerRight: { textAlign: 'right' },
+  payslipTitle: { fontSize: 16, fontWeight: 'black', textTransform: 'uppercase' },
+  periodBadge: { marginTop: 5, backgroundColor: '#EEF2FF', color: '#4F46E5', padding: '4 8', borderRadius: 10, fontSize: 10, fontWeight: 'bold' },
+  
+  identificationSection: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  idGrid: { width: '60%' },
+  idRow: { flexDirection: 'row', marginBottom: 4, fontSize: 9 },
+  idLabel: { width: 100, color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' },
+  idValue: { fontWeight: 'bold' },
+  
+  netPayBadge: { width: 180, border: 2, borderColor: '#059669', borderRadius: 8, padding: 10, textAlign: 'center', backgroundColor: '#F0FDF4' },
+  netPayLabel: { fontSize: 8, fontWeight: 'black', color: '#047857', marginBottom: 2 },
+  netPayAmount: { fontSize: 18, fontWeight: 'black', color: '#065F46' },
+  
+  summaryGrid: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  summaryBox: { flex: 1, backgroundColor: '#F9FAFB', border: 1, borderColor: '#F3F4F6', borderRadius: 8, padding: 8, textAlign: 'center' },
+  summaryLabel: { fontSize: 7, fontWeight: 'black', color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 2 },
+  summaryValue: { fontSize: 12, fontWeight: 'black' },
+  
+  earningsDeductionsContainer: { border: 2, borderColor: '#111827', borderRadius: 8, overflow: 'hidden', marginBottom: 20 },
+  tableHeader: { flexDirection: 'row', backgroundColor: '#111827', color: 'white', fontWeight: 'black', fontSize: 9, padding: 8 },
+  tableBody: { flexDirection: 'row' },
+  tableCol: { flex: 1, borderRightWidth: 1, borderRightColor: '#111827' },
+  tableRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 8, borderBottomWidth: 1, borderBottomColor: '#F9FAFB', fontSize: 9 },
+  rowLabel: { color: '#4B5563' },
+  rowValue: { fontWeight: 'bold' },
+  highlightGreen: { backgroundColor: '#F0FDF4', color: '#059669', fontWeight: 'bold' },
+  highlightRed: { backgroundColor: '#FEF2F2', color: '#DC2626', fontWeight: 'bold' },
+  
+  totalRow: { flexDirection: 'row', backgroundColor: '#F9FAFB', borderTopWidth: 2, borderTopColor: '#111827', padding: 8, fontWeight: 'black', fontSize: 10 },
+  
+  wordsSection: { textAlign: 'center', paddingTop: 20, borderTopWidth: 1, borderTopColor: '#F3F4F6', borderTopStyle: 'dashed' },
+  wordsText: { fontSize: 10, fontWeight: 'bold', color: '#374151', fontStyle: 'italic' },
+  wordsAmount: { fontWeight: 'black', textTransform: 'uppercase', color: '#111827' },
+  footerTag: { fontSize: 8, color: '#9CA3AF', marginTop: 15, fontWeight: 'black', letterSpacing: 2 }
+})
+
+// PDF Component
+const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
+  <Document>
+    <Page size="A4" style={pdfStyles.page}>
+      {/* Header */}
+      <View style={pdfStyles.header}>
+        <View style={pdfStyles.headerLeft}>
+          {orgLogo && <Image src={orgLogo} style={pdfStyles.logo} />}
+          <View>
+            <Text style={pdfStyles.orgTitle}>{orgName || 'ORGANISATION'}</Text>
+            <Text style={pdfStyles.headerSubtitle}>Personnel Remuneration Advice</Text>
+          </View>
+        </View>
+        <View style={pdfStyles.headerRight}>
+          <Text style={pdfStyles.payslipTitle}>Monthly Payslip</Text>
+          <Text style={pdfStyles.periodBadge}>
+            {new Date(data.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </Text>
+        </View>
+      </View>
+
+      {/* Staff Identification */}
+      <View style={pdfStyles.identificationSection}>
+        <View style={pdfStyles.idGrid}>
+          <Text style={{ fontSize: 8, fontWeight: 'black', color: '#111827', marginBottom: 10 }}>STAFF IDENTIFICATION</Text>
+          <View style={pdfStyles.idRow}><Text style={pdfStyles.idLabel}>Staff Name</Text><Text style={pdfStyles.idValue}>: {data.employee.name}</Text></View>
+          <View style={pdfStyles.idRow}><Text style={pdfStyles.idLabel}>Employee ID</Text><Text style={pdfStyles.idValue}>: {data.employee.empCode}</Text></View>
+          <View style={pdfStyles.idRow}><Text style={pdfStyles.idLabel}>Department</Text><Text style={pdfStyles.idValue}>: {data.employee.department}</Text></View>
+          <View style={pdfStyles.idRow}><Text style={pdfStyles.idLabel}>Pay Period</Text><Text style={pdfStyles.idValue}>: {data.month}</Text></View>
+        </View>
+        <View style={pdfStyles.netPayBadge}>
+          <Text style={pdfStyles.netPayLabel}>FINAL NET PAYABLE</Text>
+          <Text style={pdfStyles.netPayAmount}>{formatINR(data.netPay)}</Text>
+          <Text style={{ fontSize: 7, color: '#047857', marginTop: 5 }}>Paid: {data.paidDays}d | LOP: {data.lopDays}d</Text>
+        </View>
+      </View>
+
+      {/* Summary Grid */}
+      <View style={pdfStyles.summaryGrid}>
+        <View style={pdfStyles.summaryBox}><Text style={pdfStyles.summaryLabel}>Worked</Text><Text style={pdfStyles.summaryValue}>{data.paidDays}d</Text></View>
+        <View style={pdfStyles.summaryBox}><Text style={pdfStyles.summaryLabel}>Sunday</Text><Text style={pdfStyles.summaryValue}>{data.sundayCount || 0}</Text></View>
+        <View style={pdfStyles.summaryBox}><Text style={pdfStyles.summaryLabel}>Sun Work</Text><Text style={pdfStyles.summaryValue}>{data.sundayWorkedCount || 0}</Text></View>
+        <View style={pdfStyles.summaryBox}><Text style={pdfStyles.summaryLabel}>Holi Work</Text><Text style={pdfStyles.summaryValue}>{data.holidayWorkedCount || 0}</Text></View>
+        <View style={pdfStyles.summaryBox}><Text style={pdfStyles.summaryLabel}>OT Hours</Text><Text style={pdfStyles.summaryValue}>{data.autoOTHours.toFixed(1)}h</Text></View>
+        <View style={pdfStyles.summaryBox}><Text style={pdfStyles.summaryLabel}>Advance</Text><Text style={pdfStyles.summaryValue}>{formatINR(data.advanceDeduction || 0)}</Text></View>
+        <View style={pdfStyles.summaryBox}><Text style={pdfStyles.summaryLabel}>Leave</Text><Text style={pdfStyles.summaryValue}>{data.lopDays}</Text></View>
+      </View>
+
+      {/* Earnings & Deductions Table */}
+      <View style={pdfStyles.earningsDeductionsContainer}>
+        <View style={pdfStyles.tableHeader}>
+          <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', paddingRight: 10 }}><Text>EARNINGS</Text><Text>INR (₹)</Text></View>
+          <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 10 }}><Text>DEDUCTIONS</Text><Text>INR (₹)</Text></View>
+        </View>
+        
+        <View style={pdfStyles.tableBody}>
+          {/* Earnings Col */}
+          <View style={pdfStyles.tableCol}>
+            <View style={pdfStyles.tableRow}><Text style={pdfStyles.rowLabel}>Basic Component</Text><Text style={pdfStyles.rowValue}>{formatINR(data.basic)}</Text></View>
+            <View style={pdfStyles.tableRow}><Text style={pdfStyles.rowLabel}>H.R.A (Allowances)</Text><Text style={pdfStyles.rowValue}>{formatINR(data.hra)}</Text></View>
+            {data.expenseReimbursement > 0 && <View style={[pdfStyles.tableRow, pdfStyles.highlightGreen]}><Text>Expense Reimb.</Text><Text>{formatINR(data.expenseReimbursement)}</Text></View>}
+            {data.otPay > 0 && <View style={[pdfStyles.tableRow, { color: '#4F46E5', fontWeight: 'bold' }]}><Text>Overtime ({data.finalOT}h)</Text><Text>{formatINR(data.otPay)}</Text></View>}
+          </View>
+          
+          {/* Deductions Col */}
+          <View style={{ flex: 1 }}>
+            <View style={pdfStyles.tableRow}><Text style={pdfStyles.rowLabel}>Statutory Tax (IT)</Text><Text style={pdfStyles.rowValue}>{formatINR(data.it)}</Text></View>
+            <View style={pdfStyles.tableRow}><Text style={pdfStyles.rowLabel}>Provident Fund (PF)</Text><Text style={pdfStyles.rowValue}>{formatINR(data.pf)}</Text></View>
+            {data.advanceDeduction > 0 && <View style={[pdfStyles.tableRow, pdfStyles.highlightRed]}><Text>Advance Recovery</Text><Text>{formatINR(data.advanceDeduction)}</Text></View>}
+          </View>
+        </View>
+
+        <View style={pdfStyles.totalRow}>
+          <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', paddingRight: 10 }}><Text>GROSS EARNINGS</Text><Text>{formatINR(data.grossEarnings)}</Text></View>
+          <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 10 }}><Text>TOTAL DEDUCTIONS</Text><Text>{formatINR(data.totalDeductions)}</Text></View>
+        </View>
+      </View>
+
+      {/* Net Disbursement */}
+      <View style={{ backgroundColor: '#111827', borderRadius: 12, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View>
+          <Text style={{ color: 'white', fontSize: 14, fontWeight: 'black', letterSpacing: 2 }}>TOTAL NET DISBURSEMENT</Text>
+          <Text style={{ color: '#9CA3AF', fontSize: 8, marginTop: 4 }}>Calculated as: Gross - Deductions</Text>
+        </View>
+        <Text style={{ color: 'white', fontSize: 24, fontWeight: 'black' }}>{formatINR(data.netPay)}</Text>
+      </View>
+
+      {/* Footer */}
+      <View style={pdfStyles.wordsSection}>
+        <Text style={pdfStyles.wordsText}>
+          Amount In Words: <Text style={pdfStyles.wordsAmount}>Indian Rupee {numberToWords(data.netPay)} Only</Text>
+        </Text>
+        <Text style={pdfStyles.footerTag}>-- SYSTEM AUTHENTICATED DOCUMENT --</Text>
+      </View>
+    </Page>
+  </Document>
+)
 
 export default function SalarySlipTab() {
   const { user } = useAuth()
@@ -211,49 +353,6 @@ export default function SalarySlipTab() {
     }
   }
 
-  const handleDownloadPDF = async () => {
-    if (!slipRef.current) {
-      alert('Please generate salary slip first')
-      return
-    }
-    try {
-      const canvas = await html2canvas(slipRef.current, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        onclone: (clonedDoc) => {
-          // Fix for oklch error in html2canvas
-          const elements = clonedDoc.querySelectorAll('*')
-          elements.forEach(el => {
-            const style = el.getAttribute('style') || ''
-            if (style.includes('oklch')) {
-              // Simple fallback: remove oklch styles or replace them
-              el.style.color = 'inherit'
-              el.style.backgroundColor = 'inherit'
-              el.style.borderColor = 'inherit'
-            }
-            // For Tailwind v4, we need to force computed colors
-            const computed = window.getComputedStyle(el)
-            if (computed.color.includes('oklch')) el.style.color = '#111827'
-            if (computed.backgroundColor.includes('oklch')) el.style.backgroundColor = 'transparent'
-          })
-        }
-      })
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-      const pdfBlob = pdf.output('blob')
-      const pdfUrl = URL.createObjectURL(pdfBlob)
-      window.open(pdfUrl, '_blank')
-    } catch (err) {
-      console.error('PDF error:', err)
-      alert('Failed to generate PDF: ' + err.message)
-    }
-  }
-
   const handleSaveAdvance = async () => {
     if (!newAdvance.amount || !newAdvance.date) {
       alert('Please enter amount and date')
@@ -330,7 +429,18 @@ export default function SalarySlipTab() {
         <div className="flex-1 overflow-auto flex gap-8 pb-10">
           <div className="flex-1 max-w-4xl bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden relative mx-auto" style={{ minWidth: '850px' }}>
             <div className="flex justify-end gap-3 p-4 bg-gray-50/50 border-b border-gray-100 no-print">
-              <button onClick={handleDownloadPDF} className="h-[36px] bg-indigo-50 text-indigo-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-indigo-100 flex items-center gap-2"><Download size={14} /> PDF</button>
+              <PDFDownloadLink
+                document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />}
+                fileName={`SalarySlip_${slipData.employee.name.replace(/\s+/g, '_')}_${slipData.month}.pdf`}
+                className="h-[36px] bg-indigo-50 text-indigo-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-indigo-100 flex items-center gap-2"
+              >
+                {({ loading }) => (
+                  <>
+                    <Download size={14} />
+                    {loading ? 'Preparing PDF...' : 'Download PDF'}
+                  </>
+                )}
+              </PDFDownloadLink>
               <button onClick={() => window.print()} className="h-[36px] bg-purple-50 text-purple-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-purple-100 flex items-center gap-2"><Printer size={14} /> Print</button>
             </div>
 

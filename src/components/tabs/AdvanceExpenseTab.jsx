@@ -261,18 +261,20 @@ export default function AdvanceExpenseTab() {
 
   const handleMonthChange = (direction) => {
     const [year, month] = reportMonth.split('-').map(Number)
-    const d = new Date(year, month - 1)
-    d.setMonth(d.getMonth() + direction)
-    setReportMonth(d.toISOString().slice(0, 7))
+    const d = new Date(year, month - 1 + direction, 1)
+    const newYear = d.getFullYear()
+    const newMonth = String(d.getMonth() + 1).padStart(2, '0')
+    setReportMonth(`${newYear}-${newMonth}`)
   }
 
   const applyReportFilters = () => {
     setLoading(true)
     try {
       const filtered = entries.filter(e => {
-        const matchesMonth = e.date?.startsWith(reportMonth)
-        const matchesName = !reportFilterName || e.employeeName?.toLowerCase().includes(reportFilterName.toLowerCase())
-        const matchesCategory = !reportFilterCategory || e.category?.toLowerCase().includes(reportFilterCategory.toLowerCase())
+        // e.date is YYYY-MM-DD, reportMonth is YYYY-MM
+        const matchesMonth = e.date && e.date.startsWith(reportMonth)
+        const matchesName = !reportFilterName || (e.employeeName && e.employeeName.toLowerCase().includes(reportFilterName.toLowerCase()))
+        const matchesCategory = !reportFilterCategory || (e.category && e.category.toLowerCase().includes(reportFilterCategory.toLowerCase()))
         return matchesMonth && matchesName && matchesCategory
       })
       setFilteredEntries(filtered)
@@ -286,45 +288,50 @@ export default function AdvanceExpenseTab() {
   const expForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Expense'), [filteredEntries])
 
   const exportPDF = () => {
-    const doc = new jsPDF()
-    const [year, month] = reportMonth.split('-')
-    const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' })
-    
-    doc.setFontSize(16)
-    doc.text(`Advances & Expenses Report - ${monthName} ${year}`, 14, 15)
-    
-    const dataToUseAdv = reportApplied ? advForReport : advances
-    const dataToUseExp = reportApplied ? expForReport : expenses
+    try {
+      const doc = new jsPDF()
+      const [year, month] = reportMonth.split('-').map(Number)
+      const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' })
+      
+      doc.setFontSize(16)
+      doc.text(`Advances & Expenses Report - ${monthName} ${year}`, 14, 15)
+      
+      const dataToUseAdv = reportApplied ? advForReport : entries.filter(e => e.type === 'Advance' && e.date?.startsWith(reportMonth))
+      const dataToUseExp = reportApplied ? expForReport : entries.filter(e => e.type === 'Expense' && e.date?.startsWith(reportMonth))
 
-    if (dataToUseAdv.length > 0) {
-      doc.setFontSize(12)
-      doc.text('Advances', 14, 25)
-      doc.autoTable({
-        startY: 30,
-        head: [['Date', 'Employee', 'Category', 'Amount', 'Status']],
-        body: dataToUseAdv.map(a => [a.date, a.employeeName, a.category, formatINR(a.amount), a.status]),
-        theme: 'grid',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [245, 158, 11] } // Amber-500
-      })
+      if (dataToUseAdv.length > 0) {
+        doc.setFontSize(12)
+        doc.text('Advances', 14, 25)
+        doc.autoTable({
+          startY: 30,
+          head: [['Date', 'Employee', 'Category', 'Amount', 'Status']],
+          body: dataToUseAdv.map(a => [a.date, a.employeeName, a.category, formatINR(a.amount), a.status]),
+          theme: 'grid',
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [245, 158, 11] } // Amber-500
+        })
+      }
+      
+      const finalY = (doc.lastAutoTable?.finalY || 25) + 10
+      
+      if (dataToUseExp.length > 0) {
+        doc.setFontSize(12)
+        doc.text('Expenses', 14, finalY)
+        doc.autoTable({
+          startY: finalY + 5,
+          head: [['Date', 'Employee', 'Category', 'Amount', 'Status']],
+          body: dataToUseExp.map(e => [e.date, e.employeeName, e.category, formatINR(e.amount), e.status]),
+          theme: 'grid',
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [37, 99, 235] } // Blue-600
+        })
+      }
+      
+      doc.save(`Adv_Exp_Report_${reportMonth}.pdf`)
+    } catch (err) {
+      console.error('PDF Export Error:', err)
+      alert('Failed to generate PDF. Please try again.')
     }
-    
-    const finalY = (doc.lastAutoTable?.finalY || 25) + 10
-    
-    if (dataToUseExp.length > 0) {
-      doc.setFontSize(12)
-      doc.text('Expenses', 14, finalY)
-      doc.autoTable({
-        startY: finalY + 5,
-        head: [['Date', 'Employee', 'Category', 'Amount', 'Status']],
-        body: dataToUseExp.map(e => [e.date, e.employeeName, e.category, formatINR(e.amount), e.status]),
-        theme: 'grid',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [37, 99, 235] } // Blue-600
-      })
-    }
-    
-    doc.save(`Adv_Exp_Report_${reportMonth}.pdf`)
   }
 
   return (
@@ -473,7 +480,10 @@ export default function AdvanceExpenseTab() {
                     <ChevronLeft size={16} />
                   </button>
                   <div className="flex-1 text-center font-bold text-gray-700 text-sm">
-                    {new Date(reportMonth + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}
+                    {(() => {
+                      const [ry, rm] = reportMonth.split('-').map(Number)
+                      return new Date(ry, rm - 1).toLocaleString('default', { month: 'short', year: 'numeric' })
+                    })()}
                   </div>
                   <button onClick={() => handleMonthChange(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
                     <ChevronRight size={16} />
