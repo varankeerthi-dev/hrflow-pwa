@@ -11,7 +11,7 @@ import Modal from '../ui/Modal'
 import { 
   Wallet, Search, Download, Printer, Save, Clock, Banknote, 
   FileText, ChevronRight, ChevronLeft, Calendar, Plus, 
-  History, Settings, User, AlertCircle, Info, X, MessageSquare, CheckCircle2
+  History, Settings, User, AlertCircle, Info, X, MessageSquare, CheckCircle2, Edit2
 } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer'
 import { logActivity } from '../../hooks/useActivityLog'
