@@ -163,15 +163,36 @@ export default function SalarySlipTab() {
       const finalOT = existingOT?.status === 'approved' ? Number(existingOT.finalOTHours) : autoOTHours
       const otPay = finalOT * otRate
 
-      const basic = totalSalary * (activeSlab.basicPercent / 100) * (paidDays / endDay)
-      const hra = totalSalary * (activeSlab.hraPercent / 100) * (paidDays / endDay)
-      const grossEarnings = basic + hra + otPay
-
+      // Advances & Expenses
       const advQ = query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))
       const advSnap = await getDocs(advQ)
       const allAdv = advSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       setAdvances(allAdv)
+      
+      // Deduction: All pending advances (legacy logic) + maybe filter by month if needed
+      // For now keeping legacy logic but adding expense reimbursement
       const pendingAdvances = allAdv.filter(a => a.status !== 'Recovered').reduce((acc, curr) => acc + Number(curr.amount), 0)
+
+      // Expense Reimbursement: Fetch paid expenses for this month
+      const advExpQ = query(
+        collection(db, 'organisations', user.orgId, 'advances_expenses'),
+        where('employeeId', '==', selectedEmp),
+        where('paymentStatus', '==', 'Paid'),
+        where('type', '==', 'Expense')
+      )
+      const advExpSnap = await getDocs(advExpQ)
+      const [selYear, selMonthNum] = selectedMonth.split('-').map(Number)
+      const expenseReimbursement = advExpSnap.docs
+        .map(d => d.data())
+        .filter(item => {
+          const paidDate = item.paidAt?.toDate ? item.paidAt.toDate() : null
+          return paidDate && paidDate.getFullYear() === selYear && (paidDate.getMonth() + 1) === selMonthNum
+        })
+        .reduce((acc, curr) => acc + Number(curr.partialAmount || curr.amount), 0)
+
+      const basic = totalSalary * (activeSlab.basicPercent / 100) * (paidDays / endDay)
+      const hra = totalSalary * (activeSlab.hraPercent / 100) * (paidDays / endDay)
+      const grossEarnings = basic + hra + otPay + expenseReimbursement
 
       const pf = totalSalary * (activeSlab.pfPercent / 100)
       const it = totalSalary * (activeSlab.incomeTaxPercent / 100)
@@ -180,7 +201,7 @@ export default function SalarySlipTab() {
       const netPay = Math.max(0, grossEarnings - totalDeductions)
 
       setSlipData({
-        employee: emp, month: selectedMonth, slab: activeSlab, grid, paidDays, lopDays, autoOTHours, finalOT, otPay, basic, hra, grossEarnings, pf, it, advanceDeduction: pendingAdvances, totalDeductions, netPay, sundayCount, sundayWorkedCount, holidayWorkedCount
+        employee: emp, month: selectedMonth, slab: activeSlab, grid, paidDays, lopDays, autoOTHours, finalOT, otPay, basic, hra, expenseReimbursement, grossEarnings, pf, it, advanceDeduction: pendingAdvances, totalDeductions, netPay, sundayCount, sundayWorkedCount, holidayWorkedCount
       })
     } catch (err) {
       console.error('SalarySlip generate error:', err)
@@ -202,14 +223,20 @@ export default function SalarySlipTab() {
         backgroundColor: '#ffffff',
         logging: false,
         onclone: (clonedDoc) => {
+          // Fix for oklch error in html2canvas
           const elements = clonedDoc.querySelectorAll('*')
           elements.forEach(el => {
-            const computedStyle = window.getComputedStyle(el)
-            el.style.color = computedStyle.color
-            el.style.backgroundColor = computedStyle.backgroundColor
-            el.style.borderColor = computedStyle.borderColor
-            el.style.fill = computedStyle.fill
-            el.style.stroke = computedStyle.stroke
+            const style = el.getAttribute('style') || ''
+            if (style.includes('oklch')) {
+              // Simple fallback: remove oklch styles or replace them
+              el.style.color = 'inherit'
+              el.style.backgroundColor = 'inherit'
+              el.style.borderColor = 'inherit'
+            }
+            // For Tailwind v4, we need to force computed colors
+            const computed = window.getComputedStyle(el)
+            if (computed.color.includes('oklch')) el.style.color = '#111827'
+            if (computed.backgroundColor.includes('oklch')) el.style.backgroundColor = 'transparent'
           })
         }
       })
@@ -394,6 +421,7 @@ export default function SalarySlipTab() {
                   <div className="p-0">
                     <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-medium text-gray-600 italic"><span>Basic Component</span><span className="font-bold text-gray-900 not-italic">{formatINR(slipData.basic)}</span></div>
                     <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-medium text-gray-600 italic"><span>H.R.A (Allowances)</span><span className="font-bold text-gray-900 not-italic">{formatINR(slipData.hra)}</span></div>
+                    {slipData.expenseReimbursement > 0 && <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-bold text-emerald-600 bg-emerald-50/30"><span>Expense Reimbursement</span><span>{formatINR(slipData.expenseReimbursement)}</span></div>}
                     {slipData.otPay > 0 && <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-bold text-indigo-600 bg-indigo-50/30"><span>Overtime ({slipData.finalOT}h)</span><span>{formatINR(slipData.otPay)}</span></div>}
                   </div>
                   <div className="p-0">
