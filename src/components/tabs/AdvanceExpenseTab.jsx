@@ -116,7 +116,17 @@ export default function AdvanceExpenseTab() {
     try {
       for (const row of validRows) {
         const emp = employees.find(e => e.id === row.employeeId)
-        const type = row.category.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
+        
+        // Determine type based on active module OR category fallback
+        let type = 'Expense'
+        if (activeModule === 'Add Advance') {
+          type = 'Advance'
+        } else if (activeModule === 'Add Expense') {
+          type = 'Expense'
+        } else {
+          // Fallback if submitted from another module context
+          type = row.category.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
+        }
         
         await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
           employeeId: row.employeeId,
@@ -155,7 +165,16 @@ export default function AdvanceExpenseTab() {
 
   const handleUpdate = async () => {
     try {
-      const type = editForm.category.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
+      // Maintain existing type if possible, otherwise detect from category
+      let type = editForm.type
+      if (editForm.category.toLowerCase().includes('advance')) {
+        type = 'Advance'
+      } else if (editForm.category.toLowerCase().includes('expense')) {
+        type = 'Expense'
+      } else if (!type) {
+        type = 'Expense'
+      }
+      
       const emp = employees.find(e => e.id === editForm.employeeId) || {}
       await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', editingId), {
         ...editForm,
