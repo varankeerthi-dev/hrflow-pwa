@@ -1022,4 +1022,49 @@ export default function AttendanceTab() {
         </div>
       )}
 
+      {/* Reset Warning Modal */}
+      <Modal isOpen={showResetWarning} onClose={() => setShowResetWarning(false)} title="⚠️ Reset All Records">
+        <div className="p-6">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={28} className="text-red-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Delete All Records?</h3>
+            <p className="text-sm text-gray-500">
+              This will permanently delete all {rows.length} attendance records for <strong>{formatDate(selectedDate)}</strong>.
+            </p>
+            <p className="text-xs text-red-500 mt-2 font-medium">This action cannot be undone.</p>
+          </div>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setShowResetWarning(false)} 
+              className="flex-1 h-10 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleResetAll} 
+              disabled={saving}
+              className="flex-1 h-10 bg-red-600 text-white rounded-lg text-sm font-medium shadow-md hover:bg-red-700 transition-all disabled:opacity-50"
+            >
+              {saving ? 'Deleting...' : 'Yes, Delete All'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Warning Modal */}
+      <Modal isOpen={showWarning} onClose={() => setShowWarning(false)} title="Conflict Detected">
+        <div className="p-6 text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Records Already Exist</h3>
+          <p className="text-sm text-gray-500 mb-6">Some employees already have attendance data for this date. Overwriting will replace their current logs.</p>
+          <div className="flex gap-3">
+            <button onClick={() => setShowWarning(false)} className="flex-1 h-10 border border-gray-200 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50">Abort</button>
+            <button onClick={() => { setShowWarning(false); handleSubmit(); }} className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-sm font-medium shadow-md hover:bg-indigo-700">Overwrite</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  )
+}
