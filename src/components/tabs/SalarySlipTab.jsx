@@ -157,53 +157,35 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
 
 export default function SalarySlipTab() {
   const { user } = useAuth()
-  const { employees, loading: empLoading } = useEmployees(user?.orgId)
+  const { employees, loading: empLoading } = useEmployees(user?.orgId, true)
   const { slabs, increments, loading: slabLoading } = useSalarySlab(user?.orgId)
   const { fetchByDate } = useAttendance(user?.orgId)
 
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
+  const isAccountant = user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
+  const isMD = user?.role?.toLowerCase() === 'md'
+  const isHR = user?.role?.toLowerCase() === 'hr'
+
   const [activeTab, setActiveTab] = useState('salary-slip') // 'salary-slip' or 'loan'
-  const [selectedEmp, setSelectedEmp] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  })
-
-  const [loading, setLoading] = useState(false)
-  const [slipData, setSlipData] = useState(null)
-  const [generateError, setGenerateError] = useState('')
-  const [orgLogo, setOrgLogo] = useState('')
-
-  // Loan Management States
-  const [loans, setLoans] = useState([])
-  const [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' })
-  const [selectedLoan, setSelectedLoan] = useState(null)
-  const [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false })
-
-  const [advances, setAdvances] = useState([])
-  const [newAdvance, setNewAdvance] = useState({ type: 'Advance', amount: 0, date: '', reason: '' })
-  const [otRequest, setOtRequest] = useState(null)
-  const [revisedOT, setRevisedOT] = useState(0)
-  const [otNote, setOtNote] = useState('')
-  const [activeBottomTab, setActiveBottomTab] = useState('ot')
-  const [continuousLeaveRule, setContinuousLeaveRule] = useState(false)
-
-  useEffect(() => {
-    if (!user?.orgId) return
-    getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
-      if (snap.exists()) setOrgLogo(snap.data().logoURL || '')
-    })
-    fetchLoans()
-  }, [user?.orgId])
-
-  const [editingLoanId, setEditingLoanId] = useState(null)
+  const [loanActivities, setLoanActivities] = useState([])
 
   const fetchLoans = async () => {
     try {
       const q = query(collection(db, 'organisations', user.orgId, 'loans'), orderBy('createdAt', 'desc'))
       const snap = await getDocs(q)
       setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+
+      // Fetch recent loan activities
+      const actQ = query(
+        collection(db, 'organisations', user.orgId, 'activityLogs'),
+        where('module', '==', 'Loans'),
+        orderBy('timestamp', 'desc'),
+        limit(5)
+      )
+      const actSnap = await getDocs(actQ)
+      setLoanActivities(actSnap.docs.map(d => ({ id: d.id, ...d.data() })))
     } catch (err) {
-      console.error('Error fetching loans:', err)
+      console.error('Error fetching loans/activities:', err)
     }
   }
 
@@ -228,7 +210,6 @@ export default function SalarySlipTab() {
         await logActivity(user.orgId, user, {
           module: 'Loans', action: 'Updated', detail: `Loan details updated for ${emp?.name}`
         })
-        alert('Loan updated successfully')
       } else {
         const newData = {
           ...docData,
@@ -240,16 +221,17 @@ export default function SalarySlipTab() {
         }
         await addDoc(collection(db, 'organisations', user.orgId, 'loans'), newData)
         await logActivity(user.orgId, user, {
-          module: 'Loans', action: 'Created', detail: `Loan of ${loanForm.totalAmount} created for ${emp?.name}`
+          module: 'Loans', action: 'Created', detail: `Loan of ₹${loanForm.totalAmount} created for ${emp?.name}`
         })
-        alert('Loan added successfully')
       }
       
       setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' })
       setEditingLoanId(null)
-      fetchLoans()
+      setSlipData(null) // Force re-gen
+      await fetchLoans()
+      alert('Success!')
     } catch (err) {
-      alert('Failed: ' + err.message)
+      alert('Error: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -266,22 +248,24 @@ export default function SalarySlipTab() {
     })
   }
 
-  const handleDeleteLoan = async (loanId) => {
+  const handleDeleteLoan = async (loanId, empName) => {
     if (!isAdmin) return alert('Only admins can delete loans')
-    if (!confirm('Are you sure you want to permanently delete this loan? This action cannot be undone.')) return
+    if (!confirm(`Permanently delete loan for ${empName}? This will stop all future deductions.`)) return
+    
+    setLoading(true)
     try {
       await deleteDoc(doc(db, 'organisations', user.orgId, 'loans', loanId))
       await logActivity(user.orgId, user, {
-        module: 'Loans', action: 'Deleted', detail: `Loan ${loanId} permanently removed`
+        module: 'Loans', action: 'Deleted', detail: `Loan record for ${empName} was deleted`
       })
       
-      // Clear slip data to force recalculation if currently viewing a slip
-      setSlipData(null)
-      
-      fetchLoans()
+      setSlipData(null) // Recalculate
+      await fetchLoans()
       alert('Loan deleted and contributions updated.')
     } catch (err) {
       alert('Delete failed: ' + err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -485,142 +469,350 @@ export default function SalarySlipTab() {
   }
 
   return (
-    <div className="flex h-full bg-gray-50/50 -m-6">
-      <div className="w-[240px] bg-white border-r border-gray-200 flex flex-col pt-6">
-        <div className="px-6 mb-8"><h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Payroll Engine</h2></div>
-        <nav className="flex-1 space-y-1 px-3">
-          <button onClick={() => setActiveTab('salary-slip')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'salary-slip' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}><Banknote size={18} /><span className="text-sm font-bold tracking-tight">Salary Slip</span></button>
-          <button onClick={() => setActiveTab('loan')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'loan' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}><Wallet size={18} /><span className="text-sm font-bold tracking-tight">Loan Management</span></button>
+    <div className="flex h-full bg-[#fbfbfb] -m-6 font-inter">
+      {/* Shadcn-inspired Sidebar */}
+      <div className="w-[260px] bg-white border-r border-gray-200 flex flex-col pt-8">
+        <div className="px-8 mb-10">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400 font-google-sans">Payroll Engine</h2>
+        </div>
+        
+        <nav className="flex-1 space-y-1 px-4">
+          <button 
+            onClick={() => setActiveTab('salary-slip')}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+              activeTab === 'salary-slip' 
+                ? 'bg-gray-900 text-white shadow-md shadow-gray-200' 
+                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <Banknote size={16} strokeWidth={2.5} />
+            <span className="text-[13px] font-semibold tracking-tight">Salary Slip</span>
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('loan')}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+              activeTab === 'loan' 
+                ? 'bg-gray-900 text-white shadow-md shadow-gray-200' 
+                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <Wallet size={16} strokeWidth={2.5} />
+            <span className="text-[13px] font-semibold tracking-tight">Loan Management</span>
+          </button>
         </nav>
+
+        <div className="p-6 mt-auto border-t border-gray-100 bg-gray-50/30">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-gray-400">
+              <Info size={12} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">System Status</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-[11px] font-medium text-gray-600">Calculations Online</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-8">
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-auto p-10">
         {activeTab === 'salary-slip' ? (
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-[12px] shadow-sm flex flex-wrap gap-6 items-end border border-gray-100">
-              <div className="flex-1 min-w-[240px]">
-                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Select Employee</label>
-                <select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-semibold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  <option value="">Choose Employee...</option>
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empCode})</option>)}
-                </select>
+          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+            {/* Top Filter Bar */}
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-8 items-end">
+              <div className="flex-1 min-w-[280px]">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5 px-1 font-google-sans">Target Employee</label>
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                  <select 
+                    value={selectedEmp} 
+                    onChange={e => setSelectedEmp(e.target.value)} 
+                    className="w-full h-11 border border-gray-200 rounded-lg pl-10 pr-4 text-[13px] font-semibold bg-white focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm"
+                  >
+                    <option value="">Choose Employee...</option>
+                    {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empCode})</option>)}
+                  </select>
+                </div>
               </div>
-              <div className="w-[180px]"><label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pay Period</label><input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 outline-none" /></div>
-              <button onClick={handleGenerate} disabled={loading || !selectedEmp || !selectedMonth} className="h-[40px] px-8 bg-indigo-600 text-white font-bold rounded-lg uppercase tracking-widest text-[11px] shadow-lg hover:bg-indigo-700 disabled:opacity-50 transition-all">{loading ? 'Crunching...' : 'Generate Slip'}</button>
+              
+              <div className="w-[200px]">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5 px-1 font-google-sans">Pay Period</label>
+                <input 
+                  type="month" 
+                  value={selectedMonth} 
+                  onChange={e => setSelectedMonth(e.target.value)} 
+                  className="w-full h-11 border border-gray-200 rounded-lg px-4 text-[13px] font-bold bg-white focus:ring-2 focus:ring-gray-900 outline-none transition-all shadow-sm" 
+                />
+              </div>
+
+              <div className="flex items-center gap-3 h-11 border border-gray-200 rounded-lg px-4 bg-white shadow-sm">
+                <input 
+                  type="checkbox" 
+                  id="cont-rule" 
+                  checked={continuousLeaveRule} 
+                  onChange={e => setContinuousLeaveRule(e.target.checked)} 
+                  className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900" 
+                />
+                <label htmlFor="cont-rule" className="text-[10px] font-bold text-gray-500 uppercase tracking-tight cursor-pointer font-google-sans">Sandwich Rule</label>
+              </div>
+
+              <button 
+                onClick={handleGenerate} 
+                disabled={loading || !selectedEmp || !selectedMonth} 
+                className="h-11 px-10 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.15em] text-[10px] shadow-lg hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {loading ? 'Processing...' : 'Generate Report'}
+              </button>
             </div>
 
             {slipData && (
-              <div className="flex gap-8">
-                <div className="flex-1 max-w-4xl bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden relative mx-auto" style={{ minWidth: '850px' }}>
-                  <div className="flex justify-end gap-3 p-4 bg-gray-50/50 border-b border-gray-100 no-print">
+              <div className="flex flex-col gap-8">
+                <div className="bg-white border border-gray-200 shadow-xl rounded-2xl overflow-hidden relative mx-auto" style={{ width: '100%', minWidth: '850px' }}>
+                  <div className="flex justify-end gap-3 p-4 bg-gray-50 border-b border-gray-200 no-print">
                     {slipData.employee && (
                       <PDFDownloadLink 
                         key={`${slipData.employee.id}_${slipData.month}`}
                         document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} 
                         fileName={`SalarySlip_${slipData.employee.name.replace(/\s+/g, '_')}_${slipData.month}.pdf`} 
-                        className="h-[36px] bg-indigo-50 text-indigo-600 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-indigo-100 flex items-center gap-2"
+                        className="h-9 bg-white border border-gray-200 text-gray-700 px-4 rounded-lg text-[11px] font-bold uppercase tracking-widest hover:bg-gray-50 flex items-center gap-2 transition-all"
                       >
-                        {({ loading }) => <><Download size={14} />{loading ? 'Preparing...' : 'Download PDF'}</>}
+                        {({ loading }) => <><Download size={14} />{loading ? 'Wait...' : 'Export PDF'}</>}
                       </PDFDownloadLink>
                     )}
-                    <button onClick={handleFinalizeSlip} disabled={loading} className="h-[36px] bg-gray-900 text-white px-6 rounded-lg text-[11px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-black flex items-center gap-2 transition-all">
-                      <CheckCircle2 size={14} /> Confirm & Record
+                    <button 
+                      onClick={handleFinalizeSlip} 
+                      disabled={loading} 
+                      className="h-9 bg-gray-900 text-white px-6 rounded-lg text-[11px] font-bold uppercase tracking-[0.15em] shadow-lg hover:bg-black flex items-center gap-2 transition-all active:scale-95"
+                    >
+                      <CheckCircle2 size={14} /> Confirm & Commit
                     </button>
                   </div>
-                  <div className="p-12 bg-white" style={{ fontFamily: 'Roboto, sans-serif' }}>
-                    <div className="border-b-4 border-gray-900 pb-6 mb-8 flex justify-between items-start">
-                      <div className="flex items-center gap-4">{orgLogo && <img src={orgLogo} alt="Logo" className="w-16 h-16 object-contain" />}<div><h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter leading-none">{user?.orgName || 'ORGANISATION'}</h1><p className="text-[11px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-3">Personnel Remuneration Advice</p></div></div>
-                      <div className="text-right"><h2 className="text-xl font-black text-gray-800 tracking-tight uppercase">Monthly Payslip</h2><p className="text-sm font-black text-indigo-600 uppercase mt-1 px-3 py-1 bg-indigo-50 rounded-full inline-block">{new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p></div>
-                    </div>
-                    <div className="flex justify-between items-start mb-10">
-                      <div className="space-y-2 text-[13px]"><p className="font-black text-gray-900 uppercase tracking-widest text-[10px] mb-4 border-b-2 border-indigo-100 pb-1 inline-block">STAFF IDENTIFICATION</p>
-                        <div className="flex gap-6"><span className="w-36 text-gray-400 font-bold uppercase text-[10px]">Staff Name</span><span className="font-bold text-gray-800 uppercase">: {slipData.employee.name}</span></div>
-                        <div className="flex gap-6"><span className="w-36 text-gray-400 font-bold uppercase text-[10px]">Employee ID</span><span className="font-bold text-gray-800 uppercase">: {slipData.employee.empCode}</span></div>
-                        <div className="flex gap-6"><span className="w-36 text-gray-400 font-bold uppercase text-[10px]">Department</span><span className="font-bold text-gray-800 uppercase">: {slipData.employee.department}</span></div>
+                  
+                  {/* Visual Preview */}
+                  <div className="p-16 bg-white shadow-inner">
+                    {/* (Standard PDF Mockup Content Here) */}
+                    <div className="border-b-4 border-gray-900 pb-8 mb-10 flex justify-between items-start">
+                      <div className="flex items-center gap-6">
+                        {orgLogo && <img src={orgLogo} alt="Logo" className="w-20 h-20 object-contain" />}
+                        <div>
+                          <h1 className="text-4xl font-bold text-gray-900 uppercase tracking-tighter leading-none font-google-sans">{user?.orgName || 'ORGANISATION'}</h1>
+                          <p className="text-[12px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-4">Employee Remuneration Advice</p>
+                        </div>
                       </div>
-                      <div className="border-2 border-green-600 rounded-xl p-4 text-center min-w-[180px] bg-green-50/20 shadow-lg"><p className="text-[9px] font-black text-green-700 uppercase tracking-widest mb-1">FINAL NET PAYABLE</p><p className="text-2xl font-black text-green-800">{formatINR(slipData.netPay)}</p><div className="mt-3 pt-2 border-t border-green-200/50 flex justify-between text-[9px] font-black text-green-700 uppercase"><span>Paid: {slipData.paidDays}d</span><span>LOP: {slipData.lopDays}d</span></div></div>
+                      <div className="text-right">
+                        <h2 className="text-2xl font-bold text-gray-800 tracking-tight uppercase font-google-sans">Payslip</h2>
+                        <p className="text-[13px] font-bold text-gray-500 uppercase mt-2">{new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                      </div>
                     </div>
-                    <div className="border-2 border-gray-900 rounded-2xl overflow-hidden mb-10">
-                      <div className="grid grid-cols-2 bg-gray-900 divide-x-2 divide-gray-800"><div className="flex justify-between p-4 font-black text-[11px] uppercase tracking-[0.2em] text-white"><span>EARNINGS</span><span>INR (₹)</span></div><div className="flex justify-between p-4 font-black text-[11px] uppercase tracking-[0.2em] text-white"><span>DEDUCTIONS</span><span>INR (₹)</span></div></div>
+                    {/* ... rest of the preview stays similar but with cleaned typography ... */}
+                    <div className="flex justify-between items-start mb-12">
+                      <div className="space-y-3 text-[14px]">
+                        <p className="font-bold text-gray-900 uppercase tracking-widest text-[11px] mb-6 border-b-2 border-gray-900 pb-1 inline-block font-google-sans">STAFF IDENTIFICATION</p>
+                        <div className="flex gap-8"><span className="w-40 text-gray-400 font-bold uppercase text-[11px]">Employee Name</span><span className="font-bold text-gray-800 uppercase">: {slipData.employee.name}</span></div>
+                        <div className="flex gap-8"><span className="w-40 text-gray-400 font-bold uppercase text-[11px]">Staff Code</span><span className="font-bold text-gray-800 uppercase">: {slipData.employee.empCode}</span></div>
+                        <div className="flex gap-8"><span className="w-40 text-gray-400 font-bold uppercase text-[11px]">Primary Department</span><span className="font-bold text-gray-800 uppercase">: {slipData.employee.department}</span></div>
+                      </div>
+                      <div className="bg-gray-900 text-white rounded-xl p-6 text-center min-w-[220px] shadow-2xl">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">NET PAYABLE (INR)</p>
+                        <p className="text-3xl font-bold tracking-tighter font-google-sans">{formatINR(slipData.netPay)}</p>
+                        <div className="mt-4 pt-3 border-t border-gray-800 flex justify-between text-[10px] font-bold text-gray-400 uppercase">
+                          <span>DAYS PAID: {slipData.paidDays}</span>
+                          <span>LOP: {slipData.lopDays}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-2 border-gray-900 rounded-2xl overflow-hidden mb-12">
+                      <div className="grid grid-cols-2 bg-gray-900 divide-x-2 divide-gray-800">
+                        <div className="flex justify-between p-5 font-bold text-[12px] uppercase tracking-[0.2em] text-white font-google-sans"><span>EARNINGS</span><span>₹</span></div>
+                        <div className="flex justify-between p-5 font-bold text-[12px] uppercase tracking-[0.2em] text-white font-google-sans"><span>DEDUCTIONS</span><span>₹</span></div>
+                      </div>
                       <div className="grid grid-cols-2 divide-x-2 divide-gray-900">
                         <div className="p-0">
-                          <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-medium text-gray-600 italic"><span>Basic Component</span><span className="font-bold text-gray-900 not-italic">{formatINR(slipData.basic)}</span></div>
-                          <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-medium text-gray-600 italic"><span>H.R.A (Allowances)</span><span className="font-bold text-gray-900 not-italic">{formatINR(slipData.hra)}</span></div>
-                          {slipData.otPay > 0 && <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-bold text-indigo-600 bg-indigo-50/30"><span>Overtime ({slipData.finalOT}h)</span><span>{formatINR(slipData.otPay)}</span></div>}
+                          <div className="flex justify-between p-5 border-b border-gray-50 text-[14px] font-medium text-gray-600"><span>Basic Salary</span><span className="font-bold text-gray-900">{formatINR(slipData.basic)}</span></div>
+                          <div className="flex justify-between p-5 border-b border-gray-50 text-[14px] font-medium text-gray-600"><span>House Rent Allowance</span><span className="font-bold text-gray-900">{formatINR(slipData.hra)}</span></div>
+                          {slipData.otPay > 0 && <div className="flex justify-between p-5 border-b border-gray-50 text-[14px] font-bold text-indigo-600 bg-indigo-50/30"><span>Overtime Pay ({slipData.finalOT}h)</span><span>{formatINR(slipData.otPay)}</span></div>}
                         </div>
                         <div className="p-0">
-                          <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-medium text-gray-600 italic"><span>Statutory Tax (IT)</span><span className="font-bold text-gray-900 not-italic">{formatINR(slipData.it)}</span></div>
-                          <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-medium text-gray-600 italic"><span>Provident Fund (PF)</span><span className="font-bold text-gray-900 not-italic">{formatINR(slipData.pf)}</span></div>
-                          {slipData.advanceDeduction > 0 && <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-bold text-red-600 bg-red-50/30"><span>Advance Recovery</span><span>{formatINR(slipData.advanceDeduction)}</span></div>}
-                          {slipData.loanEMI > 0 && <div className="flex justify-between p-4 border-b border-gray-50 text-[13px] font-bold text-red-600 bg-red-50/30"><span>Loan EMI Recovery</span><span>{formatINR(slipData.loanEMI)}</span></div>}
+                          <div className="flex justify-between p-5 border-b border-gray-50 text-[14px] font-medium text-gray-600"><span>Professional Tax / IT</span><span className="font-bold text-gray-900">{formatINR(slipData.it)}</span></div>
+                          <div className="flex justify-between p-5 border-b border-gray-50 text-[14px] font-medium text-gray-600"><span>Provident Fund</span><span className="font-bold text-gray-900">{formatINR(slipData.pf)}</span></div>
+                          {slipData.advanceDeduction > 0 && <div className="flex justify-between p-5 border-b border-gray-50 text-[14px] font-bold text-red-600 bg-red-50/30"><span>Advance Recovery</span><span>{formatINR(slipData.advanceDeduction)}</span></div>}
+                          {slipData.loanEMI > 0 && <div className="flex justify-between p-5 border-b border-gray-50 text-[14px] font-bold text-red-600 bg-red-50/30"><span>Loan EMI Recovery</span><span>{formatINR(slipData.loanEMI)}</span></div>}
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 divide-x-2 divide-gray-900 bg-gray-50 border-t-2 border-gray-900 font-black"><div className="flex justify-between p-4 text-[13px] uppercase text-gray-900"><span>Gross Earnings</span><span>{formatINR(slipData.grossEarnings)}</span></div><div className="flex justify-between p-4 text-[13px] uppercase text-gray-900"><span>Total Deductions</span><span>{formatINR(slipData.totalDeductions)}</span></div></div>
+                      <div className="grid grid-cols-2 divide-x-2 divide-gray-900 bg-gray-50 border-t-2 border-gray-900">
+                        <div className="flex justify-between p-5 text-[14px] font-bold text-gray-900 uppercase font-google-sans"><span>Total Earnings</span><span>{formatINR(slipData.grossEarnings)}</span></div>
+                        <div className="flex justify-between p-5 text-[14px] font-bold text-gray-900 uppercase font-google-sans"><span>Total Deductions</span><span>{formatINR(slipData.totalDeductions)}</span></div>
+                      </div>
                     </div>
-                    <div className="bg-gray-900 text-white rounded-2xl p-6 flex justify-between items-center shadow-2xl"><h3 className="text-xl font-black uppercase tracking-[0.25em]">TOTAL NET DISBURSEMENT</h3><div className="text-4xl font-black tracking-tighter text-white">{formatINR(slipData.netPay)}</div></div>
+                    
+                    <div className="text-center pt-12 border-t-2 border-dashed border-gray-100">
+                      <p className="text-[13px] font-medium text-gray-700 italic">
+                        Amount in words: <span className="uppercase text-gray-900 not-italic font-bold tracking-tight">Indian Rupee {numberToWords(slipData.netPay)} Only</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-10 font-bold uppercase tracking-[0.4em] opacity-40">System Authenticated Documents</p>
+                    </div>
                   </div>
-                </div>
-                <div className="w-[320px] flex flex-col gap-6 no-print">
-                  <div className="bg-gray-100 p-1 rounded-xl flex shadow-sm border border-gray-200">
-                    <button onClick={() => setActiveBottomTab('ot')} className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeBottomTab === 'ot' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>OT Review</button>
-                    <button onClick={() => setActiveBottomTab('advances')} className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeBottomTab === 'advances' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}>Recovery</button>
-                  </div>
-                  {activeBottomTab === 'ot' && <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm space-y-4"><div className="flex items-center gap-2 text-indigo-600 font-black uppercase text-sm"><Clock size={18} /> OT Escalation</div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Calculated</p><p className="text-2xl font-black">{slipData.autoOTHours.toFixed(2)}h</p></div><input type="number" value={revisedOT} onChange={e => setRevisedOT(e.target.value)} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50" placeholder="+ / - hours" /><button onClick={handleSubmitOT} className="w-full h-[40px] bg-indigo-600 text-white font-black rounded-lg uppercase text-[11px] shadow-lg">Submit</button></div>}
-                  {activeBottomTab === 'advances' && <div className="bg-white rounded-[12px] p-6 border border-gray-100 shadow-sm space-y-4"><div className="flex items-center gap-2 text-red-600 font-black uppercase text-sm"><Banknote size={18} /> Recovery</div><input type="number" placeholder="Value (₹)" value={newAdvance.amount || ''} onChange={e => setNewAdvance(s => ({ ...s, amount: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-black bg-gray-50/50" /><input type="date" value={newAdvance.date} onChange={e => setNewAdvance(s => ({ ...s, date: e.target.value }))} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50" /><button onClick={handleSaveAdvance} className="w-full h-[40px] bg-red-600 text-white font-black rounded-lg uppercase text-[11px] shadow-lg">Add</button></div>}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="h-full space-y-8 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center">
-              <div><h1 className="text-2xl font-black text-gray-900 tracking-tight">Loan Management</h1><p className="text-sm text-gray-500 font-medium mt-1">Configure employee loans and monthly recovery overrides.</p></div>
-              <button onClick={() => setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: selectedMonth, remarks: '' })} className="h-[42px] px-6 bg-indigo-600 text-white font-black rounded-xl text-[11px] uppercase tracking-widest shadow-lg flex items-center gap-2 transition-all hover:bg-indigo-700"><Plus size={16} /> New Application</button>
+          <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight font-google-sans">Loan Management</h1>
+                <p className="text-[13px] text-gray-500 font-medium mt-1">Lifecycle management for employee advances and multi-month loans.</p>
+              </div>
+              <button 
+                onClick={() => { setEditingLoanId(null); setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: selectedMonth, remarks: '' }); }} 
+                className="h-10 px-6 bg-gray-900 text-white font-bold rounded-lg text-[11px] uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-black transition-all active:scale-95"
+              >
+                <Plus size={14} /> New Schedule
+              </button>
             </div>
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="xl:col-span-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
-                <div className="flex items-center gap-2 text-indigo-600"><Settings size={18} /><h3 className="font-black uppercase text-sm tracking-widest">Configuration</h3></div>
-                <div className="space-y-4">
-                  <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2 px-1">Employee</label><select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select...</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                  <div className="grid grid-cols-2 gap-4"><div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2 px-1">Total (₹)</label><input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 font-bold bg-gray-50/50" /></div><div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2 px-1">EMI (₹)</label><input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 font-bold bg-gray-50/50" /></div></div>
-                  <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2 px-1">Starts From</label><input type="month" value={loanForm.startMonth} onChange={e => setEditLoanForm({...loanForm, startMonth: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-xl px-4 font-bold bg-gray-50/50" /></div>
-                  <button onClick={handleCreateLoan} disabled={loading} className="w-full h-[46px] bg-gray-900 text-white font-black rounded-xl text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all">
-                    {editingLoanId ? 'Update Loan Details' : 'Activate Loan Schedule'}
-                  </button>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
+              {/* Minimalist Form */}
+              <div className="xl:col-span-1 space-y-6">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                  <div className="flex items-center gap-2 text-gray-900 mb-6">
+                    <Settings size={16} />
+                    <h3 className="font-bold uppercase text-[11px] tracking-[0.15em] font-google-sans">Configuration</h3>
+                  </div>
+                  
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 px-1 font-google-sans">Select Employee</label>
+                      <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[13px] font-semibold bg-gray-50/50 outline-none focus:ring-2 focus:ring-gray-900 transition-all">
+                        <option value="">Choose...</option>
+                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 px-1 font-google-sans">Principal (₹)</label>
+                        <input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-10 border border-gray-200 rounded-lg px-3 font-bold bg-gray-50/50" placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 px-1 font-google-sans">EMI (₹)</label>
+                        <input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-10 border border-gray-200 rounded-lg px-3 font-bold bg-gray-50/50" placeholder="0" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 px-1 font-google-sans">Start Month</label>
+                      <input type="month" value={loanForm.startMonth} onChange={e => setEditLoanForm({...loanForm, startMonth: e.target.value})} className="w-full h-10 border border-gray-200 rounded-lg px-3 font-bold bg-gray-50/50" />
+                    </div>
+
+                    <button 
+                      onClick={handleCreateLoan} 
+                      disabled={loading} 
+                      className="w-full h-11 bg-gray-900 text-white font-bold rounded-lg text-[11px] uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all mt-4"
+                    >
+                      {editingLoanId ? 'Update Loan' : 'Activate Loan'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Recent Activity Section */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
+                  <div className="flex items-center gap-2 text-gray-900 mb-6">
+                    <History size={16} />
+                    <h3 className="font-bold uppercase text-[11px] tracking-[0.15em] font-google-sans">Recent Activity</h3>
+                  </div>
+                  <div className="space-y-4">
+                    {loanActivities.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic">No recent logs</p>
+                    ) : (
+                      loanActivities.map(act => (
+                        <div key={act.id} className="flex gap-3 border-l-2 border-gray-100 pl-4 py-1">
+                          <div className="flex-1">
+                            <p className="text-[11px] font-bold text-gray-800">{act.detail}</p>
+                            <p className="text-[9px] text-gray-400 uppercase font-bold mt-1">
+                              {act.timestamp?.toDate ? new Date(act.timestamp.toDate()).toLocaleString() : 'Just now'}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* Data Table */}
               <div className="xl:col-span-2 space-y-6">
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/30"><h3 className="font-black uppercase text-sm tracking-widest flex items-center gap-2"><History size={18} className="text-gray-400" /> Active Schedules</h3></div>
-                  <div className="overflow-x-auto"><table className="w-full text-left border-collapse"><thead><tr className="bg-gray-50/50 text-[10px] font-black uppercase text-gray-400 tracking-widest border-b border-gray-100"><th className="px-6 py-4">Employee</th><th className="px-6 py-4 text-right">Total</th><th className="px-6 py-4 text-right">Remaining</th><th className="px-6 py-4 text-center">EMI</th><th className="px-6 py-4 text-right">Actions</th></tr></thead><tbody className="divide-y divide-gray-50">
-                    {loans.length === 0 ? (<tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic font-medium">No active loans</td></tr>) : loans.map(l => (
-                      <tr key={l.id} className="group hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <p className="text-sm font-bold text-gray-900">{l.employeeName}</p>
-                          <p className="text-[10px] text-gray-400 font-medium">{l.remarks}</p>
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-gray-600">{formatINR(l.totalAmount)}</td>
-                        <td className="px-6 py-4 text-right font-black text-indigo-600">{formatINR(l.remainingAmount)}</td>
-                        <td className="px-6 py-4 text-center"><span className="bg-gray-100 px-2 py-1 rounded text-[10px] font-bold">{formatINR(l.emiAmount)}</span></td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1">
-                            <button onClick={() => handleEditLoan(l)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Loan Details"><Edit2 size={16} /></button>
-                            <button onClick={() => setSelectedLoan(l)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Special Case Adjustment"><AlertCircle size={18} /></button>
-                            <button onClick={() => handleDeleteLoan(l.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete Loan"><Trash2 size={16} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody></table></div>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
+                    <h3 className="font-bold uppercase text-[11px] tracking-widest flex items-center gap-2 font-google-sans">
+                      Active Loan Schedules
+                    </h3>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">Live Database Sync</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50/50 text-[10px] font-bold uppercase text-gray-400 tracking-widest border-b border-gray-100">
+                          <th className="px-6 py-4">Employee</th>
+                          <th className="px-6 py-4 text-right">Remaining</th>
+                          <th className="px-6 py-4 text-center">EMI</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {loans.length === 0 ? (
+                          <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic font-medium">No active records</td></tr>
+                        ) : (
+                          loans.map(l => (
+                            <tr key={l.id} className="group hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4">
+                                <p className="text-[13px] font-bold text-gray-900">{l.employeeName}</p>
+                                <p className="text-[10px] text-gray-400 font-medium truncate max-w-[180px]">{l.remarks}</p>
+                              </td>
+                              <td className="px-6 py-4 text-right font-bold text-indigo-600">{formatINR(l.remainingAmount)}</td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded">{formatINR(l.emiAmount)}</span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="flex justify-end gap-1">
+                                  <button onClick={() => handleEditLoan(l)} className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"><Edit2 size={14} /></button>
+                                  <button onClick={() => setSelectedLoan(l)} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"><AlertCircle size={14} /></button>
+                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+
                 {selectedLoan && (
-                  <div className="bg-amber-50 rounded-2xl border border-amber-200 p-6 space-y-4 animate-in slide-in-from-top-4 duration-300">
-                    <div className="flex justify-between items-center"><div className="flex items-center gap-2 text-amber-700 font-black uppercase text-xs tracking-widest"><Info size={18} /> Special Case Adjustment: {selectedLoan.employeeName}</div><button onClick={() => setSelectedLoan(null)} className="text-amber-400 hover:text-amber-600"><X size={18} /></button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                      <div className="space-y-1"><label className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Target Month</label><input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-[38px] border border-amber-200 rounded-lg px-3 font-bold" /></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Override EMI (₹)</label><input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-[38px] border border-amber-200 rounded-lg px-3 font-bold disabled:opacity-50" /></div>
-                      <div className="flex items-center gap-2 h-[38px] mb-1"><input type="checkbox" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-4 h-4 rounded text-amber-600" /><label className="text-[10px] font-black text-amber-700 uppercase">Skip Month</label></div>
-                      <button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-[38px] bg-amber-600 text-white font-black rounded-lg text-[10px] uppercase tracking-widest shadow-md hover:bg-amber-700">Record Case</button>
+                  <div className="bg-white rounded-xl border-2 border-amber-200 p-6 space-y-5 animate-in slide-in-from-top-4 duration-300">
+                    <div className="flex justify-between items-center border-b border-amber-100 pb-4">
+                      <div className="flex items-center gap-2 text-amber-700 font-bold uppercase text-[11px] tracking-widest font-google-sans">
+                        <Info size={16} /> Override for {selectedLoan.employeeName}
+                      </div>
+                      <button onClick={() => setSelectedLoan(null)} className="text-gray-400 hover:text-gray-900"><X size={16} /></button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Target Month</label>
+                        <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-10 border border-gray-200 rounded-lg px-3 font-bold text-[13px]" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Special EMI (₹)</label>
+                        <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-10 border border-gray-200 rounded-lg px-3 font-bold text-[13px] disabled:opacity-50" />
+                      </div>
+                      <div className="flex items-center gap-2 h-10 mb-0.5">
+                        <input type="checkbox" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500" />
+                        <label className="text-[10px] font-bold text-amber-700 uppercase font-google-sans">Skip Recov.</label>
+                      </div>
+                      <button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-10 bg-amber-600 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest shadow-md hover:bg-amber-700 active:scale-95 transition-all">Submit Adjust.</button>
                     </div>
                   </div>
                 )}
