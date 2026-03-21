@@ -312,19 +312,31 @@ export default function AdvanceExpenseTab() {
 
       {/* Add Expense / Add Advance Module */}
       {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
-        <div className="bg-white rounded-[12px] border border-gray-200 overflow-hidden shadow-sm">
+        <div className={`rounded-[12px] border overflow-hidden shadow-sm transition-colors duration-300 ${
+          activeModule === 'Add Advance' 
+            ? 'bg-amber-50/50 border-amber-200' 
+            : 'bg-blue-50/50 border-blue-200'
+        }`}>
           {/* Header & Controls */}
-          <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-[#f8fafc]">
+          <div className={`flex justify-between items-center p-6 border-b transition-colors ${
+            activeModule === 'Add Advance' 
+              ? 'border-amber-100 bg-amber-100/50' 
+              : 'border-blue-100 bg-blue-100/50'
+          }`}>
             <h2 className="text-xl font-black text-gray-800 tracking-tight">{activeModule === 'Add Advance' ? 'Add Advance' : 'Add Expenses'}</h2>
             <div className="flex items-center gap-3">
-              <button onClick={handleSelfExpense} className="h-[36px] px-4 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg text-[12px] uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all">
+              <button onClick={handleSelfExpense} className="h-[36px] px-4 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg text-[12px] uppercase tracking-widest shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all">
                 Self Expense
               </button>
-              <button onClick={handleAddRow} className="h-[36px] px-4 bg-teal-50 border border-teal-100 text-teal-600 font-bold rounded-lg text-[12px] uppercase tracking-widest hover:bg-teal-100 transition-all">
+              <button onClick={handleAddRow} className="h-[36px] px-4 bg-white/80 border border-teal-200 text-teal-600 font-bold rounded-lg text-[12px] uppercase tracking-widest hover:bg-teal-50 active:bg-teal-100 transition-all">
                 + Add Row
               </button>
-              <button onClick={handleSubmitAll} disabled={submitting} className="h-[36px] px-6 bg-indigo-600 text-white font-bold rounded-lg text-[12px] flex items-center gap-2 shadow-md hover:bg-indigo-700 transition-all uppercase tracking-widest disabled:opacity-50">
-                {submitting ? <Spinner size="w-4 h-4" color="text-white" /> : 'Submit All'}
+              <button onClick={handleSubmitAll} disabled={submitting} className={`h-[36px] px-6 text-white font-bold rounded-lg text-[12px] flex items-center gap-2 shadow-md transition-all uppercase tracking-widest disabled:opacity-50 ${
+                activeModule === 'Add Advance'
+                  ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800'
+                  : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'
+              }`}>
+                {submitting ? <Spinner size="w-4 h-4" color="text-white" /> : 'Submit'}
               </button>
             </div>
           </div>
@@ -332,7 +344,7 @@ export default function AdvanceExpenseTab() {
           <div className="overflow-x-auto p-4">
             <table className="w-full text-left border-collapse border border-gray-200 min-w-[900px]">
               <thead>
-                <tr className="bg-gray-100 border-b border-gray-200">
+                <tr className={activeModule === 'Add Advance' ? 'bg-amber-100/80 border-b border-amber-200' : 'bg-blue-100/80 border-b border-blue-200'}>
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">Requesting date</th>
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[200px]">Employee</th>
                   <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[140px]">Category</th>
@@ -344,16 +356,20 @@ export default function AdvanceExpenseTab() {
               </thead>
               <tbody>
                 {addRows.map((row, idx) => (
-                  <tr key={row.id} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                  <tr key={row.id} className={`border-b border-gray-100 transition-colors ${
+                    activeModule === 'Add Advance' 
+                      ? 'hover:bg-amber-100/30' 
+                      : 'hover:bg-blue-100/30'
+                  } ${idx % 2 === 0 ? 'bg-white/80' : 'bg-gray-50/30'}`}>
                     <td className="p-2 border-r border-gray-100">
-                      <input type="date" value={row.date} onChange={e => handleRowChange(row.id, 'date', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white" />
+                      <input type="date" value={row.date} onChange={e => handleRowChange(row.id, 'date', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90" />
                     </td>
                     <td className="p-2 border-r border-gray-100">
                       <select 
                         value={row.employeeId} 
                         onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
                         disabled={!canSelectAll}
-                        className={`w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90 ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
                         <option value="">Select Employee...</option>
                         {canSelectAll ? (
@@ -366,19 +382,19 @@ export default function AdvanceExpenseTab() {
                       </select>
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <input list="categories-list" value={row.category} onChange={e => handleRowChange(row.id, 'category', e.target.value)} className="no-arrow w-full h-[34px] border border-gray-300 rounded px-2 text-[11px] outline-none focus:border-indigo-500 bg-white" placeholder="Type category..." />
+                      <input list="categories-list" value={row.category} onChange={e => handleRowChange(row.id, 'category', e.target.value)} className="no-arrow w-full h-[34px] border border-gray-300 rounded px-2 text-[11px] outline-none focus:border-indigo-500 bg-white/90" placeholder="Type category..." />
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <input type="number" value={row.amount} onChange={e => handleRowChange(row.id, 'amount', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white" placeholder="0.00" />
+                      <input type="number" value={row.amount} onChange={e => handleRowChange(row.id, 'amount', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90" placeholder="0.00" />
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <input type="text" value={row.reason} onChange={e => handleRowChange(row.id, 'reason', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white" placeholder="Remarks..." />
+                      <input type="text" value={row.reason} onChange={e => handleRowChange(row.id, 'reason', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90" placeholder="Remarks..." />
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <input type="text" value={row.project} onChange={e => handleRowChange(row.id, 'project', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white" placeholder="Project..." />
+                      <input type="text" value={row.project} onChange={e => handleRowChange(row.id, 'project', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90" placeholder="Project..." />
                     </td>
                     <td className="p-2 text-center">
-                      <button onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} className="text-gray-400 hover:text-red-500 p-1">
+                      <button onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} className="text-gray-400 hover:text-red-500 active:text-red-700 p-1 transition-colors">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -404,15 +420,15 @@ export default function AdvanceExpenseTab() {
           
           <div className="grid grid-cols-2 gap-6">
             {/* Advances Panel */}
-            <div className="bg-white rounded-[12px] border border-gray-200 overflow-hidden shadow-sm">
-              <div className="p-4 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
+            <div className="bg-amber-50/50 rounded-[12px] border border-amber-200 overflow-hidden shadow-sm">
+              <div className="p-4 bg-amber-100/50 border-b border-amber-200 flex items-center justify-between">
                 <h3 className="font-black text-amber-900 uppercase tracking-widest text-[13px]">Advances</h3>
                 <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-amber-700 shadow-sm border border-amber-100">{advances.length} Records</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
+                    <tr className="bg-amber-50/80 border-b border-amber-100">
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Date</th>
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Amount</th>
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Remarks</th>
@@ -426,7 +442,7 @@ export default function AdvanceExpenseTab() {
                     ) : advances.length === 0 ? (
                       <tr><td colSpan={5} className="text-center py-8 text-gray-400 text-sm">No advances found</td></tr>
                     ) : advances.map(a => (
-                      <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50 group">
+                      <tr key={a.id} className="border-b border-amber-100 hover:bg-amber-100/40 transition-colors group">
                         {editingId === a.id ? (
                           <td colSpan={5} className="p-3">
                             <div className="flex gap-2 items-center">
@@ -436,8 +452,8 @@ export default function AdvanceExpenseTab() {
                               </select>
                               <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="border p-1 text-xs rounded w-20" />
                               <input type="text" value={editForm.reason} onChange={e => setEditForm({...editForm, reason: e.target.value})} className="border p-1 text-xs rounded flex-1" />
-                              <button onClick={handleUpdate} className="bg-green-500 text-white px-2 py-1 rounded text-xs">Save</button>
-                              <button onClick={() => setEditingId(null)} className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs">Cancel</button>
+                              <button onClick={handleUpdate} className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 active:bg-green-700 transition-colors">Save</button>
+                              <button onClick={() => setEditingId(null)} className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-400 active:bg-gray-500 transition-colors">Cancel</button>
                             </div>
                           </td>
                         ) : (
@@ -469,15 +485,15 @@ export default function AdvanceExpenseTab() {
             </div>
 
             {/* Expenses Panel */}
-            <div className="bg-white rounded-[12px] border border-gray-200 overflow-hidden shadow-sm">
-              <div className="p-4 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
+            <div className="bg-blue-50/50 rounded-[12px] border border-blue-200 overflow-hidden shadow-sm">
+              <div className="p-4 bg-blue-100/50 border-b border-blue-200 flex items-center justify-between">
                 <h3 className="font-black text-blue-900 uppercase tracking-widest text-[13px]">Expenses</h3>
                 <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-blue-700 shadow-sm border border-blue-100">{expenses.length} Records</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
+                    <tr className="bg-blue-50/80 border-b border-blue-100">
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Date</th>
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Category</th>
                       <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Amount</th>
@@ -491,7 +507,7 @@ export default function AdvanceExpenseTab() {
                     ) : expenses.length === 0 ? (
                       <tr><td colSpan={5} className="text-center py-8 text-gray-400 text-sm">No expenses found</td></tr>
                     ) : expenses.map(e => (
-                      <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50 group">
+                      <tr key={e.id} className="border-b border-blue-100 hover:bg-blue-100/40 transition-colors group">
                         {editingId === e.id ? (
                           <td colSpan={5} className="p-3">
                             <div className="flex gap-2 items-center">
@@ -501,8 +517,8 @@ export default function AdvanceExpenseTab() {
                               </select>
                               <input list="categories-list" value={editForm.category} onChange={ev => setEditForm({...editForm, category: ev.target.value})} className="no-arrow border p-1 text-xs rounded w-24" />
                               <input type="number" value={editForm.amount} onChange={ev => setEditForm({...editForm, amount: ev.target.value})} className="border p-1 text-xs rounded w-20" />
-                              <button onClick={handleUpdate} className="bg-green-500 text-white px-2 py-1 rounded text-xs">Save</button>
-                              <button onClick={() => setEditingId(null)} className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs">Cancel</button>
+                              <button onClick={handleUpdate} className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 active:bg-green-700 transition-colors">Save</button>
+                              <button onClick={() => setEditingId(null)} className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-400 active:bg-gray-500 transition-colors">Cancel</button>
                             </div>
                           </td>
                         ) : (
