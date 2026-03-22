@@ -335,7 +335,7 @@ export default function AdvanceExpenseTab() {
   }
 
   return (
-    <div className="space-y-6 font-inter">
+    <div className="space-y-6">
       <style>{`
         .no-arrow::-webkit-calendar-picker-indicator { display: none !important; }
       `}</style>
@@ -344,23 +344,24 @@ export default function AdvanceExpenseTab() {
         {categories.map(c => <option key={c} value={c} />)}
       </datalist>
 
-      {/* Sub-modules Nav */}
+      {/* IMPROVED: Sub-modules Navigation */}
       <div className="flex border-b border-gray-200 overflow-x-auto">
         {modules.map(mod => {
           const isActive = activeModule === mod
-          let colorClass = 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          let colorClass = 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           
           if (isActive) {
-            if (mod === 'Add Advance') colorClass = 'border-b-2 border-amber-600 text-amber-700 bg-amber-50/30'
-            else if (mod === 'Add Expense') colorClass = 'border-b-2 border-blue-600 text-blue-700 bg-blue-50/30'
-            else colorClass = 'border-b-2 border-indigo-600 text-indigo-600'
+            if (mod === 'Add Advance') colorClass = 'border-b-2 border-amber-500 text-amber-700 bg-amber-50'
+            else if (mod === 'Add Expense') colorClass = 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
+            else colorClass = 'border-b-2 border-primary-500 text-primary-700'
           }
 
           return (
             <button
               key={mod}
               onClick={() => setActiveModule(mod)}
-              className={`whitespace-nowrap px-6 py-3 text-sm font-black uppercase tracking-widest transition-all ${colorClass}`}
+              /* IMPROVED: text-sm (14px), font-semibold, removed uppercase and tracking-widest */
+              className={`whitespace-nowrap px-6 py-3 text-sm font-semibold transition-all ${colorClass}`}
             >
               {mod}
             </button>
@@ -370,45 +371,76 @@ export default function AdvanceExpenseTab() {
 
       {/* Add Expense / Add Advance Module */}
       {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
-        <div className={`rounded-[12px] border overflow-hidden shadow-sm transition-colors duration-300 ${
+        <div className={`rounded-xl border overflow-hidden shadow-card transition-colors ${
           activeModule === 'Add Advance' 
             ? 'bg-amber-50/50 border-amber-200' 
             : 'bg-blue-50/50 border-blue-200'
         }`}>
-          {/* Header & Controls */}
-          <div className={`flex justify-between items-center p-6 border-b transition-colors ${
+          {/* IMPROVED: Header & Controls */}
+          <div className={`flex justify-between items-center p-5 border-b transition-colors ${
             activeModule === 'Add Advance' 
               ? 'border-amber-100 bg-amber-100/50' 
               : 'border-blue-100 bg-blue-100/50'
           }`}>
-            <h2 className="text-xl font-black text-gray-800 tracking-tight">{activeModule === 'Add Advance' ? 'Add Advance' : 'Add Expenses'}</h2>
+            {/* IMPROVED: text-xl (20px), font-bold, removed tracking-tight */}
+            <h2 className="text-xl font-bold text-gray-800">
+              {activeModule === 'Add Advance' ? 'Add Advance' : 'Add Expenses'}
+            </h2>
+            
             <div className="flex items-center gap-3">
-              <button onClick={handleSelfExpense} className="h-[36px] px-4 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg text-[12px] uppercase tracking-widest shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all">
+              {/* IMPROVED: h-10 (standard), text-sm, font-medium, removed uppercase and tracking */}
+              <button 
+                onClick={handleSelfExpense} 
+                className="h-10 px-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg text-sm shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all"
+              >
                 Self Expense
               </button>
-              <button onClick={handleAddRow} className="h-[36px] px-4 bg-white/80 border border-teal-200 text-teal-600 font-bold rounded-lg text-[12px] uppercase tracking-widest hover:bg-teal-50 active:bg-teal-100 transition-all">
+              
+              <button 
+                onClick={handleAddRow} 
+                className="h-10 px-4 bg-white border border-teal-200 text-teal-600 font-medium rounded-lg text-sm hover:bg-teal-50 active:bg-teal-100 transition-all"
+              >
                 + Add Row
               </button>
-              <button onClick={handleSubmitAll} disabled={submitting} className={`h-[36px] px-6 text-white font-bold rounded-lg text-[12px] flex items-center gap-2 shadow-md transition-all uppercase tracking-widest disabled:opacity-50 ${
-                activeModule === 'Add Advance'
-                  ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800'
-                  : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'
-              }`}>
+              
+              <button 
+                onClick={handleSubmitAll} 
+                disabled={submitting} 
+                className={`h-10 px-6 text-white font-medium rounded-lg text-sm flex items-center gap-2 shadow-elevated transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  activeModule === 'Add Advance'
+                    ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800'
+                    : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'
+                }`}
+              >
                 {submitting ? <Spinner size="w-4 h-4" color="text-white" /> : 'Submit'}
               </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto p-4">
+          {/* IMPROVED: Table with better spacing */}
+          <div className="overflow-x-auto p-5">
             <table className="w-full text-left border-collapse border border-gray-200 min-w-[900px]">
               <thead>
-                <tr className={activeModule === 'Add Advance' ? 'bg-amber-100/80 border-b border-amber-200' : 'bg-blue-100/80 border-b border-blue-200'}>
-                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">Requesting date</th>
-                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[200px]">Employee</th>
-                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[140px]">Category</th>
-                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[100px]">Amount</th>
-                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200">Remarks</th>
-                  <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200">Project</th>
+                <tr className={activeModule === 'Add Advance' ? 'bg-amber-100 border-b border-amber-200' : 'bg-blue-100 border-b border-blue-200'}>
+                  {/* IMPROVED: text-xs (12px), font-semibold, tracking-wider (more reasonable) */}
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
+                    Request Date
+                  </th>
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[200px]">
+                    Employee
+                  </th>
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[140px]">
+                    Category
+                  </th>
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[100px]">
+                    Amount
+                  </th>
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                    Remarks
+                  </th>
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                    Project
+                  </th>
                   <th className="p-3 w-[50px]"></th>
                 </tr>
               </thead>
@@ -416,20 +448,26 @@ export default function AdvanceExpenseTab() {
                 {addRows.map((row, idx) => (
                   <tr key={row.id} className={`border-b border-gray-100 transition-colors ${
                     activeModule === 'Add Advance' 
-                      ? 'hover:bg-amber-100/30' 
-                      : 'hover:bg-blue-100/30'
-                  } ${idx % 2 === 0 ? 'bg-white/80' : 'bg-gray-50/30'}`}>
+                      ? 'hover:bg-amber-50' 
+                      : 'hover:bg-blue-50'
+                  } ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                     <td className="p-2 border-r border-gray-100">
-                      <input type="date" value={row.date} onChange={e => handleRowChange(row.id, 'date', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90" />
+                      {/* IMPROVED: h-10 (standard), text-sm, rounded-lg */}
+                      <input 
+                        type="date" 
+                        value={row.date} 
+                        onChange={e => handleRowChange(row.id, 'date', e.target.value)} 
+                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
+                      />
                     </td>
                     <td className="p-2 border-r border-gray-100">
                       <select 
                         value={row.employeeId} 
                         onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
                         disabled={!canSelectAll}
-                        className={`w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90 ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
-                        <option value="">Select Employee...</option>
+                        <option value="">Select employee...</option>
                         {canSelectAll ? (
                           employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)
                         ) : (
@@ -440,19 +478,46 @@ export default function AdvanceExpenseTab() {
                       </select>
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <input list="categories-list" value={row.category} onChange={e => handleRowChange(row.id, 'category', e.target.value)} className="no-arrow w-full h-[34px] border border-gray-300 rounded px-2 text-[11px] outline-none focus:border-indigo-500 bg-white/90" placeholder="Type category..." />
+                      <input 
+                        list="categories-list" 
+                        value={row.category} 
+                        onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
+                        className="no-arrow w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
+                        placeholder="Type category..." 
+                      />
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <input type="number" value={row.amount} onChange={e => handleRowChange(row.id, 'amount', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90" placeholder="0.00" />
+                      <input 
+                        type="number" 
+                        value={row.amount} 
+                        onChange={e => handleRowChange(row.id, 'amount', e.target.value)} 
+                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
+                        placeholder="0.00" 
+                      />
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <input type="text" value={row.reason} onChange={e => handleRowChange(row.id, 'reason', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90" placeholder="Remarks..." />
+                      <input 
+                        type="text" 
+                        value={row.reason} 
+                        onChange={e => handleRowChange(row.id, 'reason', e.target.value)} 
+                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
+                        placeholder="Remarks..." 
+                      />
                     </td>
                     <td className="p-2 border-r border-gray-100">
-                      <input type="text" value={row.project} onChange={e => handleRowChange(row.id, 'project', e.target.value)} className="w-full h-[34px] border border-gray-300 rounded px-2 text-[12px] outline-none focus:border-indigo-500 bg-white/90" placeholder="Project..." />
+                      <input 
+                        type="text" 
+                        value={row.project} 
+                        onChange={e => handleRowChange(row.id, 'project', e.target.value)} 
+                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
+                        placeholder="Project..." 
+                      />
                     </td>
                     <td className="p-2 text-center">
-                      <button onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} className="text-gray-400 hover:text-red-500 active:text-red-700 p-1 transition-colors">
+                      <button 
+                        onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} 
+                        className="text-gray-400 hover:text-red-500 active:text-red-700 p-1 transition-colors"
+                      >
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -467,74 +532,81 @@ export default function AdvanceExpenseTab() {
       {/* Reports Module */}
       {activeModule === 'Reports' && (
         <div className="space-y-6">
-          {/* Enhanced Filter Bar */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          {/* IMPROVED: Enhanced Filter Bar */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-card">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
               {/* Month Navigation */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1">
-                  <Calendar size={12} /> Select Month
+                {/* IMPROVED: text-sm, font-medium, removed excessive uppercase and tracking */}
+                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <Calendar size={14} /> Select Month
                 </label>
                 <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-                  <button onClick={() => handleMonthChange(-1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
-                    <ChevronLeft size={16} />
+                  <button 
+                    onClick={() => handleMonthChange(-1)} 
+                    className="p-2 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
+                  >
+                    <ChevronLeft size={18} />
                   </button>
-                  <div className="flex-1 text-center font-bold text-gray-700 text-sm">
+                  <div className="flex-1 text-center font-semibold text-gray-700 text-sm">
                     {(() => {
                       const [ry, rm] = reportMonth.split('-').map(Number)
                       return new Date(ry, rm - 1).toLocaleString('default', { month: 'short', year: 'numeric' })
                     })()}
                   </div>
-                  <button onClick={() => handleMonthChange(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
-                    <ChevronRight size={16} />
+                  <button 
+                    onClick={() => handleMonthChange(1)} 
+                    className="p-2 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
+                  >
+                    <ChevronRight size={18} />
                   </button>
                 </div>
               </div>
 
               {/* Name Filter */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1">
-                  <Search size={12} /> Search Name
+                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <Search size={14} /> Search Name
                 </label>
                 <input 
                   type="text" 
                   placeholder="Employee name..." 
                   value={reportFilterName}
                   onChange={e => setReportFilterName(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50/50"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-gray-50/50 transition-colors"
                 />
               </div>
 
               {/* Category Filter */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1">
-                  <Filter size={12} /> Category
+                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <Filter size={14} /> Category
                 </label>
                 <input 
                   list="categories-list"
                   placeholder="All categories..." 
                   value={reportFilterCategory}
                   onChange={e => setReportFilterCategory(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50/50"
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-gray-50/50 transition-colors"
                 />
               </div>
 
-              {/* Actions */}
+              {/* IMPROVED: Actions */}
               <div className="flex gap-2">
                 <button 
                   onClick={applyReportFilters}
-                  className="flex-1 h-10 bg-indigo-600 text-white font-black rounded-lg text-[11px] uppercase tracking-widest shadow-md hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center justify-center gap-2"
+                  className="flex-1 h-10 bg-primary-600 text-white font-medium rounded-lg text-sm shadow-elevated hover:bg-primary-700 active:bg-primary-800 transition-all flex items-center justify-center gap-2"
                 >
-                  <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   Apply
                 </button>
                 <button 
                   onClick={exportPDF}
                   disabled={!reportApplied || filteredEntries.length === 0}
-                  className="h-10 px-4 bg-emerald-600 text-white font-black rounded-lg text-[11px] uppercase tracking-widest shadow-md hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="h-10 px-4 bg-emerald-600 text-white font-medium rounded-lg text-sm shadow-elevated hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   title="Export to PDF"
                 >
-                  <FileDown size={16} />
+                  <FileDown size={18} />
                 </button>
               </div>
             </div>
@@ -542,47 +614,55 @@ export default function AdvanceExpenseTab() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Advances Panel */}
-            <div className="bg-amber-50/50 rounded-[12px] border border-amber-200 overflow-hidden shadow-sm">
+            <div className="bg-amber-50/50 rounded-xl border border-amber-200 overflow-hidden shadow-card">
               <div className="p-4 bg-amber-100/50 border-b border-amber-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-black text-amber-900 uppercase tracking-widest text-[13px]">Advances</h3>
-                  {reportApplied && <span className="text-[10px] font-bold text-amber-600 bg-white px-2 py-0.5 rounded border border-amber-100">Filtered</span>}
+                  {/* IMPROVED: text-sm, font-semibold */}
+                  <h3 className="font-semibold text-amber-900 text-sm">Advances</h3>
+                  {reportApplied && (
+                    <span className="text-xs font-medium text-amber-600 bg-white px-2 py-1 rounded border border-amber-100">
+                      Filtered
+                    </span>
+                  )}
                 </div>
-                <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-amber-700 shadow-sm border border-amber-100">
+                <span className="bg-white px-3 py-1 rounded-full text-xs font-semibold text-amber-700 shadow-sm border border-amber-100">
                   {reportApplied ? advForReport.length : advances.length} Records
                 </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-amber-50/80 border-b border-amber-100">
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Date</th>
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Amount</th>
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Status</th>
+                    <tr className="bg-amber-50 border-b border-amber-100">
+                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
+                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
                       <th className="p-3 w-[70px]"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? advForReport : advances).length === 0 ? (
-                      <tr><td colSpan={4} className="text-center py-12 text-gray-400 text-sm italic">No records found for this criteria</td></tr>
+                      <tr>
+                        <td colSpan={4} className="text-center py-12 text-gray-400 text-sm">
+                          No records found for this criteria
+                        </td>
+                      </tr>
                     ) : (reportApplied ? advForReport : advances).map(a => (
-                      <tr key={a.id} className="border-b border-amber-100 hover:bg-amber-100/40 transition-colors group">
+                      <tr key={a.id} className="border-b border-amber-100 hover:bg-amber-50 transition-colors group">
                         <td className="p-3">
                           <div className="flex flex-col">
-                            <span className="text-[12px] text-gray-500">{a.date}</span>
-                            <span className="text-[11px] font-bold text-gray-800">{a.employeeName}</span>
+                            {/* IMPROVED: text-sm, font-normal */}
+                            <span className="text-sm text-gray-500">{a.date}</span>
+                            <span className="text-xs font-semibold text-gray-800">{a.employeeName}</span>
                           </div>
                         </td>
-                        <td className="p-3 text-[13px] font-bold text-gray-900">{formatINR(a.amount)}</td>
-                        <td className="p-3">
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                            a.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : 
-                            a.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-600'
-                          }`}>{a.status}</span>
-                        </td>
+                        <td className="p-3 text-sm font-medium text-gray-700">{a.category}</td>
+                        <td className="p-3 text-sm font-semibold text-gray-900">{formatINR(a.amount)}</td>
                         <td className="p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleEdit(a)} className="text-gray-400 hover:text-blue-600 p-1">
-                            <Edit2 size={14} />
+                          <button 
+                            onClick={() => handleEdit(a)} 
+                            className="text-gray-400 hover:text-amber-600 p-1 transition-colors"
+                          >
+                            <Edit2 size={16} />
                           </button>
                         </td>
                       </tr>
@@ -593,42 +673,53 @@ export default function AdvanceExpenseTab() {
             </div>
 
             {/* Expenses Panel */}
-            <div className="bg-blue-50/50 rounded-[12px] border border-blue-200 overflow-hidden shadow-sm">
+            <div className="bg-blue-50/50 rounded-xl border border-blue-200 overflow-hidden shadow-card">
               <div className="p-4 bg-blue-100/50 border-b border-blue-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-black text-blue-900 uppercase tracking-widest text-[13px]">Expenses</h3>
-                  {reportApplied && <span className="text-[10px] font-bold text-blue-600 bg-white px-2 py-0.5 rounded border border-blue-100">Filtered</span>}
+                  <h3 className="font-semibold text-blue-900 text-sm">Expenses</h3>
+                  {reportApplied && (
+                    <span className="text-xs font-medium text-blue-600 bg-white px-2 py-1 rounded border border-blue-100">
+                      Filtered
+                    </span>
+                  )}
                 </div>
-                <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-blue-700 shadow-sm border border-blue-100">
+                <span className="bg-white px-3 py-1 rounded-full text-xs font-semibold text-blue-700 shadow-sm border border-blue-100">
                   {reportApplied ? expForReport.length : expenses.length} Records
                 </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-blue-50/80 border-b border-blue-100">
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Date</th>
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Category</th>
-                      <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Amount</th>
+                    <tr className="bg-blue-50 border-b border-blue-100">
+                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
+                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
                       <th className="p-3 w-[70px]"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
-                      <tr><td colSpan={4} className="text-center py-12 text-gray-400 text-sm italic">No records found for this criteria</td></tr>
+                      <tr>
+                        <td colSpan={4} className="text-center py-12 text-gray-400 text-sm">
+                          No records found for this criteria
+                        </td>
+                      </tr>
                     ) : (reportApplied ? expForReport : expenses).map(e => (
-                      <tr key={e.id} className="border-b border-blue-100 hover:bg-blue-100/40 transition-colors group">
+                      <tr key={e.id} className="border-b border-blue-100 hover:bg-blue-50 transition-colors group">
                         <td className="p-3">
                           <div className="flex flex-col">
-                            <span className="text-[12px] text-gray-500">{e.date}</span>
-                            <span className="text-[11px] font-bold text-gray-800">{e.employeeName}</span>
+                            <span className="text-sm text-gray-500">{e.date}</span>
+                            <span className="text-xs font-semibold text-gray-800">{e.employeeName}</span>
                           </div>
                         </td>
-                        <td className="p-3 text-[12px] font-bold text-gray-700">{e.category}</td>
-                        <td className="p-3 text-[13px] font-bold text-gray-900">{formatINR(e.amount)}</td>
+                        <td className="p-3 text-sm font-medium text-gray-700">{e.category}</td>
+                        <td className="p-3 text-sm font-semibold text-gray-900">{formatINR(e.amount)}</td>
                         <td className="p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleEdit(e)} className="text-gray-400 hover:text-blue-600 p-1">
-                            <Edit2 size={14} />
+                          <button 
+                            onClick={() => handleEdit(e)} 
+                            className="text-gray-400 hover:text-blue-600 p-1 transition-colors"
+                          >
+                            <Edit2 size={16} />
                           </button>
                         </td>
                       </tr>
@@ -641,7 +732,7 @@ export default function AdvanceExpenseTab() {
         </div>
       )}
 
-      {/* Summary */}
+      {/* Summary Module */}
       {activeModule === 'Summary' && (
         <div className="space-y-6">
           {loading ? (
@@ -650,53 +741,61 @@ export default function AdvanceExpenseTab() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-amber-50 to-white rounded-xl border border-amber-100 p-5 shadow-sm">
-                  <div className="flex items-center gap-2 text-amber-800/80 mb-2">
-                    <PieChart size={18} />
-                    <span className="text-[11px] font-black uppercase tracking-widest">Advances</span>
+              {/* IMPROVED: Summary Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="bg-gradient-to-br from-amber-50 to-white rounded-xl border border-amber-200 p-5 shadow-card">
+                  <div className="flex items-center gap-2 text-amber-700 mb-3">
+                    <PieChart size={20} />
+                    {/* IMPROVED: text-sm, font-medium */}
+                    <span className="text-sm font-medium">Advances</span>
                   </div>
-                  <p className="text-2xl font-black text-amber-900">{formatINR(summary.advSum)}</p>
-                  <p className="text-[11px] text-amber-700/70 font-bold mt-1">{summary.advCount} records</p>
+                  <p className="text-2xl font-bold text-amber-900">{formatINR(summary.advSum)}</p>
+                  <p className="text-xs text-amber-600 font-medium mt-1">{summary.advCount} records</p>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl border border-blue-100 p-5 shadow-sm">
-                  <div className="flex items-center gap-2 text-blue-800/80 mb-2">
-                    <PieChart size={18} />
-                    <span className="text-[11px] font-black uppercase tracking-widest">Expenses</span>
+                
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl border border-blue-200 p-5 shadow-card">
+                  <div className="flex items-center gap-2 text-blue-700 mb-3">
+                    <PieChart size={20} />
+                    <span className="text-sm font-medium">Expenses</span>
                   </div>
-                  <p className="text-2xl font-black text-blue-900">{formatINR(summary.expSum)}</p>
-                  <p className="text-[11px] text-blue-700/70 font-bold mt-1">{summary.expCount} records</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatINR(summary.expSum)}</p>
+                  <p className="text-xs text-blue-600 font-medium mt-1">{summary.expCount} records</p>
                 </div>
-                <div className="bg-gradient-to-br from-violet-50 to-white rounded-xl border border-violet-100 p-5 shadow-sm">
-                  <div className="flex items-center gap-2 text-violet-800/80 mb-2">
-                    <Clock size={18} />
-                    <span className="text-[11px] font-black uppercase tracking-widest">Awaiting payment</span>
+                
+                <div className="bg-gradient-to-br from-violet-50 to-white rounded-xl border border-violet-200 p-5 shadow-card">
+                  <div className="flex items-center gap-2 text-violet-700 mb-3">
+                    <Clock size={20} />
+                    <span className="text-sm font-medium">Awaiting Payment</span>
                   </div>
-                  <p className="text-2xl font-black text-violet-900">{formatINR(summary.awaitingPaymentSum)}</p>
-                  <p className="text-[11px] text-violet-700/70 font-bold mt-1">{summary.awaitingPaymentCount} in queue</p>
+                  <p className="text-2xl font-bold text-violet-900">{formatINR(summary.awaitingPaymentSum)}</p>
+                  <p className="text-xs text-violet-600 font-medium mt-1">{summary.awaitingPaymentCount} in queue</p>
                 </div>
-                <div className="bg-gradient-to-br from-emerald-50 to-white rounded-xl border border-emerald-100 p-5 shadow-sm">
-                  <div className="flex items-center gap-2 text-emerald-800/80 mb-2">
-                    <CheckCircle2 size={18} />
-                    <span className="text-[11px] font-black uppercase tracking-widest">Paid out</span>
+                
+                <div className="bg-gradient-to-br from-emerald-50 to-white rounded-xl border border-emerald-200 p-5 shadow-card">
+                  <div className="flex items-center gap-2 text-emerald-700 mb-3">
+                    <CheckCircle2 size={20} />
+                    <span className="text-sm font-medium">Paid Out</span>
                   </div>
-                  <p className="text-2xl font-black text-emerald-900">{formatINR(summary.paidSum)}</p>
-                  <p className="text-[11px] text-emerald-700/70 font-bold mt-1">{summary.paidCount} settled</p>
+                  <p className="text-2xl font-bold text-emerald-900">{formatINR(summary.paidSum)}</p>
+                  <p className="text-xs text-emerald-600 font-medium mt-1">{summary.paidCount} settled</p>
                 </div>
               </div>
 
-              <div className="bg-white rounded-[12px] border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 bg-[#f8fafc]">
-                  <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">By request status</h3>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Counts and amounts across all advance & expense entries</p>
+              {/* IMPROVED: Status Breakdown Table */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+                  <h3 className="text-base font-semibold text-gray-800">By Request Status</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Counts and amounts across all advance & expense entries
+                  </p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[480px]">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Status</th>
-                        <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider text-right">Count</th>
-                        <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider text-right">Total amount</th>
+                        <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                        <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Count</th>
+                        <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Total Amount</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -710,26 +809,27 @@ export default function AdvanceExpenseTab() {
                         Object.entries(summary.byStatus)
                           .sort(([a], [b]) => a.localeCompare(b))
                           .map(([st, { count, sum }]) => (
-                            <tr key={st} className="border-b border-gray-100 hover:bg-gray-50/80">
-                              <td className="p-3">
+                            <tr key={st} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                              <td className="p-4">
+                                {/* IMPROVED: text-xs, font-medium */}
                                 <span
-                                  className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                  className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
                                     st === 'Approved'
-                                      ? 'bg-emerald-50 text-emerald-700'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                       : st === 'Rejected'
-                                        ? 'bg-rose-50 text-rose-700'
+                                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                         : st === 'Hold'
-                                          ? 'bg-gray-100 text-gray-600'
+                                          ? 'bg-gray-100 text-gray-600 border border-gray-200'
                                           : st === 'Partial'
-                                            ? 'bg-blue-50 text-blue-700'
-                                            : 'bg-amber-50 text-amber-700'
+                                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                            : 'bg-amber-50 text-amber-700 border border-amber-200'
                                   }`}
                                 >
                                   {st}
                                 </span>
                               </td>
-                              <td className="p-3 text-right text-[13px] font-bold text-gray-800">{count}</td>
-                              <td className="p-3 text-right text-[13px] font-black text-gray-900">{formatINR(sum)}</td>
+                              <td className="p-4 text-right text-sm font-semibold text-gray-800">{count}</td>
+                              <td className="p-4 text-right text-sm font-bold text-gray-900">{formatINR(sum)}</td>
                             </tr>
                           ))
                       )}
@@ -742,7 +842,7 @@ export default function AdvanceExpenseTab() {
         </div>
       )}
 
-      {/* Escalation — items waiting on HR, MD, or hold */}
+      {/* Escalation Module */}
       {activeModule === 'Escalation' && (
         <div className="space-y-6">
           {loading ? (
@@ -751,9 +851,10 @@ export default function AdvanceExpenseTab() {
             </div>
           ) : (
             <>
-              <p className="text-[13px] text-gray-600 max-w-2xl">
+              {/* IMPROVED: text-sm */}
+              <p className="text-sm text-gray-600 max-w-2xl">
                 Requests that still need action in the approval chain. Use{' '}
-                <span className="font-bold text-gray-800">Approvals</span> to resolve them.
+                <span className="font-semibold text-gray-800">Approvals</span> to resolve them.
               </p>
 
               {[
@@ -762,7 +863,7 @@ export default function AdvanceExpenseTab() {
                   title: 'Awaiting HR',
                   subtitle: 'Not yet submitted to MD',
                   rows: escalation.needsHr,
-                  accent: 'border-l-4 border-l-indigo-500 bg-indigo-50/40'
+                  accent: 'border-l-4 border-l-primary-500 bg-primary-50/40'
                 },
                 {
                   key: 'needsMd',
@@ -773,7 +874,7 @@ export default function AdvanceExpenseTab() {
                 },
                 {
                   key: 'onHold',
-                  title: 'On hold',
+                  title: 'On Hold',
                   subtitle: 'Paused pending clarification',
                   rows: escalation.onHold,
                   accent: 'border-l-4 border-l-gray-400 bg-gray-50/80'
@@ -781,17 +882,18 @@ export default function AdvanceExpenseTab() {
               ].map((block) => (
                 <div
                   key={block.key}
-                  className={`rounded-[12px] border border-gray-200 shadow-sm overflow-hidden ${block.accent}`}
+                  className={`rounded-xl border border-gray-200 shadow-card overflow-hidden ${block.accent}`}
                 >
-                  <div className="px-5 py-4 border-b border-gray-200/80 bg-white/60 flex items-start justify-between gap-4">
+                  <div className="px-5 py-4 border-b border-gray-200 bg-white/60 flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
+                      <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={22} />
                       <div>
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">{block.title}</h3>
-                        <p className="text-[11px] text-gray-500 font-medium mt-0.5">{block.subtitle}</p>
+                        {/* IMPROVED: text-base, font-semibold */}
+                        <h3 className="text-base font-semibold text-gray-900">{block.title}</h3>
+                        <p className="text-sm text-gray-500 font-normal mt-1">{block.subtitle}</p>
                       </div>
                     </div>
-                    <span className="text-[11px] font-black text-gray-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-200">
+                    <span className="text-xs font-semibold text-gray-600 bg-white px-3 py-1.5 rounded-full border border-gray-200">
                       {block.rows.length}
                     </span>
                   </div>
@@ -802,31 +904,34 @@ export default function AdvanceExpenseTab() {
                       <table className="w-full text-left border-collapse min-w-[640px]">
                         <thead>
                           <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Date</th>
-                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Type</th>
-                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Employee</th>
-                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider text-right">Amount</th>
-                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">HR</th>
-                            <th className="p-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">MD</th>
+                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
+                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Employee</th>
+                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Amount</th>
+                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">HR</th>
+                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">MD</th>
                           </tr>
                         </thead>
                         <tbody>
                           {block.rows.map((row) => (
-                            <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50/80">
-                              <td className="p-3 text-[12px] text-gray-600">{row.date || '—'}</td>
-                              <td className="p-3">
+                            <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                              <td className="p-4 text-sm text-gray-600">{row.date || '—'}</td>
+                              <td className="p-4">
+                                {/* IMPROVED: text-xs, font-medium */}
                                 <span
-                                  className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                                    row.type === 'Advance' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                  className={`text-xs font-medium px-2.5 py-1 rounded-md ${
+                                    row.type === 'Advance' 
+                                      ? 'bg-amber-100 text-amber-800' 
+                                      : 'bg-blue-100 text-blue-800'
                                   }`}
                                 >
                                   {row.type || '—'}
                                 </span>
                               </td>
-                              <td className="p-3 text-[12px] font-bold text-gray-800">{row.employeeName || '—'}</td>
-                              <td className="p-3 text-right text-[13px] font-black text-gray-900">{formatINR(effectiveAmount(row))}</td>
-                              <td className="p-3 text-[11px] font-bold text-gray-600">{row.hrApproval || 'Pending'}</td>
-                              <td className="p-3 text-[11px] font-bold text-gray-600">{row.mdApproval || 'Pending'}</td>
+                              <td className="p-4 text-sm font-semibold text-gray-800">{row.employeeName || '—'}</td>
+                              <td className="p-4 text-right text-sm font-bold text-gray-900">{formatINR(effectiveAmount(row))}</td>
+                              <td className="p-4 text-sm font-medium text-gray-600">{row.hrApproval || 'Pending'}</td>
+                              <td className="p-4 text-sm font-medium text-gray-600">{row.mdApproval || 'Pending'}</td>
                             </tr>
                           ))}
                         </tbody>
