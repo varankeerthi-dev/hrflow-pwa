@@ -267,7 +267,7 @@ export default function SalarySlipTab() {
           </div>
         )}
 
-        {activeTab === 'loan' ? (
+        {activeTab === 'loan' && (
           <div className="max-w-6xl mx-auto space-y-10 font-inter">
             <div className="flex justify-between items-center border-b border-gray-200 pb-6"><div><h1 className="text-2xl font-bold text-gray-900 font-google-sans tracking-tight">Loan Management</h1><p className="text-[13px] text-gray-500 font-medium mt-1">Lifecycle tracking for advances.</p></div><button onClick={() => { setEditingLoanId(null); setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: selectedMonth, remarks: '' }); }} className="h-10 px-6 bg-gray-900 text-white font-bold rounded-lg text-[11px] uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-black active:scale-95"><Plus size={14} /> New Schedule</button></div>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
