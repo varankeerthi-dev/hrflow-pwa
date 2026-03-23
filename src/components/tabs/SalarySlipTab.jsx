@@ -128,10 +128,9 @@ export default function SalarySlipTab() {
   })
 
   const columns = useMemo(() => [
-    { accessorKey: 'sno', header: 'S.No', size: 20, cell: info => <div className="text-center">{info.getValue()}</div> },
-    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-1 truncate w-[100px] block">{info.getValue()}</button> },
-    { accessorKey: 'empId', header: 'Emp ID', cell: info => <div className="text-left px-1 truncate w-[45px]">{info.getValue()}</div> },
-    { accessorKey: 'totalDays', header: 'Total\nDays', size: 22, cell: info => <div className="text-center">{info.getValue()}</div> },
+    { accessorKey: 'sno', header: 'S.No', size: 15, cell: info => <div className="text-center">{info.getValue()}</div> },
+    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-1 truncate w-[75px] block">{info.getValue()}</button> },
+    { accessorKey: 'totalDays', header: 'Total\nDays', size: 18, cell: info => <div className="text-center font-bold" style={{ color: 'oklch(62.3% 0.214 259.815)' }}>{info.getValue()}</div> },
     { accessorKey: 'worked', header: 'Worked', size: 28, cell: info => <div className="text-center">{info.getValue()}</div> },
     { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sunday', size: 38 }, { accessorKey: 'holidays', header: 'Holiday', size: 38 }, { accessorKey: 'totalHolidays', header: 'Tot', size: 22 }] },
     { id: 'leave_group', header: 'LEAVE', columns: [{ accessorKey: 'leave', header: 'Appro', size: 30 }, { accessorKey: 'lop', header: 'LOP', size: 25 }] },
