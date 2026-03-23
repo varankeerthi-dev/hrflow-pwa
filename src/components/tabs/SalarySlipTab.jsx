@@ -133,10 +133,10 @@ export default function SalarySlipTab() {
     { accessorKey: 'empId', header: 'Emp ID', cell: info => <div className="text-left px-1 truncate w-[45px]">{info.getValue()}</div> },
     { accessorKey: 'totalDays', header: 'Total\nDays', size: 22, cell: info => <div className="text-center">{info.getValue()}</div> },
     { accessorKey: 'worked', header: 'Worked', size: 28, cell: info => <div className="text-center">{info.getValue()}</div> },
-    { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sun', size: 22 }, { accessorKey: 'holidays', header: 'Hol', size: 22 }, { accessorKey: 'totalHolidays', header: 'Tot', size: 22 }] },
-    { id: 'leave_group', header: 'LEAVE', columns: [{ accessorKey: 'leave', header: 'Appr', size: 25 }, { accessorKey: 'lop', header: 'LOP', size: 25 }] },
+    { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sunday', size: 38 }, { accessorKey: 'holidays', header: 'Holiday', size: 38 }, { accessorKey: 'totalHolidays', header: 'Tot', size: 22 }] },
+    { id: 'leave_group', header: 'LEAVE', columns: [{ accessorKey: 'leave', header: 'Appro', size: 30 }, { accessorKey: 'lop', header: 'LOP', size: 25 }] },
     { accessorKey: 'ot', header: 'OT', size: 25 },
-    { id: 'worked_group', header: 'HOLIDAYS WORKED', columns: [{ accessorKey: 'sunW', header: 'Sun', size: 22 }, { accessorKey: 'holW', header: 'Hol', size: 22 }] },
+    { id: 'worked_group', header: 'HOLIDAY WORKED', columns: [{ accessorKey: 'sunW', header: 'SUN', size: 28 }, { accessorKey: 'holW', header: 'HOL', size: 28 }] },
     { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 30 },
   ], [])
 
