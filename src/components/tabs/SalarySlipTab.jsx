@@ -130,7 +130,7 @@ export default function SalarySlipTab() {
 
   const columns = useMemo(() => [
     { accessorKey: 'sno', header: 'S.No', size: 15, cell: info => <div className="text-center">{info.getValue()}</div> },
-    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-1 truncate w-[100px] block">{info.getValue()}</button> },
+    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-1 truncate w-[150px] block">{info.getValue()}</button> },
     { accessorKey: 'totalDays', header: 'Total\nDays', size: 18, cell: info => <div className="text-center font-bold" style={{ color: 'oklch(62.3% 0.214 259.815)' }}>{info.getValue()}</div> },
     { accessorKey: 'worked', header: 'Worked', size: 20, cell: info => <div className="text-center">{info.getValue()}</div> },
     { accessorKey: 'sunday', header: 'Sunday', size: 30 },
@@ -241,7 +241,7 @@ export default function SalarySlipTab() {
                 <div className="flex flex-col h-1/2 min-h-0 space-y-1">
                   <button onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200 shadow-sm shrink-0 w-full hover:border-indigo-200 transition-all group"><div className="flex items-center gap-2"><div className="w-6 h-6 rounded bg-gray-900 flex items-center justify-center text-white group-hover:bg-indigo-600 transition-colors"><Clock size={12} /></div><p className="text-[10px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p></div><div className="flex items-center gap-2"><PDFDownloadLink document={<AttendanceSummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />} fileName={`Attendance_Summary_${summaryMonth}.pdf`} onClick={e => e.stopPropagation()} className="h-6 bg-indigo-600 text-white px-2 rounded text-[8px] font-bold uppercase tracking-widest flex items-center gap-1 hover:bg-indigo-700 shadow-sm transition-all active:scale-95">{({ loading }) => <><Download size={10} /> {loading ? '...' : 'Export'}</>}</PDFDownloadLink><div className="h-4 w-px bg-gray-200 mx-1" /><button onClick={(e) => { e.stopPropagation(); setIsDetailPanelOpen(!isDetailPanelOpen); }} className={`p-1 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`} title={isDetailPanelOpen ? "Close Details" : "Open Details"}><Info size={14} /></button>{isAttendanceSummaryOpen ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}</div></button>
                   <div className={`bg-white rounded border border-gray-200 shadow-sm overflow-hidden flex-col flex-1 min-h-0 ${!isAttendanceSummaryOpen ? 'hidden' : 'flex'}`}><div className="overflow-auto flex-1">
-                    <table className="w-full border-collapse text-[20px] font-inter table-auto">
+                    <table className="w-full border-collapse text-[14px] font-inter table-auto">
                       <thead className="sticky top-0 z-10">
                         {table.getHeaderGroups().map((headerGroup) => (
                           <tr key={headerGroup.id}>
@@ -249,7 +249,7 @@ export default function SalarySlipTab() {
                               <th 
                                 key={header.id} 
                                 colSpan={header.colSpan} 
-                                className="px-1 py-3 border border-gray-200 bg-gray-50 text-gray-700 font-black uppercase text-center whitespace-pre-line break-words leading-tight"
+                                className="px-1 py-2 border border-gray-200 bg-gray-50 text-gray-700 font-black uppercase text-center whitespace-pre-line break-words leading-tight"
                               >
                                 {flexRender(header.column.columnDef.header, header.getContext())}
                               </th>
@@ -261,7 +261,7 @@ export default function SalarySlipTab() {
                         {isAttendanceLoading ? (<tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>) : (
                           table.getRowModel().rows.map(row => (
                             <tr key={row.id} className={`hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30 ${summaryEmpDetail?.id === row.original.id ? 'bg-indigo-50' : ''}`}>
-                              {row.getVisibleCells().map(cell => (<td key={cell.id} className="px-1 py-2 border border-gray-100 text-gray-600 font-medium text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}
+                              {row.getVisibleCells().map(cell => (<td key={cell.id} className="px-1 py-1.5 border border-gray-100 text-gray-600 font-medium text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}
                             </tr>
                           ))
                         )}
