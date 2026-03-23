@@ -7,7 +7,7 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock } from 'lucide-react'
+import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font } from '@react-pdf/renderer'
 import { logActivity } from '../../hooks/useActivityLog'
 
@@ -33,6 +33,7 @@ export default function SalarySlipTab() {
   const { user } = useAuth(), { employees } = useEmployees(user?.orgId, true), { slabs, increments } = useSalarySlab(user?.orgId), { fetchByDate } = useAttendance(user?.orgId)
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const [activeTab, setActiveTab] = useState('salary-slip'), [selectedEmp, setSelectedEmp] = useState(''), [selectedMonth, setSelectedMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
+  const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
   const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState('')
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [advances, setAdvances] = useState([]), [newAdvance, setNewAdvance] = useState({ type: 'Advance', amount: 0, date: '', reason: '' }), [revisedOT, setRevisedOT] = useState(0), [otNote, setOtNote] = useState(''), [contRule, setContinuousLeaveRule] = useState(false)
@@ -145,11 +146,12 @@ export default function SalarySlipTab() {
         <div className="px-8 mb-10 font-google-sans text-[11px] font-bold uppercase tracking-widest text-gray-400">Payroll Engine</div>
         <nav className="flex-1 space-y-1 px-4">
           <button onClick={() => setActiveTab('salary-slip')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${activeTab === 'salary-slip' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}><Banknote size={16} /><span className="text-[13px] font-semibold">Salary Slip</span></button>
+          <button onClick={() => setActiveTab('salary-summary')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${activeTab === 'salary-summary' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={16} /><span className="text-[13px] font-semibold">Salary Summary</span></button>
           <button onClick={() => setActiveTab('loan')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${activeTab === 'loan' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}><Wallet size={16} /><span className="text-[13px] font-semibold">Loan Management</span></button>
         </nav>
       </div>
       <div className="flex-1 overflow-auto p-10">
-        {activeTab === 'salary-slip' ? (
+        {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto space-y-8">
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-8 items-end">
               <div className="flex-1 min-w-[280px] font-google-sans uppercase text-[10px] font-bold text-gray-400">Target Employee<select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-11 border border-gray-200 rounded-lg px-4 text-[13px] font-semibold bg-white outline-none mt-2 text-gray-900 normal-case">{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
@@ -184,7 +186,88 @@ export default function SalarySlipTab() {
               </div>
             )}
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'salary-summary' && (
+          <div className="max-w-6xl mx-auto space-y-8">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 font-google-sans tracking-tight uppercase">Salary Summary</h1>
+                <p className="text-[13px] text-gray-500 font-medium mt-1">Monthly payroll overview and statistics.</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button 
+                    onClick={() => {
+                      const [y, m] = summaryMonth.split('-').map(Number)
+                      const d = new Date(y, m - 2, 1)
+                      setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+                    }}
+                    className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <div className="px-4 py-2 font-bold text-gray-900 text-sm min-w-[140px] text-center">
+                    {new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const [y, m] = summaryMonth.split('-').map(Number)
+                      const d = new Date(y, m, 1)
+                      setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+                    }}
+                    className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+                
+                <div className="h-10 w-px bg-gray-200 mx-2" />
+                
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="month" 
+                    value={summaryMonth} 
+                    onChange={e => setSummaryMonth(e.target.value)}
+                    className="h-10 border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition-all"
+                  />
+                  <button className="h-10 px-6 bg-gray-900 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition-all active:scale-95">
+                    Submit
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 text-gray-400 font-google-sans text-[10px] font-bold uppercase tracking-widest">
+                <Info size={14} />
+                Filtering for {new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { label: 'Total Payroll', value: '₹0.00', sub: 'Gross Earnings' },
+                { label: 'Total Deductions', value: '₹0.00', sub: 'PF, Tax, Loans' },
+                { label: 'Net Disbursement', value: '₹0.00', sub: 'Final Payout' }
+              ].map((stat, i) => (
+                <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                  <p className="text-2xl font-black text-gray-900 tracking-tighter">{stat.value}</p>
+                  <p className="text-[11px] text-gray-500 font-medium">{stat.sub}</p>
+                </div>
+              ))}
+            </div>
+            
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[300px] flex flex-col items-center justify-center text-gray-400 space-y-4">
+              <FileText size={48} strokeWidth={1} />
+              <p className="text-sm font-medium">Click submit to fetch summary for this period.</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'loan' ? (
           <div className="max-w-6xl mx-auto space-y-10 font-inter">
             <div className="flex justify-between items-center border-b border-gray-200 pb-6"><div><h1 className="text-2xl font-bold text-gray-900 font-google-sans tracking-tight">Loan Management</h1><p className="text-[13px] text-gray-500 font-medium mt-1">Lifecycle tracking for advances.</p></div><button onClick={() => { setEditingLoanId(null); setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: selectedMonth, remarks: '' }); }} className="h-10 px-6 bg-gray-900 text-white font-bold rounded-lg text-[11px] uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-black active:scale-95"><Plus size={14} /> New Schedule</button></div>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
