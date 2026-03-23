@@ -129,15 +129,15 @@ export default function SalarySlipTab() {
 
   const columns = useMemo(() => [
     { accessorKey: 'sno', header: 'S.No', size: 25, cell: info => <div className="w-[25px] text-center">{info.getValue()}</div> },
-    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-2 truncate max-w-[120px]">{info.getValue()}</button> },
-    { accessorKey: 'empId', header: 'ID', cell: info => <div className="text-left px-2 truncate max-w-[50px]">{info.getValue()}</div> },
-    { accessorKey: 'totalDays', header: 'Days' },
-    { accessorKey: 'worked', header: 'Wk' },
-    { id: 'holidays_group', header: 'HOL', columns: [{ accessorKey: 'sunday', header: 'Sn' }, { accessorKey: 'holidays', header: 'Hl' }, { accessorKey: 'totalHolidays', header: 'Tt' }] },
-    { id: 'leave_group', header: 'LV', columns: [{ accessorKey: 'leave', header: 'Ap' }, { accessorKey: 'lop', header: 'Lp' }] },
-    { accessorKey: 'ot', header: 'OT' },
-    { id: 'worked_group', header: 'WKED', columns: [{ accessorKey: 'sunW', header: 'Sn' }, { accessorKey: 'holW', header: 'Hl' }] },
-    { accessorKey: 'totalWorkingDays', header: 'PAY' },
+    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-2 truncate w-[100px] block">{info.getValue()}</button> },
+    { accessorKey: 'empId', header: 'Emp ID', cell: info => <div className="text-left px-2 truncate w-[45px]">{info.getValue()}</div> },
+    { accessorKey: 'totalDays', header: 'Total Days' },
+    { accessorKey: 'worked', header: 'Worked' },
+    { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sunday' }, { accessorKey: 'holidays', header: 'Holidays' }, { accessorKey: 'totalHolidays', header: 'Total' }] },
+    { id: 'leave_group', header: 'LEAVE', columns: [{ accessorKey: 'leave', header: 'Approved' }, { accessorKey: 'lop', header: 'LOP' }] },
+    { accessorKey: 'ot', header: 'OT HRS' },
+    { id: 'worked_group', header: 'HOLIDAYS WORKED', columns: [{ accessorKey: 'sunW', header: 'Sunday' }, { accessorKey: 'holW', header: 'Holiday' }] },
+    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS' },
   ], [])
 
   const table = useReactTable({ data: attendanceSummaryData, columns, getCoreRowModel: getCoreRowModel() })
