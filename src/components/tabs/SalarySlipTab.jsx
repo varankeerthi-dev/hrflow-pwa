@@ -81,6 +81,7 @@ export default function SalarySlipTab() {
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(true)
   const [summaryEmpDetail, setSummaryEmpDetail] = useState(null)
+  const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false)
   const monthInputRef = useRef(null)
 
   const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0 || l.startMonth > m) return 0; const o = l.monthOverrides?.[m]; if (o) return o.skip ? 0 : Math.min(o.amount, l.remainingAmount); return Math.min(l.emiAmount, l.remainingAmount) }
@@ -129,7 +130,7 @@ export default function SalarySlipTab() {
 
   const columns = useMemo(() => [
     { accessorKey: 'sno', header: 'S.No', size: 15, cell: info => <div className="text-center">{info.getValue()}</div> },
-    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-1 truncate w-[75px] block">{info.getValue()}</button> },
+    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-1 truncate w-[100px] block">{info.getValue()}</button> },
     { accessorKey: 'totalDays', header: 'Total\nDays', size: 18, cell: info => <div className="text-center font-bold" style={{ color: 'oklch(62.3% 0.214 259.815)' }}>{info.getValue()}</div> },
     { accessorKey: 'worked', header: 'Worked', size: 20, cell: info => <div className="text-center">{info.getValue()}</div> },
     { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sunday', size: 30 }, { accessorKey: 'holidays', header: 'Holiday', size: 30 }, { accessorKey: 'totalHolidays', header: 'Tot', size: 22 }] },
@@ -231,10 +232,10 @@ export default function SalarySlipTab() {
               </div>
               <div className="text-right pr-2"><h1 className="text-[9px] font-black text-gray-900 font-google-sans tracking-tight uppercase leading-none">Salary Summary</h1><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Analytics Engine</p></div>
             </div>
-            <div className="flex gap-2 flex-1 min-h-0 items-start overflow-hidden">
+            <div className="flex gap-2 flex-1 min-h-0 items-start overflow-hidden relative">
               <div className="flex-1 min-w-0 flex flex-col gap-2 h-full overflow-hidden">
                 <div className="flex flex-col h-1/2 min-h-0 space-y-1">
-                  <button onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200 shadow-sm shrink-0 w-full hover:border-indigo-200 transition-all group"><div className="flex items-center gap-2"><div className="w-6 h-6 rounded bg-gray-900 flex items-center justify-center text-white group-hover:bg-indigo-600 transition-colors"><Clock size={12} /></div><p className="text-[10px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p></div><div className="flex items-center gap-2"><PDFDownloadLink document={<AttendanceSummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />} fileName={`Attendance_Summary_${summaryMonth}.pdf`} onClick={e => e.stopPropagation()} className="h-6 bg-indigo-600 text-white px-2 rounded text-[8px] font-bold uppercase tracking-widest flex items-center gap-1 hover:bg-indigo-700 shadow-sm transition-all active:scale-95">{({ loading }) => <><Download size={10} /> {loading ? '...' : 'Export'}</>}</PDFDownloadLink>{isAttendanceSummaryOpen ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}</div></button>
+                  <button onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200 shadow-sm shrink-0 w-full hover:border-indigo-200 transition-all group"><div className="flex items-center gap-2"><div className="w-6 h-6 rounded bg-gray-900 flex items-center justify-center text-white group-hover:bg-indigo-600 transition-colors"><Clock size={12} /></div><p className="text-[10px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p></div><div className="flex items-center gap-2"><PDFDownloadLink document={<AttendanceSummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />} fileName={`Attendance_Summary_${summaryMonth}.pdf`} onClick={e => e.stopPropagation()} className="h-6 bg-indigo-600 text-white px-2 rounded text-[8px] font-bold uppercase tracking-widest flex items-center gap-1 hover:bg-indigo-700 shadow-sm transition-all active:scale-95">{({ loading }) => <><Download size={10} /> {loading ? '...' : 'Export'}</>}</PDFDownloadLink><div className="h-4 w-px bg-gray-200 mx-1" /><button onClick={(e) => { e.stopPropagation(); setIsDetailPanelOpen(!isDetailPanelOpen); }} className={`p-1 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`} title={isDetailPanelOpen ? "Close Details" : "Open Details"}><Info size={14} /></button>{isAttendanceSummaryOpen ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}</div></button>
                   <div className={`bg-white rounded border border-gray-200 shadow-sm overflow-hidden flex-col flex-1 min-h-0 ${!isAttendanceSummaryOpen ? 'hidden' : 'flex'}`}><div className="overflow-auto flex-1">
                     <table className="w-full border-collapse text-[10px] font-inter table-auto">
                       <thead className="sticky top-0 z-10">
@@ -271,36 +272,39 @@ export default function SalarySlipTab() {
                 </div>
                 <div className="flex-1 bg-white/40 rounded border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-300 min-h-0"><div className="text-center"><Plus size={24} strokeWidth={1} className="mx-auto mb-1.5 opacity-20" /><p className="text-[8px] font-bold uppercase tracking-[0.2em]">Secondary Analysis Area</p></div></div>
               </div>
-              <div className="w-[200px] bg-white rounded-lg border border-gray-200 shadow-xl flex flex-col shrink-0 overflow-hidden h-full">
-                <div className="p-2.5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">{summaryEmpDetail ? (<div><h3 className="font-black text-gray-900 uppercase font-google-sans text-[9px] tracking-tight truncate w-[140px]">{summaryEmpDetail.name}</h3><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">{summaryEmpDetail.empId}</p></div>) : (<div><h3 className="font-black text-gray-300 uppercase font-google-sans text-[9px] tracking-tight">Details</h3><p className="text-[7px] text-gray-300 font-bold uppercase tracking-widest">No Selection</p></div>)}{summaryEmpDetail && <button onClick={() => setSummaryEmpDetail(null)} className="p-1 hover:bg-gray-200 rounded-full transition-all text-gray-400"><X size={10} /></button>}</div>
-                <div className="p-2.5 font-inter flex-1 overflow-hidden flex flex-col">
-                  {!summaryEmpDetail ? (<div className="h-full flex flex-col items-center justify-center space-y-2 opacity-10 py-10"><FileText size={32} strokeWidth={1} /><p className="text-[7px] font-bold uppercase tracking-widest text-center px-4">Select record</p></div>) : (
-                    <div className="space-y-3 flex-1 flex flex-col">
-                      <div className="space-y-3 flex-1 overflow-auto">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-1 text-indigo-600 font-black uppercase text-[7px] tracking-widest"><FileText size={8} /> Earnings</div>
-                          <div className="bg-indigo-50/30 rounded border border-indigo-100 p-2 space-y-1">
-                            {summaryEmpDetail.salary.earnings.map((e, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{e.label} <span className="font-bold text-gray-900">{formatINR(e.value)}</span></div>))}
+              
+              {isDetailPanelOpen && (
+                <div className="w-[200px] bg-white rounded-lg border border-gray-200 shadow-xl flex flex-col shrink-0 overflow-hidden h-full animate-in slide-in-from-right duration-300">
+                  <div className="p-2.5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">{summaryEmpDetail ? (<div><h3 className="font-black text-gray-900 uppercase font-google-sans text-[9px] tracking-tight truncate w-[140px]">{summaryEmpDetail.name}</h3><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">{summaryEmpDetail.empId}</p></div>) : (<div><h3 className="font-black text-gray-300 uppercase font-google-sans text-[9px] tracking-tight">Details</h3><p className="text-[7px] text-gray-300 font-bold uppercase tracking-widest">No Selection</p></div>)}<button onClick={() => setIsDetailPanelOpen(false)} className="p-1 hover:bg-gray-200 rounded-full transition-all text-gray-400"><X size={10} /></button></div>
+                  <div className="p-2.5 font-inter flex-1 overflow-hidden flex flex-col">
+                    {!summaryEmpDetail ? (<div className="h-full flex flex-col items-center justify-center space-y-2 opacity-10 py-10"><FileText size={32} strokeWidth={1} /><p className="text-[7px] font-bold uppercase tracking-widest text-center px-4">Select record</p></div>) : (
+                      <div className="space-y-3 flex-1 flex flex-col">
+                        <div className="space-y-3 flex-1 overflow-auto">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1 text-indigo-600 font-black uppercase text-[7px] tracking-widest"><FileText size={8} /> Earnings</div>
+                            <div className="bg-indigo-50/30 rounded border border-indigo-100 p-2 space-y-1">
+                              {summaryEmpDetail.salary.earnings.map((e, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{e.label} <span className="font-bold text-gray-900">{formatINR(e.value)}</span></div>))}
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1 text-red-600 font-black uppercase text-[7px] tracking-widest"><AlertCircle size={8} /> Deductions</div>
+                            <div className="bg-red-50/30 rounded border border-red-100 p-2 space-y-1">
+                              {summaryEmpDetail.salary.deductions.map((d, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{d.label} <span className="font-bold text-gray-900">{formatINR(d.value)}</span></div>))}
+                            </div>
                           </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-1 text-red-600 font-black uppercase text-[7px] tracking-widest"><AlertCircle size={8} /> Deductions</div>
-                          <div className="bg-red-50/30 rounded border border-red-100 p-2 space-y-1">
-                            {summaryEmpDetail.salary.deductions.map((d, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{d.label} <span className="font-bold text-gray-900">{formatINR(d.value)}</span></div>))}
+                        <div className="pt-2 border-t border-dashed border-gray-200 shrink-0">
+                          <div className="bg-gray-900 text-white rounded-lg p-2.5 text-center shadow-lg">
+                            <p className="text-[6px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Net Payout (Est.)</p>
+                            <p className="text-base font-black font-google-sans tracking-tighter">{formatINR(summaryEmpDetail.salary.net)}</p>
                           </div>
+                          <button onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }} className="w-full mt-2 py-1.5 bg-indigo-50 text-indigo-700 font-black rounded text-[7px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">Go to Generator</button>
                         </div>
                       </div>
-                      <div className="pt-2 border-t border-dashed border-gray-200 shrink-0">
-                        <div className="bg-gray-900 text-white rounded-lg p-2.5 text-center shadow-lg">
-                          <p className="text-[6px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Net Payout (Est.)</p>
-                          <p className="text-base font-black font-google-sans tracking-tighter">{formatINR(summaryEmpDetail.salary.net)}</p>
-                        </div>
-                        <button onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }} className="w-full mt-2 py-1.5 bg-indigo-50 text-indigo-700 font-black rounded text-[7px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">Go to Generator</button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
