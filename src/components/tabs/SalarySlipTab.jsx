@@ -128,16 +128,16 @@ export default function SalarySlipTab() {
   })
 
   const columns = useMemo(() => [
-    { accessorKey: 'sno', header: 'S.No', size: 25, cell: info => <div className="w-[25px] text-center">{info.getValue()}</div> },
-    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-2 truncate w-[100px] block">{info.getValue()}</button> },
-    { accessorKey: 'empId', header: 'Emp ID', cell: info => <div className="text-left px-2 truncate w-[45px]">{info.getValue()}</div> },
-    { accessorKey: 'totalDays', header: 'Total\nDays', size: 30, cell: info => <div className="w-[30px] text-center">{info.getValue()}</div> },
-    { accessorKey: 'worked', header: 'Worked', size: 30, cell: info => <div className="w-[30px] text-center">{info.getValue()}</div> },
-    { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sun', size: 25 }, { accessorKey: 'holidays', header: 'Hol', size: 25 }, { accessorKey: 'totalHolidays', header: 'Tot', size: 25 }] },
-    { id: 'leave_group', header: 'LEAVE', columns: [{ accessorKey: 'leave', header: 'Appr', size: 30 }, { accessorKey: 'lop', header: 'LOP', size: 30 }] },
-    { accessorKey: 'ot', header: 'OT', size: 30 },
-    { id: 'worked_group', header: 'HOLIDAYS WORKED', columns: [{ accessorKey: 'sunW', header: 'Sun', size: 25 }, { accessorKey: 'holW', header: 'Hol', size: 25 }] },
-    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 35 },
+    { accessorKey: 'sno', header: 'S.No', size: 20, cell: info => <div className="text-center">{info.getValue()}</div> },
+    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-1 truncate w-[100px] block">{info.getValue()}</button> },
+    { accessorKey: 'empId', header: 'Emp ID', cell: info => <div className="text-left px-1 truncate w-[45px]">{info.getValue()}</div> },
+    { accessorKey: 'totalDays', header: 'Total\nDays', size: 22, cell: info => <div className="text-center">{info.getValue()}</div> },
+    { accessorKey: 'worked', header: 'Worked', size: 28, cell: info => <div className="text-center">{info.getValue()}</div> },
+    { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sun', size: 22 }, { accessorKey: 'holidays', header: 'Hol', size: 22 }, { accessorKey: 'totalHolidays', header: 'Tot', size: 22 }] },
+    { id: 'leave_group', header: 'LEAVE', columns: [{ accessorKey: 'leave', header: 'Appr', size: 25 }, { accessorKey: 'lop', header: 'LOP', size: 25 }] },
+    { accessorKey: 'ot', header: 'OT', size: 25 },
+    { id: 'worked_group', header: 'HOLIDAYS WORKED', columns: [{ accessorKey: 'sunW', header: 'Sun', size: 22 }, { accessorKey: 'holW', header: 'Hol', size: 22 }] },
+    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 30 },
   ], [])
 
   const table = useReactTable({ data: attendanceSummaryData, columns, getCoreRowModel: getCoreRowModel() })
@@ -249,7 +249,7 @@ export default function SalarySlipTab() {
                                   key={header.id} 
                                   colSpan={header.colSpan} 
                                   rowSpan={rowSpan}
-                                  className="px-2 py-1.5 border border-gray-200 bg-gray-50 text-gray-700 font-black uppercase text-center whitespace-pre-line break-words leading-tight"
+                                  className="px-1 py-1.5 border border-gray-200 bg-gray-50 text-gray-700 font-black uppercase text-center whitespace-pre-line break-words leading-tight"
                                 >
                                   {flexRender(header.column.columnDef.header, header.getContext())}
                                 </th>
@@ -262,7 +262,7 @@ export default function SalarySlipTab() {
                         {isAttendanceLoading ? (<tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>) : (
                           table.getRowModel().rows.map(row => (
                             <tr key={row.id} className={`hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30 ${summaryEmpDetail?.id === row.original.id ? 'bg-indigo-50' : ''}`}>
-                              {row.getVisibleCells().map(cell => (<td key={cell.id} className="px-2 py-1 border border-gray-100 text-gray-600 font-medium text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}
+                              {row.getVisibleCells().map(cell => (<td key={cell.id} className="px-1 py-1 border border-gray-100 text-gray-600 font-medium text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}
                             </tr>
                           ))
                         )}
