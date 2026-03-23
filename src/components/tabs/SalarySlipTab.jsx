@@ -132,7 +132,7 @@ export default function SalarySlipTab() {
           lop,
           ot: otH.toFixed(2),
           sunHolW,
-          totalWorkingDays: worked + sun + hol - lop
+          totalWorkingDays: Math.max(0, worked)
         }
       })
     },
@@ -140,9 +140,9 @@ export default function SalarySlipTab() {
   })
 
   const columns = useMemo(() => [
-    { accessorKey: 'sno', header: 'S.No' },
-    { accessorKey: 'name', header: 'Name of the Employee' },
-    { accessorKey: 'empId', header: 'Emp ID' },
+    { accessorKey: 'sno', header: 'S.No', size: 30, cell: info => <div className="w-[30px] text-center">{info.getValue()}</div> },
+    { accessorKey: 'name', header: 'Name of the Employee', cell: info => <div className="text-left font-bold text-gray-900 px-3 min-w-[180px]">{info.getValue()}</div> },
+    { accessorKey: 'empId', header: 'Emp ID', cell: info => <div className="text-left px-3">{info.getValue()}</div> },
     { accessorKey: 'totalDays', header: 'TOTAL DAYS' },
     { accessorKey: 'worked', header: 'No. of days worked' },
     {
@@ -401,7 +401,7 @@ export default function SalarySlipTab() {
 
               <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-[10px] font-inter table-fixed">
+                  <table className="w-full border-collapse text-[10px] font-inter table-auto">
                     <thead>
                       {table.getHeaderGroups().map(headerGroup => (
                         <tr key={headerGroup.id}>
@@ -409,7 +409,7 @@ export default function SalarySlipTab() {
                             <th 
                               key={header.id} 
                               colSpan={header.colSpan}
-                              className={`px-2 py-1.5 border border-gray-300 bg-gray-100 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight`}
+                              className={`px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight`}
                             >
                               {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                             </th>
@@ -426,7 +426,7 @@ export default function SalarySlipTab() {
                         table.getRowModel().rows.map(row => (
                           <tr key={row.id} className="hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30">
                             {row.getVisibleCells().map(cell => (
-                              <td key={cell.id} className="px-2 py-1.5 border border-gray-200 text-gray-600 font-semibold text-center truncate">
+                              <td key={cell.id} className="px-3 py-2 border border-gray-200 text-gray-600 font-semibold text-center whitespace-nowrap">
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                               </td>
                             ))}
