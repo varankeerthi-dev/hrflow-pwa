@@ -363,121 +363,56 @@ export default function SalarySlipTab() {
         )}
 
         {activeTab === 'salary-summary' && (
-          <div className="max-w-full space-y-6">
-            <div className="flex justify-between items-start gap-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                  <button 
-                    onClick={() => {
-                      const [y, m] = summaryMonth.split('-').map(Number)
-                      const d = new Date(y, m - 2, 1)
-                      setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-                    }}
-                    className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <div className="px-4 py-2 font-bold text-gray-900 text-sm min-w-[140px] text-center">
-                    {new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </div>
-                  <button 
-                    onClick={() => monthInputRef.current?.showPicker()}
-                    className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-indigo-600 relative"
-                  >
-                    <CalendarIcon size={18} />
-                    <input 
-                      ref={monthInputRef}
-                      type="month" 
-                      value={summaryMonth} 
-                      onChange={e => setSummaryMonth(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
-                    />
-                  </button>
-                  <button 
-                    onClick={() => {
-                      const [y, m] = summaryMonth.split('-').map(Number)
-                      const d = new Date(y, m, 1)
-                      setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-                    }}
-                    className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
+          <div className="max-w-full space-y-3 flex flex-col h-[calc(100vh-100px)]">
+            {/* Minimal Header */}
+            <div className="flex justify-between items-center gap-4 bg-white p-1.5 rounded-lg border border-gray-200 shadow-sm shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                  <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
+                  <div className="px-2 py-0.5 font-bold text-gray-900 text-[10px] min-w-[90px] text-center uppercase tracking-tighter">{new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
+                  <button onClick={() => monthInputRef.current?.showPicker()} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-indigo-600 relative"><CalendarIcon size={14} /><input ref={monthInputRef} type="month" value={summaryMonth} onChange={e => setSummaryMonth(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none" /></button>
+                  <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronRight size={14} /></button>
                 </div>
-                
-                <div className="h-10 w-px bg-gray-200 mx-2" />
-                
-                <button 
-                  onClick={() => refetchSummary()}
-                  className="h-10 px-6 bg-gray-900 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition-all active:scale-95"
-                >
-                  Submit
-                </button>
+                <div className="h-6 w-px bg-gray-200 mx-1" />
+                <button onClick={() => refetchSummary()} className="h-7 px-4 bg-gray-900 text-white font-bold rounded text-[8px] uppercase tracking-widest shadow hover:bg-black transition-all active:scale-95">Submit</button>
               </div>
-
-              <div className="text-right">
-                <h1 className="text-xl font-bold text-gray-900 font-google-sans tracking-tight uppercase leading-tight">Salary Summary</h1>
-                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-1">Monthly payroll overview and statistics</p>
+              <div className="text-right pr-2">
+                <h1 className="text-[11px] font-black text-gray-900 font-google-sans tracking-tight uppercase leading-none">Salary Summary</h1>
+                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Analytics Engine</p>
               </div>
             </div>
 
-            <div className="flex gap-6 items-start h-[calc(100vh-280px)]">
-              <div className="flex-1 min-w-0 space-y-4 h-full flex flex-col">
-                <button 
-                  onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)}
-                  className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0 w-full hover:border-indigo-200 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white group-hover:bg-indigo-600 transition-colors">
-                      <Clock size={16} />
+            <div className="flex gap-4 flex-1 min-h-0">
+              <div className="flex-1 min-w-0 flex flex-col gap-4 h-full">
+                {/* Top Half: Attendance Summary */}
+                <div className="flex flex-col h-1/2 min-h-0 space-y-2">
+                  <button onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm shrink-0 w-full hover:border-indigo-200 transition-all group">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded bg-gray-900 flex items-center justify-center text-white group-hover:bg-indigo-600 transition-colors"><Clock size={12} /></div>
+                      <p className="text-[10px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p>
                     </div>
-                    <p className="text-[12px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <PDFDownloadLink 
-                      document={<AttendanceSummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />} 
-                      fileName={`Attendance_Summary_${summaryMonth}.pdf`}
-                      onClick={e => e.stopPropagation()}
-                      className="h-8 bg-indigo-600 text-white px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 shadow-sm transition-all active:scale-95"
-                    >
-                      {({ loading }) => <><Download size={12} /> {loading ? '...' : 'Export'}</>}
-                    </PDFDownloadLink>
-                    {isAttendanceSummaryOpen ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
-                  </div>
-                </button>
-
-                {isAttendanceSummaryOpen && (
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden flex-1 flex flex-col animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center gap-2">
+                      <PDFDownloadLink document={<AttendanceSummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />} fileName={`Attendance_Summary_${summaryMonth}.pdf`} onClick={e => e.stopPropagation()} className="h-6 bg-indigo-600 text-white px-2 rounded text-[7px] font-bold uppercase tracking-widest flex items-center gap-1 hover:bg-indigo-700 shadow-sm transition-all active:scale-95">{({ loading }) => <><Download size={8} /> {loading ? '...' : 'Export'}</>}</PDFDownloadLink>
+                      {isAttendanceSummaryOpen ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                    </div>
+                  </button>
+                  <div className={`bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex-col flex-1 min-h-0 ${!isAttendanceSummaryOpen ? 'hidden' : 'flex'}`}>
                     <div className="overflow-auto flex-1">
-                      <table className="w-full border-collapse text-[10px] font-inter table-auto">
+                      <table className="w-full border-collapse text-[9px] font-inter table-auto">
                         <thead className="sticky top-0 z-10">
                           {table.getHeaderGroups().map(headerGroup => (
                             <tr key={headerGroup.id}>
                               {headerGroup.headers.map(header => (
-                                <th 
-                                  key={header.id} 
-                                  colSpan={header.colSpan}
-                                  className={`px-2 py-2 border border-gray-300 bg-gray-100 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight`}
-                                >
-                                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                                </th>
+                                <th key={header.id} colSpan={header.colSpan} className="px-1.5 py-1 border border-gray-300 bg-gray-100 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight">{flexRender(header.column.columnDef.header, header.getContext())}</th>
                               ))}
                             </tr>
                           ))}
                         </thead>
                         <tbody>
-                          {isAttendanceLoading ? (
-                            <tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>
-                          ) : attendanceSummaryData.length === 0 ? (
-                            <tr><td colSpan={13} className="p-10 text-center text-gray-400 font-bold uppercase tracking-widest text-[10px]">No data available for this month</td></tr>
-                          ) : (
+                          {isAttendanceLoading ? (<tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>) : (
                             table.getRowModel().rows.map(row => (
                               <tr key={row.id} className={`hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30 ${summaryEmpDetail?.id === row.original.id ? 'bg-indigo-50' : ''}`}>
-                                {row.getVisibleCells().map(cell => (
-                                  <td key={cell.id} className="px-2 py-1.5 border border-gray-200 text-gray-600 font-semibold text-center whitespace-nowrap">
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                  </td>
-                                ))}
+                                {row.getVisibleCells().map(cell => (<td key={cell.id} className="px-1.5 py-1 border border-gray-200 text-gray-600 font-medium text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}
                               </tr>
                             ))
                           )}
@@ -485,57 +420,58 @@ export default function SalarySlipTab() {
                       </table>
                     </div>
                   </div>
-                )}
+                </div>
+                {/* Bottom Half: Horizontal Blank Split Screen */}
+                <div className="flex-1 bg-white/40 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-300 min-h-0">
+                  <div className="text-center"><Plus size={24} strokeWidth={1} className="mx-auto mb-1.5 opacity-20" /><p className="text-[8px] font-bold uppercase tracking-[0.2em]">Horizontal Analysis Extension</p></div>
+                </div>
               </div>
 
-              {summaryEmpDetail && (
-                <div className="w-[380px] bg-white rounded-2xl border border-gray-200 shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300 shrink-0">
-                  <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-                    <div>
-                      <h3 className="font-black text-gray-900 uppercase font-google-sans text-[13px] tracking-tight">{summaryEmpDetail.name}</h3>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{summaryEmpDetail.empId}</p>
-                    </div>
-                    <button onClick={() => setSummaryEmpDetail(null)} className="p-2 hover:bg-gray-200 rounded-full transition-all"><X size={16} /></button>
-                  </div>
-                  
-                  <div className="flex-1 overflow-auto p-6 space-y-8 font-inter">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-indigo-600 font-black uppercase text-[10px] tracking-widest"><FileText size={14} /> Earnings</div>
-                      <div className="bg-indigo-50/30 rounded-xl border border-indigo-100 p-4 space-y-3">
-                        <div className="flex justify-between text-[12px] font-medium text-gray-600">Basic Salary <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.basic)}</span></div>
-                        <div className="flex justify-between text-[12px] font-medium text-gray-600">HRA <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.hra)}</span></div>
-                        {summaryEmpDetail.salary.otPay > 0 && <div className="flex justify-between text-[12px] font-medium text-indigo-600">OT Pay (Est.) <span className="font-bold">{formatINR(summaryEmpDetail.salary.otPay)}</span></div>}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-red-600 font-black uppercase text-[10px] tracking-widest"><AlertCircle size={14} /> Deductions</div>
-                      <div className="bg-red-50/30 rounded-xl border border-red-100 p-4 space-y-3">
-                        <div className="flex justify-between text-[12px] font-medium text-gray-600">PF <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.pf)}</span></div>
-                        <div className="flex justify-between text-[12px] font-medium text-gray-600">Tax / IT <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.it)}</span></div>
-                        <div className="flex justify-between text-[12px] font-medium text-gray-600">Advance/Fine <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.advance)}</span></div>
-                        <div className="flex justify-between text-[12px] font-medium text-gray-600">Loan EMI <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.loanEMI)}</span></div>
-                      </div>
-                    </div>
-
-                    <div className="pt-6 border-t border-dashed border-gray-200">
-                      <div className="bg-gray-900 text-white rounded-xl p-5 text-center shadow-xl">
-                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Net Disbursement (Est.)</p>
-                        <p className="text-2xl font-black font-google-sans tracking-tighter">{formatINR(summaryEmpDetail.salary.net)}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl">
-                    <button 
-                      onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }}
-                      className="w-full py-3 bg-white border border-gray-200 text-gray-900 font-bold rounded-lg text-[10px] uppercase tracking-widest hover:bg-gray-900 hover:text-white transition-all shadow-sm"
-                    >
-                      Go to Payslip Generator
-                    </button>
-                  </div>
+              {/* Always Visible Vertical Tab - Non-scrollable content */}
+              <div className="w-[300px] bg-white rounded-xl border border-gray-200 shadow-xl flex flex-col shrink-0 overflow-hidden">
+                <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl shrink-0">
+                  {summaryEmpDetail ? (
+                    <div><h3 className="font-black text-gray-900 uppercase font-google-sans text-[10px] tracking-tight">{summaryEmpDetail.name}</h3><p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{summaryEmpDetail.empId}</p></div>
+                  ) : (
+                    <div><h3 className="font-black text-gray-300 uppercase font-google-sans text-[10px] tracking-tight">Select Employee</h3><p className="text-[8px] text-gray-300 font-bold uppercase tracking-widest">No Selection</p></div>
+                  )}
+                  {summaryEmpDetail && <button onClick={() => setSummaryEmpDetail(null)} className="p-1 hover:bg-gray-200 rounded-full transition-all text-gray-400"><X size={12} /></button>}
                 </div>
-              )}
+                <div className="p-4 font-inter flex-1 overflow-hidden flex flex-col">
+                  {!summaryEmpDetail ? (
+                    <div className="h-full flex flex-col items-center justify-center space-y-2 opacity-10"><FileText size={40} strokeWidth={1} /><p className="text-[8px] font-bold uppercase tracking-widest text-center px-4">Select name to view breakdown</p></div>
+                  ) : (
+                    <div className="space-y-4 flex-1 flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5 text-indigo-600 font-black uppercase text-[8px] tracking-widest"><FileText size={10} /> Earnings</div>
+                          <div className="bg-indigo-50/30 rounded-lg border border-indigo-100 p-2.5 space-y-1.5">
+                            <div className="flex justify-between text-[10px] font-medium text-gray-600">Basic Salary <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.basic)}</span></div>
+                            <div className="flex justify-between text-[10px] font-medium text-gray-600">HRA <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.hra)}</span></div>
+                            {summaryEmpDetail.salary.otPay > 0 && <div className="flex justify-between text-[10px] font-medium text-indigo-600">OT Pay (Est.) <span className="font-bold">{formatINR(summaryEmpDetail.salary.otPay)}</span></div>}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5 text-red-600 font-black uppercase text-[8px] tracking-widest"><AlertCircle size={10} /> Deductions</div>
+                          <div className="bg-red-50/30 rounded-lg border border-red-100 p-2.5 space-y-1.5">
+                            <div className="flex justify-between text-[10px] font-medium text-gray-600">PF <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.pf)}</span></div>
+                            <div className="flex justify-between text-[10px] font-medium text-gray-600">Tax / IT <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.it)}</span></div>
+                            <div className="flex justify-between text-[10px] font-medium text-gray-600">Advance/Fine <span className="font-bold">{formatINR(summaryEmpDetail.salary.advance)}</span></div>
+                            <div className="flex justify-between text-[10px] font-medium text-gray-600">Loan EMI <span className="font-bold">{formatINR(summaryEmpDetail.salary.loanEMI)}</span></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pt-3 border-t border-dashed border-gray-200">
+                        <div className="bg-gray-900 text-white rounded-lg p-3 text-center shadow-lg">
+                          <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Net Disbursement (Est.)</p>
+                          <p className="text-lg font-black font-google-sans tracking-tighter">{formatINR(summaryEmpDetail.salary.net)}</p>
+                        </div>
+                        <button onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }} className="w-full mt-3 py-2 bg-indigo-50 text-indigo-700 font-black rounded-lg text-[8px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">Go to Payslip Generator</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
