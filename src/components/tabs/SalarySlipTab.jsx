@@ -7,9 +7,11 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
+import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font } from '@react-pdf/renderer'
 import { logActivity } from '../../hooks/useActivityLog'
+import { useQuery } from '@tanstack/react-query'
+import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
 
 Font.register({ family: 'Inter', src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2' })
 Font.register({ family: 'Product Sans', src: 'https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJfc-7eS3JBrS_WRA.woff2' })
@@ -37,6 +39,86 @@ export default function SalarySlipTab() {
   const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState('')
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [advances, setAdvances] = useState([]), [newAdvance, setNewAdvance] = useState({ type: 'Advance', amount: 0, date: '', reason: '' }), [revisedOT, setRevisedOT] = useState(0), [otNote, setOtNote] = useState(''), [contRule, setContinuousLeaveRule] = useState(false)
+  const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(false)
+  const monthInputRef = useRef(null)
+
+  const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
+    queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
+    queryFn: async () => {
+      if (!user?.orgId || !employees.length) return []
+      const [y, m] = summaryMonth.split('-').map(Number)
+      const daysInMonth = new Date(y, m, 0).getDate()
+      const sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${daysInMonth}`
+      
+      const aSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('date', '>=', sd), where('date', '<=', ed)))
+      const allAttendance = aSnap.docs.map(d => d.data())
+      
+      return employees.map((emp, idx) => {
+        const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
+        let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunHolW = 0
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`
+          const d = new Date(y, m - 1, i), isSunday = d.getDay() === 0
+          const r = empAtt.find(a => a.date === dateStr)
+          
+          if (isSunday) sun++
+          if (r) {
+            if (r.isAbsent) lop++
+            else if (r.sundayWorked || r.holidayWorked) { sunHolW++; worked++ }
+            else if (r.sundayHoliday) hol++
+            else worked++
+            
+            if (r.otHours) {
+              const [h, mi] = r.otHours.split(':').map(Number)
+              otH += (h || 0) + (mi || 0) / 60
+            }
+          } else {
+            if (!isSunday) lop++
+          }
+        }
+        
+        return {
+          sno: idx + 1,
+          name: emp.name,
+          empId: emp.empCode || emp.id.slice(0, 5),
+          totalDays: daysInMonth,
+          worked,
+          sunday: sun,
+          holidays: hol,
+          totalHolidays: sun + hol,
+          leave,
+          lop,
+          ot: otH.toFixed(2),
+          sunHolW,
+          totalWorkingDays: worked + sun + hol - lop
+        }
+      })
+    },
+    enabled: !!user?.orgId && employees.length > 0 && activeTab === 'salary-summary'
+  })
+
+  const columns = useMemo(() => [
+    { accessorKey: 'sno', header: 'S.No' },
+    { accessorKey: 'name', header: 'Name of the Employee' },
+    { accessorKey: 'empId', header: 'Emp ID' },
+    { accessorKey: 'totalDays', header: 'TOTAL DAYS' },
+    { accessorKey: 'worked', header: 'No. of days worked' },
+    { accessorKey: 'sunday', header: 'Sunday' },
+    { accessorKey: 'holidays', header: 'Holidays' },
+    { accessorKey: 'totalHolidays', header: 'Total Holidays' },
+    { accessorKey: 'leave', header: 'Approved Leave' },
+    { accessorKey: 'lop', header: 'LOP' },
+    { accessorKey: 'ot', header: 'OT/HRS' },
+    { accessorKey: 'sunHolW', header: 'SUNDAY & Holiday Worked' },
+    { accessorKey: 'totalWorkingDays', header: 'TOTAL WORKING DAYS' },
+  ], [])
+
+  const table = useReactTable({
+    data: attendanceSummaryData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
 
   useEffect(() => { if (!user?.orgId) return; getDoc(doc(db, 'organisations', user.orgId)).then(snap => { if (snap.exists()) setOrgLogo(snap.data().logoURL || '') }); fetchLoans() }, [user?.orgId])
   
@@ -214,6 +296,19 @@ export default function SalarySlipTab() {
                     {new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                   </div>
                   <button 
+                    onClick={() => monthInputRef.current?.showPicker()}
+                    className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-indigo-600 relative"
+                  >
+                    <CalendarIcon size={18} />
+                    <input 
+                      ref={monthInputRef}
+                      type="month" 
+                      value={summaryMonth} 
+                      onChange={e => setSummaryMonth(e.target.value)}
+                      className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+                    />
+                  </button>
+                  <button 
                     onClick={() => {
                       const [y, m] = summaryMonth.split('-').map(Number)
                       const d = new Date(y, m, 1)
@@ -227,17 +322,12 @@ export default function SalarySlipTab() {
                 
                 <div className="h-10 w-px bg-gray-200 mx-2" />
                 
-                <div className="flex items-center gap-3">
-                  <input 
-                    type="month" 
-                    value={summaryMonth} 
-                    onChange={e => setSummaryMonth(e.target.value)}
-                    className="h-10 border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50 outline-none focus:ring-2 focus:ring-gray-900 transition-all"
-                  />
-                  <button className="h-10 px-6 bg-gray-900 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition-all active:scale-95">
-                    Submit
-                  </button>
-                </div>
+                <button 
+                  onClick={() => refetchSummary()}
+                  className="h-10 px-6 bg-gray-900 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition-all active:scale-95"
+                >
+                  Submit
+                </button>
               </div>
               
               <div className="flex items-center gap-2 text-gray-400 font-google-sans text-[10px] font-bold uppercase tracking-widest">
@@ -248,9 +338,9 @@ export default function SalarySlipTab() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
-                { label: 'Total Payroll', value: '₹0.00', sub: 'Gross Earnings' },
+                { label: 'Total Payroll', value: formatINR(attendanceSummaryData.reduce((s, c) => s + (c.totalWorkingDays * 1000), 0)), sub: 'Gross Earnings (Est.)' },
                 { label: 'Total Deductions', value: '₹0.00', sub: 'PF, Tax, Loans' },
-                { label: 'Net Disbursement', value: '₹0.00', sub: 'Final Payout' }
+                { label: 'Net Disbursement', value: formatINR(attendanceSummaryData.reduce((s, c) => s + (c.totalWorkingDays * 1000), 0)), sub: 'Final Payout' }
               ].map((stat, i) => (
                 <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
@@ -259,10 +349,60 @@ export default function SalarySlipTab() {
                 </div>
               ))}
             </div>
-            
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[300px] flex flex-col items-center justify-center text-gray-400 space-y-4">
-              <FileText size={48} strokeWidth={1} />
-              <p className="text-sm font-medium">Click submit to fetch summary for this period.</p>
+
+            <div className="space-y-4">
+              <button 
+                onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)}
+                className="w-full flex items-center justify-between p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-gray-900 group-hover:text-white transition-all">
+                    <Clock size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[13px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p>
+                    <p className="text-[11px] text-gray-500 font-medium">Detailed daily breakdown for all employees</p>
+                  </div>
+                </div>
+                {isAttendanceSummaryOpen ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+              </button>
+
+              {isAttendanceSummaryOpen && (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-[11px] font-inter">
+                      <thead>
+                        {table.getHeaderGroups().map(headerGroup => (
+                          <tr key={headerGroup.id} className="bg-gray-100 border-b border-gray-300">
+                            {headerGroup.headers.map(header => (
+                              <th key={header.id} className="px-3 py-2 border-r border-gray-300 text-gray-700 font-black uppercase text-center last:border-r-0 whitespace-nowrap">
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                              </th>
+                            ))}
+                          </tr>
+                        ))}
+                      </thead>
+                      <tbody>
+                        {isAttendanceLoading ? (
+                          <tr><td colSpan={columns.length} className="p-10 text-center"><Spinner /></td></tr>
+                        ) : attendanceSummaryData.length === 0 ? (
+                          <tr><td colSpan={columns.length} className="p-10 text-center text-gray-400 font-bold uppercase tracking-widest text-[10px]">No data available for this month</td></tr>
+                        ) : (
+                          table.getRowModel().rows.map(row => (
+                            <tr key={row.id} className="border-b border-gray-200 hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30">
+                              {row.getVisibleCells().map(cell => (
+                                <td key={cell.id} className="px-3 py-2 border-r border-gray-200 text-gray-600 font-medium text-center last:border-r-0">
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
