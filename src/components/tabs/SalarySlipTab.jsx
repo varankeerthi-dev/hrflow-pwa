@@ -31,6 +31,47 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
   </Page></Document>
 )
 
+const AttendanceSummaryPDF = ({ data, month, orgName }) => (
+  <Document>
+    <Page size="A4" orientation="landscape" style={{ padding: 30, fontSize: 8, fontFamily: 'Inter' }}>
+      <View style={{ marginBottom: 20, borderBottom: 2, borderColor: '#000', paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+        <View>
+          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{orgName}</Text>
+          <Text style={{ fontSize: 10, marginTop: 4 }}>ATTENDANCE SUMMARY - {new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
+        </View>
+      </View>
+      <View style={{ border: 1, borderColor: '#000' }}>
+        <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', fontWeight: 'bold', borderBottom: 1 }}>
+          <Text style={{ width: 30, padding: 4, borderRight: 1 }}>S.No</Text>
+          <Text style={{ flex: 2, padding: 4, borderRight: 1 }}>Employee Name</Text>
+          <Text style={{ width: 50, padding: 4, borderRight: 1 }}>Emp ID</Text>
+          <Text style={{ width: 40, padding: 4, borderRight: 1 }}>Total</Text>
+          <Text style={{ width: 40, padding: 4, borderRight: 1 }}>Worked</Text>
+          <Text style={{ width: 120, padding: 4, borderRight: 1, textAlign: 'center' }}>HOLIDAYS (Sun/Hol/Tot)</Text>
+          <Text style={{ width: 80, padding: 4, borderRight: 1, textAlign: 'center' }}>LEAVE (Appr/LOP)</Text>
+          <Text style={{ width: 40, padding: 4, borderRight: 1 }}>OT</Text>
+          <Text style={{ width: 60, padding: 4, borderRight: 1 }}>S/H Wk</Text>
+          <Text style={{ width: 60, padding: 4 }}>Total Pay</Text>
+        </View>
+        {data.map((row, i) => (
+          <View key={i} style={{ flexDirection: 'row', borderBottom: 1 }}>
+            <Text style={{ width: 30, padding: 4, borderRight: 1 }}>{row.sno}</Text>
+            <Text style={{ flex: 2, padding: 4, borderRight: 1 }}>{row.name}</Text>
+            <Text style={{ width: 50, padding: 4, borderRight: 1 }}>{row.empId}</Text>
+            <Text style={{ width: 40, padding: 4, borderRight: 1 }}>{row.totalDays}</Text>
+            <Text style={{ width: 40, padding: 4, borderRight: 1 }}>{row.worked}</Text>
+            <Text style={{ width: 120, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.sunday} / {row.holidays} / {row.totalHolidays}</Text>
+            <Text style={{ width: 80, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.leave} / {row.lop}</Text>
+            <Text style={{ width: 40, padding: 4, borderRight: 1 }}>{row.ot}</Text>
+            <Text style={{ width: 60, padding: 4, borderRight: 1 }}>{row.sunHolW}</Text>
+            <Text style={{ width: 60, padding: 4 }}>{row.totalWorkingDays}</Text>
+          </View>
+        ))}
+      </View>
+    </Page>
+  </Document>
+)
+
 export default function SalarySlipTab() {
   const { user } = useAuth(), { employees } = useEmployees(user?.orgId, true), { slabs, increments } = useSalarySlab(user?.orgId), { fetchByDate } = useAttendance(user?.orgId)
   const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -39,7 +80,7 @@ export default function SalarySlipTab() {
   const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState('')
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [advances, setAdvances] = useState([]), [newAdvance, setNewAdvance] = useState({ type: 'Advance', amount: 0, date: '', reason: '' }), [revisedOT, setRevisedOT] = useState(0), [otNote, setOtNote] = useState(''), [contRule, setContinuousLeaveRule] = useState(false)
-  const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(false)
+  const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(true)
   const monthInputRef = useRef(null)
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
@@ -104,11 +145,23 @@ export default function SalarySlipTab() {
     { accessorKey: 'empId', header: 'Emp ID' },
     { accessorKey: 'totalDays', header: 'TOTAL DAYS' },
     { accessorKey: 'worked', header: 'No. of days worked' },
-    { accessorKey: 'sunday', header: 'Sunday' },
-    { accessorKey: 'holidays', header: 'Holidays' },
-    { accessorKey: 'totalHolidays', header: 'Total Holidays' },
-    { accessorKey: 'leave', header: 'Approved Leave' },
-    { accessorKey: 'lop', header: 'LOP' },
+    {
+      id: 'holidays_group',
+      header: 'HOLIDAYS',
+      columns: [
+        { accessorKey: 'sunday', header: 'Sunday' },
+        { accessorKey: 'holidays', header: 'Holidays' },
+        { accessorKey: 'totalHolidays', header: 'Total' },
+      ]
+    },
+    {
+      id: 'leave_group',
+      header: 'LEAVE',
+      columns: [
+        { accessorKey: 'leave', header: 'Approved' },
+        { accessorKey: 'lop', header: 'LOP' },
+      ]
+    },
     { accessorKey: 'ot', header: 'OT/HRS' },
     { accessorKey: 'sunHolW', header: 'SUNDAY & Holiday Worked' },
     { accessorKey: 'totalWorkingDays', header: 'TOTAL WORKING DAYS' },
@@ -271,15 +324,8 @@ export default function SalarySlipTab() {
         )}
 
         {activeTab === 'salary-summary' && (
-          <div className="max-w-6xl mx-auto space-y-8">
-            <div className="flex justify-between items-center border-b border-gray-200 pb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 font-google-sans tracking-tight uppercase">Salary Summary</h1>
-                <p className="text-[13px] text-gray-500 font-medium mt-1">Monthly payroll overview and statistics.</p>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+          <div className="max-w-full space-y-6">
+            <div className="flex justify-between items-start gap-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
               <div className="flex items-center gap-4">
                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
                   <button 
@@ -329,80 +375,68 @@ export default function SalarySlipTab() {
                   Submit
                 </button>
               </div>
-              
-              <div className="flex items-center gap-2 text-gray-400 font-google-sans text-[10px] font-bold uppercase tracking-widest">
-                <Info size={14} />
-                Filtering for {new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+
+              <div className="text-right">
+                <h1 className="text-xl font-bold text-gray-900 font-google-sans tracking-tight uppercase leading-tight">Salary Summary</h1>
+                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-1">Monthly payroll overview and statistics</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { label: 'Total Payroll', value: formatINR(attendanceSummaryData.reduce((s, c) => s + (c.totalWorkingDays * 1000), 0)), sub: 'Gross Earnings (Est.)' },
-                { label: 'Total Deductions', value: '₹0.00', sub: 'PF, Tax, Loans' },
-                { label: 'Net Disbursement', value: formatINR(attendanceSummaryData.reduce((s, c) => s + (c.totalWorkingDays * 1000), 0)), sub: 'Final Payout' }
-              ].map((stat, i) => (
-                <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
-                  <p className="text-2xl font-black text-gray-900 tracking-tighter">{stat.value}</p>
-                  <p className="text-[11px] text-gray-500 font-medium">{stat.sub}</p>
-                </div>
-              ))}
-            </div>
-
             <div className="space-y-4">
-              <button 
-                onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)}
-                className="w-full flex items-center justify-between p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition-all group"
-              >
+              <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-gray-900 group-hover:text-white transition-all">
-                    <Clock size={20} />
+                  <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white">
+                    <Clock size={16} />
                   </div>
-                  <div className="text-left">
-                    <p className="text-[13px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p>
-                    <p className="text-[11px] text-gray-500 font-medium">Detailed daily breakdown for all employees</p>
-                  </div>
+                  <p className="text-[12px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p>
                 </div>
-                {isAttendanceSummaryOpen ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
-              </button>
+                <PDFDownloadLink 
+                  document={<AttendanceSummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />} 
+                  fileName={`Attendance_Summary_${summaryMonth}.pdf`}
+                  className="h-9 bg-indigo-600 text-white px-4 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 shadow-md transition-all active:scale-95"
+                >
+                  {({ loading }) => <><Download size={14} /> {loading ? 'Preparing...' : 'Export PDF'}</>}
+                </PDFDownloadLink>
+              </div>
 
-              {isAttendanceSummaryOpen && (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-[11px] font-inter">
-                      <thead>
-                        {table.getHeaderGroups().map(headerGroup => (
-                          <tr key={headerGroup.id} className="bg-gray-100 border-b border-gray-300">
-                            {headerGroup.headers.map(header => (
-                              <th key={header.id} className="px-3 py-2 border-r border-gray-300 text-gray-700 font-black uppercase text-center last:border-r-0 whitespace-nowrap">
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                              </th>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-[10px] font-inter table-fixed">
+                    <thead>
+                      {table.getHeaderGroups().map(headerGroup => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map(header => (
+                            <th 
+                              key={header.id} 
+                              colSpan={header.colSpan}
+                              className={`px-2 py-1.5 border border-gray-300 bg-gray-100 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight`}
+                            >
+                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                            </th>
+                          ))}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {isAttendanceLoading ? (
+                        <tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>
+                      ) : attendanceSummaryData.length === 0 ? (
+                        <tr><td colSpan={13} className="p-10 text-center text-gray-400 font-bold uppercase tracking-widest text-[10px]">No data available for this month</td></tr>
+                      ) : (
+                        table.getRowModel().rows.map(row => (
+                          <tr key={row.id} className="hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30">
+                            {row.getVisibleCells().map(cell => (
+                              <td key={cell.id} className="px-2 py-1.5 border border-gray-200 text-gray-600 font-semibold text-center truncate">
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
                             ))}
                           </tr>
-                        ))}
-                      </thead>
-                      <tbody>
-                        {isAttendanceLoading ? (
-                          <tr><td colSpan={columns.length} className="p-10 text-center"><Spinner /></td></tr>
-                        ) : attendanceSummaryData.length === 0 ? (
-                          <tr><td colSpan={columns.length} className="p-10 text-center text-gray-400 font-bold uppercase tracking-widest text-[10px]">No data available for this month</td></tr>
-                        ) : (
-                          table.getRowModel().rows.map(row => (
-                            <tr key={row.id} className="border-b border-gray-200 hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30">
-                              {row.getVisibleCells().map(cell => (
-                                <td key={cell.id} className="px-3 py-2 border-r border-gray-200 text-gray-600 font-medium text-center last:border-r-0">
-                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                </td>
-                              ))}
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
