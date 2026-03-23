@@ -92,17 +92,19 @@ export default function SalarySlipTab() {
       const daysInMonth = new Date(y, m, 0).getDate()
       const sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${daysInMonth}`
       
-      const [aSnap, slabSnap, loanSnap, advSnap] = await Promise.all([
+      const [aSnap, slabSnap, loanSnap, advSnap, fineSnap] = await Promise.all([
         getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('date', '>=', sd), where('date', '<=', ed))),
         getDocs(collection(db, 'organisations', user.orgId, 'salaryIncrements')),
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('status', '!=', 'Recovered')))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('date', '>=', sd), where('date', '<=', ed))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('date', '>=', sd), where('date', '<=', ed)))
       ])
 
       const allAttendance = aSnap.docs.map(d => d.data())
       const allIncrements = slabSnap.docs.map(d => d.data())
-      const allActiveLoans = loanSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-      const allActiveAdvances = advSnap.docs.map(d => d.data())
+      const allLoans = loanSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const allAdvExp = advSnap.docs.map(d => d.data())
+      const allFines = fineSnap.docs.map(d => d.data())
       
       return employees.map((emp, idx) => {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
@@ -138,9 +140,29 @@ export default function SalarySlipTab() {
         const pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100)
         const otPay = otH * ((ts / daysInMonth) / minH)
         
-        const empLoanEMI = allActiveLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0)
-        const empAdvance = allActiveAdvances.filter(a => a.employeeId === emp.id).reduce((s, a) => s + Number(a.amount), 0)
+        const loanEMI = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0)
+        const advances = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0)
+        const reimbursements = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0)
+        const fines = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         
+        const earnings = [
+          { label: 'Basic Salary', value: basic },
+          { label: 'HRA', value: hra },
+          { label: 'OT Pay (Est.)', value: otPay, isEst: true },
+          { label: 'Reimbursements', value: reimbursements }
+        ].filter(e => e.value > 0)
+
+        const deductions = [
+          { label: 'Provident Fund', value: pf },
+          { label: 'Income Tax', value: it },
+          { label: 'Loan EMI', value: loanEMI },
+          { label: 'Advances', value: advances },
+          { label: 'Fines', value: fines }
+        ].filter(d => d.value > 0)
+
+        const totalEarnings = earnings.reduce((s, e) => s + e.value, 0)
+        const totalDeductions = deductions.reduce((s, d) => s + d.value, 0)
+
         return {
           sno: idx + 1,
           id: emp.id,
@@ -158,12 +180,9 @@ export default function SalarySlipTab() {
           holW,
           totalWorkingDays: Math.max(0, paidDays),
           salary: { 
-            basic, hra, pf, it, otPay,
-            loanEMI: empLoanEMI, 
-            advance: empAdvance,
-            fine: 0,
-            esi: 0,
-            net: (basic + hra + otPay) - (pf + it + empLoanEMI + empAdvance)
+            earnings, 
+            deductions,
+            net: totalEarnings - totalDeductions
           }
         }
       })
