@@ -131,13 +131,13 @@ export default function SalarySlipTab() {
     { accessorKey: 'sno', header: 'S.No', size: 25, cell: info => <div className="w-[25px] text-center">{info.getValue()}</div> },
     { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-2 truncate w-[100px] block">{info.getValue()}</button> },
     { accessorKey: 'empId', header: 'Emp ID', cell: info => <div className="text-left px-2 truncate w-[45px]">{info.getValue()}</div> },
-    { accessorKey: 'totalDays', header: 'Total Days' },
-    { accessorKey: 'worked', header: 'Worked' },
-    { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sunday' }, { accessorKey: 'holidays', header: 'Holidays' }, { accessorKey: 'totalHolidays', header: 'Total' }] },
-    { id: 'leave_group', header: 'LEAVE', columns: [{ accessorKey: 'leave', header: 'Approved' }, { accessorKey: 'lop', header: 'LOP' }] },
-    { accessorKey: 'ot', header: 'OT HRS' },
-    { id: 'worked_group', header: 'HOLIDAYS WORKED', columns: [{ accessorKey: 'sunW', header: 'Sunday' }, { accessorKey: 'holW', header: 'Holiday' }] },
-    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS' },
+    { accessorKey: 'totalDays', header: () => <div className="leading-none text-[8px] py-1">Total<br/>Days</div>, size: 30, cell: info => <div className="w-[30px] text-center">{info.getValue()}</div> },
+    { accessorKey: 'worked', header: 'Worked', size: 30, cell: info => <div className="w-[30px] text-center">{info.getValue()}</div> },
+    { id: 'holidays_group', header: 'HOLIDAYS', columns: [{ accessorKey: 'sunday', header: 'Sun', size: 25 }, { accessorKey: 'holidays', header: 'Hol', size: 25 }, { accessorKey: 'totalHolidays', header: 'Tot', size: 25 }] },
+    { id: 'leave_group', header: 'LEAVE', columns: [{ accessorKey: 'leave', header: 'Appr', size: 30 }, { accessorKey: 'lop', header: 'LOP', size: 30 }] },
+    { accessorKey: 'ot', header: 'OT', size: 30 },
+    { id: 'worked_group', header: 'HOLIDAYS WORKED', columns: [{ accessorKey: 'sunW', header: 'Sun', size: 25 }, { accessorKey: 'holW', header: 'Hol', size: 25 }] },
+    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 35 },
   ], [])
 
   const table = useReactTable({ data: attendanceSummaryData, columns, getCoreRowModel: getCoreRowModel() })
@@ -241,9 +241,21 @@ export default function SalarySlipTab() {
                       <thead className="sticky top-0 z-10">
                         {table.getHeaderGroups().map(headerGroup => (
                           <tr key={headerGroup.id}>
-                            {headerGroup.headers.map(header => (
-                              <th key={header.id} colSpan={header.colSpan} className="px-2 py-1.5 border border-gray-200 bg-gray-50 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight">{flexRender(header.column.columnDef.header, header.getContext())}</th>
-                            ))}
+                            {headerGroup.headers.map(header => {
+                              if (header.isPlaceholder) return null;
+                              const isLeaf = !header.column.columns || header.column.columns.length === 0;
+                              const rowSpan = isLeaf && headerGroup.depth === 0 ? 2 : 1;
+                              return (
+                                <th 
+                                  key={header.id} 
+                                  colSpan={header.colSpan} 
+                                  rowSpan={rowSpan}
+                                  className="px-2 py-1.5 border border-gray-200 bg-gray-50 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight"
+                                >
+                                  {flexRender(header.column.columnDef.header, header.getContext())}
+                                </th>
+                              );
+                            })}
                           </tr>
                         ))}
                       </thead>
