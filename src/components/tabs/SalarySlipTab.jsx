@@ -42,29 +42,29 @@ const AttendanceSummaryPDF = ({ data, month, orgName }) => (
       </View>
       <View style={{ border: 1, borderColor: '#000' }}>
         <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', fontWeight: 'bold', borderBottom: 1 }}>
-          <Text style={{ width: 30, padding: 4, borderRight: 1 }}>S.No</Text>
+          <Text style={{ width: 25, padding: 4, borderRight: 1 }}>S.No</Text>
           <Text style={{ flex: 2, padding: 4, borderRight: 1 }}>Employee Name</Text>
-          <Text style={{ width: 50, padding: 4, borderRight: 1 }}>Emp ID</Text>
-          <Text style={{ width: 40, padding: 4, borderRight: 1 }}>Total</Text>
-          <Text style={{ width: 40, padding: 4, borderRight: 1 }}>Worked</Text>
-          <Text style={{ width: 120, padding: 4, borderRight: 1, textAlign: 'center' }}>HOLIDAYS (Sun/Hol/Tot)</Text>
-          <Text style={{ width: 80, padding: 4, borderRight: 1, textAlign: 'center' }}>LEAVE (Appr/LOP)</Text>
-          <Text style={{ width: 40, padding: 4, borderRight: 1 }}>OT</Text>
-          <Text style={{ width: 60, padding: 4, borderRight: 1 }}>S/H Wk</Text>
-          <Text style={{ width: 60, padding: 4 }}>Total Pay</Text>
+          <Text style={{ width: 45, padding: 4, borderRight: 1 }}>Emp ID</Text>
+          <Text style={{ width: 30, padding: 4, borderRight: 1 }}>Days</Text>
+          <Text style={{ width: 35, padding: 4, borderRight: 1 }}>Worked</Text>
+          <Text style={{ width: 90, padding: 4, borderRight: 1, textAlign: 'center' }}>HOLIDAYS (Sun/Hol/Tot)</Text>
+          <Text style={{ width: 60, padding: 4, borderRight: 1, textAlign: 'center' }}>LEAVE (Appr/LOP)</Text>
+          <Text style={{ width: 30, padding: 4, borderRight: 1 }}>OT</Text>
+          <Text style={{ width: 70, padding: 4, borderRight: 1, textAlign: 'center' }}>HOL. WK (Sun/Hol)</Text>
+          <Text style={{ width: 45, padding: 4 }}>PAY DAYS</Text>
         </View>
         {data.map((row, i) => (
           <View key={i} style={{ flexDirection: 'row', borderBottom: 1 }}>
-            <Text style={{ width: 30, padding: 4, borderRight: 1 }}>{row.sno}</Text>
+            <Text style={{ width: 25, padding: 4, borderRight: 1 }}>{row.sno}</Text>
             <Text style={{ flex: 2, padding: 4, borderRight: 1 }}>{row.name}</Text>
-            <Text style={{ width: 50, padding: 4, borderRight: 1 }}>{row.empId}</Text>
-            <Text style={{ width: 40, padding: 4, borderRight: 1 }}>{row.totalDays}</Text>
-            <Text style={{ width: 40, padding: 4, borderRight: 1 }}>{row.worked}</Text>
-            <Text style={{ width: 120, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.sunday} / {row.holidays} / {row.totalHolidays}</Text>
-            <Text style={{ width: 80, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.leave} / {row.lop}</Text>
-            <Text style={{ width: 40, padding: 4, borderRight: 1 }}>{row.ot}</Text>
-            <Text style={{ width: 60, padding: 4, borderRight: 1 }}>{row.sunHolW}</Text>
-            <Text style={{ width: 60, padding: 4 }}>{row.totalWorkingDays}</Text>
+            <Text style={{ width: 45, padding: 4, borderRight: 1 }}>{row.empId}</Text>
+            <Text style={{ width: 30, padding: 4, borderRight: 1 }}>{row.totalDays}</Text>
+            <Text style={{ width: 35, padding: 4, borderRight: 1 }}>{row.worked}</Text>
+            <Text style={{ width: 90, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.sunday} / {row.holidays} / {row.totalHolidays}</Text>
+            <Text style={{ width: 60, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.leave} / {row.lop}</Text>
+            <Text style={{ width: 30, padding: 4, borderRight: 1 }}>{row.ot}</Text>
+            <Text style={{ width: 70, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.sunW} / {row.holW}</Text>
+            <Text style={{ width: 45, padding: 4 }}>{row.totalWorkingDays}</Text>
           </View>
         ))}
       </View>
@@ -81,6 +81,7 @@ export default function SalarySlipTab() {
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [advances, setAdvances] = useState([]), [newAdvance, setNewAdvance] = useState({ type: 'Advance', amount: 0, date: '', reason: '' }), [revisedOT, setRevisedOT] = useState(0), [otNote, setOtNote] = useState(''), [contRule, setContinuousLeaveRule] = useState(false)
   const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(true)
+  const [summaryEmpDetail, setSummaryEmpDetail] = useState(null)
   const monthInputRef = useRef(null)
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
@@ -91,12 +92,21 @@ export default function SalarySlipTab() {
       const daysInMonth = new Date(y, m, 0).getDate()
       const sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${daysInMonth}`
       
-      const aSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('date', '>=', sd), where('date', '<=', ed)))
+      const [aSnap, slabSnap, loanSnap, advSnap] = await Promise.all([
+        getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('date', '>=', sd), where('date', '<=', ed))),
+        getDocs(collection(db, 'organisations', user.orgId, 'salaryIncrements')),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('status', '!=', 'Recovered')))
+      ])
+
       const allAttendance = aSnap.docs.map(d => d.data())
+      const allIncrements = slabSnap.docs.map(d => d.data())
+      const allActiveLoans = loanSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const allActiveAdvances = advSnap.docs.map(d => d.data())
       
       return employees.map((emp, idx) => {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
-        let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunHolW = 0
+        let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunW = 0, holW = 0
         
         for (let i = 1; i <= daysInMonth; i++) {
           const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`
@@ -106,7 +116,8 @@ export default function SalarySlipTab() {
           if (isSunday) sun++
           if (r) {
             if (r.isAbsent) lop++
-            else if (r.sundayWorked || r.holidayWorked) { sunHolW++; worked++ }
+            else if (r.sundayWorked) { sunW++; worked++ }
+            else if (r.holidayWorked) { holW++; worked++ }
             else if (r.sundayHoliday) hol++
             else worked++
             
@@ -114,13 +125,25 @@ export default function SalarySlipTab() {
               const [h, mi] = r.otHours.split(':').map(Number)
               otH += (h || 0) + (mi || 0) / 60
             }
-          } else {
-            if (!isSunday) lop++
+          } else if (!isSunday) {
+            lop++
           }
         }
+
+        const slab = allIncrements.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
+        const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8
+        const paidDays = daysInMonth - lop
+        const basic = ts * (slab.basicPercent / 100) * (paidDays / daysInMonth)
+        const hra = ts * (slab.hraPercent / 100) * (paidDays / daysInMonth)
+        const pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100)
+        const otPay = otH * ((ts / daysInMonth) / minH)
+        
+        const empLoanEMI = allActiveLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0)
+        const empAdvance = allActiveAdvances.filter(a => a.employeeId === emp.id).reduce((s, a) => s + Number(a.amount), 0)
         
         return {
           sno: idx + 1,
+          id: emp.id,
           name: emp.name,
           empId: emp.empCode || emp.id.slice(0, 5),
           totalDays: daysInMonth,
@@ -131,8 +154,17 @@ export default function SalarySlipTab() {
           leave,
           lop,
           ot: otH.toFixed(2),
-          sunHolW,
-          totalWorkingDays: Math.max(0, worked)
+          sunW,
+          holW,
+          totalWorkingDays: Math.max(0, paidDays),
+          salary: { 
+            basic, hra, pf, it, otPay,
+            loanEMI: empLoanEMI, 
+            advance: empAdvance,
+            fine: 0,
+            esi: 0,
+            net: (basic + hra + otPay) - (pf + it + empLoanEMI + empAdvance)
+          }
         }
       })
     },
@@ -141,30 +173,37 @@ export default function SalarySlipTab() {
 
   const columns = useMemo(() => [
     { accessorKey: 'sno', header: 'S.No', size: 30, cell: info => <div className="w-[30px] text-center">{info.getValue()}</div> },
-    { accessorKey: 'name', header: 'Name of the Employee', cell: info => <div className="text-left font-bold text-gray-900 px-3 min-w-[180px]">{info.getValue()}</div> },
+    { accessorKey: 'name', header: 'Name of the Employee', cell: info => <button onClick={() => setSummaryEmpDetail(info.row.original)} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-3 min-w-[150px]">{info.getValue()}</button> },
     { accessorKey: 'empId', header: 'Emp ID', cell: info => <div className="text-left px-3">{info.getValue()}</div> },
-    { accessorKey: 'totalDays', header: 'TOTAL DAYS' },
-    { accessorKey: 'worked', header: 'No. of days worked' },
+    { accessorKey: 'totalDays', header: 'Days' },
+    { accessorKey: 'worked', header: 'Worked' },
     {
       id: 'holidays_group',
       header: 'HOLIDAYS',
       columns: [
-        { accessorKey: 'sunday', header: 'Sunday' },
-        { accessorKey: 'holidays', header: 'Holidays' },
-        { accessorKey: 'totalHolidays', header: 'Total' },
+        { accessorKey: 'sunday', header: 'Sun' },
+        { accessorKey: 'holidays', header: 'Hol' },
+        { accessorKey: 'totalHolidays', header: 'Tot' },
       ]
     },
     {
       id: 'leave_group',
       header: 'LEAVE',
       columns: [
-        { accessorKey: 'leave', header: 'Approved' },
+        { accessorKey: 'leave', header: 'Appr' },
         { accessorKey: 'lop', header: 'LOP' },
       ]
     },
-    { accessorKey: 'ot', header: 'OT/HRS' },
-    { accessorKey: 'sunHolW', header: 'SUNDAY & Holiday Worked' },
-    { accessorKey: 'totalWorkingDays', header: 'TOTAL WORKING DAYS' },
+    { accessorKey: 'ot', header: 'OT' },
+    {
+      id: 'worked_group',
+      header: 'HOLIDAYS WORKED',
+      columns: [
+        { accessorKey: 'sunW', header: 'Sun' },
+        { accessorKey: 'holW', header: 'Hol' },
+      ]
+    },
+    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS' },
   ], [])
 
   const table = useReactTable({
@@ -382,61 +421,121 @@ export default function SalarySlipTab() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white">
-                    <Clock size={16} />
-                  </div>
-                  <p className="text-[12px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p>
-                </div>
-                <PDFDownloadLink 
-                  document={<AttendanceSummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />} 
-                  fileName={`Attendance_Summary_${summaryMonth}.pdf`}
-                  className="h-9 bg-indigo-600 text-white px-4 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 shadow-md transition-all active:scale-95"
+            <div className="flex gap-6 items-start h-[calc(100vh-280px)]">
+              <div className="flex-1 min-w-0 space-y-4 h-full flex flex-col">
+                <button 
+                  onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)}
+                  className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0 w-full hover:border-indigo-200 transition-all group"
                 >
-                  {({ loading }) => <><Download size={14} /> {loading ? 'Preparing...' : 'Export PDF'}</>}
-                </PDFDownloadLink>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white group-hover:bg-indigo-600 transition-colors">
+                      <Clock size={16} />
+                    </div>
+                    <p className="text-[12px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Attendance Summary</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <PDFDownloadLink 
+                      document={<AttendanceSummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />} 
+                      fileName={`Attendance_Summary_${summaryMonth}.pdf`}
+                      onClick={e => e.stopPropagation()}
+                      className="h-8 bg-indigo-600 text-white px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 shadow-sm transition-all active:scale-95"
+                    >
+                      {({ loading }) => <><Download size={12} /> {loading ? '...' : 'Export'}</>}
+                    </PDFDownloadLink>
+                    {isAttendanceSummaryOpen ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+                  </div>
+                </button>
+
+                {isAttendanceSummaryOpen && (
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden flex-1 flex flex-col animate-in slide-in-from-top-2 duration-200">
+                    <div className="overflow-auto flex-1">
+                      <table className="w-full border-collapse text-[10px] font-inter table-auto">
+                        <thead className="sticky top-0 z-10">
+                          {table.getHeaderGroups().map(headerGroup => (
+                            <tr key={headerGroup.id}>
+                              {headerGroup.headers.map(header => (
+                                <th 
+                                  key={header.id} 
+                                  colSpan={header.colSpan}
+                                  className={`px-2 py-2 border border-gray-300 bg-gray-100 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight`}
+                                >
+                                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                                </th>
+                              ))}
+                            </tr>
+                          ))}
+                        </thead>
+                        <tbody>
+                          {isAttendanceLoading ? (
+                            <tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>
+                          ) : attendanceSummaryData.length === 0 ? (
+                            <tr><td colSpan={13} className="p-10 text-center text-gray-400 font-bold uppercase tracking-widest text-[10px]">No data available for this month</td></tr>
+                          ) : (
+                            table.getRowModel().rows.map(row => (
+                              <tr key={row.id} className={`hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30 ${summaryEmpDetail?.id === row.original.id ? 'bg-indigo-50' : ''}`}>
+                                {row.getVisibleCells().map(cell => (
+                                  <td key={cell.id} className="px-2 py-1.5 border border-gray-200 text-gray-600 font-semibold text-center whitespace-nowrap">
+                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-[10px] font-inter table-auto">
-                    <thead>
-                      {table.getHeaderGroups().map(headerGroup => (
-                        <tr key={headerGroup.id}>
-                          {headerGroup.headers.map(header => (
-                            <th 
-                              key={header.id} 
-                              colSpan={header.colSpan}
-                              className={`px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 font-black uppercase text-center whitespace-normal break-words leading-tight`}
-                            >
-                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                            </th>
-                          ))}
-                        </tr>
-                      ))}
-                    </thead>
-                    <tbody>
-                      {isAttendanceLoading ? (
-                        <tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>
-                      ) : attendanceSummaryData.length === 0 ? (
-                        <tr><td colSpan={13} className="p-10 text-center text-gray-400 font-bold uppercase tracking-widest text-[10px]">No data available for this month</td></tr>
-                      ) : (
-                        table.getRowModel().rows.map(row => (
-                          <tr key={row.id} className="hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30">
-                            {row.getVisibleCells().map(cell => (
-                              <td key={cell.id} className="px-3 py-2 border border-gray-200 text-gray-600 font-semibold text-center whitespace-nowrap">
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+              {summaryEmpDetail && (
+                <div className="w-[380px] bg-white rounded-2xl border border-gray-200 shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300 shrink-0">
+                  <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                    <div>
+                      <h3 className="font-black text-gray-900 uppercase font-google-sans text-[13px] tracking-tight">{summaryEmpDetail.name}</h3>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{summaryEmpDetail.empId}</p>
+                    </div>
+                    <button onClick={() => setSummaryEmpDetail(null)} className="p-2 hover:bg-gray-200 rounded-full transition-all"><X size={16} /></button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-auto p-6 space-y-8 font-inter">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-indigo-600 font-black uppercase text-[10px] tracking-widest"><FileText size={14} /> Earnings</div>
+                      <div className="bg-indigo-50/30 rounded-xl border border-indigo-100 p-4 space-y-3">
+                        <div className="flex justify-between text-[12px] font-medium text-gray-600">Basic Salary <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.basic)}</span></div>
+                        <div className="flex justify-between text-[12px] font-medium text-gray-600">HRA <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.hra)}</span></div>
+                        {summaryEmpDetail.salary.otPay > 0 && <div className="flex justify-between text-[12px] font-medium text-indigo-600">OT Pay (Est.) <span className="font-bold">{formatINR(summaryEmpDetail.salary.otPay)}</span></div>}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-red-600 font-black uppercase text-[10px] tracking-widest"><AlertCircle size={14} /> Deductions</div>
+                      <div className="bg-red-50/30 rounded-xl border border-red-100 p-4 space-y-3">
+                        <div className="flex justify-between text-[12px] font-medium text-gray-600">PF <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.pf)}</span></div>
+                        <div className="flex justify-between text-[12px] font-medium text-gray-600">Tax / IT <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.it)}</span></div>
+                        <div className="flex justify-between text-[12px] font-medium text-gray-600">Advance/Fine <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.advance)}</span></div>
+                        <div className="flex justify-between text-[12px] font-medium text-gray-600">Loan EMI <span className="font-bold text-gray-900">{formatINR(summaryEmpDetail.salary.loanEMI)}</span></div>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-dashed border-gray-200">
+                      <div className="bg-gray-900 text-white rounded-xl p-5 text-center shadow-xl">
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Net Disbursement (Est.)</p>
+                        <p className="text-2xl font-black font-google-sans tracking-tighter">{formatINR(summaryEmpDetail.salary.net)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl">
+                    <button 
+                      onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }}
+                      className="w-full py-3 bg-white border border-gray-200 text-gray-900 font-bold rounded-lg text-[10px] uppercase tracking-widest hover:bg-gray-900 hover:text-white transition-all shadow-sm"
+                    >
+                      Go to Payslip Generator
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
