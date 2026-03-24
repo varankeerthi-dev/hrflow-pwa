@@ -333,16 +333,31 @@ export default function SalarySlipTab() {
   }
 
   return (
-    <div className="flex h-full bg-[#fbfbfb] -m-6 font-inter text-gray-900 overflow-hidden">
-      <div className="w-[160px] bg-white border-r border-gray-200 flex flex-col pt-8 shrink-0">
-        <div className="px-4 mb-8 font-google-sans text-[8px] font-bold uppercase tracking-widest text-gray-400">Payroll Engine</div>
-        <nav className="flex-1 space-y-1 px-2">
-          {[{id:'salary-slip', icon:<Banknote size={12}/>, label:'Salary Slip'}, {id:'salary-summary', icon:<FileText size={12}/>, label:'Salary Summary'}, {id:'loan', icon:<Wallet size={12}/>, label:'Loan Management'}].map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all ${activeTab === t.id ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>{t.icon}<span className="text-[9px] font-bold">{t.label}</span></button>
+    <div className="flex h-full bg-[#fbfbfb] font-inter text-gray-900 overflow-hidden">
+      <div className="w-[220px] bg-white border-r border-gray-200 flex flex-col pt-8 shrink-0 shadow-sm">
+        <div className="px-6 mb-8 font-google-sans text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Payroll Engine</div>
+        <nav className="flex-1 space-y-1 px-3">
+          {[
+            {id:'salary-slip', icon:<Banknote size={18}/>, label:'Salary Slip'}, 
+            {id:'salary-summary', icon:<FileText size={18}/>, label:'Salary Summary'}, 
+            {id:'loan', icon:<Wallet size={18}/>, label:'Loan Management'}
+          ].map(t => (
+            <button 
+              key={t.id} 
+              onClick={() => setActiveTab(t.id)} 
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeTab === t.id 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <span className={activeTab === t.id ? 'text-white' : 'text-slate-400'}>{t.icon}</span>
+              <span className="text-[14px] font-bold tracking-tight">{t.label}</span>
+            </button>
           ))}
         </nav>
       </div>
-      <div className="flex-1 min-w-0 p-3 h-full overflow-hidden flex flex-col">
+      <div className="flex-1 min-w-0 p-6 h-full overflow-hidden flex flex-col">
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto space-y-4 flex flex-col h-full overflow-hidden p-2 w-full">
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end shrink-0">
