@@ -1006,8 +1006,8 @@ function CreateDayModal({ onClose, onSave, loading, employees, branches, departm
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-zinc-800 px-6 py-4 flex justify-between items-center shrink-0">
           <h3 className="text-white font-black text-[13px] uppercase tracking-wide">Create Day Planning</h3>
           <button onClick={onClose} className="text-white/80 hover:text-white">
             <X size={18} />
@@ -1020,8 +1020,8 @@ function CreateDayModal({ onClose, onSave, loading, employees, branches, departm
             <input type="date" value={form.publishDate} onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))} className="h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold" />
           </div>
 
-          <div className="flex gap-4">
-            <div className="flex-1 border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'day')}>
+          <div className="flex flex-col gap-4">
+            <div className="border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'day')}>
               <h4 className="text-sm font-black">Day Shift</h4>
               <div className="mt-2 mb-3 flex items-center gap-2">
                 <select onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'day'); e.target.value = '' } }} className="h-9 border border-gray-200 rounded-lg px-3 text-xs">
@@ -1056,7 +1056,7 @@ function CreateDayModal({ onClose, onSave, loading, employees, branches, departm
               </div>
             </div>
 
-            <div className="flex-1 border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'night')}>
+            <div className="border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'night')}>
               <h4 className="text-sm font-black">Night Shift</h4>
               <div className="mt-2 mb-3 flex items-center gap-2">
                 <select onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'night'); e.target.value = '' } }} className="h-9 border border-gray-200 rounded-lg px-3 text-xs">
