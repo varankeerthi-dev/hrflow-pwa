@@ -34,6 +34,15 @@ export default function AdvanceExpenseTab() {
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
   const canSelectAll = isAdmin || isAccountant
 
+  // For editing
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [revokeAdvance, setRevokeAdvance] = useState(true)
+
+  // For finalizing pre-approvals
+  const [finalizingId, setFinalizingId] = useState(null)
+  const [finalizeAmount, setFinalizeAmount] = useState('')
+
   // TanStack Query for fetching entries
   const { data: entries = [], isLoading: loading, refetch: fetchEntries } = useQuery({
     queryKey: ['advances_expenses', user?.orgId],
@@ -161,6 +170,117 @@ export default function AdvanceExpenseTab() {
       setEditingId(null)
     }
   })
+
+  const finalizeMutation = useMutation({
+    mutationFn: async ({ id, finalAmount }) => {
+      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', id)
+      await updateDoc(itemRef, {
+        requestType: 'Reimbursement',
+        amount: Number(finalAmount),
+        finalizedAt: serverTimestamp(),
+        finalizedBy: user.email || user.name,
+        // If it was already MD approved, it will now show up in Accountant's Payment Queue
+        // because it's no longer 'Pre-Approval'
+        updatedAt: serverTimestamp()
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      setFinalizingId(null)
+      alert('Bill submitted! It has been moved to the payment queue.')
+    }
+  })
+
+  const getMyEmpId = () => {
+    const me = employees.find(e => e.email === user.email || e.id === user.uid)
+    return me ? me.id : ''
+  }
+
+  const [addRows, setAddRows] = useState([
+    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate' }
+  ])
+
+  useEffect(() => {
+    if (!canSelectAll && employees.length > 0 && addRows.length === 1 && !addRows[0].employeeId) {
+      const myId = getMyEmpId()
+      if (myId) {
+        setAddRows([{ ...addRows[0], employeeId: myId }])
+      }
+    }
+  }, [employees, canSelectAll])
+
+  const [submitting, setSubmitting] = useState(false)
+
+  const modules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Reports']
+  const defaultCategories = ['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Others']
+
+  const fetchCategories = async () => {
+    if (!user?.orgId) return
+    try {
+      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+      if (orgSnap.exists()) {
+        const orgData = orgSnap.data()
+        if (orgData.advanceCategories && orgData.advanceCategories.length > 0) {
+          const merged = [...new Set([...orgData.advanceCategories, ...defaultCategories])]
+          setCategories(merged)
+        } else {
+          setCategories(defaultCategories)
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+      setCategories(defaultCategories)
+    }
+  }
+
+  useEffect(() => { fetchCategories() }, [user?.orgId])
+
+  const handleAddRow = () => {
+    const myId = !canSelectAll ? getMyEmpId() : ''
+    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate' }])
+  }
+
+  const handleSelfExpense = () => {
+    const currentUserEmp = employees.find(e => e.email === user.email || e.id === user.uid)
+    const empId = currentUserEmp ? currentUserEmp.id : (user.uid || '')
+    setAddRows(addRows.map(row => ({ ...row, employeeId: empId })))
+  }
+
+  const handleRowChange = (id, field, value) => {
+    setAddRows(addRows.map(row => row.id === id ? { ...row, [field]: value } : row))
+  }
+
+  const handleEdit = (entry) => {
+    setEditingId(entry.id)
+    setEditForm(entry)
+    setRevokeAdvance(true)
+  }
+
+  const handleUpdate = async () => {
+    try {
+      let type = editForm.type
+      if (editForm.category.toLowerCase().includes('advance')) {
+        type = 'Advance'
+      } else if (editForm.category.toLowerCase().includes('expense')) {
+        type = 'Expense'
+      } else if (!type) {
+        type = 'Expense'
+      }
+      
+      const emp = employees.find(e => e.id === editForm.employeeId) || {}
+      const updatedData = {
+        ...editForm,
+        type: type,
+        employeeName: emp.name || editForm.employeeName,
+        amount: Number(editForm.amount)
+      }
+      
+      await updateMutation.mutateAsync({ id: editingId, data: updatedData, revokeAdvFlag: revokeAdvance })
+      alert('Updated and reset for re-approval')
+    } catch (err) {
+      alert('Failed to update')
+    }
+  }
 
   const handleSubmitAll = async () => {
     const validRows = addRows.filter(r => r.employeeId && r.amount && r.category)
