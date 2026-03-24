@@ -13,127 +13,112 @@ import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
 
-// Use reliable direct file URLs for @react-pdf/renderer
-Font.register({ 
-  family: 'Inter', 
-  fonts: [
-    { src: 'https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/Inter-Regular.otf', fontWeight: 400 },
-    { src: 'https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/Inter-Bold.otf', fontWeight: 700 }
-  ]
-})
-Font.register({ 
-  family: 'Product Sans', 
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJfc-7eS3JBrS_WRA.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJfc-7eS3JBrS_WRA.woff2', fontWeight: 700 }
-  ]
-})
-
+// Use standard fonts for maximum compatibility
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : formatINR(val);
 
 const s = StyleSheet.create({
-  p: { padding: 40, fontSize: 10, fontFamily: 'Inter', color: '#0f172a' },
-  h: { borderBottomWidth: 2, borderBottomColor: '#4f46e5', paddingBottom: 20, marginBottom: 30, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  t: { fontSize: 24, fontFamily: 'Product Sans', fontWeight: 700, textTransform: 'uppercase', color: '#0f172a' }
+  p: { padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' },
+  h: { borderBottomWidth: 2, borderBottomColor: '#4f46e5', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  t: { fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#0f172a' }
 })
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
   <Document><Page size="A4" style={s.p}>
     <View style={s.h}>
       <View style={{flexDirection:'row', alignItems:'center'}}>
-        {orgLogo && <Image src={orgLogo} style={{width:45,height:45,marginRight:12}}/>}
+        {orgLogo && <Image src={orgLogo} style={{width:40,height:40,marginRight:10}}/>}
         <View>
           <Text style={s.t}>{orgName}</Text>
-          <Text style={{fontSize:8, color:'#6366f1', fontWeight:700, marginTop:4, letterSpacing:1}}>PAYROLL STATEMENT</Text>
+          <Text style={{fontSize:7, color:'#6366f1', fontWeight: 'bold', marginTop:2, letterSpacing:1}}>PAYROLL STATEMENT</Text>
         </View>
       </View>
       <View style={{textAlign:'right'}}>
-        <Text style={{fontSize:14, fontFamily:'Product Sans', fontWeight:700, color:'#0f172a'}}>PAYSLIP</Text>
-        <Text style={{fontSize:9, color:'#64748b', marginTop:2}}>{new Date(data.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
+        <Text style={{fontSize:12, fontWeight: 'bold', color:'#0f172a'}}>PAYSLIP</Text>
+        <Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{new Date(data.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
       </View>
     </View>
     
-    <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:30, alignItems: 'center'}}>
+    <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:20, alignItems: 'center'}}>
       <View>
-        <View style={{flexDirection:'row', marginBottom:6}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>EMPLOYEE</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.employee?.name}</Text></View>
-        <View style={{flexDirection:'row', marginBottom:6}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>STAFF ID</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.employee?.empCode}</Text></View>
-        <View style={{flexDirection:'row'}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>PERIOD</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.month}</Text></View>
+        <View style={{flexDirection:'row', marginBottom:4}}><Text style={{width:60, color:'#94a3b8', fontWeight:'bold', fontSize:7}}>EMPLOYEE</Text><Text style={{fontWeight:'bold', color:'#1e293b'}}>: {data.employee?.name}</Text></View>
+        <View style={{flexDirection:'row', marginBottom:4}}><Text style={{width:60, color:'#94a3b8', fontWeight:'bold', fontSize:7}}>STAFF ID</Text><Text style={{fontWeight:'bold', color:'#1e293b'}}>: {data.employee?.empCode}</Text></View>
+        <View style={{flexDirection:'row'}}><Text style={{width:60, color:'#94a3b8', fontWeight:'bold', fontSize:7}}>PERIOD</Text><Text style={{fontWeight:'bold', color:'#1e293b'}}>: {data.month}</Text></View>
       </View>
-      <View style={{width:180, border:1, borderColor:'#e2e8f0', borderRadius:12, padding:15, textAlign:'center', backgroundColor:'#f8fafc'}}>
-        <Text style={{fontSize:8, fontWeight:700, color:'#64748b', marginBottom:4, letterSpacing:0.5}}>NET DISBURSEMENT</Text>
-        <Text style={{fontSize:20, fontWeight:700, color:'#0f172a'}}>{formatINR(data.netPay)}</Text>
+      <View style={{width:150, border:1, borderColor:'#e2e8f0', borderRadius:8, padding:10, textAlign:'center', backgroundColor:'#f8fafc'}}>
+        <Text style={{fontSize:7, fontWeight:'bold', color:'#64748b', marginBottom:2}}>NET DISBURSEMENT</Text>
+        <Text style={{fontSize:16, fontWeight:'bold', color:'#0f172a'}}>{formatINR(data.netPay)}</Text>
       </View>
     </View>
 
-    <View style={{border:1, borderColor:'#0f172a', borderRadius:12, overflow:'hidden', marginBottom:30}}>
-      <View style={{flexDirection:'row', backgroundColor:'#0f172a', color:'white', padding:10}}>
-        <Text style={{flex:1, fontSize:9, fontWeight:700, letterSpacing:1}}>EARNINGS</Text>
-        <Text style={{flex:1, textAlign:'right', fontSize:9, fontWeight:700, letterSpacing:1}}>DEDUCTIONS</Text>
+    <View style={{border:1, borderColor:'#0f172a', borderRadius:8, overflow:'hidden', marginBottom:20}}>
+      <View style={{flexDirection:'row', backgroundColor:'#0f172a', color:'white', padding:8}}>
+        <Text style={{flex:1, fontSize:8, fontWeight:'bold', letterSpacing:1}}>EARNINGS</Text>
+        <Text style={{flex:1, textAlign:'right', fontSize:8, fontWeight:'bold', letterSpacing:1}}>DEDUCTIONS</Text>
       </View>
       <View style={{flexDirection:'row'}}>
         <View style={{flex:1, borderRightWidth:1, borderColor:'#e2e8f0'}}>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Basic Salary</Text><Text style={{fontWeight:700}}>{formatINR(data.basic)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>HRA</Text><Text style={{fontWeight:700}}>{formatINR(data.hra)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Expense</Text><Text style={{fontWeight:700}}>{dashIfZero(data.expenseReimbursement)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Sunday Worked</Text><Text style={{fontWeight:700}}>{dashIfZero(data.sundayPay)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10}}><Text style={{color:'#64748b'}}>OT</Text><Text style={{fontWeight:700}}>{dashIfZero(data.otPay)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Basic Salary</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.basic)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>HRA</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.hra)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Expense</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.expenseReimbursement)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Sunday Worked</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.sundayPay)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{color:'#64748b'}}>OT</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.otPay)}</Text></View>
         </View>
         <View style={{flex:1}}>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Advance</Text><Text style={{fontWeight:700}}>{dashIfZero(data.advanceDeduction)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Loan</Text><Text style={{fontWeight:700}}>{dashIfZero(data.loanEMI)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Fine</Text><Text style={{fontWeight:700}}>{dashIfZero(data.fineAmount)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>IT / Tax</Text><Text style={{fontWeight:700}}>{formatINR(data.it)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10}}><Text style={{color:'#64748b'}}>PF</Text><Text style={{fontWeight:700}}>{formatINR(data.pf)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Advance</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.advanceDeduction)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Loan</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.loanEMI)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Fine</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.fineAmount)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>IT / Tax</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.it)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{color:'#64748b'}}>PF</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.pf)}</Text></View>
         </View>
       </View>
       <View style={{flexDirection:'row', backgroundColor:'#f8fafc', borderTopWidth:1, borderColor:'#0f172a'}}>
-        <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:10, borderRightWidth:1, borderColor:'#0f172a'}}><Text style={{fontWeight:700, fontSize:9}}>GROSS PAY</Text><Text style={{fontWeight:700, fontSize:9}}>{formatINR(data.grossEarnings)}</Text></View>
-        <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:10}}><Text style={{fontWeight:700, fontSize:9}}>TOTAL DED.</Text><Text style={{fontWeight:700, fontSize:9}}>{formatINR(data.totalDeductions)}</Text></View>
+        <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8, borderRightWidth:1, borderColor:'#0f172a'}}><Text style={{fontWeight:'bold', fontSize:8}}>GROSS PAY</Text><Text style={{fontWeight:'bold', fontSize:8}}>{formatINR(data.grossEarnings)}</Text></View>
+        <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{fontWeight:'bold', fontSize:8}}>TOTAL DED.</Text><Text style={{fontWeight:'bold', fontSize:8}}>{formatINR(data.totalDeductions)}</Text></View>
       </View>
     </View>
 
-    <View style={{textAlign:'center', paddingTop:30, borderTopWidth:1, borderColor:'#e2e8f0', borderStyle:'dashed'}}>
-      <Text style={{fontSize:8, color:'#94a3b8', marginBottom:5, fontWeight:700}}>AMOUNT IN WORDS</Text>
-      <Text style={{fontSize:10, fontWeight:700, color:'#0f172a', textTransform:'uppercase'}}>Indian Rupee {numberToWords(data.netPay)} Only</Text>
-      <Text style={{fontSize:7, color:'#cbd5e1', marginTop:40, letterSpacing:2}}>-- SYSTEM GENERATED DIGITAL RECEIPT --</Text>
+    <View style={{textAlign:'center', paddingTop:20, borderTopWidth:1, borderColor:'#e2e8f0', borderStyle:'dashed'}}>
+      <Text style={{fontSize:7, color:'#94a3b8', marginBottom:3, fontWeight:'bold'}}>AMOUNT IN WORDS</Text>
+      <Text style={{fontSize:9, fontWeight:'bold', color:'#0f172a', textTransform:'uppercase'}}>Indian Rupee {numberToWords(data.netPay)} Only</Text>
+      <Text style={{fontSize:6, color:'#cbd5e1', marginTop:20, letterSpacing:2}}>-- SYSTEM GENERATED DIGITAL RECEIPT --</Text>
     </View>
   </Page></Document>
 )
 
 const AttendanceSummaryPDF = ({ data, month, orgName }) => (
   <Document>
-    <Page size="A4" orientation="landscape" style={{ padding: 30, fontSize: 8, fontFamily: 'Inter' }}>
-      <View style={{ marginBottom: 20, borderBottom: 2, borderColor: '#000', paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+    <Page size="A4" orientation="landscape" style={{ padding: 20, fontSize: 7, fontFamily: 'Helvetica' }}>
+      <View style={{ marginBottom: 15, borderBottom: 2, borderColor: '#000', paddingBottom: 5, flexDirection: 'row', justifyContent: 'space-between' }}>
         <View>
-          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{orgName}</Text>
-          <Text style={{ fontSize: 10, marginTop: 4 }}>ATTENDANCE SUMMARY - {new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
+          <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{orgName}</Text>
+          <Text style={{ fontSize: 8, marginTop: 2 }}>ATTENDANCE SUMMARY - {new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
         </View>
       </View>
       <View style={{ border: 1, borderColor: '#000' }}>
         <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', fontWeight: 'bold', borderBottom: 1 }}>
-          <Text style={{ width: 25, padding: 4, borderRight: 1 }}>S.No</Text>
-          <Text style={{ flex: 2, padding: 4, borderRight: 1 }}>Employee Name</Text>
-          <Text style={{ width: 45, padding: 4, borderRight: 1 }}>Emp ID</Text>
-          <Text style={{ width: 30, padding: 4, borderRight: 1 }}>Days</Text>
-          <Text style={{ width: 35, padding: 4, borderRight: 1 }}>Worked</Text>
-          <Text style={{ width: 90, padding: 4, borderRight: 1, textAlign: 'center' }}>HOLIDAYS (Sun/Hol/Tot)</Text>
-          <Text style={{ width: 60, padding: 4, borderRight: 1, textAlign: 'center' }}>LEAVE (Appr/LOP)</Text>
-          <Text style={{ width: 30, padding: 4, borderRight: 1 }}>OT</Text>
-          <Text style={{ width: 70, padding: 4, borderRight: 1, textAlign: 'center' }}>HOL. WK (Sun/Hol)</Text>
-          <Text style={{ width: 45, padding: 4 }}>PAY DAYS</Text>
+          <Text style={{ width: 25, padding: 3, borderRight: 1 }}>S.No</Text>
+          <Text style={{ flex: 2, padding: 3, borderRight: 1 }}>Employee Name</Text>
+          <Text style={{ width: 45, padding: 3, borderRight: 1 }}>Emp ID</Text>
+          <Text style={{ width: 30, padding: 3, borderRight: 1 }}>Days</Text>
+          <Text style={{ width: 35, padding: 3, borderRight: 1 }}>Worked</Text>
+          <Text style={{ width: 90, padding: 3, borderRight: 1, textAlign: 'center' }}>HOLIDAYS</Text>
+          <Text style={{ width: 60, padding: 3, borderRight: 1, textAlign: 'center' }}>LEAVE</Text>
+          <Text style={{ width: 30, padding: 3, borderRight: 1 }}>OT</Text>
+          <Text style={{ width: 70, padding: 3, borderRight: 1, textAlign: 'center' }}>HOL. WK</Text>
+          <Text style={{ width: 45, padding: 3 }}>PAY DAYS</Text>
         </View>
         {data.map((row, i) => (
           <View key={i} style={{ flexDirection: 'row', borderBottom: 1 }}>
-            <Text style={{ width: 25, padding: 4, borderRight: 1 }}>{row.sno}</Text>
-            <Text style={{ flex: 2, padding: 4, borderRight: 1 }}>{row.name}</Text>
-            <Text style={{ width: 45, padding: 4, borderRight: 1 }}>{row.empId}</Text>
-            <Text style={{ width: 30, padding: 4, borderRight: 1 }}>{row.totalDays}</Text>
-            <Text style={{ width: 35, padding: 4, borderRight: 1 }}>{row.worked}</Text>
-            <Text style={{ width: 90, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.sunday} / {row.holidays} / {row.totalHolidays}</Text>
-            <Text style={{ width: 60, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.leave} / {row.lop}</Text>
-            <Text style={{ width: 30, padding: 4, borderRight: 1 }}>{row.ot}</Text>
-            <Text style={{ width: 70, padding: 4, borderRight: 1, textAlign: 'center' }}>{row.sunW} / {row.holW}</Text>
-            <Text style={{ width: 45, padding: 4 }}>{row.totalWorkingDays}</Text>
+            <Text style={{ width: 25, padding: 3, borderRight: 1 }}>{row.sno}</Text>
+            <Text style={{ flex: 2, padding: 3, borderRight: 1 }}>{row.name}</Text>
+            <Text style={{ width: 45, padding: 3, borderRight: 1 }}>{row.empId}</Text>
+            <Text style={{ width: 30, padding: 3, borderRight: 1 }}>{row.totalDays}</Text>
+            <Text style={{ width: 35, padding: 3, borderRight: 1 }}>{row.worked}</Text>
+            <Text style={{ width: 90, padding: 3, borderRight: 1, textAlign: 'center' }}>{row.sunday} / {row.holidays} / {row.totalHolidays}</Text>
+            <Text style={{ width: 60, padding: 3, borderRight: 1, textAlign: 'center' }}>{row.leave} / {row.lop}</Text>
+            <Text style={{ width: 30, padding: 3, borderRight: 1 }}>{row.ot}</Text>
+            <Text style={{ width: 70, padding: 3, borderRight: 1, textAlign: 'center' }}>{row.sunW} / {row.holW}</Text>
+            <Text style={{ width: 45, padding: 3 }}>{row.totalWorkingDays}</Text>
           </View>
         ))}
       </View>
@@ -246,7 +231,6 @@ export default function SalarySlipTab() {
 
       const [y, m] = selectedMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${selectedMonth}-01`, ed = `${selectedMonth}-${end}`
       
-      // Optimized Attendance Query with Date Range
       const aDataSnap = await getDocs(query(
         collection(db, 'organisations', user.orgId, 'attendance'), 
         where('employeeId', '==', selectedEmp),
@@ -266,7 +250,6 @@ export default function SalarySlipTab() {
         if (t === 'Absent') lop++; else paid++; grid.push({ date: i, type: t, ds })
       }
 
-      // Fetch other components in parallel
       const [otS, advSnap, loanSnap, fSnap, expSnap] = await Promise.all([
         getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))),
@@ -355,143 +338,161 @@ export default function SalarySlipTab() {
       </div>
       <div className="flex-1 min-w-0 p-3 h-full overflow-hidden flex flex-col">
         {activeTab === 'salary-slip' && (
-          <div className="max-w-6xl mx-auto space-y-6 h-full overflow-auto p-4 w-full">
-            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-6 items-end shrink-0">
-              <div className="flex-1 min-w-[240px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Target Employee<select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[12px] font-semibold bg-white outline-none mt-1.5 text-gray-900 normal-case"><option value="">Select Employee</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-              <div className="w-[180px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Pay Period<input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[12px] font-bold mt-1.5 text-gray-900 normal-case" /></div>
-              <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-10 px-8 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[9px] shadow-lg hover:bg-black transition-all">Generate</button>
+          <div className="max-w-6xl mx-auto space-y-4 flex flex-col h-full overflow-hidden p-2 w-full">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end shrink-0">
+              <div className="flex-1 min-w-[200px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Target Employee<select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[11px] font-semibold bg-white outline-none mt-1 text-gray-900 normal-case"><option value="">Select Employee</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+              <div className="w-[150px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Pay Period<input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[11px] font-bold mt-1 text-gray-900 normal-case" /></div>
+              <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-9 px-6 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[9px] shadow-lg hover:bg-black transition-all">Generate</button>
             </div>
-            {slipData && (
-              <div className="bg-white border border-gray-100 shadow-2xl rounded-[32px] overflow-hidden relative mx-auto flex-1 overflow-auto max-w-4xl w-full" style={{ fontFamily: "'Inter', sans-serif" }}>
-                <div className="flex justify-end gap-2 p-4 bg-slate-50 border-b border-slate-100 no-print sticky top-0 z-10">
-                  <PDFDownloadLink key={`${slipData.employee?.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee?.name?.replace(/\s+/g, '_')}.pdf`} className="h-9 bg-white border border-slate-200 text-slate-700 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
-                    {({ loading }) => <><Download size={14} />{loading ? 'Processing...' : 'Export PDF'}</>}
-                  </PDFDownloadLink>
-                  <button onClick={handleFinalizeSlip} className="h-9 bg-indigo-600 text-white px-6 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all">
-                    <CheckCircle2 size={14} /> Finalize Record
-                  </button>
-                </div>
-                
-                <div className="p-12 bg-white relative">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
+            
+            {slipData ? (
+              <div className="flex-1 overflow-hidden flex flex-col items-center justify-center p-2">
+                <div className="bg-white border border-gray-100 shadow-2xl rounded-[24px] overflow-hidden relative flex flex-col w-full max-w-4xl max-h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <div className="flex justify-end gap-2 p-3 bg-slate-50 border-b border-slate-100 no-print shrink-0">
+                    <PDFDownloadLink key={`${slipData.employee?.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee?.name?.replace(/\s+/g, '_')}.pdf`} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
+                      {({ loading }) => <><Download size={12} />{loading ? 'Wait...' : 'Export PDF'}</>}
+                    </PDFDownloadLink>
+                    <button onClick={handleFinalizeSlip} className="h-8 bg-indigo-600 text-white px-4 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all">
+                      <CheckCircle2 size={12} /> Finalize
+                    </button>
+                  </div>
                   
-                  <div className="border-b-2 border-slate-900 pb-8 mb-10 flex justify-between items-start relative z-10">
-                    <div className="flex items-center gap-6">
-                      {orgLogo && <img src={orgLogo} alt="Logo" className="w-16 h-16 object-contain rounded-xl shadow-sm bg-slate-50 p-2" />}
-                      <div>
-                        <h1 className="text-4xl font-black text-slate-900 uppercase font-google-sans tracking-tighter leading-none">{user?.orgName}</h1>
-                        <p className="text-[10px] text-indigo-600 font-black uppercase tracking-[0.4em] mt-4 flex items-center gap-2">
-                          <span className="w-6 h-0.5 bg-indigo-600"></span>
-                          Payroll Advice
+                  <div className="p-8 bg-white relative overflow-auto flex-1">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-50 rounded-full -mr-24 -mt-24 blur-3xl opacity-50"></div>
+                    
+                    <div className="border-b border-slate-900 pb-4 mb-6 flex justify-between items-start relative z-10">
+                      <div className="flex items-center gap-4">
+                        {orgLogo && <img src={orgLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg shadow-sm bg-slate-50 p-1.5" />}
+                        <div>
+                          <h1 className="text-2xl font-black text-slate-900 uppercase font-google-sans tracking-tighter leading-none">{user?.orgName}</h1>
+                          <p className="text-[8px] text-indigo-600 font-black uppercase tracking-[0.3em] mt-2 flex items-center gap-2">
+                            <span className="w-4 h-0.5 bg-indigo-600"></span>
+                            Payroll Advice
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <h2 className="text-lg font-black text-slate-900 uppercase font-google-sans tracking-tight italic">Statement</h2>
+                        <p className="text-[9px] font-black text-slate-500 mt-1 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase tracking-widest">
+                          {new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <h2 className="text-2xl font-black text-slate-900 uppercase font-google-sans tracking-tight italic">Statement</h2>
-                      <p className="text-[11px] font-black text-slate-500 mt-2 bg-slate-100 px-3 py-1 rounded-lg inline-block border border-slate-200 uppercase tracking-widest">
-                        {new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 relative z-10">
-                    <div className="md:col-span-2 space-y-4">
-                      <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100">
-                        <p className="font-black text-slate-400 uppercase tracking-widest text-[9px] mb-6 border-b border-slate-200 pb-2 inline-block">Staff Particulars</p>
-                        <div className="grid grid-cols-2 gap-8">
-                          <div className="space-y-1">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Employee Name</span>
-                            <span className="font-bold text-slate-900 text-base uppercase">{slipData.employee?.name}</span>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Identity Code</span>
-                            <span className="font-bold text-slate-900 text-base uppercase">{slipData.employee?.empCode}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 relative z-10">
+                      <div className="md:col-span-2">
+                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 h-full">
+                          <p className="font-black text-slate-400 uppercase tracking-widest text-[8px] mb-4 border-b border-slate-200 pb-1.5 inline-block">Staff Particulars</p>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-0.5">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Employee Name</span>
+                              <span className="font-bold text-slate-900 text-[13px] uppercase">{slipData.employee?.name}</span>
+                            </div>
+                            <div className="space-y-0.5">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Identity Code</span>
+                              <span className="font-bold text-slate-900 text-[13px] uppercase">{slipData.employee?.empCode}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="bg-slate-950 text-white rounded-[32px] p-8 text-center flex flex-col justify-center shadow-2xl shadow-indigo-900/30 relative overflow-hidden group">
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-transparent opacity-50"></div>
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-3 relative z-10">Net Payable</p>
-                      <p className="text-4xl font-black font-google-sans tracking-tighter relative z-10">{formatINR(slipData.netPay)}</p>
-                      <div className="mt-6 text-[10px] font-black text-slate-500 uppercase tracking-widest relative z-10 border-t border-slate-800 pt-4">
-                        Currency: INR
+                      
+                      <div 
+                        className="bg-slate-950 text-white rounded-[24px] p-5 text-center flex flex-col justify-center shadow-2xl shadow-indigo-900/30 relative overflow-hidden group min-h-[100px]"
+                        style={{ minWidth: '250px', width: 'auto' }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-transparent opacity-50"></div>
+                        <p className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-1 relative z-10">Net Payable</p>
+                        <p className="text-3xl font-black font-google-sans tracking-tighter relative z-10">{formatINR(slipData.netPay)}</p>
+                        <div className="mt-3 text-[8px] font-black text-slate-500 uppercase tracking-widest relative z-10 border-t border-slate-800 pt-2">
+                          Currency: INR
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="border border-slate-200 rounded-[32px] overflow-hidden mb-12 shadow-sm relative z-10">
-                    <div className="grid grid-cols-2 bg-slate-950 font-google-sans font-black text-[11px] uppercase tracking-widest text-white">
-                      <div className="p-5 flex justify-between items-center border-r border-slate-800">
-                        <span className="flex items-center gap-2"><span className="w-2 h-2 bg-indigo-500 rounded-full"></span> Earnings</span>
-                        <span className="text-slate-500">Amount</span>
+                    <div className="border border-slate-200 rounded-[20px] overflow-hidden mb-6 shadow-sm relative z-10">
+                      <div className="grid grid-cols-2 bg-slate-950 font-google-sans font-black text-[9px] uppercase tracking-widest text-white">
+                        <div className="p-3 flex justify-between items-center border-r border-slate-800">
+                          <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Earnings</span>
+                          <span className="text-slate-500">Amount</span>
+                        </div>
+                        <div className="p-3 flex justify-between items-center">
+                          <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-rose-500 rounded-full"></span> Deductions</span>
+                          <span className="text-slate-500">Amount</span>
+                        </div>
                       </div>
-                      <div className="p-5 flex justify-between items-center">
-                        <span className="flex items-center gap-2"><span className="w-2 h-2 bg-rose-500 rounded-full"></span> Deductions</span>
-                        <span className="text-slate-500">Amount</span>
+                      
+                      <div className="grid grid-cols-2 divide-x divide-slate-200 bg-white">
+                        <div className="p-1 space-y-0.5">
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Basic Salary<span className="font-bold text-slate-900">{formatINR(slipData.basic)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Allowances (HRA)<span className="font-bold text-slate-900">{formatINR(slipData.hra)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Expense<span className="font-bold text-slate-900">{dashIfZero(slipData.expenseReimbursement)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Sunday Worked<span className="font-bold text-slate-900">{dashIfZero(slipData.sundayPay)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            OT<span className="font-bold text-slate-900">{dashIfZero(slipData.otPay)}</span>
+                          </div>
+                        </div>
+                        <div className="p-1 space-y-0.5">
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Advance<span className="font-bold text-slate-900">{dashIfZero(slipData.advanceDeduction)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Loan<span className="font-bold text-slate-900">{dashIfZero(slipData.loanEMI)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Fine<span className="font-bold text-slate-900">{dashIfZero(slipData.fineAmount)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Statutory Tax / IT<span className="font-bold text-slate-900">{formatINR(slipData.it)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            Provident Fund (PF)<span className="font-bold text-slate-900">{formatINR(slipData.pf)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 divide-x divide-slate-800 bg-slate-950 border-t border-slate-800 font-black font-google-sans uppercase text-[10px] text-white tracking-widest">
+                        <div className="p-4 flex justify-between items-center">
+                          <span className="text-slate-400">Gross Earnings</span>
+                          <span className="text-sm tracking-tighter">{formatINR(slipData.grossEarnings)}</span>
+                        </div>
+                        <div className="p-4 flex justify-between items-center">
+                          <span className="text-slate-400">Total Deductions</span>
+                          <span className="text-sm tracking-tighter text-rose-400">{formatINR(slipData.totalDeductions)}</span>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 divide-x divide-slate-200 bg-white">
-                      <div className="p-2 space-y-1">
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Basic Salary<span className="font-bold text-slate-900">{formatINR(slipData.basic)}</span>
-                        </div>
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Allowances (HRA)<span className="font-bold text-slate-900">{formatINR(slipData.hra)}</span>
-                        </div>
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Expense<span className="font-bold text-slate-900">{dashIfZero(slipData.expenseReimbursement)}</span>
-                        </div>
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Sunday Worked<span className="font-bold text-slate-900">{dashIfZero(slipData.sundayPay)}</span>
-                        </div>
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          OT<span className="font-bold text-slate-900">{dashIfZero(slipData.otPay)}</span>
-                        </div>
-                      </div>
-                      <div className="p-2 space-y-1">
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Advance<span className="font-bold text-slate-900">{dashIfZero(slipData.advanceDeduction)}</span>
-                        </div>
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Loan<span className="font-bold text-slate-900">{dashIfZero(slipData.loanEMI)}</span>
-                        </div>
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Fine<span className="font-bold text-slate-900">{dashIfZero(slipData.fineAmount)}</span>
-                        </div>
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Statutory Tax / IT<span className="font-bold text-slate-900">{formatINR(slipData.it)}</span>
-                        </div>
-                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
-                          Provident Fund (PF)<span className="font-bold text-slate-900">{formatINR(slipData.pf)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 divide-x divide-slate-800 bg-slate-950 border-t border-slate-800 font-black font-google-sans uppercase text-[11px] text-white tracking-widest">
-                      <div className="p-6 flex justify-between items-center">
-                        <span className="text-slate-400">Gross Earnings</span>
-                        <span className="text-base tracking-tighter">{formatINR(slipData.grossEarnings)}</span>
-                      </div>
-                      <div className="p-6 flex justify-between items-center">
-                        <span className="text-slate-400">Total Deductions</span>
-                        <span className="text-base tracking-tighter text-rose-400">{formatINR(slipData.totalDeductions)}</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="text-center pt-8 border-t border-dashed border-slate-200 relative z-10">
-                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Final Disbursement Value</p>
-                    <div className="bg-slate-950 text-white rounded-2xl p-6 inline-block min-w-[400px] shadow-xl">
-                      <p className="text-base font-black italic tracking-tight uppercase">
-                        {numberToWords(slipData.netPay)} Only
+                    <div className="text-center pt-4 border-t border-dashed border-slate-200 relative z-10">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Final Disbursement Value</p>
+                      <div className="bg-slate-950 text-white rounded-xl p-4 inline-block min-w-[300px] shadow-xl">
+                        <p className="text-[11px] font-black italic tracking-tight uppercase">
+                          {numberToWords(slipData.netPay)} Only
+                        </p>
+                      </div>
+                      <p className="text-[8px] text-slate-300 mt-6 font-black uppercase tracking-[0.4em] opacity-40 font-google-sans italic">
+                        Confidential • HRFlow Intelligence
                       </p>
                     </div>
-                    <p className="text-[9px] text-slate-300 mt-12 font-black uppercase tracking-[0.5em] opacity-40 font-google-sans italic">
-                      Confidential Document • HRFlow Intelligence Engine
-                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-slate-100">
+                    <FileText size={32} className="text-slate-300" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Select Employee to preview statement</p>
+                    <p className="text-[9px] text-slate-400 mt-1 font-medium">Statements generate automatically based on attendance data.</p>
                   </div>
                 </div>
               </div>
