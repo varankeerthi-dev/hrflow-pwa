@@ -150,18 +150,21 @@ export default function SalarySlipTab() {
       const [y, m] = summaryMonth.split('-').map(Number)
       const daysInMonth = new Date(y, m, 0).getDate()
       const sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${daysInMonth}`
+      
+      // Use simpler queries to avoid index requirements
       const [aSnap, slabSnap, loanSnap, advSnap, fineSnap] = await Promise.all([
-        getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('date', '>=', sd), where('date', '<=', ed))),
+        getDocs(collection(db, 'organisations', user.orgId, 'attendance')),
         getDocs(collection(db, 'organisations', user.orgId, 'salaryIncrements')),
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('date', '>=', sd), where('date', '<=', ed))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('date', '>=', sd), where('date', '<=', ed)))
+        getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')),
+        getDocs(collection(db, 'organisations', user.orgId, 'fines'))
       ])
-      const allAttendance = aSnap.docs.map(d => d.data())
+      
+      const allAttendance = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
       const allIncrements = slabSnap.docs.map(d => d.data())
       const allLoans = loanSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-      const allAdvExp = advSnap.docs.map(d => d.data())
-      const allFines = fineSnap.docs.map(d => d.data())
+      const allAdvExp = advSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
+      const allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed)
       
       return employees.map((emp, idx) => {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
@@ -234,13 +237,12 @@ export default function SalarySlipTab() {
 
       const [y, m] = selectedMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${selectedMonth}-01`, ed = `${selectedMonth}-${end}`
       
+      // Revert to simple query to avoid index requirements, filter in memory
       const aDataSnap = await getDocs(query(
         collection(db, 'organisations', user.orgId, 'attendance'), 
-        where('employeeId', '==', selectedEmp),
-        where('date', '>=', sd),
-        where('date', '<=', ed)
+        where('employeeId', '==', selectedEmp)
       ));
-      const aData = aDataSnap.docs.map(d => d.data());
+      const aData = aDataSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed);
 
       const slab = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
       const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8
@@ -253,20 +255,21 @@ export default function SalarySlipTab() {
         if (t === 'Absent') lop++; else paid++; grid.push({ date: i, type: t, ds })
       }
 
-      const [otS, advSnap, loanSnap, fSnap, expSnap] = await Promise.all([
-        getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))),
+      // Parallel data fetching - removed complex where clauses requiring indexes
+      const [otSRes, advSnap, loanSnap, fSnapRes, expSnap] = await Promise.all([
+        getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp), where('date', '>=', sd), where('date', '<=', ed))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp), where('type', '==', 'Expense')))
       ]);
 
-      const fOT = otS.docs.map(d => d.data()).find(o => o.status === 'approved')?.finalOTHours || aOT
+      const fOT = otSRes.docs.map(d => d.data()).find(o => o.month === selectedMonth && o.status === 'approved')?.finalOTHours || aOT
       const otP = fOT * ((ts / end) / minH)
       const adv = advSnap.docs.map(d => d.data()).filter(a => a.status !== 'Recovered').reduce((s, c) => s + Number(c.amount), 0)
       const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
       const sunP = sunW * (ts / end)
-      const fineA = fSnap.docs.reduce((s, d) => s + Number(d.data().amount || 0), 0)
+      const fineA = fSnapRes.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, d) => s + Number(d.amount || 0), 0)
 
       const allExpenses = expSnap.docs.map(d => d.data())
       const reimb = allExpenses.filter(i => {
@@ -368,7 +371,7 @@ export default function SalarySlipTab() {
                         {orgLogo && <img src={orgLogo} alt="Logo" className="w-12 h-12 object-contain rounded-lg shadow-sm bg-slate-50 p-1.5" />}
                         <div>
                           <h1 className="text-2xl font-black text-slate-900 uppercase font-google-sans tracking-tighter leading-none">{user?.orgName}</h1>
-                          <p className="text-[8px] text-indigo-600 font-black uppercase tracking-[0.3em] mt-2 flex items-center gap-2">
+                          <p className="text-[8px] text-indigo-600 font-black uppercase tracking-[0.4em] mt-2 flex items-center gap-2">
                             <span className="w-4 h-0.5 bg-indigo-600"></span>
                             Payroll Advice
                           </p>
