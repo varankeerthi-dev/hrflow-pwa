@@ -647,6 +647,46 @@ export default function AdvanceExpenseTab() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal for Paid Items */}
+      {deletingItem && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 mx-4 border border-rose-100">
+            <div className="flex items-center gap-3 text-rose-600 mb-6">
+              <AlertTriangle size={24} />
+              <h2 className="text-xl font-bold">Delete Paid Transaction?</h2>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              This <span className="font-bold text-gray-800">{deletingItem.type}</span> has already been paid (₹{deletingItem.amount}). 
+              How would you like to proceed with the linked salary advance?
+            </p>
+
+            <div className="space-y-3">
+              <button 
+                onClick={() => executeDelete(deletingItem.id, false)}
+                className="w-full py-3 bg-rose-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all"
+              >
+                Delete Both (Expense & Advance)
+              </button>
+              
+              <button 
+                onClick={() => executeDelete(deletingItem.id, true)}
+                className="w-full py-3 bg-amber-50 text-amber-700 font-bold rounded-xl text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-100 transition-all"
+              >
+                Delete Expense Only (Keep Advance Debt)
+              </button>
+
+              <button 
+                onClick={() => setDeletingItem(null)}
+                className="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Modal */}
       {editingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
