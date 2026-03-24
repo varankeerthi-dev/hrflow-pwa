@@ -1230,138 +1230,114 @@ export default function ApprovalsTab() {
             </div>
           </div>
 
-          {/* Panel content moved below table — Horizontal tabs, constrained width */}
-          <div className="w-full max-w-[50vw] space-y-4">
-            <div className="flex border-b border-gray-100">
-              <button
-                onClick={() => setAdvanceRightTab('month-reports')}
-                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${
-                  advanceRightTab === 'month-reports'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                This month advances
-              </button>
-              <button
-                onClick={() => setAdvanceRightTab('recent-updates')}
-                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${
-                  advanceRightTab === 'recent-updates'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                Recent updates
-              </button>
+          {/* Panel content moved below table — Split Layout 20/80 */}
+          <div className="flex flex-col lg:flex-row gap-6 w-full mt-8">
+            {/* Left: This Month Advances (20%) */}
+            <div className="w-full lg:w-[20%] space-y-4">
+              <div className="flex items-center gap-1.5">
+                <div className="h-3 w-0.5 rounded-full bg-indigo-500" />
+                <h3 className="text-[9px] font-black uppercase tracking-widest text-zinc-500">This Month Paid</h3>
+              </div>
+              <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
+                <div className="border-b border-zinc-100 px-3 py-2 bg-zinc-50/30">
+                  <p className="text-[9px] font-medium text-zinc-400">
+                    Advances settled this month
+                  </p>
+                </div>
+                <ul className="max-h-[400px] divide-y divide-zinc-100 overflow-y-auto">
+                  {currentMonthPaidAdvances.length === 0 ? (
+                    <li className="px-3 py-6 text-center text-[10px] font-medium text-zinc-400">No paid advances</li>
+                  ) : (
+                    currentMonthPaidAdvances.map((item) => {
+                      const receivedKey = paidAtToDateKey(item.paidAt) || item.date
+                      const payAmt = item.partialAmount != null ? item.partialAmount : item.amount
+                      return (
+                        <li key={item.id} className="flex flex-col gap-1 px-3 py-2 hover:bg-zinc-50 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <p className="truncate text-[11px] font-bold text-zinc-900">{item.employeeName}</p>
+                            <p className="shrink-0 text-[11px] font-black tabular-nums text-indigo-600">{formatINR(payAmt)}</p>
+                          </div>
+                          <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-tighter">Paid {formatAdvDateDMY(receivedKey)}</p>
+                        </li>
+                      )
+                    })
+                  )}
+                </ul>
+              </div>
             </div>
 
-            <div className="min-w-0 w-full">
-              {advanceRightTab === 'month-reports' ? (
-                <div className="w-full rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
-                  <div className="border-b border-zinc-100 px-3 py-2">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">This month advances</h3>
-                    <p className="mt-0.5 text-[9px] font-medium text-zinc-400">
-                      Paid advances for employees in the queue (this month)
-                    </p>
-                  </div>
-                  <ul className="max-h-[min(24rem,55vh)] divide-y divide-zinc-100 overflow-y-auto">
-                    {currentMonthPaidAdvances.length === 0 ? (
-                      <li className="px-3 py-6 text-center text-[10px] font-medium text-zinc-400">No paid advances this month</li>
-                    ) : (
-                      currentMonthPaidAdvances.map((item) => {
-                        const receivedKey = paidAtToDateKey(item.paidAt) || item.date
-                        const payAmt = item.partialAmount != null ? item.partialAmount : item.amount
-                        return (
-                          <li key={item.id} className="flex items-start justify-between gap-2 px-3 py-2">
-                            <div className="min-w-0">
-                              <p className="truncate text-[11px] font-semibold text-zinc-900">{item.employeeName}</p>
-                              <p className="text-[9px] font-medium text-zinc-500">Received {formatAdvDateDMY(receivedKey)}</p>
-                            </div>
-                            <p className="shrink-0 text-[11px] font-bold tabular-nums text-indigo-600">{formatINR(payAmt)}</p>
-                          </li>
-                        )
-                      })
-                    )}
-                  </ul>
-                </div>
-              ) : (
-                <div className="ml-auto w-full max-w-full">
-                  <div className="mb-2 flex items-center gap-1.5 justify-end">
-                    <div className="h-3 w-0.5 rounded-full bg-emerald-500" />
-                    <h3 className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Recent updates</h3>
-                  </div>
-                  <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
-                    <div className="max-h-[min(20rem,50vh)] overflow-y-auto">
-                      <table className="w-full caption-bottom border-collapse text-[10px]">
-                        <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50/95">
-                          <tr>
-                            <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Req. Dt</th>
-                            <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Type</th>
-                            <th className="px-2 py-1.5 text-left font-semibold text-zinc-500">Who</th>
-                            <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">₹</th>
-                            <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">Approvals</th>
-                            <th className="px-2 py-1.5 text-right font-semibold text-zinc-500">Action</th>
+            {/* Right: Recent Updates (80%) */}
+            <div className="w-full lg:w-[80%] space-y-4">
+              <div className="flex items-center gap-1.5">
+                <div className="h-3 w-0.5 rounded-full bg-emerald-500" />
+                <h3 className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Recent Approval History</h3>
+              </div>
+              <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full caption-bottom border-collapse text-[11px]">
+                    <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50/95">
+                      <tr className="h-10">
+                        <th className="px-3 text-left font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[100px]">Req. Dt</th>
+                        <th className="px-3 text-left font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[60px]">Type</th>
+                        <th className="px-3 text-left font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[180px]">Employee</th>
+                        <th className="px-3 text-right font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[120px]">Amount</th>
+                        <th className="px-3 text-right font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Approvals</th>
+                        <th className="px-3 text-right font-black uppercase tracking-widest text-zinc-500 w-[80px]">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-50">
+                      {recentAdvExpenses.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-3 py-12 text-center font-bold text-zinc-300 uppercase italic tracking-widest opacity-40">No recent history</td>
+                        </tr>
+                      ) : (
+                        recentAdvExpenses.map((item) => (
+                          <tr key={item.id} className="h-12 hover:bg-zinc-50/60 transition-colors">
+                            <td className="whitespace-nowrap px-3 align-middle font-bold text-zinc-700 border-r border-zinc-50">
+                              {formatAdvDateDMY(item.date)}
+                            </td>
+                            <td className="px-3 align-middle font-black border-r border-zinc-50">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                                {item.type}
+                              </span>
+                            </td>
+                            <td className="px-3 align-middle font-bold text-zinc-800 border-r border-zinc-50 truncate max-w-[180px]" title={item.employeeName}>
+                              {item.employeeName}
+                            </td>
+                            <td className="whitespace-nowrap px-3 align-middle text-right font-black tabular-nums text-indigo-600 border-r border-zinc-50">
+                              {item.status === 'Partial' && item.partialAmount != null ? formatINR(item.partialAmount) : formatINR(item.amount)}
+                            </td>
+                            <td className="px-3 align-middle text-right border-r border-zinc-50">
+                              <div className="inline-flex flex-col items-end gap-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[9px] font-black uppercase ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>H: {item.hrApproval || '—'}</span>
+                                  <span className={`text-[9px] font-black uppercase ${approvalStatusTextClass(item.mdApproval, 'md')}`}>M: {item.mdApproval || '—'}</span>
+                                </div>
+                                <span className={`text-[8px] font-black uppercase tracking-tighter ${
+                                    item.status === 'Approved' ? 'text-emerald-600' : 
+                                    item.status === 'Partial' ? 'text-indigo-600' : 
+                                    item.status === 'Rejected' ? 'text-rose-600' : 'text-zinc-500'
+                                  }`}>
+                                  {item.status}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 align-middle text-right">
+                              <button
+                                onClick={() => handleRevoke(item.id)}
+                                className="p-1.5 text-zinc-300 hover:text-orange-600 transition-colors"
+                                title="Revoke to Pending"
+                              >
+                                <RotateCcw size={14} />
+                              </button>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {recentAdvExpenses.length === 0 ? (
-                            <tr>
-                              <td colSpan={6} className="px-2 py-4 text-center font-medium text-zinc-400">None</td>
-                            </tr>
-                          ) : (
-                            recentAdvExpenses.map((item) => (
-                              <tr key={item.id} className="border-b border-zinc-50 hover:bg-zinc-50/60">
-                                <td className="whitespace-nowrap px-2 py-1.5 align-top font-medium text-zinc-700">
-                                  {formatAdvDateDMY(item.date)}
-                                </td>
-                                <td className="px-2 py-1.5 align-top font-medium">
-                                  <span className={`px-1 rounded ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
-                                    {item.type?.charAt(0)}
-                                  </span>
-                                </td>
-                                <td className="max-w-[5.5rem] truncate px-2 py-1.5 align-top font-medium text-zinc-800" title={item.employeeName}>
-                                  {item.employeeName}
-                                </td>
-                                <td className="whitespace-nowrap px-2 py-1.5 align-top text-right font-semibold tabular-nums text-zinc-800">
-                                  {item.status === 'Partial' && item.partialAmount != null ? formatINR(item.partialAmount) : formatINR(item.amount)}
-                                </td>
-                                <td className="px-2 py-1.5 align-top text-right leading-tight">
-                                  <div className="flex flex-col items-end gap-0.5">
-                                    <span className={`font-bold ${approvalStatusTextClass(item.hrApproval, 'hr')}`}>H: {item.hrApproval || '—'}</span>
-                                    <span className={`font-bold ${approvalStatusTextClass(item.mdApproval, 'md')}`}>M: {item.mdApproval || '—'}</span>
-                                    <span
-                                      className={`mt-0.5 text-[8px] font-black uppercase ${
-                                        item.status === 'Approved'
-                                          ? 'text-emerald-600'
-                                          : item.status === 'Partial'
-                                            ? 'text-indigo-600'
-                                            : item.status === 'Rejected'
-                                              ? 'text-rose-600'
-                                              : 'text-zinc-500'
-                                      }`}
-                                    >
-                                      {item.status}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="px-2 py-1.5 align-top text-right">
-                                  <button
-                                    onClick={() => handleRevoke(item.id)}
-                                    className="p-1 text-zinc-400 hover:text-orange-600 transition-colors"
-                                    title="Revoke to Pending"
-                                  >
-                                    <CheckCircle2 size={12} className="rotate-180" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -1374,33 +1350,33 @@ export default function ApprovalsTab() {
                 <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">Pending Leave & Permissions</h3>
               </div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden w-full">
+            <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden w-full">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
-                    <tr className="bg-gray-50/50 h-[44px] border-b border-gray-100">
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested Date</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Requested by</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Type</th>
+                    <tr className="bg-zinc-50/80 border-b border-zinc-200">
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Requested Date</th>
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[240px]">Requested by</th>
+                      <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[100px]">Type</th>
                       
                       {leaveApprovalSetting?.type === 'multi' ? (
                         <>
-                          <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Dept Head</th>
-                          <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">MD Approval</th>
+                          <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">Dept Head</th>
+                          <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">MD Approval</th>
                         </>
                       ) : (
-                        <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Approval Status</th>
+                        <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">Approval Status</th>
                       )}
 
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Leave Period</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Final Status</th>
-                      <th className="px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">Leave Period</th>
+                      <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">Final Status</th>
+                      <th className="h-10 px-4 text-right align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-50">
                     {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length === 0 ? (
                       <tr>
-                        <td colSpan={leaveApprovalSetting?.type === 'multi' ? 8 : 7} className="py-16 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
+                        <td colSpan={leaveApprovalSetting?.type === 'multi' ? 8 : 7} className="py-16 text-center text-zinc-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
                       </tr>
                     ) : (
                       requests.filter(r => r.status === 'Pending' || r.status === 'Hold').map(req => {
@@ -1428,17 +1404,17 @@ export default function ApprovalsTab() {
 
                         return (
                           <React.Fragment key={req.id}>
-                            <tr className="h-[60px] hover:bg-gray-50/30 transition-colors">
-                              <td className="px-6">
-                                <span className="text-[12px] font-bold text-gray-700">{requestedDate}</span>
+                            <tr className="h-12 hover:bg-zinc-50/30 transition-colors">
+                              <td className="px-4 border-r border-zinc-50">
+                                <span className="text-[12px] font-bold text-zinc-700">{requestedDate}</span>
                               </td>
-                              <td className="px-6">
+                              <td className="px-4 border-r border-zinc-50">
                                 <div className="flex flex-col">
-                                  <span className="text-[11px] font-bold text-gray-800">{requestedByLabel}</span>
+                                  <span className="text-[11px] font-bold text-zinc-800">{requestedByLabel}</span>
                                   {!isSelf && <span className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">Proxy Request</span>}
                                 </div>
                               </td>
-                              <td className="px-6 text-center">
+                              <td className="px-4 text-center border-r border-zinc-50">
                                 <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${req.type === 'Leave' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
                                   {req.type}
                                 </span>
@@ -1446,9 +1422,9 @@ export default function ApprovalsTab() {
 
                               {leaveApprovalSetting?.type === 'multi' ? (
                                 <>
-                                  <td className="px-6">
+                                  <td className="px-4 border-r border-zinc-50">
                                     <div className="flex flex-col gap-1">
-                                      <span className="text-[11px] font-bold text-gray-600">{req.deptHeadName || 'Not Assigned'}</span>
+                                      <span className="text-[11px] font-bold text-zinc-600">{req.deptHeadName || 'Not Assigned'}</span>
                                       <div className="flex items-center gap-2">
                                         {getStatusIcon(req.deptHeadApproval || 'Pending')}
                                         {isTargetDeptHead && (req.deptHeadApproval === 'Pending' || req.deptHeadApproval === 'Hold') && (
@@ -1460,7 +1436,7 @@ export default function ApprovalsTab() {
                                       </div>
                                     </div>
                                   </td>
-                                  <td className="px-6 text-center">
+                                  <td className="px-4 text-center border-r border-zinc-50">
                                     <div className="flex items-center justify-center gap-2">
                                       {getStatusIcon(req.mdApproval || 'Pending')}
                                       {isTargetMD && (req.mdApproval === 'Pending' || req.mdApproval === 'Hold') && (
@@ -1473,7 +1449,7 @@ export default function ApprovalsTab() {
                                   </td>
                                 </>
                               ) : (
-                                <td className="px-6 text-center">
+                                <td className="px-4 text-center border-r border-zinc-50">
                                   <div className="flex items-center justify-center gap-3">
                                     {getStatusIcon(req.status)}
                                     {canSingleApprove && (req.status === 'Pending' || req.status === 'Hold') && (
@@ -1486,18 +1462,18 @@ export default function ApprovalsTab() {
                                 </td>
                               )}
 
-                              <td className="px-6">
-                                <p className="text-[11px] font-medium text-gray-600">
+                              <td className="px-4 border-r border-zinc-50">
+                                <p className="text-[11px] font-medium text-zinc-600">
                                   {req.type === 'Leave' ? `${formatDate(req.fromDate)} - ${formatDate(req.toDate)}` : formatDate(req.permissionDate)}
                                 </p>
                               </td>
-                              <td className="px-6 text-center">
-                                <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${req.status === 'Hold' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-600'}`}>
+                              <td className="px-4 text-center border-r border-zinc-50">
+                                <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${req.status === 'Hold' ? 'bg-zinc-100 text-zinc-500' : 'bg-amber-50 text-amber-600'}`}>
                                   {req.status === 'Hold' ? 'Hold' : 'Pending'}
                                 </div>
                               </td>
-                              <td className="px-6 text-right">
-                                <button onClick={() => handleDeleteRequest(req.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                              <td className="px-4 text-right">
+                                <button onClick={() => handleDeleteRequest(req.id)} className="p-2 text-zinc-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
                               </td>
                             </tr>
                             {(req.status === 'Pending' || req.status === 'Hold') && (
