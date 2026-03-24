@@ -355,6 +355,52 @@ export default function AdvanceExpenseTab() {
     }
   })
 
+  const restoreMutation = useMutation({
+    mutationFn: async (id) => {
+      const itemRef = doc(db, 'organisations', user.orgId, 'deleted_advances_expenses', id)
+      const itemSnap = await getDoc(itemRef)
+      const itemData = itemSnap.data()
+
+      if (!itemData) return
+
+      // Remove deleted metadata
+      const { deletedAt, deletedBy, ...originalData } = itemData
+
+      // Restore to advances_expenses
+      await setDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), {
+        ...originalData,
+        updatedAt: serverTimestamp(),
+        restoredAt: serverTimestamp(),
+        restoredBy: user.email || user.name
+      })
+
+      // If it was a paid Advance, re-add to advances collection
+      if ((originalData.type === 'Advance' || (originalData.type === 'Expense' && originalData.payoutMethod !== 'With Salary')) && originalData.paymentStatus === 'Paid') {
+        const finalAmount = originalData.partialAmount || originalData.amount
+        await addDoc(collection(db, 'organisations', user.orgId, 'advances'), {
+          employeeId: originalData.employeeId,
+          employeeName: originalData.employeeName,
+          amount: finalAmount,
+          type: 'Advance',
+          date: originalData.date || new Date().toISOString().split('T')[0],
+          reason: `Auto-restored from deleted request: ${originalData.reason || originalData.category || 'No Reason'}`,
+          status: 'Pending',
+          linkedRequestId: id,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid
+        })
+      }
+
+      await deleteDoc(itemRef)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      queryClient.invalidateQueries(['deleted_advances_expenses', user?.orgId])
+      setShowDeletedModal(false)
+      setActiveModule('Reports')
+    }
+  })
+
   // Add state for delete confirmation modal
   const [deletingItem, setDeletingItem] = useState(null)
 
