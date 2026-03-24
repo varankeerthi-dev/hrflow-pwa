@@ -19,7 +19,10 @@ const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : formatINR
 const s = StyleSheet.create({
   p: { padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' },
   h: { borderBottomWidth: 2, borderBottomColor: '#4f46e5', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  t: { fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#0f172a' }
+  t: { fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#0f172a' },
+  row: { flexDirection: 'row', marginBottom: 2 },
+  label: { width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 8 },
+  value: { flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 8 }
 })
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
@@ -38,15 +41,21 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
       </View>
     </View>
     
-    <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:20, alignItems: 'center'}}>
-      <View>
-        <View style={{flexDirection:'row', marginBottom:4}}><Text style={{width:60, color:'#94a3b8', fontWeight:'bold', fontSize:7}}>EMPLOYEE</Text><Text style={{fontWeight:'bold', color:'#1e293b'}}>: {data.employee?.name}</Text></View>
-        <View style={{flexDirection:'row', marginBottom:4}}><Text style={{width:60, color:'#94a3b8', fontWeight:'bold', fontSize:7}}>STAFF ID</Text><Text style={{fontWeight:'bold', color:'#1e293b'}}>: {data.employee?.empCode}</Text></View>
-        <View style={{flexDirection:'row'}}><Text style={{width:60, color:'#94a3b8', fontWeight:'bold', fontSize:7}}>PERIOD</Text><Text style={{fontWeight:'bold', color:'#1e293b'}}>: {data.month}</Text></View>
+    <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:20}}>
+      <View style={{flex: 1}}>
+        <View style={s.row}><Text style={s.label}>Name of the Employee</Text><Text style={s.value}>: {data.employee?.name}</Text></View>
+        <View style={s.row}><Text style={s.label}>Employee N0</Text><Text style={s.value}>: {data.employee?.empCode}</Text></View>
+        <View style={s.row}><Text style={s.label}>Designation</Text><Text style={s.value}>: {data.employee?.designation || '-'}</Text></View>
+        <View style={s.row}><Text style={s.label}>DOB</Text><Text style={s.value}>: {data.employee?.dob || '-'}</Text></View>
+        <View style={s.row}><Text style={s.label}>DOJ</Text><Text style={s.value}>: {data.employee?.doj || '-'}</Text></View>
+        <View style={s.row}><Text style={s.label}>Total No. of Days</Text><Text style={s.value}>: {data.totalMonthDays}</Text></View>
       </View>
-      <View style={{width:150, border:1, borderColor:'#e2e8f0', borderRadius:8, padding:10, textAlign:'center', backgroundColor:'#f8fafc'}}>
-        <Text style={{fontSize:7, fontWeight:'bold', color:'#64748b', marginBottom:2}}>NET DISBURSEMENT</Text>
-        <Text style={{fontSize:16, fontWeight:'bold', color:'#0f172a'}}>{formatINR(data.netPay)}</Text>
+      <View style={{flex: 1, paddingLeft: 20}}>
+        <View style={s.row}><Text style={s.label}>No.of Working Days</Text><Text style={s.value}>: {data.workedDaysCount}</Text></View>
+        <View style={s.row}><Text style={s.label}>Worked Holidays</Text><Text style={s.value}>: {data.holidayWorkedCount || 0}</Text></View>
+        <View style={s.row}><Text style={s.label}>No.of Holidays</Text><Text style={s.value}>: {data.sundayCount || 0}</Text></View>
+        <View style={s.row}><Text style={s.label}>No. of Leave Taken</Text><Text style={s.value}>: {data.lopDays || 0}</Text></View>
+        <View style={s.row}><Text style={s.label}>No. of days Paid</Text><Text style={s.value}>: {data.paidDays}</Text></View>
       </View>
     </View>
 
@@ -64,11 +73,11 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{color:'#64748b'}}>OT</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.otPay)}</Text></View>
         </View>
         <View style={{flex:1}}>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>PF</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.pf)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>ESI</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.esi || 0)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Advance</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.advanceDeduction)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Loan</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.loanEMI)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Fine</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.fineAmount)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>IT / Tax</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.it)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{color:'#64748b'}}>PF</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.pf)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{color:'#64748b'}}>Fine</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.fineAmount)}</Text></View>
         </View>
       </View>
       <View style={{flexDirection:'row', backgroundColor:'#f8fafc', borderTopWidth:1, borderColor:'#0f172a'}}>
@@ -78,6 +87,8 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
     </View>
 
     <View style={{textAlign:'center', paddingTop:20, borderTopWidth:1, borderColor:'#e2e8f0', borderStyle:'dashed'}}>
+      <Text style={{fontSize:7, color:'#94a3b8', marginBottom:3, fontWeight:'bold'}}>NET DISBURSEMENT</Text>
+      <Text style={{fontSize:16, fontWeight:'bold', color:'#0f172a', marginBottom:5}}>{formatINR(data.netPay)}</Text>
       <Text style={{fontSize:7, color:'#94a3b8', marginBottom:3, fontWeight:'bold'}}>AMOUNT IN WORDS</Text>
       <Text style={{fontSize:9, fontWeight:'bold', color:'#0f172a', textTransform:'uppercase'}}>Indian Rupee {numberToWords(data.netPay)} Only</Text>
       <Text style={{fontSize:6, color:'#cbd5e1', marginTop:20, letterSpacing:2}}>-- SYSTEM GENERATED DIGITAL RECEIPT --</Text>
@@ -283,10 +294,40 @@ export default function SalarySlipTab() {
         return isPaidThisMonth || isWithSalaryApproved
       }).reduce((s, c) => s + Number(c.partialAmount || c.amount), 0)
 
-      const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100)
-      const g = b + h + otP + reimb + sunP, de = p + it + adv + emi + fineA
+      const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100)
+      // Removal of IT logic but keeping calculation consistency
+      const de = p + adv + emi + fineA
+      const g = b + h + otP + reimb + sunP
       
-      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: fOT, otPay: otP, basic: b, hra: h, expenseReimbursement: reimb, sundayPay: sunP, grossEarnings: g, pf: p, it, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun, sundayWorkedCount: sunW, holidayWorkedCount: holW })    
+      setSlipData({ 
+        employee: emp, 
+        month: selectedMonth, 
+        slab, 
+        grid, 
+        paidDays: paid, 
+        lopDays: lop, 
+        autoOTHours: aOT, 
+        finalOT: fOT, 
+        otPay: otP, 
+        basic: b, 
+        hra: h, 
+        expenseReimbursement: reimb, 
+        sundayPay: sunP, 
+        grossEarnings: g, 
+        pf: p, 
+        esi: 0, // Placeholder for requested field
+        it: 0, 
+        advanceDeduction: adv, 
+        loanEMI: emi, 
+        fineAmount: fineA, 
+        totalDeductions: de, 
+        netPay: Math.max(0, g - de), 
+        sundayCount: sun, 
+        sundayWorkedCount: sunW, 
+        holidayWorkedCount: holW,
+        workedDaysCount: paid - sun, // Basic logic for "Working Days"
+        totalMonthDays: end
+      })    
     } catch (e) { 
       console.error('Generation Error:', e);
       setGenErr(e.message);
@@ -400,33 +441,50 @@ export default function SalarySlipTab() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 relative z-10">
-                      <div className="md:col-span-2">
-                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 h-full">
-                          <p className="font-black text-slate-400 uppercase tracking-widest text-[8px] mb-4 border-b border-slate-200 pb-1.5 inline-block">Staff Particulars</p>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-0.5">
-                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Employee Name</span>
-                              <span className="font-bold text-slate-900 text-[13px] uppercase">{slipData.employee?.name}</span>
-                            </div>
-                            <div className="space-y-0.5">
-                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Identity Code</span>
-                              <span className="font-bold text-slate-900 text-[13px] uppercase">{slipData.employee?.empCode}</span>
-                            </div>
-                          </div>
-                        </div>
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-8 relative z-10 px-2">
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Name of the Employee</span>
+                        <span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.name}</span>
                       </div>
-                      
-                      <div 
-                        className="bg-slate-950 text-white rounded-[24px] p-5 text-center flex flex-col justify-center shadow-2xl shadow-indigo-900/30 relative overflow-hidden group min-h-[100px]"
-                        style={{ minWidth: '250px', width: 'auto' }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-transparent opacity-50"></div>
-                        <p className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-1 relative z-10">Net Payable</p>
-                        <p className="text-3xl font-black font-google-sans tracking-tighter relative z-10">{formatINR(slipData.netPay)}</p>
-                        <div className="mt-3 text-[8px] font-black text-slate-500 uppercase tracking-widest relative z-10 border-t border-slate-800 pt-2">
-                          Currency: INR
-                        </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No.of Working Days</span>
+                        <span className="text-[9px] font-bold text-slate-900">{slipData.workedDaysCount}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Employee N0</span>
+                        <span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.empCode}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Worked Holidays</span>
+                        <span className="text-[9px] font-bold text-slate-900">{slipData.holidayWorkedCount || 0}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Designation</span>
+                        <span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.designation || '-'}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No.of Holidays</span>
+                        <span className="text-[9px] font-bold text-slate-900">{slipData.sundayCount}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">DOB</span>
+                        <span className="text-[9px] font-bold text-slate-900">{slipData.employee?.dob || '-'}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No. of Leave Taken</span>
+                        <span className="text-[9px] font-bold text-slate-900">{slipData.lopDays}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">DOJ</span>
+                        <span className="text-[9px] font-bold text-slate-900">{slipData.employee?.doj || '-'}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No. of days Paid</span>
+                        <span className="text-[9px] font-bold text-slate-900">{slipData.paidDays}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 py-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Total No. of Days</span>
+                        <span className="text-[9px] font-bold text-slate-900">{slipData.totalMonthDays}</span>
                       </div>
                     </div>
 
@@ -462,6 +520,12 @@ export default function SalarySlipTab() {
                         </div>
                         <div className="p-1 space-y-0.5">
                           <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            PF<span className="font-bold text-slate-900">{dashIfZero(slipData.pf)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
+                            ESI<span className="font-bold text-slate-900">{dashIfZero(slipData.esi || 0)}</span>
+                          </div>
+                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
                             Advance<span className="font-bold text-slate-900">{dashIfZero(slipData.advanceDeduction)}</span>
                           </div>
                           <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
@@ -469,12 +533,6 @@ export default function SalarySlipTab() {
                           </div>
                           <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
                             Fine<span className="font-bold text-slate-900">{dashIfZero(slipData.fineAmount)}</span>
-                          </div>
-                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
-                            Statutory Tax / IT<span className="font-bold text-slate-900">{formatINR(slipData.it)}</span>
-                          </div>
-                          <div className="flex justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[11px] font-medium text-slate-600">
-                            Provident Fund (PF)<span className="font-bold text-slate-900">{formatINR(slipData.pf)}</span>
                           </div>
                         </div>
                       </div>
@@ -494,7 +552,8 @@ export default function SalarySlipTab() {
                     <div className="text-center pt-4 border-t border-dashed border-slate-200 relative z-10">
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Final Disbursement Value</p>
                       <div className="bg-slate-950 text-white rounded-xl p-4 inline-block min-w-[300px] shadow-xl">
-                        <p className="text-[11px] font-black italic tracking-tight uppercase">
+                        <p className="text-[14px] font-black tracking-tight text-white mb-1">{formatINR(slipData.netPay)}</p>
+                        <p className="text-[9px] font-black italic tracking-tight uppercase text-slate-400">
                           {numberToWords(slipData.netPay)} Only
                         </p>
                       </div>

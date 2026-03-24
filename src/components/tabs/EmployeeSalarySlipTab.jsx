@@ -135,49 +135,50 @@ export default function EmployeeSalarySlipTab() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="md:col-span-2 space-y-3">
-                <p className="font-black text-slate-900 uppercase tracking-widest text-[9px] mb-4 flex items-center gap-2">
-                  <span className="bg-indigo-600 text-white px-1.5 py-0.5 rounded text-[7px]">ID</span>
-                  Employee Particulars
-                </p>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-6">
-                  <div className="flex flex-col border-l-2 border-slate-100 pl-3">
-                    <span className="text-slate-400 font-black uppercase text-[8px] tracking-widest mb-0.5">Full Name</span>
-                    <span className="font-bold text-slate-800 text-[13px] uppercase">{slipData.employee?.name}</span>
-                  </div>
-                  <div className="flex flex-col border-l-2 border-slate-100 pl-3">
-                    <span className="text-slate-400 font-black uppercase text-[8px] tracking-widest mb-0.5">Staff Code</span>
-                    <span className="font-bold text-slate-800 text-[13px] uppercase">{slipData.employee?.empCode}</span>
-                  </div>
-                  <div className="flex flex-col border-l-2 border-slate-100 pl-3">
-                    <span className="text-slate-400 font-black uppercase text-[8px] tracking-widest mb-0.5">Department</span>
-                    <span className="font-bold text-slate-800 text-[13px] uppercase">{slipData.employee?.department || 'Operations'}</span>
-                  </div>
-                  <div className="flex flex-col border-l-2 border-slate-100 pl-3">
-                    <span className="text-slate-400 font-black uppercase text-[8px] tracking-widest mb-0.5">Pay Period</span>
-                    <span className="font-bold text-slate-800 text-[13px] uppercase">{slipData.month}</span>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-8 relative z-10 px-2">
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Name of the Employee</span>
+                <span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.name}</span>
               </div>
-
-              <div 
-                className="bg-slate-950 text-white rounded-[24px] p-6 flex flex-col justify-between shadow-2xl shadow-indigo-900/30 relative overflow-hidden group min-h-[120px]"
-                style={{ minWidth: '250px', width: 'auto' }}
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-600/20 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-                <div className="relative z-10">
-                  <p className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-2">
-                    Net Disbursement
-                  </p>
-                  <p className="text-3xl font-black tracking-tighter font-google-sans text-white">
-                    {formatINR(slipData.netPay)}
-                  </p>
-                </div>
-                <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest relative z-10">
-                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {slipData.paidDays} Days</span>
-                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> {slipData.lopDays} LOP</span>
-                </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No.of Working Days</span>
+                <span className="text-[9px] font-bold text-slate-900">{slipData.workedDaysCount}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Employee N0</span>
+                <span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.empCode}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Worked Holidays</span>
+                <span className="text-[9px] font-bold text-slate-900">{slipData.holidayWorkedCount || 0}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Designation</span>
+                <span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.designation || '-'}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No.of Holidays</span>
+                <span className="text-[9px] font-bold text-slate-900">{slipData.sundayCount}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">DOB</span>
+                <span className="text-[9px] font-bold text-slate-900">{slipData.employee?.dob || '-'}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No. of Leave Taken</span>
+                <span className="text-[9px] font-bold text-slate-900">{slipData.lopDays}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">DOJ</span>
+                <span className="text-[9px] font-bold text-slate-900">{slipData.employee?.doj || '-'}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No. of days Paid</span>
+                <span className="text-[9px] font-bold text-slate-900">{slipData.paidDays}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 py-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Total No. of Days</span>
+                <span className="text-[9px] font-bold text-slate-900">{slipData.totalMonthDays}</span>
               </div>
             </div>
 
@@ -217,6 +218,14 @@ export default function EmployeeSalarySlipTab() {
                 </div>
                 <div className="p-1 space-y-0.5 bg-white">
                   <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[12px] font-medium text-slate-600">
+                    <span>PF</span>
+                    <span className="font-bold text-slate-900">{dashIfZero(slipData.pf)}</span>
+                  </div>
+                  <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[12px] font-medium text-slate-600">
+                    <span>ESI</span>
+                    <span className="font-bold text-slate-900">{dashIfZero(slipData.esi || 0)}</span>
+                  </div>
+                  <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[12px] font-medium text-slate-600">
                     <span>Advance Recovery</span>
                     <span className="font-bold text-slate-900">{dashIfZero(slipData.advanceDeduction)}</span>
                   </div>
@@ -227,14 +236,6 @@ export default function EmployeeSalarySlipTab() {
                   <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[12px] font-medium text-slate-600">
                     <span>Fine / Penalties</span>
                     <span className="font-bold text-slate-900">{dashIfZero(slipData.fineAmount)}</span>
-                  </div>
-                  <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[12px] font-medium text-slate-600">
-                    <span>Professional Tax / IT</span>
-                    <span className="font-bold text-slate-900">{formatINR(slipData.it)}</span>
-                  </div>
-                  <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[12px] font-medium text-slate-600">
-                    <span>Provident Fund (PF)</span>
-                    <span className="font-bold text-slate-900">{formatINR(slipData.pf)}</span>
                   </div>
                 </div>
               </div>
@@ -252,9 +253,10 @@ export default function EmployeeSalarySlipTab() {
 
             <div className="text-center pt-2">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-                Remuneration in Words
+                NET DISBURSEMENT
               </p>
               <div className="bg-slate-950 text-white rounded-xl p-4 inline-block min-w-[350px] shadow-xl">
+                <p className="text-[14px] font-black tracking-tight text-white mb-1">{formatINR(slipData.netPay)}</p>
                 <p className="text-[11px] font-black text-white italic tracking-tight uppercase">
                   {numberToWords(slipData.netPay)} Only
                 </p>
