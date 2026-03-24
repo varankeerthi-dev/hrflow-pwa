@@ -28,7 +28,8 @@ import {
   MessageSquare,
   Trash2,
   Pencil,
-  Check
+  Check,
+  RotateCcw
 } from 'lucide-react'
 
 function getInitials(name) {
@@ -765,47 +766,47 @@ export default function ApprovalsTab() {
           {/* Recent Payments Section */}
           <div className="mt-12 mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500">Recent Payment History</h3>
+              <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Recent Payment History</h3>
             </div>
             
             <div className="rounded-lg border border-zinc-200 bg-white shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full caption-bottom text-sm border-collapse">
-                  <thead className="border-b border-zinc-200 bg-zinc-50/80">
-                    <tr className="border-b border-zinc-200">
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Paid Date</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Employee</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Type</th>
-                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
-                      <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Method</th>
-                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Reference</th>
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-zinc-50/80 border-b border-zinc-200">
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Paid Date</th>
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[200px]">Employee</th>
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[100px]">Type</th>
+                      <th className="h-10 px-4 text-right align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">Amount</th>
+                      <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Method</th>
+                      <th className="h-10 px-4 text-right align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500">Reference</th>
                     </tr>
                   </thead>
-                  <tbody className="[&_tr:last-child]:border-0">
+                  <tbody className="divide-y divide-zinc-50">
                     {recentPayments.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center align-middle text-xs font-medium text-zinc-400">No payment history available</td>
+                        <td colSpan={6} className="py-12 text-center text-[10px] font-bold text-zinc-300 uppercase italic tracking-widest opacity-40">No payment history available</td>
                       </tr>
                     ) : (
                       recentPayments.map(item => (
-                        <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/60">
-                          <td className="px-3 py-3 align-middle whitespace-nowrap text-sm text-zinc-600">
+                        <tr key={item.id} className="h-12 hover:bg-zinc-50/60 transition-colors">
+                          <td className="px-4 border-r border-zinc-50 whitespace-nowrap text-[12px] font-bold text-zinc-600">
                             {item.paidAt?.toDate
                               ? formatAdvDateDMY(
                                   `${item.paidAt.toDate().getFullYear()}-${String(item.paidAt.toDate().getMonth() + 1).padStart(2, '0')}-${String(item.paidAt.toDate().getDate()).padStart(2, '0')}`
                                 )
                               : formatAdvDateDMY(item.date)}
                           </td>
-                          <td className="px-3 py-3 align-middle text-sm font-medium text-zinc-900">{item.employeeName}</td>
-                          <td className="px-3 py-3 align-middle">
-                            <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${item.type === 'Advance' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
+                          <td className="px-4 border-r border-zinc-50 text-[13px] font-bold text-zinc-900">{item.employeeName}</td>
+                          <td className="px-4 border-r border-zinc-50">
+                            <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-tight ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
                               {item.type}
                             </span>
                           </td>
-                          <td className="px-3 py-3 align-middle text-right text-sm font-semibold tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
-                          <td className="px-3 py-3 align-middle text-center text-sm text-zinc-600">{item.paymentMethod}</td>
-                          <td className="px-3 py-3 align-middle text-right font-mono text-xs font-semibold text-indigo-600">{item.paymentRef}</td>
+                          <td className="px-4 border-r border-zinc-50 text-right text-[13px] font-black tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
+                          <td className="px-4 border-r border-zinc-50 text-center text-[11px] font-bold text-zinc-600">{item.paymentMethod}</td>
+                          <td className="px-4 text-right font-mono text-[11px] font-bold text-indigo-600 uppercase tracking-tight">{item.paymentRef}</td>
                         </tr>
                       ))
                     )}

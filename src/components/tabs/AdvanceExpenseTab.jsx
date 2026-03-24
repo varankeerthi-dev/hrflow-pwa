@@ -762,40 +762,40 @@ export default function AdvanceExpenseTab() {
               <button onClick={() => setShowDeletedModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
             </div>
 
-            <div className="flex-1 overflow-auto border border-gray-100 rounded-xl">
+            <div className="flex-1 overflow-auto border border-zinc-100 rounded-xl">
               {loadingDeleted ? (
                 <div className="py-20 flex justify-center"><Spinner /></div>
               ) : deletedEntries.length === 0 ? (
                 <div className="py-20 text-center space-y-3">
-                   <p className="text-sm font-bold text-gray-300 uppercase tracking-widest italic">No recently deleted items</p>
+                   <p className="text-sm font-bold text-zinc-300 uppercase tracking-widest italic opacity-60">No recently deleted items</p>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Trans. Date</th>
-                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
-                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
-                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
-                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
+                  <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-100">
+                    <tr className="h-10">
+                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-r border-zinc-50">Trans. Date</th>
+                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-r border-zinc-50">Type</th>
+                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-r border-zinc-50">Employee</th>
+                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right border-r border-zinc-50">Amount</th>
+                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-50">
                     {deletedEntries.map(item => (
-                      <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="p-4 text-sm font-medium text-gray-600">{item.date}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                      <tr key={item.id} className="h-12 hover:bg-zinc-50/50 transition-colors">
+                        <td className="px-4 text-[12px] font-bold text-zinc-600 border-r border-zinc-50">{item.date}</td>
+                        <td className="px-4 border-r border-zinc-50">
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tight ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
                             {item.type}
                           </span>
                         </td>
-                        <td className="p-4 text-sm font-bold text-gray-800">{item.employeeName}</td>
-                        <td className="p-4 text-sm font-black text-gray-900 text-right">{formatINR(item.amount)}</td>
-                        <td className="p-4 text-right">
+                        <td className="px-4 text-[13px] font-bold text-zinc-800 border-r border-zinc-50">{item.employeeName}</td>
+                        <td className="px-4 text-[13px] font-black text-zinc-900 text-right border-r border-zinc-50 tabular-nums">{formatINR(item.amount)}</td>
+                        <td className="px-4 text-right">
                           <button 
                             onClick={() => handleRestore(item.id)}
                             disabled={restoreMutation.isPending}
-                            className="h-8 px-4 bg-primary-50 text-primary-600 font-black rounded-lg text-[10px] uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all flex items-center gap-2 ml-auto"
+                            className="h-8 px-4 bg-indigo-50 text-indigo-600 font-black rounded-lg text-[9px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2 ml-auto shadow-sm"
                           >
                             <RotateCcw size={14} /> Revoke
                           </button>
@@ -1136,32 +1136,34 @@ export default function AdvanceExpenseTab() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-amber-50 border-b border-amber-100">
-                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Transaction Info</th>
-                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
-                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-                      <th className="p-3 w-[80px]">Actions</th>
+                    <tr className="bg-zinc-50/80 border-b border-zinc-200 h-10">
+                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Transaction Info</th>
+                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Category</th>
+                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Amount</th>
+                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 w-[80px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-zinc-50">
                     {(reportApplied ? advForReport : advances).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center py-12 text-gray-400 text-sm">
+                        <td colSpan={4} className="text-center py-12 text-zinc-400 text-sm italic font-medium">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? advForReport : advances).map(a => (
-                      <tr key={a.id} className="border-b border-amber-100 hover:bg-amber-50 transition-colors group">
-                        <td className="p-3">
+                      <tr key={a.id} className="h-12 border-b border-zinc-100 hover:bg-zinc-50 transition-colors group">
+                        <td className="p-3 border-r border-zinc-50">
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter mb-0.5">{a.transactionNo || '—'}</span>
-                            <span className="text-xs text-gray-500">{a.date}</span>
-                            <span className="text-xs font-bold text-gray-800">{a.employeeName}</span>
+                            <span className="text-[9px] font-black text-amber-600 uppercase tracking-tighter mb-0.5">{a.transactionNo || '—'}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-bold text-zinc-500">{a.date}</span>
+                              <span className="text-[12px] font-black text-zinc-800">{a.employeeName}</span>
+                            </div>
                           </div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 border-r border-zinc-50">
                           <div className="flex flex-col gap-1">
-                            <span className="text-[13px] font-bold text-gray-800">{a.type}</span>
+                            <span className="text-[13px] font-bold text-zinc-800 leading-tight">{a.type}</span>
                             <div className="flex flex-col gap-0.5">
                               <span className={`w-fit px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${a.requestType === 'Pre-Approval' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
                                 {a.requestType || 'Reimbursement'}
@@ -1172,7 +1174,7 @@ export default function AdvanceExpenseTab() {
                             </div>
                           </div>
                         </td>
-                        <td className="p-3 text-sm font-semibold text-gray-900">{formatINR(a.amount)}</td>
+                        <td className="p-3 border-r border-zinc-50 text-sm font-black text-zinc-900 tabular-nums">{formatINR(a.amount)}</td>
                         <td className="p-3">
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {a.requestType === 'Pre-Approval' && a.mdApproval === 'Approved' && (
@@ -1225,32 +1227,34 @@ export default function AdvanceExpenseTab() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-blue-50 border-b border-blue-100">
-                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Transaction Info</th>
-                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
-                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-                      <th className="p-3 w-[80px]">Actions</th>
+                    <tr className="bg-zinc-50/80 border-b border-zinc-200 h-10">
+                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Transaction Info</th>
+                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Category</th>
+                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Amount</th>
+                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 w-[80px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-zinc-50">
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center py-12 text-gray-400 text-sm">
+                        <td colSpan={4} className="text-center py-12 text-zinc-400 text-sm italic font-medium">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? expForReport : expenses).map(e => (
-                      <tr key={e.id} className="border-b border-blue-100 hover:bg-blue-50 transition-colors group">
-                        <td className="p-3">
+                      <tr key={e.id} className="h-12 border-b border-zinc-100 hover:bg-zinc-50 transition-colors group">
+                        <td className="p-3 border-r border-zinc-50">
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter mb-0.5">{e.transactionNo || '—'}</span>
-                            <span className="text-xs text-gray-500">{e.date}</span>
-                            <span className="text-xs font-bold text-gray-800">{e.employeeName}</span>
+                            <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter mb-0.5">{e.transactionNo || '—'}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-bold text-zinc-500">{e.date}</span>
+                              <span className="text-[12px] font-black text-zinc-800">{e.employeeName}</span>
+                            </div>
                           </div>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 border-r border-zinc-50">
                           <div className="flex flex-col gap-1">
-                            <span className="text-[13px] font-bold text-gray-800">{e.type}</span>
+                            <span className="text-[13px] font-bold text-zinc-800 leading-tight">{e.type}</span>
                             <div className="flex flex-col gap-0.5">
                               <span className={`w-fit px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${e.requestType === 'Pre-Approval' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
                                 {e.requestType || 'Reimbursement'}
@@ -1261,7 +1265,7 @@ export default function AdvanceExpenseTab() {
                             </div>
                           </div>
                         </td>
-                        <td className="p-3 text-sm font-semibold text-gray-900">{formatINR(e.amount)}</td>
+                        <td className="p-3 border-r border-zinc-50 text-sm font-black text-zinc-900 tabular-nums">{formatINR(e.amount)}</td>
                         <td className="p-3">
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {e.requestType === 'Pre-Approval' && e.mdApproval === 'Approved' && (
