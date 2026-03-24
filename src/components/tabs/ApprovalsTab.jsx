@@ -686,49 +686,49 @@ export default function ApprovalsTab() {
         <div className="py-20 flex justify-center"><Spinner /></div>
       ) : activeSubTab === 'payment-queue' ? (
         <>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="bg-gray-50/50 h-[48px] border-b border-gray-100">
-                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Requesting date</th>
-                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Type</th>
-                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
-                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
-                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Method</th>
-                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest">Ref Number</th>
-                    <th className="px-6 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
+                  <tr className="bg-zinc-50/80 border-b border-zinc-200">
+                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Requesting date</th>
+                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[100px]">Type</th>
+                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[200px]">Employee</th>
+                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">Amount</th>
+                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[160px]">Method</th>
+                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Ref Number</th>
+                    <th className="h-10 px-4 text-right align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-zinc-50">
                   {paymentQueue.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-20 text-center text-gray-300 font-bold uppercase italic tracking-widest opacity-40">No pending payments</td>
+                      <td colSpan={7} className="py-20 text-center text-zinc-300 font-bold uppercase italic tracking-widest opacity-40">No pending payments</td>
                     </tr>
                   ) : (
                     paymentQueue.map(item => {
                       const state = actionState[item.id] || { paymentMethod: 'Bank Transfer', paymentRef: '' }
                       return (
-                        <tr key={item.id} className="h-[64px] hover:bg-gray-50/30 transition-colors">
-                          <td className="px-6">
-                            <span className="text-[13px] font-bold text-gray-700">{formatAdvDateDMY(item.date)}</span>
+                        <tr key={item.id} className="h-12 hover:bg-zinc-50/30 transition-colors">
+                          <td className="px-4 border-r border-zinc-100">
+                            <span className="text-[12px] font-bold text-zinc-700">{formatAdvDateDMY(item.date)}</span>
                           </td>
-                          <td className="px-6">
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.type === 'Advance' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                          <td className="px-4 border-r border-zinc-100">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
                               {item.type}
                             </span>
                           </td>
-                          <td className="px-6">
-                            <span className="text-[13px] font-bold text-gray-800">{item.employeeName}</span>
+                          <td className="px-4 border-r border-zinc-100">
+                            <span className="text-[13px] font-bold text-zinc-800">{item.employeeName}</span>
                           </td>
-                          <td className="px-6">
-                            <span className="text-[14px] font-black text-indigo-600">{formatINR(item.amount)}</span>
+                          <td className="px-4 border-r border-zinc-100">
+                            <span className="text-[14px] font-black text-indigo-600 tabular-nums">{formatINR(item.amount)}</span>
                           </td>
-                          <td className="px-6">
+                          <td className="px-4 border-r border-zinc-100">
                             <select 
                               value={state.paymentMethod}
                               onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], paymentMethod: e.target.value } }))}
-                              className="h-[34px] bg-gray-50 border border-gray-200 rounded-lg px-3 text-[11px] font-bold outline-none focus:border-indigo-500"
+                              className="h-8 w-full bg-zinc-50 border border-zinc-200 rounded-lg px-2 text-[11px] font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                             >
                               <option value="Bank Transfer">Bank Transfer</option>
                               <option value="Cash">Cash</option>
@@ -736,19 +736,19 @@ export default function ApprovalsTab() {
                               <option value="UPI">UPI</option>
                             </select>
                           </td>
-                          <td className="px-6">
+                          <td className="px-4 border-r border-zinc-100">
                             <input 
                               type="text"
                               placeholder="Ref #"
                               value={state.paymentRef}
                               onChange={(e) => setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], paymentRef: e.target.value } }))}
-                              className="h-[34px] w-32 bg-gray-50 border border-gray-200 rounded-lg px-3 text-[11px] font-bold outline-none focus:border-indigo-500"
+                              className="h-8 w-full bg-zinc-50 border border-zinc-200 rounded-lg px-2 text-[11px] font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                             />
                           </td>
-                          <td className="px-6 text-right">
+                          <td className="px-4 text-right">
                             <button 
                               onClick={() => handleUpdatePaymentStatus(item.id)}
-                              className="h-[34px] px-5 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
+                              className="h-8 px-4 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all"
                             >
                               Pay Now
                             </button>
