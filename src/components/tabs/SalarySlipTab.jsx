@@ -215,6 +215,13 @@ export default function SalarySlipTab() {
 
   const table = useReactTable({ data: attendanceSummaryData, columns, getCoreRowModel: getCoreRowModel() })
 
+  // Pre-select first employee when list is loaded
+  useEffect(() => {
+    if (employees?.length > 0 && !selectedEmp) {
+      setSelectedEmp(employees[0].id);
+    }
+  }, [employees, selectedEmp]);
+
   useEffect(() => { if (!user?.orgId) return; getDoc(doc(db, 'organisations', user.orgId)).then(snap => { if (snap.exists()) setOrgLogo(snap.data().logoURL || '') }); fetchLoans() }, [user?.orgId])
   
   const fetchLoans = async () => { try { const q = query(collection(db, 'organisations', user.orgId, 'loans'), orderBy('createdAt', 'desc')); const snap = await getDocs(q); setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() }))); const actSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'activityLogs'), where('module', '==', 'Loans'), orderBy('timestamp', 'desc'), limit(5))); setLoanActivities(actSnap.docs.map(d => ({ id: d.id, ...d.data() }))) } catch (e) { console.error(e) } }
@@ -224,41 +231,65 @@ export default function SalarySlipTab() {
   const handleUpdateOverride = async (id) => { if (!overrideForm.month) return alert('Select month'); try { const r = doc(db, 'organisations', user.orgId, 'loans', id), s = await getDoc(r); await updateDoc(r, { monthOverrides: { ...(s.data()?.monthOverrides || {}), [overrideForm.month]: { amount: overrideForm.skip ? 0 : Number(overrideForm.amount), skip: overrideForm.skip, reason: overrideForm.reason } } }); fetchLoans(); setOverrideForm({ month: '', amount: 0, reason: '', skip: false }) } catch (e) { alert(e.message) } }
 
   const handleGenerate = async () => {
-    if (!selectedEmp || !selectedMonth) return; setLoading(true); setGenErr('')
+    if (!selectedEmp || !selectedMonth) {
+      alert('Please select an employee and month');
+      return;
+    }
+    setLoading(true); setGenErr('')
     try {
       const sid = `${selectedEmp}_${selectedMonth}`, sSnap = await getDoc(doc(db, 'organisations', user.orgId, 'salarySlips', sid));
-      if (sSnap.exists()) { setSlipData(sSnap.data()); setLoading(false); return };
-      const emp = employees.find(e => e.id === selectedEmp); if (!emp) return setLoading(false);
+      if (sSnap.exists()) { 
+        setSlipData(sSnap.data()); 
+        setLoading(false); 
+        return 
+      };
+      
+      const emp = employees.find(e => e.id === selectedEmp); 
+      if (!emp) {
+        alert('Employee data not found');
+        setLoading(false);
+        return;
+      }
+
       const [y, m] = selectedMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${selectedMonth}-01`, ed = `${selectedMonth}-${end}`
-      const aData = (await getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp)))).docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
+      
+      // Optimized Attendance Query with Date Range
+      const aDataSnap = await getDocs(query(
+        collection(db, 'organisations', user.orgId, 'attendance'), 
+        where('employeeId', '==', selectedEmp),
+        where('date', '>=', sd),
+        where('date', '<=', ed)
+      ));
+      const aData = aDataSnap.docs.map(d => d.data());
+
       const slab = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
       const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8
       let paid = 0, lop = 0, aOT = 0, sun = 0, sunW = 0, holW = 0, grid = []
+      
       for (let i = 1; i <= end; i++) {
         const d = new Date(y, m - 1, i), ds = d.toISOString().split('T')[0], isS = d.getDay() === 0, r = aData.find(a => a.date === ds);
         let t = isS ? 'Sunday' : 'Absent'; if (isS) sun++
         if (r) { if (r.isAbsent) t = 'Absent'; else if (r.sundayWorked) { t = 'Sunday Working'; sunW++ } else if (r.sundayHoliday) { t = 'Sunday Holiday'; holW++ } else t = 'Working'; if (r.otHours) { const [h, mi] = r.otHours.split(':').map(Number); aOT += (h || 0) + (mi || 0) / 60 } }
         if (t === 'Absent') lop++; else paid++; grid.push({ date: i, type: t, ds })
       }
-      const otS = await getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))), fOT = otS.docs.map(d => d.data()).find(o => o.status === 'approved')?.finalOTHours || aOT
-      const otP = fOT * ((ts / end) / minH), adv = (await getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp)))).docs.map(d => d.data()).filter(a => a.status !== 'Recovered').reduce((s, c) => s + Number(c.amount), 0)
-      const emi = (await getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active')))).docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
 
-      // Sunday Worked Pay Calculation
+      // Fetch other components in parallel
+      const [otS, advSnap, loanSnap, fSnap, expSnap] = await Promise.all([
+        getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp), where('date', '>=', sd), where('date', '<=', ed))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp), where('type', '==', 'Expense')))
+      ]);
+
+      const fOT = otS.docs.map(d => d.data()).find(o => o.status === 'approved')?.finalOTHours || aOT
+      const otP = fOT * ((ts / end) / minH)
+      const adv = advSnap.docs.map(d => d.data()).filter(a => a.status !== 'Recovered').reduce((s, c) => s + Number(c.amount), 0)
+      const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
       const sunP = sunW * (ts / end)
-
-      // Fines Calculation
-      const fSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp), where('date', '>=', sd), where('date', '<=', ed)))
       const fineA = fSnap.docs.reduce((s, d) => s + Number(d.data().amount || 0), 0)
 
-      // PHASE 3: Combined Expenses (Paid + Approved With Salary)
-      const expSnap = await getDocs(query(
-        collection(db, 'organisations', user.orgId, 'advances_expenses'), 
-        where('employeeId', '==', selectedEmp), 
-        where('type', '==', 'Expense')
-      ))
       const allExpenses = expSnap.docs.map(d => d.data())
-
       const reimb = allExpenses.filter(i => {
         const isPaidThisMonth = i.paymentStatus === 'Paid' && i.paidAt?.toDate && 
                                i.paidAt.toDate().getFullYear() === y && 
@@ -272,7 +303,13 @@ export default function SalarySlipTab() {
 
       const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100)
       const g = b + h + otP + reimb + sunP, de = p + it + adv + emi + fineA
-      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: fOT, otPay: otP, basic: b, hra: h, expenseReimbursement: reimb, sundayPay: sunP, grossEarnings: g, pf: p, it, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun, sundayWorkedCount: sunW, holidayWorkedCount: holW })    } catch (e) { setGenErr(e.message) } finally { setLoading(false) }
+      
+      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: fOT, otPay: otP, basic: b, hra: h, expenseReimbursement: reimb, sundayPay: sunP, grossEarnings: g, pf: p, it, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun, sundayWorkedCount: sunW, holidayWorkedCount: holW })    
+    } catch (e) { 
+      console.error('Generation Error:', e);
+      setGenErr(e.message);
+      alert('Generation failed: ' + e.message);
+    } finally { setLoading(false) }
   }
 
   const handleFinalizeSlip = async () => {
