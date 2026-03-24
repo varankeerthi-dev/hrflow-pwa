@@ -258,11 +258,11 @@ export default function ApprovalsTab() {
         setCurrentMonthPaidAdvances(monthPaid)
         
         if (activeSubTab === 'payment-queue') {
-          // Show only MD approved items that are not paid, are Reimbursements, AND are for IMMEDIATE payout
+          // Show only MD approved items that are not paid AND are for IMMEDIATE payout
+          // This now includes Pre-Approvals (front-loaded funds) and Reimbursements
           setPaymentQueue(data.filter(item => 
             (item.mdApproval === 'Approved' || item.mdApproval === 'Partial') && 
             item.paymentStatus !== 'Paid' &&
-            item.requestType !== 'Pre-Approval' &&
             item.payoutMethod !== 'With Salary'
           ))
           // Show only Paid items for recent payment history
