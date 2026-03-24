@@ -13,21 +13,85 @@ import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
 
-Font.register({ family: 'Inter', src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2' })
-Font.register({ family: 'Product Sans', src: 'https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJfc-7eS3JBrS_WRA.woff2' })
+Font.register({ 
+  family: 'Inter', 
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hiA.woff2', fontWeight: 700 }
+  ]
+})
+Font.register({ 
+  family: 'Product Sans', 
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJfc-7eS3JBrS_WRA.woff2', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJfc-7eS3JBrS_WRA.woff2', fontWeight: 700 }
+  ]
+})
 
 const s = StyleSheet.create({
-  p: { padding: 40, fontSize: 10, fontFamily: 'Inter', color: '#111827' },
-  h: { borderBottomWidth: 3, borderBottomColor: '#111827', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between' },
-  t: { fontSize: 24, fontFamily: 'Product Sans', fontWeight: 'bold', textTransform: 'uppercase' }
+  p: { padding: 40, fontSize: 10, fontFamily: 'Inter', color: '#0f172a' },
+  h: { borderBottomWidth: 2, borderBottomColor: '#4f46e5', paddingBottom: 20, marginBottom: 30, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  t: { fontSize: 24, fontFamily: 'Product Sans', fontWeight: 700, textTransform: 'uppercase', color: '#0f172a' }
 })
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
   <Document><Page size="A4" style={s.p}>
-    <View style={s.h}><View style={{flexDirection:'row', alignItems:'center', gap:10}}>{orgLogo && <Image src={orgLogo} style={{width:50,height:50}}/>}<Text style={s.t}>{orgName}</Text></View><View style={{textAlign:'right'}}><Text style={{fontSize:16, fontFamily:'Product Sans', fontWeight:'bold'}}>PAYSLIP</Text><Text>{data.month}</Text></View></View>
-    <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:20}}><View><Text>Name: {data.employee.name}</Text><Text>Code: {data.employee.empCode}</Text></View><View style={{width:180,border:2,borderColor:'#059669',borderRadius:8,padding:10,textAlign:'center',backgroundColor:'#F0FDF4'}}><Text style={{fontSize:8,fontWeight:'bold',color:'#047857'}}>NET PAYABLE</Text><Text style={{fontSize:18,fontWeight:'bold',color:'#065F46'}}>{formatINR(data.netPay)}</Text></View></View>
-    <View style={{border:2,borderColor:'#111827',borderRadius:8,overflow:'hidden',marginBottom:20}}><View style={{flexDirection:'row',backgroundColor:'#111827',color:'white',padding:8}}><Text style={{flex:1}}>EARNINGS</Text><Text style={{flex:1,textAlign:'right'}}>DEDUCTIONS</Text></View><View style={{flexDirection:'row'}}><View style={{flex:1,borderRightWidth:1}}><View style={{flexDirection:'row',justifyContent:'space-between',padding:8,borderBottomWidth:1,borderColor:'#F9FAFB'}}><Text>Basic</Text><Text>{formatINR(data.basic)}</Text></View><View style={{flexDirection:'row',justifyContent:'space-between',padding:8}}><Text>HRA</Text><Text>{formatINR(data.hra)}</Text></View></View><View style={{flex:1}}><View style={{flexDirection:'row',justifyContent:'space-between',padding:8,borderBottomWidth:1,borderColor:'#F9FAFB'}}><Text>IT/Tax</Text><Text>{formatINR(data.it)}</Text></View><View style={{flexDirection:'row',justifyContent:'space-between',padding:8}}><Text>PF</Text><Text>{formatINR(data.pf)}</Text></View>{data.loanEMI>0 && <View style={{flexDirection:'row',justifyContent:'space-between',padding:8,backgroundColor:'#FEF2F2'}}><Text>Loan Recovery</Text><Text>{formatINR(data.loanEMI)}</Text></View>}</View></View></View>
-    <View style={{textAlign:'center',paddingTop:20,borderTopWidth:1,borderColor:'#F3F4F6',borderStyle:'dashed'}}><Text>In Words: Indian Rupee {numberToWords(data.netPay)} Only</Text></View>
+    <View style={s.h}>
+      <View style={{flexDirection:'row', alignItems:'center'}}>
+        {orgLogo && <Image src={orgLogo} style={{width:45,height:45,marginRight:12}}/>}
+        <View>
+          <Text style={s.t}>{orgName}</Text>
+          <Text style={{fontSize:8, color:'#6366f1', fontWeight:700, marginTop:4, letterSpacing:1}}>PAYROLL STATEMENT</Text>
+        </View>
+      </View>
+      <View style={{textAlign:'right'}}>
+        <Text style={{fontSize:14, fontFamily:'Product Sans', fontWeight:700, color:'#0f172a'}}>PAYSLIP</Text>
+        <Text style={{fontSize:9, color:'#64748b', marginTop:2}}>{new Date(data.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
+      </View>
+    </View>
+    
+    <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:30, alignItems: 'center'}}>
+      <View>
+        <View style={{flexDirection:'row', marginBottom:6}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>EMPLOYEE</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.employee.name}</Text></View>
+        <View style={{flexDirection:'row', marginBottom:6}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>STAFF ID</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.employee.empCode}</Text></View>
+        <View style={{flexDirection:'row'}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>PERIOD</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.month}</Text></View>
+      </View>
+      <View style={{width:180, border:1, borderColor:'#e2e8f0', borderRadius:12, padding:15, textAlign:'center', backgroundColor:'#f8fafc'}}>
+        <Text style={{fontSize:8, fontWeight:700, color:'#64748b', marginBottom:4, letterSpacing:0.5}}>NET DISBURSEMENT</Text>
+        <Text style={{fontSize:20, fontWeight:700, color:'#0f172a'}}>{formatINR(data.netPay)}</Text>
+      </View>
+    </View>
+
+    <View style={{border:1, borderColor:'#0f172a', borderRadius:12, overflow:'hidden', marginBottom:30}}>
+      <View style={{flexDirection:'row', backgroundColor:'#0f172a', color:'white', padding:10}}>
+        <Text style={{flex:1, fontSize:9, fontWeight:700, letterSpacing:1}}>EARNINGS</Text>
+        <Text style={{flex:1, textAlign:'right', fontSize:9, fontWeight:700, letterSpacing:1}}>DEDUCTIONS</Text>
+      </View>
+      <View style={{flexDirection:'row'}}>
+        <View style={{flex:1, borderRightWidth:1, borderColor:'#e2e8f0'}}>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Basic Salary</Text><Text style={{fontWeight:700}}>{formatINR(data.basic)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>HRA</Text><Text style={{fontWeight:700}}>{formatINR(data.hra)}</Text></View>
+          {data.otPay > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9', backgroundColor:'#f5f3ff'}}><Text style={{color:'#4f46e5', fontWeight:700}}>Overtime</Text><Text style={{fontWeight:700, color:'#4f46e5'}}>{formatINR(data.otPay)}</Text></View>}
+          {data.expenseReimbursement > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, backgroundColor:'#f0fdf4'}}><Text style={{color:'#166534', fontWeight:700}}>Reimbursements</Text><Text style={{fontWeight:700, color:'#166534'}}>{formatINR(data.expenseReimbursement)}</Text></View>}
+        </View>
+        <View style={{flex:1}}>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>IT / Tax</Text><Text style={{fontWeight:700}}>{formatINR(data.it)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Provident Fund</Text><Text style={{fontWeight:700}}>{formatINR(data.pf)}</Text></View>
+          {data.loanEMI > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9', backgroundColor:'#fff1f2'}}><Text style={{color:'#9f1239', fontWeight:700}}>Loan EMI</Text><Text style={{fontWeight:700, color:'#9f1239'}}>{formatINR(data.loanEMI)}</Text></View>}
+          {data.advanceDeduction > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, backgroundColor:'#fff1f2'}}><Text style={{color:'#9f1239', fontWeight:700}}>Advance Rec.</Text><Text style={{fontWeight:700, color:'#9f1239'}}>{formatINR(data.advanceDeduction)}</Text></View>}
+        </View>
+      </View>
+      <View style={{flexDirection:'row', backgroundColor:'#f8fafc', borderTopWidth:1, borderColor:'#0f172a'}}>
+        <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:10, borderRightWidth:1, borderColor:'#0f172a'}}><Text style={{fontWeight:700, fontSize:9}}>GROSS PAY</Text><Text style={{fontWeight:700, fontSize:9}}>{formatINR(data.grossEarnings)}</Text></View>
+        <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:10}}><Text style={{fontWeight:700, fontSize:9}}>TOTAL DED.</Text><Text style={{fontWeight:700, fontSize:9}}>{formatINR(data.totalDeductions)}</Text></View>
+      </View>
+    </View>
+
+    <View style={{textAlign:'center', paddingTop:30, borderTopWidth:1, borderColor:'#e2e8f0', borderStyle:'dashed'}}>
+      <Text style={{fontSize:8, color:'#94a3b8', marginBottom:5, fontWeight:700}}>AMOUNT IN WORDS</Text>
+      <Text style={{fontSize:10, fontWeight:700, color:'#0f172a', textTransform:'uppercase'}}>Indian Rupee {numberToWords(data.netPay)} Only</Text>
+      <Text style={{fontSize:7, color:'#cbd5e1', marginTop:40, letterSpacing:2}}>-- SYSTEM GENERATED DIGITAL RECEIPT --</Text>
+    </View>
   </Page></Document>
 )
 
@@ -260,13 +324,140 @@ export default function SalarySlipTab() {
               <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-10 px-8 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[9px] shadow-lg hover:bg-black transition-all">Generate</button>
             </div>
             {slipData && (
-              <div className="bg-white border border-gray-200 shadow-xl rounded-2xl overflow-hidden relative mx-auto flex-1 overflow-auto" style={{ width: '100%', minWidth: '850px' }}>
-                <div className="flex justify-end gap-2 p-3 bg-gray-50 border-b border-gray-100 no-print sticky top-0 z-10"><PDFDownloadLink key={`${slipData.employee.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee.name.replace(/\s+/g, '_')}.pdf`} className="h-8 bg-white border border-gray-200 text-gray-700 px-3 rounded-lg text-[10px] font-bold uppercase flex items-center gap-1.5 hover:bg-gray-50">{({ loading }) => <><Download size={12} />{loading ? 'Wait...' : 'Export'}</>}</PDFDownloadLink><button onClick={handleFinalizeSlip} className="h-8 bg-gray-900 text-white px-5 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] shadow-lg flex items-center gap-1.5 active:scale-95"><CheckCircle2 size={12} /> Confirm</button></div>
-                <div className="p-12 bg-white">
-                  <div className="border-b-4 border-gray-900 pb-6 mb-8 flex justify-between items-start"><div className="flex items-center gap-5">{orgLogo && <img src={orgLogo} alt="Logo" className="w-16 h-16 object-contain" />}<div><h1 className="text-3xl font-bold text-gray-900 uppercase font-google-sans tracking-tighter leading-none">{user?.orgName}</h1><p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-3">Employee Remuneration Advice</p></div></div><div className="text-right"><h2 className="text-xl font-bold text-gray-800 uppercase font-google-sans tracking-tight">Payslip</h2><p className="text-[11px] font-bold text-gray-500 mt-1">{new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p></div></div>
-                  <div className="flex justify-between items-start mb-8"><div className="space-y-2.5 text-[12px] font-google-sans uppercase text-[10px] font-bold text-gray-900 border-b-2 border-gray-900 pb-1 inline-block">Identification<div className="flex gap-6 mt-3 text-gray-800 normal-case tracking-normal font-inter"><span className="w-32 text-gray-400 font-bold uppercase text-[10px]">Name</span><span className="font-bold">: {slipData.employee.name}</span></div><div className="flex gap-6 text-gray-800 normal-case tracking-normal font-inter"><span className="w-32 text-gray-400 font-bold uppercase text-[10px]">Code</span><span className="font-bold">: {slipData.employee.empCode}</span></div></div><div className="bg-gray-900 text-white rounded-xl p-5 text-center min-w-[200px] shadow-2xl"><p className="text-[9px] font-bold text-gray-400 uppercase mb-1.5 font-google-sans">Net Payable (INR)</p><p className="text-2xl font-bold font-google-sans tracking-tighter">{formatINR(slipData.netPay)}</p></div></div>
-                  <div className="border-2 border-gray-900 rounded-2xl overflow-hidden mb-8 font-inter"><div className="grid grid-cols-2 bg-gray-900 font-google-sans font-bold text-[11px] uppercase text-white"><div className="p-4 flex justify-between">Earnings<span>INR</span></div><div className="p-4 flex justify-between border-l border-gray-800">Deductions<span>INR</span></div></div><div className="grid grid-cols-2 divide-x-2 divide-gray-900"><div className="p-0 text-gray-600 font-medium text-[12px]"><div className="flex justify-between p-4 border-b border-gray-50">Basic Salary<span className="font-bold text-gray-900">{formatINR(slipData.basic)}</span></div><div className="flex justify-between p-4 border-b border-gray-50">HRA<span className="font-bold text-gray-900">{formatINR(slipData.hra)}</span></div>{slipData.otPay > 0 && <div className="flex justify-between p-4 text-indigo-600 font-bold bg-indigo-50/20 font-google-sans uppercase text-[10px] tracking-widest">Overtime<span className="font-bold">{formatINR(slipData.otPay)}</span></div>}</div><div className="p-0 text-gray-600 font-medium text-[12px]"><div className="flex justify-between p-4 border-b border-gray-50">Tax / IT<span className="font-bold text-gray-900">{formatINR(slipData.it)}</span></div><div className="flex justify-between p-4 border-b border-gray-50">Provident Fund<span className="font-bold text-gray-900">{formatINR(slipData.pf)}</span></div>{slipData.loanEMI > 0 && <div className="flex justify-between p-4 text-red-600 font-bold bg-red-50/20 font-google-sans uppercase text-[10px] tracking-widest">Loan Recovery<span className="font-bold">{formatINR(slipData.loanEMI)}</span></div>}</div></div><div className="grid grid-cols-2 divide-x-2 divide-gray-900 bg-gray-50 border-t-2 border-gray-900 font-bold font-google-sans uppercase text-[11px] text-gray-900"><div className="p-4 flex justify-between">Total Earnings<span>{formatINR(slipData.grossEarnings)}</span></div><div className="p-4 flex justify-between">Total Deductions<span>{formatINR(slipData.totalDeductions)}</span></div></div></div>
-                  <div className="text-center pt-8 border-t-2 border-dashed border-gray-100"><p className="text-[12px] font-medium text-gray-700 italic font-inter">Amount in words: <span className="uppercase text-gray-900 not-italic font-bold tracking-tight">Indian Rupee {numberToWords(slipData.netPay)} Only</span></p><p className="text-[9px] text-gray-400 mt-8 font-bold uppercase tracking-[0.4em] opacity-40 font-google-sans">System Authenticated Document</p></div>
+              <div className="bg-white border border-gray-100 shadow-2xl rounded-[32px] overflow-hidden relative mx-auto flex-1 overflow-auto max-w-4xl w-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+                <div className="flex justify-end gap-2 p-4 bg-slate-50 border-b border-slate-100 no-print sticky top-0 z-10">
+                  <PDFDownloadLink key={`${slipData.employee.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee.name.replace(/\s+/g, '_')}.pdf`} className="h-9 bg-white border border-slate-200 text-slate-700 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
+                    {({ loading }) => <><Download size={14} />{loading ? 'Processing...' : 'Export PDF'}</>}
+                  </PDFDownloadLink>
+                  <button onClick={handleFinalizeSlip} className="h-9 bg-indigo-600 text-white px-6 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all">
+                    <CheckCircle2 size={14} /> Finalize Record
+                  </button>
+                </div>
+                
+                <div className="p-12 bg-white relative">
+                  {/* Design Accent */}
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
+                  
+                  <div className="border-b-2 border-slate-900 pb-8 mb-10 flex justify-between items-start relative z-10">
+                    <div className="flex items-center gap-6">
+                      {orgLogo && <img src={orgLogo} alt="Logo" className="w-16 h-16 object-contain rounded-xl shadow-sm bg-slate-50 p-2" />}
+                      <div>
+                        <h1 className="text-4xl font-black text-slate-900 uppercase font-google-sans tracking-tighter leading-none">{user?.orgName}</h1>
+                        <p className="text-[10px] text-indigo-600 font-black uppercase tracking-[0.4em] mt-4 flex items-center gap-2">
+                          <span className="w-6 h-0.5 bg-indigo-600"></span>
+                          Payroll Advice
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <h2 className="text-2xl font-black text-slate-900 uppercase font-google-sans tracking-tight italic">Statement</h2>
+                      <p className="text-[11px] font-black text-slate-500 mt-2 bg-slate-100 px-3 py-1 rounded-lg inline-block border border-slate-200 uppercase tracking-widest">
+                        {new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 relative z-10">
+                    <div className="md:col-span-2 space-y-4">
+                      <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100">
+                        <p className="font-black text-slate-400 uppercase tracking-widest text-[9px] mb-6 border-b border-slate-200 pb-2 inline-block">Staff Particulars</p>
+                        <div className="grid grid-cols-2 gap-8">
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Employee Name</span>
+                            <span className="font-bold text-slate-900 text-base uppercase">{slipData.employee.name}</span>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Identity Code</span>
+                            <span className="font-bold text-slate-900 text-base uppercase">{slipData.employee.empCode}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-slate-950 text-white rounded-[32px] p-8 text-center flex flex-col justify-center shadow-2xl shadow-indigo-900/30 relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-transparent opacity-50"></div>
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-3 relative z-10">Net Payable</p>
+                      <p className="text-4xl font-black font-google-sans tracking-tighter relative z-10">{formatINR(slipData.netPay)}</p>
+                      <div className="mt-6 text-[10px] font-black text-slate-500 uppercase tracking-widest relative z-10 border-t border-slate-800 pt-4">
+                        Currency: INR
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-[32px] overflow-hidden mb-12 shadow-sm relative z-10">
+                    <div className="grid grid-cols-2 bg-slate-950 font-google-sans font-black text-[11px] uppercase tracking-widest text-white">
+                      <div className="p-5 flex justify-between items-center border-r border-slate-800">
+                        <span className="flex items-center gap-2"><span className="w-2 h-2 bg-indigo-500 rounded-full"></span> Earnings</span>
+                        <span className="text-slate-500">Amount</span>
+                      </div>
+                      <div className="p-5 flex justify-between items-center">
+                        <span className="flex items-center gap-2"><span className="w-2 h-2 bg-rose-500 rounded-full"></span> Deductions</span>
+                        <span className="text-slate-500">Amount</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 divide-x divide-slate-200 bg-white">
+                      <div className="p-2 space-y-1">
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Basic Salary<span className="font-bold text-slate-900">{formatINR(slipData.basic)}</span>
+                        </div>
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Allowances (HRA)<span className="font-bold text-slate-900">{formatINR(slipData.hra)}</span>
+                        </div>
+                        {slipData.otPay > 0 && (
+                          <div className="flex justify-between p-4 rounded-2xl bg-indigo-50 text-indigo-700 font-bold text-[13px]">
+                            Overtime Pay<span className="font-black">{formatINR(slipData.otPay)}</span>
+                          </div>
+                        )}
+                        {slipData.expenseReimbursement > 0 && (
+                          <div className="flex justify-between p-4 rounded-2xl bg-emerald-50 text-emerald-700 font-bold text-[13px]">
+                            Reimbursements<span className="font-black">{formatINR(slipData.expenseReimbursement)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-2 space-y-1">
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Statutory Tax / IT<span className="font-bold text-slate-900">{formatINR(slipData.it)}</span>
+                        </div>
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Provident Fund (PF)<span className="font-bold text-slate-900">{formatINR(slipData.pf)}</span>
+                        </div>
+                        {slipData.loanEMI > 0 && (
+                          <div className="flex justify-between p-4 rounded-2xl bg-rose-50 text-rose-700 font-bold text-[13px]">
+                            Loan Recovery<span className="font-black">{formatINR(slipData.loanEMI)}</span>
+                          </div>
+                        )}
+                        {slipData.advanceDeduction > 0 && (
+                          <div className="flex justify-between p-4 rounded-2xl bg-rose-50 text-rose-700 font-bold text-[13px]">
+                            Advance Adjustment<span className="font-black">{formatINR(slipData.advanceDeduction)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 divide-x divide-slate-800 bg-slate-950 border-t border-slate-800 font-black font-google-sans uppercase text-[11px] text-white tracking-widest">
+                      <div className="p-6 flex justify-between items-center">
+                        <span className="text-slate-400">Gross Earnings</span>
+                        <span className="text-base tracking-tighter">{formatINR(slipData.grossEarnings)}</span>
+                      </div>
+                      <div className="p-6 flex justify-between items-center">
+                        <span className="text-slate-400">Total Deductions</span>
+                        <span className="text-base tracking-tighter text-rose-400">{formatINR(slipData.totalDeductions)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center pt-8 border-t border-dashed border-slate-200 relative z-10">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Final Disbursement Value</p>
+                    <div className="bg-slate-950 text-white rounded-2xl p-6 inline-block min-w-[400px] shadow-xl">
+                      <p className="text-base font-black italic tracking-tight uppercase">
+                        {numberToWords(slipData.netPay)} Only
+                      </p>
+                    </div>
+                    <p className="text-[9px] text-slate-300 mt-12 font-black uppercase tracking-[0.5em] opacity-40 font-google-sans italic">
+                      Confidential Document • HRFlow Intelligence Engine
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
