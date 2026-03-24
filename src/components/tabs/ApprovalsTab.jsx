@@ -662,22 +662,37 @@ export default function ApprovalsTab() {
         <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
           <button 
             onClick={() => setActiveSubTab('advance-expense')}
-            className={`px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'advance-expense' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'advance-expense' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
           >
             Advance / Expense
+            {advExpenses.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${activeSubTab === 'advance-expense' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                {advExpenses.length}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => setActiveSubTab('leave-permission')}
-            className={`px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'leave-permission' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'leave-permission' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
           >
             Leave / Permission
+            {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${activeSubTab === 'leave-permission' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length}
+              </span>
+            )}
           </button>
           {isAccountant && (
             <button 
               onClick={() => setActiveSubTab('payment-queue')}
-              className={`px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'payment-queue' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'payment-queue' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
             >
               Payment Queue
+              {paymentQueue.length > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${activeSubTab === 'payment-queue' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                  {paymentQueue.length}
+                </span>
+              )}
             </button>
           )}
         </div>
