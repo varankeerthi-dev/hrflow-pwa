@@ -332,7 +332,6 @@ export default function AdvanceExpenseTab() {
       accruedSum,
       accruedCount
     }
-    }
   }, [entries])
 
   const escalation = useMemo(() => {
