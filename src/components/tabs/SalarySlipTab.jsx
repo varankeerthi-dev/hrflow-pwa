@@ -215,13 +215,6 @@ export default function SalarySlipTab() {
 
   const table = useReactTable({ data: attendanceSummaryData, columns, getCoreRowModel: getCoreRowModel() })
 
-  // Pre-select first employee when list is loaded
-  useEffect(() => {
-    if (employees?.length > 0 && !selectedEmp) {
-      setSelectedEmp(employees[0].id);
-    }
-  }, [employees, selectedEmp]);
-
   useEffect(() => { if (!user?.orgId) return; getDoc(doc(db, 'organisations', user.orgId)).then(snap => { if (snap.exists()) setOrgLogo(snap.data().logoURL || '') }); fetchLoans() }, [user?.orgId])
   
   const fetchLoans = async () => { try { const q = query(collection(db, 'organisations', user.orgId, 'loans'), orderBy('createdAt', 'desc')); const snap = await getDocs(q); setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() }))); const actSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'activityLogs'), where('module', '==', 'Loans'), orderBy('timestamp', 'desc'), limit(5))); setLoanActivities(actSnap.docs.map(d => ({ id: d.id, ...d.data() }))) } catch (e) { console.error(e) } }
@@ -364,7 +357,7 @@ export default function SalarySlipTab() {
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto space-y-6 h-full overflow-auto p-4 w-full">
             <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-6 items-end shrink-0">
-              <div className="flex-1 min-w-[240px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Target Employee<select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[12px] font-semibold bg-white outline-none mt-1.5 text-gray-900 normal-case">{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+              <div className="flex-1 min-w-[240px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Target Employee<select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[12px] font-semibold bg-white outline-none mt-1.5 text-gray-900 normal-case"><option value="">Select Employee</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
               <div className="w-[180px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Pay Period<input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[12px] font-bold mt-1.5 text-gray-900 normal-case" /></div>
               <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-10 px-8 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[9px] shadow-lg hover:bg-black transition-all">Generate</button>
             </div>
