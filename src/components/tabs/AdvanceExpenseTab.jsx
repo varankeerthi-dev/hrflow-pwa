@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export default function AdvanceExpenseTab() {
   const { user } = useAuth()
-  const { employees } = useEmployees()
+  const { employees } = useEmployees(user?.orgId)
   const queryClient = useQueryClient()
   const [activeModule, setActiveModule] = useState('Reports')
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
