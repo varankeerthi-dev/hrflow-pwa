@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { Wallet, Download } from 'lucide-react'
 
 export default function EmployeeSalarySlipTab() {
   const { user } = useAuth()
@@ -24,20 +25,20 @@ export default function EmployeeSalarySlipTab() {
 
       const windowSnap = await getDoc(doc(db, 'organisations', user.orgId, 'salarySlipWindows', month))
       if (!windowSnap.exists()) {
-        setStatus('not_released')
+        setStatus('unavailable')
         return
       }
       const { viewFrom, viewUntil } = windowSnap.data()
       const today = new Date().toISOString().split('T')[0]
       if (!viewFrom || !viewUntil || today < viewFrom || today > viewUntil) {
-        setStatus('not_released')
+        setStatus('unavailable')
         return
       }
 
       const slipId = `${user.employeeId}_${month}`
       const slipSnap = await getDoc(doc(db, 'organisations', user.orgId, 'salarySlips', slipId))
       if (!slipSnap.exists()) {
-        setStatus('not_released')
+        setStatus('unavailable')
         return
       }
       setSlipData(slipSnap.data())
@@ -50,87 +51,88 @@ export default function EmployeeSalarySlipTab() {
     if (!slipRef.current) return
     const canvas = await html2canvas(slipRef.current, { 
       scale: 2,
-      onclone: (clonedDoc) => {
-        const elements = clonedDoc.querySelectorAll('*')
-        elements.forEach(el => {
-          const computedStyle = window.getComputedStyle(el)
-          el.style.color = computedStyle.color
-          el.style.backgroundColor = computedStyle.backgroundColor
-          el.style.borderColor = computedStyle.borderColor
-          el.style.fill = computedStyle.fill
-          el.style.stroke = computedStyle.stroke
-        })
-      }
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
     })
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-    pdf.save(`Payslip_${month}.pdf`)
+    pdf.save(`SalarySlip_${user?.name?.replace(/\s+/g, '_')}_${month}.pdf`)
   }
 
+  const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : formatINR(val);
+
   return (
-    <div className="h-full flex flex-col gap-6 font-inter">
-      <div className="bg-white p-5 rounded-[12px] shadow-sm flex items-center justify-between border border-gray-100">
+    <div className="flex flex-col h-full bg-[#fbfbfb] -m-6 font-inter text-gray-900 overflow-hidden">
+      <div className="bg-white border-b border-gray-200 p-6 flex justify-between items-center shrink-0">
         <div>
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Salary Slip</p>
-          <p className="text-sm text-gray-700 mt-1">
-            {status === 'available'
-              ? 'Status: Available'
-              : status === 'checking'
-              ? 'Checking release window...'
-              : 'Status: Not Released'}
-          </p>
+          <h1 className="text-2xl font-black text-gray-900 font-google-sans tracking-tight uppercase leading-none">My Payslip</h1>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Period:</span>
+            <input
+              type="month"
+              value={month}
+              onChange={e => setMonth(e.target.value)}
+              className="border-none p-0 text-[11px] font-black text-indigo-600 bg-transparent cursor-pointer outline-none uppercase"
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="month"
-            value={month}
-            onChange={e => setMonth(e.target.value)}
-            className="h-[40px] border border-gray-200 rounded-lg px-3 text-sm font-bold bg-gray-50/50 outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          {status === 'available' && (
-            <button
-              onClick={handleDownloadPDF}
-              className="h-[40px] px-5 bg-indigo-600 text-white rounded-lg text-[11px] font-black uppercase tracking-[0.15em] shadow-lg hover:bg-indigo-700"
-            >
-              Download PDF
-            </button>
-          )}
-        </div>
+        {status === 'available' && slipData && (
+          <button
+            onClick={handleDownloadPDF}
+            className="h-10 px-6 bg-indigo-600 text-white font-black rounded-xl text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all"
+          >
+            <Download size={16} /> Export PDF
+          </button>
+        )}
       </div>
 
-      {status === 'not_released' && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl text-[13px] max-w-xl">
-          <p className="font-semibold">Salary slip is not available yet.</p>
-          <p className="text-[12px] mt-1">Please check after the release date.</p>
+      {status === 'checking' && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Retrieving Statement...</p>
+          </div>
+        </div>
+      )}
+
+      {status === 'unavailable' && (
+        <div className="flex-1 flex items-center justify-center p-10 overflow-auto">
+          <div className="bg-white border border-gray-100 shadow-xl rounded-[32px] p-12 text-center max-w-md">
+            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-slate-100">
+              <Wallet size={40} className="text-slate-300" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">No Statement</h3>
+            <p className="text-[12px] text-slate-500 mt-4 leading-relaxed font-medium">Your remuneration statement for this period ({month}) is not yet released or finalized by HR.</p>
+          </div>
         </div>
       )}
 
       {status === 'available' && slipData && (
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto p-10">
           <div
             ref={slipRef}
-            className="bg-white rounded-2xl border border-gray-100 shadow-2xl p-10 max-w-4xl mx-auto overflow-hidden relative"
+            className="bg-white rounded-[32px] border border-gray-100 shadow-2xl p-12 max-w-4xl mx-auto overflow-hidden relative"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
-            {/* Top accent bar */}
             <div className="absolute top-0 left-0 right-0 h-2 bg-indigo-600"></div>
             
-            <div className="border-b border-slate-200 pb-8 mb-10 flex justify-between items-end">
+            <div className="border-b-2 border-slate-900 pb-8 mb-10 flex justify-between items-end">
               <div>
                 <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none font-google-sans">
                   {user?.orgName || 'ORGANISATION'}
                 </h1>
                 <p className="text-[11px] text-indigo-600 font-black uppercase tracking-[0.3em] mt-4 flex items-center gap-2">
                   <span className="w-8 h-px bg-indigo-600"></span>
-                  Remuneration Statement
+                  Remuneration Advice
                 </p>
               </div>
               <div className="text-right">
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase font-google-sans italic">Payslip</h2>
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-2 bg-slate-50 px-3 py-1 rounded-md inline-block border border-slate-100">
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-2 bg-slate-50 px-3 py-1 rounded-lg inline-block border border-slate-100">
                   {new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </p>
               </div>
@@ -140,20 +142,20 @@ export default function EmployeeSalarySlipTab() {
               <div className="md:col-span-2 space-y-4">
                 <p className="font-black text-slate-900 uppercase tracking-widest text-[10px] mb-6 flex items-center gap-3">
                   <span className="bg-indigo-600 text-white px-2 py-0.5 rounded text-[8px]">ID</span>
-                  Employee Details
+                  Employee Particulars
                 </p>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-8">
+                <div className="grid grid-cols-2 gap-y-6 gap-x-8">
                   <div className="flex flex-col border-l-2 border-slate-100 pl-4">
                     <span className="text-slate-400 font-black uppercase text-[9px] tracking-widest mb-1">Full Name</span>
-                    <span className="font-bold text-slate-800 text-sm uppercase">{slipData.employee.name}</span>
+                    <span className="font-bold text-slate-800 text-sm uppercase">{slipData.employee?.name}</span>
                   </div>
                   <div className="flex flex-col border-l-2 border-slate-100 pl-4">
-                    <span className="text-slate-400 font-black uppercase text-[9px] tracking-widest mb-1">Employee ID</span>
-                    <span className="font-bold text-slate-800 text-sm uppercase">{slipData.employee.empCode}</span>
+                    <span className="text-slate-400 font-black uppercase text-[9px] tracking-widest mb-1">Staff Code</span>
+                    <span className="font-bold text-slate-800 text-sm uppercase">{slipData.employee?.empCode}</span>
                   </div>
                   <div className="flex flex-col border-l-2 border-slate-100 pl-4">
                     <span className="text-slate-400 font-black uppercase text-[9px] tracking-widest mb-1">Department</span>
-                    <span className="font-bold text-slate-800 text-sm uppercase">{slipData.employee.department || 'N/A'}</span>
+                    <span className="font-bold text-slate-800 text-sm uppercase">{slipData.employee?.department || 'Operations'}</span>
                   </div>
                   <div className="flex flex-col border-l-2 border-slate-100 pl-4">
                     <span className="text-slate-400 font-black uppercase text-[9px] tracking-widest mb-1">Pay Period</span>
@@ -162,8 +164,8 @@ export default function EmployeeSalarySlipTab() {
                 </div>
               </div>
 
-              <div className="bg-slate-950 text-white rounded-3xl p-8 flex flex-col justify-between shadow-2xl shadow-indigo-900/20 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-600/20 rounded-full -mr-12 -mt-12 blur-2xl transition-all group-hover:bg-indigo-600/40"></div>
+              <div className="bg-slate-950 text-white rounded-[32px] p-8 flex flex-col justify-between shadow-2xl shadow-indigo-900/30 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-600/20 rounded-full -mr-12 -mt-12 blur-2xl transition-all"></div>
                 <div className="relative z-10">
                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-4">
                     Net Disbursement
@@ -179,7 +181,7 @@ export default function EmployeeSalarySlipTab() {
               </div>
             </div>
 
-            <div className="border border-slate-200 rounded-3xl overflow-hidden mb-12 shadow-sm bg-slate-50/30">
+            <div className="border border-slate-200 rounded-[32px] overflow-hidden mb-12 shadow-sm bg-slate-50/30">
               <div className="grid grid-cols-2 bg-slate-950 divide-x divide-slate-800">
                 <div className="flex justify-between p-5 font-black text-[11px] uppercase tracking-[0.2em] text-white">
                   <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Earnings</span>
@@ -191,37 +193,49 @@ export default function EmployeeSalarySlipTab() {
                 </div>
               </div>
               <div className="grid grid-cols-2 divide-x divide-slate-200">
-                <div className="p-2 space-y-1">
-                  <div className="flex justify-between p-4 rounded-2xl hover:bg-white transition-colors text-[13px] font-medium text-slate-600">
+                <div className="p-2 space-y-1 bg-white">
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                     <span>Basic Remuneration</span>
                     <span className="font-bold text-slate-900">{formatINR(slipData.basic)}</span>
                   </div>
-                  <div className="flex justify-between p-4 rounded-2xl hover:bg-white transition-colors text-[13px] font-medium text-slate-600">
-                    <span>House Rent Allowance</span>
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                    <span>HRA (Allowances)</span>
                     <span className="font-bold text-slate-900">{formatINR(slipData.hra)}</span>
                   </div>
-                  {slipData.otPay > 0 && (
-                    <div className="flex justify-between p-4 rounded-2xl bg-indigo-50/50 text-[13px] font-bold text-indigo-700">
-                      <span className="flex items-center gap-2">Overtime <span className="text-[10px] font-black px-1.5 py-0.5 bg-indigo-100 rounded text-indigo-600">{slipData.finalOT}H</span></span>
-                      <span>{formatINR(slipData.otPay)}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                    <span>Expense</span>
+                    <span className="font-bold text-slate-900">{dashIfZero(slipData.expenseReimbursement)}</span>
+                  </div>
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                    <span>Sunday Worked</span>
+                    <span className="font-bold text-slate-900">{dashIfZero(slipData.sundayPay)}</span>
+                  </div>
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                    <span>OT</span>
+                    <span className="font-bold text-slate-900">{dashIfZero(slipData.otPay)}</span>
+                  </div>
                 </div>
-                <div className="p-2 space-y-1">
-                  <div className="flex justify-between p-4 rounded-2xl hover:bg-white transition-colors text-[13px] font-medium text-slate-600">
+                <div className="p-2 space-y-1 bg-white">
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                    <span>Advance Recovery</span>
+                    <span className="font-bold text-slate-900">{dashIfZero(slipData.advanceDeduction)}</span>
+                  </div>
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                    <span>Loan Recovery</span>
+                    <span className="font-bold text-slate-900">{dashIfZero(slipData.loanEMI)}</span>
+                  </div>
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                    <span>Fine / Penalties</span>
+                    <span className="font-bold text-slate-900">{dashIfZero(slipData.fineAmount)}</span>
+                  </div>
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                     <span>Professional Tax / IT</span>
                     <span className="font-bold text-slate-900">{formatINR(slipData.it)}</span>
                   </div>
-                  <div className="flex justify-between p-4 rounded-2xl hover:bg-white transition-colors text-[13px] font-medium text-slate-600">
+                  <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                     <span>Provident Fund (PF)</span>
                     <span className="font-bold text-slate-900">{formatINR(slipData.pf)}</span>
                   </div>
-                  {slipData.advanceDeduction > 0 && (
-                    <div className="flex justify-between p-4 rounded-2xl bg-rose-50/50 text-[13px] font-bold text-rose-700">
-                      <span>Advance Recovery</span>
-                      <span>{formatINR(slipData.advanceDeduction)}</span>
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 divide-x divide-slate-950 bg-slate-950 border-t border-slate-800 font-black">
@@ -238,15 +252,15 @@ export default function EmployeeSalarySlipTab() {
 
             <div className="text-center">
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-4">
-                Amount in words
+                Remuneration in Words
               </p>
-              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 inline-block min-w-[300px]">
-                <p className="text-sm font-black text-slate-900 italic tracking-tight uppercase">
+              <div className="bg-slate-950 text-white rounded-2xl p-6 inline-block min-w-[400px] shadow-xl">
+                <p className="text-sm font-black text-white italic tracking-tight uppercase">
                   {numberToWords(slipData.netPay)} Only
                 </p>
               </div>
               <p className="text-[9px] text-slate-300 mt-12 font-black uppercase tracking-[0.5em] opacity-50">
-                System Generated Digital Receipt
+                System Generated Digital Receipt • System Authenticated
               </p>
             </div>
           </div>
@@ -255,4 +269,3 @@ export default function EmployeeSalarySlipTab() {
     </div>
   )
 }
-

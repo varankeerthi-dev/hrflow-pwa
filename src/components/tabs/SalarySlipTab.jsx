@@ -13,11 +13,12 @@ import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
 
+// Use reliable direct file URLs for @react-pdf/renderer
 Font.register({ 
   family: 'Inter', 
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hiA.woff2', fontWeight: 700 }
+    { src: 'https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/Inter-Regular.otf', fontWeight: 400 },
+    { src: 'https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/Inter-Bold.otf', fontWeight: 700 }
   ]
 })
 Font.register({ 
@@ -27,6 +28,8 @@ Font.register({
     { src: 'https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJfc-7eS3JBrS_WRA.woff2', fontWeight: 700 }
   ]
 })
+
+const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : formatINR(val);
 
 const s = StyleSheet.create({
   p: { padding: 40, fontSize: 10, fontFamily: 'Inter', color: '#0f172a' },
@@ -52,8 +55,8 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
     
     <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:30, alignItems: 'center'}}>
       <View>
-        <View style={{flexDirection:'row', marginBottom:6}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>EMPLOYEE</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.employee.name}</Text></View>
-        <View style={{flexDirection:'row', marginBottom:6}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>STAFF ID</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.employee.empCode}</Text></View>
+        <View style={{flexDirection:'row', marginBottom:6}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>EMPLOYEE</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.employee?.name}</Text></View>
+        <View style={{flexDirection:'row', marginBottom:6}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>STAFF ID</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.employee?.empCode}</Text></View>
         <View style={{flexDirection:'row'}}><Text style={{width:70, color:'#94a3b8', fontWeight:700, fontSize:8}}>PERIOD</Text><Text style={{fontWeight:700, color:'#1e293b'}}>: {data.month}</Text></View>
       </View>
       <View style={{width:180, border:1, borderColor:'#e2e8f0', borderRadius:12, padding:15, textAlign:'center', backgroundColor:'#f8fafc'}}>
@@ -71,14 +74,16 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
         <View style={{flex:1, borderRightWidth:1, borderColor:'#e2e8f0'}}>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Basic Salary</Text><Text style={{fontWeight:700}}>{formatINR(data.basic)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>HRA</Text><Text style={{fontWeight:700}}>{formatINR(data.hra)}</Text></View>
-          {data.otPay > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9', backgroundColor:'#f5f3ff'}}><Text style={{color:'#4f46e5', fontWeight:700}}>Overtime</Text><Text style={{fontWeight:700, color:'#4f46e5'}}>{formatINR(data.otPay)}</Text></View>}
-          {data.expenseReimbursement > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, backgroundColor:'#f0fdf4'}}><Text style={{color:'#166534', fontWeight:700}}>Reimbursements</Text><Text style={{fontWeight:700, color:'#166534'}}>{formatINR(data.expenseReimbursement)}</Text></View>}
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Expense</Text><Text style={{fontWeight:700}}>{dashIfZero(data.expenseReimbursement)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Sunday Worked</Text><Text style={{fontWeight:700}}>{dashIfZero(data.sundayPay)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10}}><Text style={{color:'#64748b'}}>OT</Text><Text style={{fontWeight:700}}>{dashIfZero(data.otPay)}</Text></View>
         </View>
         <View style={{flex:1}}>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Advance</Text><Text style={{fontWeight:700}}>{dashIfZero(data.advanceDeduction)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Loan</Text><Text style={{fontWeight:700}}>{dashIfZero(data.loanEMI)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Fine</Text><Text style={{fontWeight:700}}>{dashIfZero(data.fineAmount)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>IT / Tax</Text><Text style={{fontWeight:700}}>{formatINR(data.it)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Provident Fund</Text><Text style={{fontWeight:700}}>{formatINR(data.pf)}</Text></View>
-          {data.loanEMI > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, borderBottomWidth:1, borderColor:'#f1f5f9', backgroundColor:'#fff1f2'}}><Text style={{color:'#9f1239', fontWeight:700}}>Loan EMI</Text><Text style={{fontWeight:700, color:'#9f1239'}}>{formatINR(data.loanEMI)}</Text></View>}
-          {data.advanceDeduction > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', padding:10, backgroundColor:'#fff1f2'}}><Text style={{color:'#9f1239', fontWeight:700}}>Advance Rec.</Text><Text style={{fontWeight:700, color:'#9f1239'}}>{formatINR(data.advanceDeduction)}</Text></View>}
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:10}}><Text style={{color:'#64748b'}}>PF</Text><Text style={{fontWeight:700}}>{formatINR(data.pf)}</Text></View>
         </View>
       </View>
       <View style={{flexDirection:'row', backgroundColor:'#f8fafc', borderTopWidth:1, borderColor:'#0f172a'}}>
@@ -239,6 +244,13 @@ export default function SalarySlipTab() {
       const otP = fOT * ((ts / end) / minH), adv = (await getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp)))).docs.map(d => d.data()).filter(a => a.status !== 'Recovered').reduce((s, c) => s + Number(c.amount), 0)
       const emi = (await getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active')))).docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
 
+      // Sunday Worked Pay Calculation
+      const sunP = sunW * (ts / end)
+
+      // Fines Calculation
+      const fSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp), where('date', '>=', sd), where('date', '<=', ed)))
+      const fineA = fSnap.docs.reduce((s, d) => s + Number(d.data().amount || 0), 0)
+
       // PHASE 3: Combined Expenses (Paid + Approved With Salary)
       const expSnap = await getDocs(query(
         collection(db, 'organisations', user.orgId, 'advances_expenses'), 
@@ -248,22 +260,19 @@ export default function SalarySlipTab() {
       const allExpenses = expSnap.docs.map(d => d.data())
 
       const reimb = allExpenses.filter(i => {
-        // 1. Immediate Payouts that were Paid in this month
         const isPaidThisMonth = i.paymentStatus === 'Paid' && i.paidAt?.toDate && 
                                i.paidAt.toDate().getFullYear() === y && 
                                (i.paidAt.toDate().getMonth() + 1) === m
-
-        // 2. 'With Salary' items that are Approved and match the salary month
         const isWithSalaryApproved = i.payoutMethod === 'With Salary' && 
                                     i.status === 'Approved' && 
                                     i.paymentStatus !== 'Paid' &&
                                     i.date?.startsWith(selectedMonth)
-
         return isPaidThisMonth || isWithSalaryApproved
       }).reduce((s, c) => s + Number(c.partialAmount || c.amount), 0)
 
-      const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), g = b + h + otP + reimb, de = p + it + adv + emi
-      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: fOT, otPay: otP, basic: b, hra: h, expenseReimbursement: reimb, grossEarnings: g, pf: p, it, advanceDeduction: adv, loanEMI: emi, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun, sundayWorkedCount: sunW, holidayWorkedCount: holW })    } catch (e) { setGenErr(e.message) } finally { setLoading(false) }
+      const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100)
+      const g = b + h + otP + reimb + sunP, de = p + it + adv + emi + fineA
+      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: fOT, otPay: otP, basic: b, hra: h, expenseReimbursement: reimb, sundayPay: sunP, grossEarnings: g, pf: p, it, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun, sundayWorkedCount: sunW, holidayWorkedCount: holW })    } catch (e) { setGenErr(e.message) } finally { setLoading(false) }
   }
 
   const handleFinalizeSlip = async () => {
@@ -272,7 +281,6 @@ export default function SalarySlipTab() {
       const sid = `${slipData.employee.id}_${slipData.month}`; 
       await setDoc(doc(db, 'organisations', user.orgId, 'salarySlips', sid), { ...slipData, finalizedAt: serverTimestamp(), finalizedBy: user.uid })
       
-      // PHASE 3: Auto-Settle 'With Salary' Expenses
       const expSnap = await getDocs(query(
         collection(db, 'organisations', user.orgId, 'advances_expenses'),
         where('employeeId', '==', slipData.employee.id),
@@ -326,7 +334,7 @@ export default function SalarySlipTab() {
             {slipData && (
               <div className="bg-white border border-gray-100 shadow-2xl rounded-[32px] overflow-hidden relative mx-auto flex-1 overflow-auto max-w-4xl w-full" style={{ fontFamily: "'Inter', sans-serif" }}>
                 <div className="flex justify-end gap-2 p-4 bg-slate-50 border-b border-slate-100 no-print sticky top-0 z-10">
-                  <PDFDownloadLink key={`${slipData.employee.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee.name.replace(/\s+/g, '_')}.pdf`} className="h-9 bg-white border border-slate-200 text-slate-700 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
+                  <PDFDownloadLink key={`${slipData.employee?.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee?.name?.replace(/\s+/g, '_')}.pdf`} className="h-9 bg-white border border-slate-200 text-slate-700 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
                     {({ loading }) => <><Download size={14} />{loading ? 'Processing...' : 'Export PDF'}</>}
                   </PDFDownloadLink>
                   <button onClick={handleFinalizeSlip} className="h-9 bg-indigo-600 text-white px-6 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all">
@@ -335,7 +343,6 @@ export default function SalarySlipTab() {
                 </div>
                 
                 <div className="p-12 bg-white relative">
-                  {/* Design Accent */}
                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full -mr-32 -mt-32 blur-3xl opacity-50"></div>
                   
                   <div className="border-b-2 border-slate-900 pb-8 mb-10 flex justify-between items-start relative z-10">
@@ -364,11 +371,11 @@ export default function SalarySlipTab() {
                         <div className="grid grid-cols-2 gap-8">
                           <div className="space-y-1">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Employee Name</span>
-                            <span className="font-bold text-slate-900 text-base uppercase">{slipData.employee.name}</span>
+                            <span className="font-bold text-slate-900 text-base uppercase">{slipData.employee?.name}</span>
                           </div>
                           <div className="space-y-1">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Identity Code</span>
-                            <span className="font-bold text-slate-900 text-base uppercase">{slipData.employee.empCode}</span>
+                            <span className="font-bold text-slate-900 text-base uppercase">{slipData.employee?.empCode}</span>
                           </div>
                         </div>
                       </div>
@@ -404,34 +411,32 @@ export default function SalarySlipTab() {
                         <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                           Allowances (HRA)<span className="font-bold text-slate-900">{formatINR(slipData.hra)}</span>
                         </div>
-                        {slipData.otPay > 0 && (
-                          <div className="flex justify-between p-4 rounded-2xl bg-indigo-50 text-indigo-700 font-bold text-[13px]">
-                            Overtime Pay<span className="font-black">{formatINR(slipData.otPay)}</span>
-                          </div>
-                        )}
-                        {slipData.expenseReimbursement > 0 && (
-                          <div className="flex justify-between p-4 rounded-2xl bg-emerald-50 text-emerald-700 font-bold text-[13px]">
-                            Reimbursements<span className="font-black">{formatINR(slipData.expenseReimbursement)}</span>
-                          </div>
-                        )}
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Expense<span className="font-bold text-slate-900">{dashIfZero(slipData.expenseReimbursement)}</span>
+                        </div>
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Sunday Worked<span className="font-bold text-slate-900">{dashIfZero(slipData.sundayPay)}</span>
+                        </div>
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          OT<span className="font-bold text-slate-900">{dashIfZero(slipData.otPay)}</span>
+                        </div>
                       </div>
                       <div className="p-2 space-y-1">
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Advance<span className="font-bold text-slate-900">{dashIfZero(slipData.advanceDeduction)}</span>
+                        </div>
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Loan<span className="font-bold text-slate-900">{dashIfZero(slipData.loanEMI)}</span>
+                        </div>
+                        <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
+                          Fine<span className="font-bold text-slate-900">{dashIfZero(slipData.fineAmount)}</span>
+                        </div>
                         <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                           Statutory Tax / IT<span className="font-bold text-slate-900">{formatINR(slipData.it)}</span>
                         </div>
                         <div className="flex justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                           Provident Fund (PF)<span className="font-bold text-slate-900">{formatINR(slipData.pf)}</span>
                         </div>
-                        {slipData.loanEMI > 0 && (
-                          <div className="flex justify-between p-4 rounded-2xl bg-rose-50 text-rose-700 font-bold text-[13px]">
-                            Loan Recovery<span className="font-black">{formatINR(slipData.loanEMI)}</span>
-                          </div>
-                        )}
-                        {slipData.advanceDeduction > 0 && (
-                          <div className="flex justify-between p-4 rounded-2xl bg-rose-50 text-rose-700 font-bold text-[13px]">
-                            Advance Adjustment<span className="font-black">{formatINR(slipData.advanceDeduction)}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                     

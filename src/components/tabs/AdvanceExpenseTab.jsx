@@ -1359,26 +1359,26 @@ export default function AdvanceExpenseTab() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
-                  <h3 className="text-base font-semibold text-gray-800">By Request Status</h3>
-                  <p className="text-sm text-gray-500 mt-1">
+              <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/30">
+                  <h3 className="text-base font-bold text-zinc-800">By Request Status</h3>
+                  <p className="text-[11px] font-medium text-zinc-400 mt-1">
                     Counts and amounts across all advance & expense entries
                   </p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[480px]">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                        <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Count</th>
-                        <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Total Amount</th>
+                      <tr className="bg-zinc-50/80 border-b border-zinc-200">
+                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Status</th>
+                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-200">Count</th>
+                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Total Amount</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-zinc-50">
                       {Object.keys(summary.byStatus).length === 0 ? (
                         <tr>
-                          <td colSpan={3} className="p-8 text-center text-gray-400 text-sm">
+                          <td colSpan={3} className="p-12 text-center text-zinc-300 font-bold uppercase italic tracking-widest opacity-40">
                             No entries yet
                           </td>
                         </tr>
@@ -1386,26 +1386,26 @@ export default function AdvanceExpenseTab() {
                         Object.entries(summary.byStatus)
                           .sort(([a], [b]) => a.localeCompare(b))
                           .map(([st, { count, sum }]) => (
-                            <tr key={st} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                              <td className="p-4">
+                            <tr key={st} className="h-12 border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
+                              <td className="px-4 border-r border-zinc-50">
                                 <span
-                                  className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                  className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight ${
                                     st === 'Approved'
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                                       : st === 'Rejected'
-                                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                        ? 'bg-rose-50 text-rose-700 border border-rose-100'
                                         : st === 'Hold'
-                                          ? 'bg-gray-100 text-gray-600 border border-gray-200'
+                                          ? 'bg-zinc-100 text-zinc-600 border border-zinc-200'
                                           : st === 'Partial'
-                                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                            : 'bg-amber-50 text-amber-700 border border-amber-100'
                                   }`}
                                 >
                                   {st}
                                 </span>
                               </td>
-                              <td className="p-4 text-right text-sm font-semibold text-gray-800">{count}</td>
-                              <td className="p-4 text-right text-sm font-bold text-gray-900">{formatINR(sum)}</td>
+                              <td className="px-4 text-right text-[13px] font-bold text-zinc-800 border-r border-zinc-50 tabular-nums">{count}</td>
+                              <td className="px-4 text-right text-[13px] font-black text-zinc-900 tabular-nums">{formatINR(sum)}</td>
                             </tr>
                           ))
                       )}
@@ -1427,9 +1427,9 @@ export default function AdvanceExpenseTab() {
             </div>
           ) : (
             <>
-              <p className="text-sm text-gray-600 max-w-2xl">
+              <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest max-w-2xl">
                 Requests that still need action in the approval chain. Use{' '}
-                <span className="font-semibold text-gray-800">Approvals</span> to resolve them.
+                <span className="font-black text-indigo-600">Approvals</span> to resolve them.
               </p>
 
               {[
@@ -1438,73 +1438,77 @@ export default function AdvanceExpenseTab() {
                   title: 'Awaiting HR',
                   subtitle: 'Not yet submitted to MD',
                   rows: escalation.needsHr,
-                  accent: 'border-l-4 border-l-primary-500 bg-primary-50/40'
+                  accent: 'border-l-4 border-l-indigo-500 bg-indigo-50/20'
                 },
                 {
                   key: 'needsMd',
                   title: 'Awaiting MD',
                   subtitle: 'HR approved — MD decision pending',
                   rows: escalation.needsMd,
-                  accent: 'border-l-4 border-l-amber-500 bg-amber-50/30'
+                  accent: 'border-l-4 border-l-amber-500 bg-amber-50/20'
                 },
                 {
                   key: 'onHold',
                   title: 'On Hold',
                   subtitle: 'Paused pending clarification',
                   rows: escalation.onHold,
-                  accent: 'border-l-4 border-l-gray-400 bg-gray-50/80'
+                  accent: 'border-l-4 border-l-zinc-400 bg-zinc-50/50'
                 }
               ].map((block) => (
                 <div
                   key={block.key}
-                  className={`rounded-xl border border-gray-200 shadow-card overflow-hidden ${block.accent}`}
+                  className={`rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden ${block.accent}`}
                 >
-                  <div className="px-5 py-4 border-b border-gray-200 bg-white/60 flex items-start justify-between gap-4">
+                  <div className="px-5 py-4 border-b border-zinc-100 bg-white/60 flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={22} />
+                      <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
                       <div>
-                        <h3 className="text-base font-semibold text-gray-900">{block.title}</h3>
-                        <p className="text-sm text-gray-500 font-normal mt-1">{block.subtitle}</p>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-800">{block.title}</h3>
+                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-tight mt-1">{block.subtitle}</p>
                       </div>
                     </div>
-                    <span className="text-xs font-semibold text-gray-600 bg-white px-3 py-1.5 rounded-full border border-gray-200">
+                    <span className="text-[10px] font-black text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-full border border-zinc-200">
                       {block.rows.length}
                     </span>
                   </div>
                   <div className="bg-white overflow-x-auto">
                     {block.rows.length === 0 ? (
-                      <p className="text-center text-gray-400 text-sm py-10">None right now</p>
+                      <p className="text-center text-zinc-300 font-bold uppercase italic tracking-widest py-12 opacity-40">None right now</p>
                     ) : (
                       <table className="w-full text-left border-collapse min-w-[640px]">
                         <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
-                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Employee</th>
-                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Amount</th>
-                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">HR</th>
-                            <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">MD</th>
+                          <tr className="bg-zinc-50/80 border-b border-zinc-200 h-10">
+                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Date</th>
+                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Type</th>
+                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Employee</th>
+                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-100">Amount</th>
+                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">HR</th>
+                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">MD</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-zinc-50">
                           {block.rows.map((row) => (
-                            <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                              <td className="p-4 text-sm text-gray-600">{row.date || '—'}</td>
-                              <td className="p-4">
+                            <tr key={row.id} className="h-12 hover:bg-zinc-50/50 transition-colors">
+                              <td className="px-4 text-[12px] font-bold text-zinc-600 border-r border-zinc-50">{row.date || '—'}</td>
+                              <td className="px-4 border-r border-zinc-50">
                                 <span
-                                  className={`text-xs font-medium px-2.5 py-1 rounded-md ${
+                                  className={`text-[9px] font-black uppercase tracking-tight px-2 py-0.5 rounded-md ${
                                     row.type === 'Advance' 
                                       ? 'bg-amber-100 text-amber-800' 
-                                      : 'bg-blue-100 text-blue-800'
+                                      : 'bg-indigo-100 text-indigo-800'
                                   }`}
                                 >
                                   {row.type || '—'}
                                 </span>
                               </td>
-                              <td className="p-4 text-sm font-semibold text-gray-800">{row.employeeName || '—'}</td>
-                              <td className="p-4 text-right text-sm font-bold text-gray-900">{formatINR(effectiveAmount(row))}</td>
-                              <td className="p-4 text-sm font-medium text-gray-600">{row.hrApproval || 'Pending'}</td>
-                              <td className="p-4 text-sm font-medium text-gray-600">{row.mdApproval || 'Pending'}</td>
+                              <td className="px-4 text-[13px] font-bold text-zinc-800 border-r border-zinc-50">{row.employeeName || '—'}</td>
+                              <td className="px-4 text-right text-[13px] font-black text-zinc-900 border-r border-zinc-50 tabular-nums">{formatINR(effectiveAmount(row))}</td>
+                              <td className="px-4 text-[10px] font-black uppercase border-r border-zinc-50">
+                                <span className={approvalStatusTextClass(row.hrApproval, 'hr')}>{row.hrApproval || 'Pending'}</span>
+                              </td>
+                              <td className="px-4 text-[10px] font-black uppercase">
+                                <span className={approvalStatusTextClass(row.mdApproval, 'md')}>{row.mdApproval || 'Pending'}</span>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
