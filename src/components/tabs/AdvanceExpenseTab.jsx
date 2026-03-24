@@ -1,145 +1,102 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { useEmployees } from '../../hooks/useEmployees'
+import { useEmployees } from '../../employeesContext'
 import { db } from '../../lib/firebase'
-import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw } from 'lucide-react'
+import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { formatINR } from '../../lib/salaryUtils'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export default function AdvanceExpenseTab() {
   const { user } = useAuth()
-  const { employees } = useEmployees(user?.orgId)
-  const [loading, setLoading] = useState(false)
-  const [entries, setEntries] = useState([])
-  const [activeModule, setActiveModule] = useState('Add Expense')
+  const { employees } = useEmployees()
+  const queryClient = useQueryClient()
+  const [activeModule, setActiveModule] = useState('Reports')
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
   
   // Reports Filter States
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM
   const [reportFilterName, setReportFilterName] = useState('')
   const [reportFilterCategory, setReportFilterCategory] = useState('')
+  const [reportFilterTxn, setReportFilterTxn] = useState('')
+  const [reportFilterType, setReportFilterType] = useState('All') // All | Advance | Expense
+  const [reportFilterPayout, setReportFilterPayout] = useState('All') // All | Immediate | With Salary
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
+  
+  // Recently Deleted State
+  const [showDeletedModal, setShowDeletedModal] = useState(false)
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
   const canSelectAll = isAdmin || isAccountant
 
-  const getMyEmpId = () => {
-    const me = employees.find(e => e.email === user.email || e.id === user.uid)
-    return me ? me.id : ''
-  }
-
-  const [addRows, setAddRows] = useState([
-    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '' }
-  ])
-
-  useEffect(() => {
-    if (!canSelectAll && employees.length > 0 && addRows.length === 1 && !addRows[0].employeeId) {
-      const myId = getMyEmpId()
-      if (myId) {
-        setAddRows([{ ...addRows[0], employeeId: myId }])
-      }
-    }
-  }, [employees, canSelectAll])
-
-  const [submitting, setSubmitting] = useState(false)
-  
-  // For editing
-  const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({})
-
-  const modules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Reports']
-  const defaultCategories = ['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Others']
-
-  const fetchEntries = async () => {
-    if (!user?.orgId) return
-    setLoading(true)
-    try {
+  // TanStack Query for fetching entries
+  const { data: entries = [], isLoading: loading, refetch: fetchEntries } = useQuery({
+    queryKey: ['advances_expenses', user?.orgId],
+    queryFn: async () => {
+      if (!user?.orgId) return []
       const q = query(
         collection(db, 'organisations', user.orgId, 'advances_expenses'),
         orderBy('date', 'desc')
       )
       const snap = await getDocs(q)
-      setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    },
+    enabled: !!user?.orgId
+  })
 
-  const fetchCategories = async () => {
-    if (!user?.orgId) return
-    try {
-      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
-      if (orgSnap.exists()) {
-        const orgData = orgSnap.data()
-        if (orgData.advanceCategories && orgData.advanceCategories.length > 0) {
-          const merged = [...new Set([...orgData.advanceCategories, ...defaultCategories])]
-          setCategories(merged)
-        } else {
-          setCategories(defaultCategories)
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching categories:', err)
-      setCategories(defaultCategories)
-    }
-  }
+  // TanStack Query for fetching deleted items
+  const { data: deletedEntries = [], isLoading: loadingDeleted } = useQuery({
+    queryKey: ['deleted_advances_expenses', user?.orgId],
+    queryFn: async () => {
+      if (!user?.orgId) return []
+      const q = query(
+        collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'),
+        orderBy('deletedAt', 'desc')
+      )
+      const snap = await getDocs(q)
+      const now = Date.now()
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000
+      
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(item => {
+          const deletedAt = item.deletedAt?.toMillis ? item.deletedAt.toMillis() : 0
+          return (now - deletedAt) < thirtyDays
+        })
+    },
+    enabled: !!user?.orgId && showDeletedModal
+  })
 
-  useEffect(() => { fetchEntries() }, [user?.orgId])
-  useEffect(() => { fetchCategories() }, [user?.orgId])
-
-  useEffect(() => {
-    if (user?.orgId && (activeModule === 'Summary' || activeModule === 'Escalation')) {
-      fetchEntries()
-    }
-  }, [activeModule, user?.orgId])
-
-  const handleAddRow = () => {
-    const myId = !canSelectAll ? getMyEmpId() : ''
-    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '' }])
-  }
-
-  const handleSelfExpense = () => {
-    const currentUserEmp = employees.find(e => e.email === user.email || e.id === user.uid)
-    const empId = currentUserEmp ? currentUserEmp.id : (user.uid || '')
-    setAddRows(addRows.map(row => ({ ...row, employeeId: empId })))
-  }
-
-  const handleRowChange = (id, field, value) => {
-    setAddRows(addRows.map(row => row.id === id ? { ...row, [field]: value } : row))
-  }
-
-  const handleSubmitAll = async () => {
-    const validRows = addRows.filter(r => r.employeeId && r.amount && r.category)
-    if (validRows.length === 0) return alert('Please fill in required fields (Employee, Category, Amount) for at least one row.')
-    
-    setSubmitting(true)
-    try {
-      for (const row of validRows) {
+  // Mutations
+  const addMutation = useMutation({
+    mutationFn: async (newEntries) => {
+      const generatedIds = []
+      for (const row of newEntries) {
         const emp = employees.find(e => e.id === row.employeeId)
-        
-        // Determine type based on active module OR category fallback
         let type = 'Expense'
-        if (activeModule === 'Add Advance') {
-          type = 'Advance'
-        } else if (activeModule === 'Add Expense') {
-          type = 'Expense'
-        } else {
-          // Fallback if submitted from another module context
-          type = row.category.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
-        }
-        
+        if (activeModule === 'Add Advance') type = 'Advance'
+        else if (activeModule === 'Add Expense') type = 'Expense'
+        else type = row.category.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
+
+        // Generate Professional Transaction No: TYPE-YYMMDD-RAND
+        const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '')
+        const randPart = Math.random().toString(36).substring(2, 6).toUpperCase()
+        const txnNo = `${type.slice(0, 3).toUpperCase()}-${datePart}-${randPart}`
+        generatedIds.push(txnNo)
+
         await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
+          transactionNo: txnNo,
           employeeId: row.employeeId,
           employeeName: emp?.name || 'Unknown',
           type: type,
           category: row.category,
+          requestType: row.requestType || 'Reimbursement',
+          payoutMethod: row.payoutMethod || 'Immediate',
           amount: Number(row.amount),
           date: row.date,
           reason: row.reason,
@@ -153,10 +110,87 @@ export default function AdvanceExpenseTab() {
           createdAt: serverTimestamp()
         })
       }
-      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '' }])
-      await fetchEntries()
-      // Enter into report split section
-      setActiveModule('Reports')
+      return generatedIds
+    },
+    onSuccess: (txnNos) => {
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate' }])
+      const typeLabel = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
+      const msg = `${typeLabel} submitted for approval.\n\nRef Nos: ${txnNos.join(', ')}`
+      alert(msg)
+    }
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data, revokeAdvFlag }) => {
+      // Revoke logic for paid advances AND paid immediate expenses (if requested)
+      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', id)
+      const itemSnap = await getDoc(itemRef)
+      const itemData = itemSnap.data()
+
+      if (revokeAdvFlag && itemData?.paymentStatus === 'Paid' && 
+         (itemData?.type === 'Advance' || (itemData?.type === 'Expense' && itemData?.payoutMethod !== 'With Salary'))) {
+        const advQ = query(
+          collection(db, 'organisations', user.orgId, 'advances'),
+          where('linkedRequestId', '==', id)
+        )
+        const advSnap = await getDocs(advQ)
+        for (const d of advSnap.docs) {
+          await deleteDoc(doc(db, 'organisations', user.orgId, 'advances', d.id))
+        }
+      }
+
+      // Reset approvals and status to Pending
+      const updatedData = {
+        ...data,
+        status: 'Pending',
+        hrApproval: 'Pending',
+        mdApproval: 'Pending',
+        paymentStatus: 'Unpaid',
+        paidAt: null,
+        paidBy: null,
+        approved_at: null,
+        approved_by: null,
+        updatedAt: serverTimestamp()
+      }
+      delete updatedData.id
+      await updateDoc(itemRef, updatedData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      setEditingId(null)
+    }
+  })
+
+  const handleSubmitAll = async () => {
+    const validRows = addRows.filter(r => r.employeeId && r.amount && r.category)
+    if (validRows.length === 0) return alert('Please fill in required fields (Employee, Category, Amount) for at least one row.')
+    
+    // Pro Duplicate Detection
+    const duplicates = []
+    validRows.forEach(row => {
+      const isDuplicate = entries.find(existing => 
+        existing.employeeId === row.employeeId &&
+        Number(existing.amount) === Number(row.amount) &&
+        existing.date === row.date &&
+        existing.category.toLowerCase().trim() === row.category.toLowerCase().trim() &&
+        existing.status !== 'Rejected'
+      )
+      
+      if (isDuplicate) {
+        const emp = employees.find(e => e.id === row.employeeId)
+        duplicates.push(`${emp?.name || 'Employee'} - ₹${row.amount} on ${row.date} (${row.category})`)
+      }
+    })
+
+    if (duplicates.length > 0) {
+      const confirmMsg = `POTENTIAL DUPLICATES DETECTED:\n\n${duplicates.join('\n')}\n\nThe above transactions already exist in the system. Are you sure you want to submit them again?`
+      if (!window.confirm(confirmMsg)) return
+    }
+
+    setSubmitting(true)
+    try {
+      await addMutation.mutateAsync(validRows)
     } catch (err) {
       console.error('Submission error:', err)
       alert(`Failed to save: ${err.message}`)
@@ -165,34 +199,79 @@ export default function AdvanceExpenseTab() {
     }
   }
 
-  const handleEdit = (entry) => {
-    setEditingId(entry.id)
-    setEditForm(entry)
-  }
+  const deleteMutation = useMutation({
+    mutationFn: async ({ id, keepAdvanceRecord }) => {
+      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', id)
+      const itemSnap = await getDoc(itemRef)
+      const itemData = itemSnap.data()
 
-  const handleUpdate = async () => {
-    try {
-      // Maintain existing type if possible, otherwise detect from category
-      let type = editForm.type
-      if (editForm.category.toLowerCase().includes('advance')) {
-        type = 'Advance'
-      } else if (editForm.category.toLowerCase().includes('expense')) {
-        type = 'Expense'
-      } else if (!type) {
-        type = 'Expense'
+      if (!itemData) return
+
+      // Copy to deleted_advances_expenses
+      await setDoc(doc(db, 'organisations', user.orgId, 'deleted_advances_expenses', id), {
+        ...itemData,
+        deletedAt: serverTimestamp(),
+        deletedBy: user.email || user.name
+      })
+
+      // Revoke logic for paid advances AND paid immediate expenses (unless user chose to keep it)
+      if (!keepAdvanceRecord && itemData?.paymentStatus === 'Paid' && 
+         (itemData?.type === 'Advance' || (itemData?.type === 'Expense' && itemData?.payoutMethod !== 'With Salary'))) {
+        const advQ = query(
+          collection(db, 'organisations', user.orgId, 'advances'),
+          where('linkedRequestId', '==', id)
+        )
+        const advSnap = await getDocs(advQ)
+        for (const d of advSnap.docs) {
+          await deleteDoc(doc(db, 'organisations', user.orgId, 'advances', d.id))
+        }
       }
       
-      const emp = employees.find(e => e.id === editForm.employeeId) || {}
-      await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', editingId), {
-        ...editForm,
-        type: type,
-        employeeName: emp.name || editForm.employeeName,
-        amount: Number(editForm.amount)
-      })
-      setEditingId(null)
-      fetchEntries()
+      await deleteDoc(itemRef)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      queryClient.invalidateQueries(['deleted_advances_expenses', user?.orgId])
+    }
+  })
+
+  // Add state for delete confirmation modal
+  const [deletingItem, setDeletingItem] = useState(null)
+
+  const confirmDelete = (item) => {
+    if (item.paymentStatus === 'Paid' && (item.type === 'Advance' || item.type === 'Expense')) {
+      // It's paid and has a mirrored advance, show custom prompt
+      setDeletingItem(item)
+    } else {
+      // Standard delete
+      if (window.confirm('Are you sure you want to delete this transaction?')) {
+        executeDelete(item.id, false)
+      }
+    }
+  }
+
+  const executeDelete = async (id, keepAdvanceRecord) => {
+    try {
+      await deleteMutation.mutateAsync({ id, keepAdvanceRecord })
+      alert('Transaction moved to "Recently Deleted" (available for 30 days)')
+      setDeletingItem(null)
     } catch (err) {
-      alert('Failed to update')
+      alert('Failed to delete')
+    }
+  }
+
+  const handleDelete = (id) => {
+    const item = entries.find(e => e.id === id)
+    if (item) confirmDelete(item)
+  }
+
+  const handleRestore = async (id) => {
+    if (!window.confirm('Are you sure you want to revoke this deletion? It will return to reports and re-link with employee data if it was paid.')) return
+    try {
+      await restoreMutation.mutateAsync(id)
+      alert('Transaction restored successfully')
+    } catch (err) {
+      alert('Failed to restore')
     }
   }
 
@@ -232,6 +311,14 @@ export default function AdvanceExpenseTab() {
         return Number(e.partialAmount)
       return Number(e.amount || 0)
     }
+
+    // PHASE 3: Accrued Salary Reimbursements (Approved but Unpaid 'With Salary' items)
+    const accrued = entries.filter(
+      (e) => e.payoutMethod === 'With Salary' && e.status === 'Approved' && e.paymentStatus !== 'Paid'
+    )
+    const accruedSum = accrued.reduce((s, e) => s + eff(e), 0)
+    const accruedCount = accrued.length
+
     return {
       advSum,
       expSum,
@@ -241,7 +328,10 @@ export default function AdvanceExpenseTab() {
       awaitingPaymentSum: awaitingPay.reduce((s, e) => s + eff(e), 0),
       awaitingPaymentCount: awaitingPay.length,
       paidSum: paid.reduce((s, e) => s + eff(e), 0),
-      paidCount: paid.length
+      paidCount: paid.length,
+      accruedSum,
+      accruedCount
+    }
     }
   }, [entries])
 
@@ -268,20 +358,18 @@ export default function AdvanceExpenseTab() {
   }
 
   const applyReportFilters = () => {
-    setLoading(true)
-    try {
-      const filtered = entries.filter(e => {
-        // e.date is YYYY-MM-DD, reportMonth is YYYY-MM
-        const matchesMonth = e.date && e.date.startsWith(reportMonth)
-        const matchesName = !reportFilterName || (e.employeeName && e.employeeName.toLowerCase().includes(reportFilterName.toLowerCase()))
-        const matchesCategory = !reportFilterCategory || (e.category && e.category.toLowerCase().includes(reportFilterCategory.toLowerCase()))
-        return matchesMonth && matchesName && matchesCategory
-      })
-      setFilteredEntries(filtered)
-      setReportApplied(true)
-    } finally {
-      setLoading(false)
-    }
+    const filtered = entries.filter(e => {
+      const matchesMonth = e.date && e.date.startsWith(reportMonth)
+      const matchesName = !reportFilterName || (e.employeeName && e.employeeName.toLowerCase().includes(reportFilterName.toLowerCase()))
+      const matchesCategory = !reportFilterCategory || (e.category && e.category.toLowerCase().includes(reportFilterCategory.toLowerCase()))
+      const matchesTxn = !reportFilterTxn || (e.transactionNo && e.transactionNo.toLowerCase().includes(reportFilterTxn.toLowerCase()))
+      const matchesType = reportFilterType === 'All' || e.type === reportFilterType
+      const matchesPayout = reportFilterPayout === 'All' || e.payoutMethod === reportFilterPayout
+      
+      return matchesMonth && matchesName && matchesCategory && matchesTxn && matchesType && matchesPayout
+    })
+    setFilteredEntries(filtered)
+    setReportApplied(true)
   }
 
   const advForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Advance'), [filteredEntries])
@@ -295,34 +383,38 @@ export default function AdvanceExpenseTab() {
       
       doc.setFontSize(16)
       doc.text(`Advances & Expenses Report - ${monthName} ${year}`, 14, 15)
+      if (reportApplied && (reportFilterName || reportFilterCategory || reportFilterTxn)) {
+        doc.setFontSize(10)
+        doc.text(`Filters: ${[reportFilterName, reportFilterCategory, reportFilterTxn].filter(Boolean).join(', ')}`, 14, 22)
+      }
       
       const dataToUseAdv = reportApplied ? advForReport : entries.filter(e => e.type === 'Advance' && e.date?.startsWith(reportMonth))
       const dataToUseExp = reportApplied ? expForReport : entries.filter(e => e.type === 'Expense' && e.date?.startsWith(reportMonth))
 
       if (dataToUseAdv.length > 0) {
         doc.setFontSize(12)
-        doc.text('Advances', 14, 25)
+        doc.text('Advances', 14, 30)
         doc.autoTable({
-          startY: 30,
-          head: [['Date', 'Employee', 'Category', 'Amount', 'Status']],
-          body: dataToUseAdv.map(a => [a.date, a.employeeName, a.category, formatINR(a.amount), a.status]),
+          startY: 35,
+          head: [['Ref No', 'Date', 'Employee', 'Category', 'Amount', 'Status']],
+          body: dataToUseAdv.map(a => [a.transactionNo || '—', a.date, a.employeeName, a.category, formatINR(a.amount), a.status]),
           theme: 'grid',
-          styles: { fontSize: 8 },
+          styles: { fontSize: 7 },
           headStyles: { fillColor: [245, 158, 11] } // Amber-500
         })
       }
       
-      const finalY = (doc.lastAutoTable?.finalY || 25) + 10
+      const finalY = (doc.lastAutoTable?.finalY || 30) + 10
       
       if (dataToUseExp.length > 0) {
         doc.setFontSize(12)
         doc.text('Expenses', 14, finalY)
         doc.autoTable({
           startY: finalY + 5,
-          head: [['Date', 'Employee', 'Category', 'Amount', 'Status']],
-          body: dataToUseExp.map(e => [e.date, e.employeeName, e.category, formatINR(e.amount), e.status]),
+          head: [['Ref No', 'Date', 'Employee', 'Category', 'Amount', 'Status']],
+          body: dataToUseExp.map(e => [e.transactionNo || '—', e.date, e.employeeName, e.category, formatINR(e.amount), e.status]),
           theme: 'grid',
-          styles: { fontSize: 8 },
+          styles: { fontSize: 7 },
           headStyles: { fillColor: [37, 99, 235] } // Blue-600
         })
       }
@@ -344,8 +436,177 @@ export default function AdvanceExpenseTab() {
         {categories.map(c => <option key={c} value={c} />)}
       </datalist>
 
-      {/* IMPROVED: Sub-modules Navigation */}
-      <div className="flex border-b border-gray-200 overflow-x-auto">
+      {/* Submit Bill Modal */}
+      {finalizingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 mx-4 border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Submit Final Bill</h2>
+                <p className="text-xs text-gray-400 mt-1">Confirm the final amount spent</p>
+              </div>
+              <button onClick={() => setFinalizingId(null)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Actual Bill Amount (₹)</label>
+                <input 
+                  type="number" 
+                  autoFocus
+                  value={finalizeAmount} 
+                  onChange={e => setFinalizeAmount(e.target.value)} 
+                  className="w-full h-12 border border-gray-200 rounded-xl px-4 text-lg font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" 
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg flex gap-3">
+                <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                <p className="text-[11px] font-medium text-amber-800 leading-relaxed">
+                  Submitting this bill will convert the request to a Reimbursement and notify the accountant for payment.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setFinalizingId(null)} className="flex-1 h-11 bg-gray-100 text-gray-600 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-gray-200">Cancel</button>
+              <button 
+                onClick={() => finalizeMutation.mutate({ id: finalizingId, finalAmount: finalizeAmount })} 
+                disabled={finalizeMutation.isPending || !finalizeAmount || Number(finalizeAmount) <= 0} 
+                className="flex-1 h-11 bg-emerald-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 disabled:opacity-50"
+              >
+                {finalizeMutation.isPending ? 'Processing...' : 'Submit & Finalize'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 mx-4 border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800">Edit Transaction</h2>
+              <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Date</label>
+                <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Employee</label>
+                <select value={editForm.employeeId} onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none">
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category</label>
+                <input list="categories-list" value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Amount</label>
+                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Type</label>
+                <select value={editForm.requestType} onChange={e => setEditForm(f => ({ ...f, requestType: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none">
+                  <option value="Reimbursement">Reimbursement</option>
+                  <option value="Pre-Approval">Pre-Approval</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Payout</label>
+                <select value={editForm.payoutMethod} onChange={e => setEditForm(f => ({ ...f, payoutMethod: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none">
+                  <option value="Immediate">Immediate</option>
+                  <option value="With Salary">With Salary</option>
+                </select>
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Remarks</label>
+                <input type="text" value={editForm.reason} onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setEditingId(null)} className="flex-1 h-11 bg-gray-100 text-gray-600 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-gray-200">Cancel</button>
+              <button onClick={handleUpdate} disabled={updateMutation.isPending} className="flex-1 h-11 bg-primary-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200">
+                {updateMutation.isPending ? 'Updating...' : 'Save & Revoke Approval'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recently Deleted Modal */}
+      {showDeletedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-8 mx-4 border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
+                  <History size={20}/>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">Recently Deleted</h2>
+                  <p className="text-xs font-medium text-gray-400">Records available for 30 days since deletion</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDeletedModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+            </div>
+
+            <div className="flex-1 overflow-auto border border-gray-100 rounded-xl">
+              {loadingDeleted ? (
+                <div className="py-20 flex justify-center"><Spinner /></div>
+              ) : deletedEntries.length === 0 ? (
+                <div className="py-20 text-center space-y-3">
+                   <p className="text-sm font-bold text-gray-300 uppercase tracking-widest italic">No recently deleted items</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Trans. Date</th>
+                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
+                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                      <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {deletedEntries.map(item => (
+                      <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="p-4 text-sm font-medium text-gray-600">{item.date}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                            {item.type}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm font-bold text-gray-800">{item.employeeName}</td>
+                        <td className="p-4 text-sm font-black text-gray-900 text-right">{formatINR(item.amount)}</td>
+                        <td className="p-4 text-right">
+                          <button 
+                            onClick={() => handleRestore(item.id)}
+                            disabled={restoreMutation.isPending}
+                            className="h-8 px-4 bg-primary-50 text-primary-600 font-black rounded-lg text-[10px] uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all flex items-center gap-2 ml-auto"
+                          >
+                            <RotateCcw size={14} /> Revoke
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-modules Navigation */}
+      <div className="flex border-b border-gray-200 overflow-x-auto relative">
         {modules.map(mod => {
           const isActive = activeModule === mod
           let colorClass = 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -360,13 +621,22 @@ export default function AdvanceExpenseTab() {
             <button
               key={mod}
               onClick={() => setActiveModule(mod)}
-              /* IMPROVED: text-sm (14px), font-semibold, removed uppercase and tracking-widest */
               className={`whitespace-nowrap px-6 py-3 text-sm font-semibold transition-all ${colorClass}`}
             >
               {mod}
             </button>
           )
         })}
+
+        {/* Recently Deleted Button - Positioned absolute right */}
+        {activeModule === 'Reports' && (
+          <button 
+            onClick={() => setShowDeletedModal(true)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 h-8 px-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center gap-2 mr-2"
+          >
+            <History size={14} /> Recently Deleted
+          </button>
+        )}
       </div>
 
       {/* Add Expense / Add Advance Module */}
@@ -376,19 +646,16 @@ export default function AdvanceExpenseTab() {
             ? 'bg-amber-50/50 border-amber-200' 
             : 'bg-blue-50/50 border-blue-200'
         }`}>
-          {/* IMPROVED: Header & Controls */}
           <div className={`flex justify-between items-center p-5 border-b transition-colors ${
             activeModule === 'Add Advance' 
               ? 'border-amber-100 bg-amber-100/50' 
               : 'border-blue-100 bg-blue-100/50'
           }`}>
-            {/* IMPROVED: text-xl (20px), font-bold, removed tracking-tight */}
             <h2 className="text-xl font-bold text-gray-800">
               {activeModule === 'Add Advance' ? 'Add Advance' : 'Add Expenses'}
             </h2>
             
             <div className="flex items-center gap-3">
-              {/* IMPROVED: h-10 (standard), text-sm, font-medium, removed uppercase and tracking */}
               <button 
                 onClick={handleSelfExpense} 
                 className="h-10 px-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg text-sm shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all"
@@ -417,20 +684,24 @@ export default function AdvanceExpenseTab() {
             </div>
           </div>
 
-          {/* IMPROVED: Table with better spacing */}
           <div className="overflow-x-auto p-5">
             <table className="w-full text-left border-collapse border border-gray-200 min-w-[900px]">
               <thead>
                 <tr className={activeModule === 'Add Advance' ? 'bg-amber-100 border-b border-amber-200' : 'bg-blue-100 border-b border-blue-200'}>
-                  {/* IMPROVED: text-xs (12px), font-semibold, tracking-wider (more reasonable) */}
                   <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
                     Request Date
                   </th>
                   <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[200px]">
                     Employee
                   </th>
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[140px]">
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
                     Category
+                  </th>
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
+                    Type
+                  </th>
+                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
+                    Payout
                   </th>
                   <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[100px]">
                     Amount
@@ -452,7 +723,6 @@ export default function AdvanceExpenseTab() {
                       : 'hover:bg-blue-50'
                   } ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                     <td className="p-2 border-r border-gray-100">
-                      {/* IMPROVED: h-10 (standard), text-sm, rounded-lg */}
                       <input 
                         type="date" 
                         value={row.date} 
@@ -485,6 +755,26 @@ export default function AdvanceExpenseTab() {
                         className="no-arrow w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
                         placeholder="Type category..." 
                       />
+                    </td>
+                    <td className="p-2 border-r border-gray-100">
+                      <select 
+                        value={row.requestType} 
+                        onChange={e => handleRowChange(row.id, 'requestType', e.target.value)} 
+                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors"
+                      >
+                        <option value="Reimbursement">Reimbursement</option>
+                        <option value="Pre-Approval">Pre-Approval</option>
+                      </select>
+                    </td>
+                    <td className="p-2 border-r border-gray-100">
+                      <select 
+                        value={row.payoutMethod} 
+                        onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
+                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors"
+                      >
+                        <option value="Immediate">Immediate</option>
+                        <option value="With Salary">With Salary</option>
+                      </select>
                     </td>
                     <td className="p-2 border-r border-gray-100">
                       <input 
@@ -532,66 +822,80 @@ export default function AdvanceExpenseTab() {
       {/* Reports Module */}
       {activeModule === 'Reports' && (
         <div className="space-y-6">
-          {/* IMPROVED: Enhanced Filter Bar */}
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-card">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-              {/* Month Navigation */}
-              <div className="space-y-2">
-                {/* IMPROVED: text-sm, font-medium, removed excessive uppercase and tracking */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+              <div className="space-y-2 lg:col-span-1">
                 <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Calendar size={14} /> Select Month
+                  <Calendar size={14} /> Month
                 </label>
                 <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-                  <button 
-                    onClick={() => handleMonthChange(-1)} 
-                    className="p-2 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <div className="flex-1 text-center font-semibold text-gray-700 text-sm">
+                  <button onClick={() => handleMonthChange(-1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
+                  <div className="flex-1 text-center font-bold text-gray-700 text-[11px]">
                     {(() => {
                       const [ry, rm] = reportMonth.split('-').map(Number)
                       return new Date(ry, rm - 1).toLocaleString('default', { month: 'short', year: 'numeric' })
                     })()}
                   </div>
-                  <button 
-                    onClick={() => handleMonthChange(1)} 
-                    className="p-2 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
+                  <button onClick={() => handleMonthChange(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
                 </div>
               </div>
 
-              {/* Name Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Search size={14} /> Search Name
+                  <Search size={14} /> Ref No
                 </label>
                 <input 
                   type="text" 
-                  placeholder="Employee name..." 
-                  value={reportFilterName}
-                  onChange={e => setReportFilterName(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-gray-50/50 transition-colors"
+                  placeholder="TXN-..." 
+                  value={reportFilterTxn}
+                  onChange={e => setReportFilterTxn(e.target.value)}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50"
                 />
               </div>
 
-              {/* Category Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Filter size={14} /> Category
+                  <Search size={14} /> Employee
                 </label>
                 <input 
-                  list="categories-list"
-                  placeholder="All categories..." 
-                  value={reportFilterCategory}
-                  onChange={e => setReportFilterCategory(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-gray-50/50 transition-colors"
+                  type="text" 
+                  placeholder="Name..." 
+                  value={reportFilterName}
+                  onChange={e => setReportFilterName(e.target.value)}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50"
                 />
               </div>
 
-              {/* IMPROVED: Actions */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <Filter size={14} /> Type
+                </label>
+                <select 
+                  value={reportFilterType}
+                  onChange={e => setReportFilterType(e.target.value)}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50"
+                >
+                  <option value="All">All Types</option>
+                  <option value="Advance">Advances</option>
+                  <option value="Expense">Expenses</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                  <Filter size={14} /> Payout
+                </label>
+                <select 
+                  value={reportFilterPayout}
+                  onChange={e => setReportFilterPayout(e.target.value)}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50"
+                >
+                  <option value="All">All Payouts</option>
+                  <option value="Immediate">Immediate</option>
+                  <option value="With Salary">With Salary</option>
+                </select>
+              </div>
+
               <div className="flex gap-2">
                 <button 
                   onClick={applyReportFilters}
@@ -603,7 +907,7 @@ export default function AdvanceExpenseTab() {
                 <button 
                   onClick={exportPDF}
                   disabled={!reportApplied || filteredEntries.length === 0}
-                  className="h-10 px-4 bg-emerald-600 text-white font-medium rounded-lg text-sm shadow-elevated hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="h-10 px-4 bg-emerald-600 text-white font-medium rounded-lg text-sm shadow-elevated hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50 flex items-center justify-center"
                   title="Export to PDF"
                 >
                   <FileDown size={18} />
@@ -617,7 +921,6 @@ export default function AdvanceExpenseTab() {
             <div className="bg-amber-50/50 rounded-xl border border-amber-200 overflow-hidden shadow-card">
               <div className="p-4 bg-amber-100/50 border-b border-amber-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {/* IMPROVED: text-sm, font-semibold */}
                   <h3 className="font-semibold text-amber-900 text-sm">Advances</h3>
                   {reportApplied && (
                     <span className="text-xs font-medium text-amber-600 bg-white px-2 py-1 rounded border border-amber-100">
@@ -633,10 +936,10 @@ export default function AdvanceExpenseTab() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-amber-50 border-b border-amber-100">
-                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Transaction Info</th>
                       <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
                       <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-                      <th className="p-3 w-[70px]"></th>
+                      <th className="p-3 w-[80px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -650,20 +953,51 @@ export default function AdvanceExpenseTab() {
                       <tr key={a.id} className="border-b border-amber-100 hover:bg-amber-50 transition-colors group">
                         <td className="p-3">
                           <div className="flex flex-col">
-                            {/* IMPROVED: text-sm, font-normal */}
-                            <span className="text-sm text-gray-500">{a.date}</span>
-                            <span className="text-xs font-semibold text-gray-800">{a.employeeName}</span>
+                            <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter mb-0.5">{a.transactionNo || '—'}</span>
+                            <span className="text-xs text-gray-500">{a.date}</span>
+                            <span className="text-xs font-bold text-gray-800">{a.employeeName}</span>
                           </div>
                         </td>
-                        <td className="p-3 text-sm font-medium text-gray-700">{a.category}</td>
+                        <td className="p-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[13px] font-bold text-gray-800">{a.type}</span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className={`w-fit px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${a.requestType === 'Pre-Approval' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
+                                {a.requestType || 'Reimbursement'}
+                              </span>
+                              <span className="text-[9px] font-medium text-gray-400 ml-0.5 lowercase italic">
+                                ({a.payoutMethod === 'With Salary' ? 'with salary' : (a.paymentStatus === 'Paid' ? 'reimbursed completed' : 'immediate')})
+                              </span>
+                            </div>
+                          </div>
+                        </td>
                         <td className="p-3 text-sm font-semibold text-gray-900">{formatINR(a.amount)}</td>
-                        <td className="p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => handleEdit(a)} 
-                            className="text-gray-400 hover:text-amber-600 p-1 transition-colors"
-                          >
-                            <Edit2 size={16} />
-                          </button>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {a.requestType === 'Pre-Approval' && a.mdApproval === 'Approved' && (
+                              <button 
+                                onClick={() => { setFinalizingId(a.id); setFinalizeAmount(a.amount); }} 
+                                className="h-7 px-3 bg-emerald-50 text-emerald-600 font-bold rounded-lg text-[9px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
+                                title="Submit Actual Bill"
+                              >
+                                Submit Bill
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => handleEdit(a)} 
+                              className="text-amber-600 hover:bg-amber-100 p-1.5 rounded-lg transition-colors"
+                              title="Edit & Revoke"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(a.id)} 
+                              className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                              title="Delete Transaction"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -691,10 +1025,10 @@ export default function AdvanceExpenseTab() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-blue-50 border-b border-blue-100">
-                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                      <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Transaction Info</th>
                       <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
                       <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-                      <th className="p-3 w-[70px]"></th>
+                      <th className="p-3 w-[80px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -708,19 +1042,51 @@ export default function AdvanceExpenseTab() {
                       <tr key={e.id} className="border-b border-blue-100 hover:bg-blue-50 transition-colors group">
                         <td className="p-3">
                           <div className="flex flex-col">
-                            <span className="text-sm text-gray-500">{e.date}</span>
-                            <span className="text-xs font-semibold text-gray-800">{e.employeeName}</span>
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter mb-0.5">{e.transactionNo || '—'}</span>
+                            <span className="text-xs text-gray-500">{e.date}</span>
+                            <span className="text-xs font-bold text-gray-800">{e.employeeName}</span>
                           </div>
                         </td>
-                        <td className="p-3 text-sm font-medium text-gray-700">{e.category}</td>
+                        <td className="p-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[13px] font-bold text-gray-800">{e.type}</span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className={`w-fit px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${e.requestType === 'Pre-Approval' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
+                                {e.requestType || 'Reimbursement'}
+                              </span>
+                              <span className="text-[9px] font-medium text-gray-400 ml-0.5 lowercase italic">
+                                ({e.payoutMethod === 'With Salary' ? 'with salary' : (e.paymentStatus === 'Paid' ? 'reimbursed completed' : 'immediate')})
+                              </span>
+                            </div>
+                          </div>
+                        </td>
                         <td className="p-3 text-sm font-semibold text-gray-900">{formatINR(e.amount)}</td>
-                        <td className="p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => handleEdit(e)} 
-                            className="text-gray-400 hover:text-blue-600 p-1 transition-colors"
-                          >
-                            <Edit2 size={16} />
-                          </button>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {e.requestType === 'Pre-Approval' && e.mdApproval === 'Approved' && (
+                              <button 
+                                onClick={() => { setFinalizingId(e.id); setFinalizeAmount(e.amount); }} 
+                                className="h-7 px-3 bg-emerald-50 text-emerald-600 font-bold rounded-lg text-[9px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
+                                title="Submit Actual Bill"
+                              >
+                                Submit Bill
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => handleEdit(e)} 
+                              className="text-blue-600 hover:bg-blue-100 p-1.5 rounded-lg transition-colors"
+                              title="Edit & Revoke"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(e.id)} 
+                              className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                              title="Delete Transaction"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -741,12 +1107,10 @@ export default function AdvanceExpenseTab() {
             </div>
           ) : (
             <>
-              {/* IMPROVED: Summary Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 <div className="bg-gradient-to-br from-amber-50 to-white rounded-xl border border-amber-200 p-5 shadow-card">
                   <div className="flex items-center gap-2 text-amber-700 mb-3">
                     <PieChart size={20} />
-                    {/* IMPROVED: text-sm, font-medium */}
                     <span className="text-sm font-medium">Advances</span>
                   </div>
                   <p className="text-2xl font-bold text-amber-900">{formatINR(summary.advSum)}</p>
@@ -779,9 +1143,17 @@ export default function AdvanceExpenseTab() {
                   <p className="text-2xl font-bold text-emerald-900">{formatINR(summary.paidSum)}</p>
                   <p className="text-xs text-emerald-600 font-medium mt-1">{summary.paidCount} settled</p>
                 </div>
+
+                <div className="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-200 p-5 shadow-card">
+                  <div className="flex items-center gap-2 text-indigo-700 mb-3">
+                    <Banknote size={20} />
+                    <span className="text-sm font-medium">Accrued (Salary)</span>
+                  </div>
+                  <p className="text-2xl font-bold text-indigo-900">{formatINR(summary.accruedSum)}</p>
+                  <p className="text-xs text-indigo-600 font-medium mt-1">{summary.accruedCount} awaiting payroll</p>
+                </div>
               </div>
 
-              {/* IMPROVED: Status Breakdown Table */}
               <div className="bg-white rounded-xl border border-gray-200 shadow-card overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
                   <h3 className="text-base font-semibold text-gray-800">By Request Status</h3>
@@ -811,7 +1183,6 @@ export default function AdvanceExpenseTab() {
                           .map(([st, { count, sum }]) => (
                             <tr key={st} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                               <td className="p-4">
-                                {/* IMPROVED: text-xs, font-medium */}
                                 <span
                                   className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
                                     st === 'Approved'
@@ -851,7 +1222,6 @@ export default function AdvanceExpenseTab() {
             </div>
           ) : (
             <>
-              {/* IMPROVED: text-sm */}
               <p className="text-sm text-gray-600 max-w-2xl">
                 Requests that still need action in the approval chain. Use{' '}
                 <span className="font-semibold text-gray-800">Approvals</span> to resolve them.
@@ -888,7 +1258,6 @@ export default function AdvanceExpenseTab() {
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={22} />
                       <div>
-                        {/* IMPROVED: text-base, font-semibold */}
                         <h3 className="text-base font-semibold text-gray-900">{block.title}</h3>
                         <p className="text-sm text-gray-500 font-normal mt-1">{block.subtitle}</p>
                       </div>
@@ -917,7 +1286,6 @@ export default function AdvanceExpenseTab() {
                             <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                               <td className="p-4 text-sm text-gray-600">{row.date || '—'}</td>
                               <td className="p-4">
-                                {/* IMPROVED: text-xs, font-medium */}
                                 <span
                                   className={`text-xs font-medium px-2.5 py-1 rounded-md ${
                                     row.type === 'Advance' 

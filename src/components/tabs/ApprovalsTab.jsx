@@ -114,11 +114,92 @@ export default function ApprovalsTab() {
   const [advMenuOpen, setAdvMenuOpen] = useState(null) // `${id}-hr` | `${id}-md` | null
   const [advanceRightTab, setAdvanceRightTab] = useState('month-reports') // 'month-reports' | 'recent-updates'
 
+  // PHASE 4: Bulk Approval State
+  const [selectedIds, setSelectedIds] = useState([])
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const canApprove = isAdmin || user?.permissions?.Approvals?.approve === true
   const isAccountant = isAdmin || user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
   const isMD = isAdmin || user?.role?.toLowerCase() === 'md'
   const isHR = isAdmin || user?.role?.toLowerCase() === 'hr'
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  const handleToggleSelectAll = () => {
+    if (selectedIds.length === advExpenses.length && advExpenses.length > 0) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(advExpenses.map(item => item.id))
+    }
+  }
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return
+    if (!confirm(`Are you sure you want to approve ${selectedIds.length} selected items?`)) return
+    
+    setBulkProcessing(true)
+    let processedCount = 0
+    let skippedCount = 0
+
+    try {
+      for (const id of selectedIds) {
+        const item = advExpenses.find(x => x.id === id)
+        if (!item) continue
+
+        // Check eligibility
+        const canHrApprove = isHR && (!item.hrApproval || item.hrApproval === 'Pending')
+        const canMdApprove = isMD && (isAdmin || item.hrApproval === 'Approved' || item.hrApproval === 'Partial') && (!item.mdApproval || item.mdApproval === 'Pending')
+        
+        if (!canHrApprove && !canMdApprove && !isAdmin) {
+          skippedCount++
+          continue
+        }
+
+        const updateData = {
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid
+        }
+
+        if (isAdmin) {
+          updateData.hrApproval = 'Approved'
+          updateData.mdApproval = 'Approved'
+          updateData.status = 'Approved'
+          updateData.approved_by = user.uid
+          updateData.approved_at = serverTimestamp()
+        } else if (isMD && (item.hrApproval === 'Approved' || item.hrApproval === 'Partial' || isAdmin)) {
+          updateData.mdApproval = 'Approved'
+          updateData.mdApprovedBy = user.uid
+          updateData.mdApprovedAt = serverTimestamp()
+          updateData.mdRemarks = 'Bulk approved'
+          updateData.status = 'Approved'
+          updateData.approved_by = user.uid
+          updateData.approved_at = serverTimestamp()
+        } else if (isHR) {
+          updateData.hrApproval = 'Approved'
+          updateData.hrApprovedBy = user.uid
+          updateData.hrApprovedAt = serverTimestamp()
+          updateData.hrRemarks = 'Bulk approved'
+        }
+
+        await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
+        processedCount++
+      }
+
+      alert(`Successfully approved ${processedCount} items.${skippedCount > 0 ? ` (${skippedCount} items were not eligible for your role and were skipped.)` : ''}`)
+      setSelectedIds([])
+      fetchData()
+    } catch (err) {
+      console.error('Bulk approval error:', err)
+      alert('An error occurred during bulk approval.')
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -177,8 +258,13 @@ export default function ApprovalsTab() {
         setCurrentMonthPaidAdvances(monthPaid)
         
         if (activeSubTab === 'payment-queue') {
-          // Show only MD approved items that are not paid
-          setPaymentQueue(data.filter(item => (item.mdApproval === 'Approved' || item.mdApproval === 'Partial') && item.paymentStatus !== 'Paid'))
+          // Show only MD approved items that are not paid, are Reimbursements, AND are for IMMEDIATE payout
+          setPaymentQueue(data.filter(item => 
+            (item.mdApproval === 'Approved' || item.mdApproval === 'Partial') && 
+            item.paymentStatus !== 'Paid' &&
+            item.requestType !== 'Pre-Approval' &&
+            item.payoutMethod !== 'With Salary'
+          ))
           // Show only Paid items for recent payment history
           setRecentPayments(data.filter(item => item.paymentStatus === 'Paid').slice(0, 10)) // last 10 payments
         } else {
@@ -515,8 +601,9 @@ export default function ApprovalsTab() {
         updatedBy: user.uid
       })
 
-      // If it's an advance, add it to the salary advances collection for deduction
-      if (itemData?.type === 'Advance') {
+      // Dual-Entry: If it's an Advance OR an Immediate Expense, add it to the salary advances collection for deduction.
+      // For Expenses, this creates the balancing "Debt" to match the "Earning" the Expense itself will provide in the salary slip.
+      if (itemData?.type === 'Advance' || (itemData?.type === 'Expense' && itemData?.payoutMethod !== 'With Salary')) {
         const finalAmount = itemData.partialAmount || itemData.amount
         await addDoc(collection(db, 'organisations', user.orgId, 'advances'), {
           employeeId: itemData.employeeId,
@@ -524,7 +611,7 @@ export default function ApprovalsTab() {
           amount: finalAmount,
           type: 'Advance',
           date: itemData.date || new Date().toISOString().split('T')[0],
-          reason: `Auto-linked from approved request: ${itemData.reason || itemData.category || 'No Reason'}`,
+          reason: `Auto-linked payout: ${itemData.reason || itemData.category || 'No Reason'}`,
           status: 'Pending', // Will be marked 'Recovered' when salary is processed
           linkedRequestId: id,
           createdAt: serverTimestamp(),
@@ -532,7 +619,7 @@ export default function ApprovalsTab() {
         })
       }
 
-      alert('Payment processed and salary advance linked successfully')
+      alert('Payment processed and salary linkage updated successfully')
       
       // Admin Logging
       if (isAdmin) {
@@ -732,11 +819,68 @@ export default function ApprovalsTab() {
         <div className="flex w-full flex-col gap-8">
           {/* Main queue — Full width */}
           <div className="w-full">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleToggleSelectAll}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-100 transition-all"
+                >
+                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${selectedIds.length === advExpenses.length && advExpenses.length > 0 ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}>
+                    {selectedIds.length === advExpenses.length && advExpenses.length > 0 && <Check size={10} className="text-white" strokeWidth={4} />}
+                  </div>
+                  {selectedIds.length === advExpenses.length && advExpenses.length > 0 ? 'Deselect All' : 'Select All'}
+                </button>
+
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={handleBulkApprove}
+                    disabled={bulkProcessing}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {bulkProcessing ? (
+                      <Spinner size="w-3 h-3" color="text-white" />
+                    ) : (
+                      <CheckCircle2 size={14} />
+                    )}
+                    Approve Selected ({selectedIds.length})
+                  </button>
+                )}
+
+                {selectedIds.length === 0 && advExpenses.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setSelectedIds(advExpenses.map(item => item.id))
+                      setTimeout(handleBulkApprove, 100)
+                    }}
+                    disabled={bulkProcessing}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    <Check size={14} strokeWidth={3} />
+                    Approve All Pending
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">
+                  {advExpenses.length} Requests Pending
+                </span>
+              </div>
+            </div>
+
             <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full caption-bottom text-sm border-collapse">
                   <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
                     <tr className="border-b border-zinc-200">
+                      <th className="w-[40px] px-3 py-2 text-center align-middle">
+                        <div 
+                          onClick={handleToggleSelectAll}
+                          className={`mx-auto w-4 h-4 rounded border cursor-pointer flex items-center justify-center transition-all ${selectedIds.length === advExpenses.length && advExpenses.length > 0 ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300 hover:border-indigo-400'}`}
+                        >
+                          {selectedIds.length === advExpenses.length && advExpenses.length > 0 && <Check size={12} className="text-white" strokeWidth={4} />}
+                        </div>
+                      </th>
                       <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Submitted date</th>
                       <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Requesting date</th>
                       <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Type</th>
@@ -767,7 +911,15 @@ export default function ApprovalsTab() {
 
                         return (
                           <React.Fragment key={item.id}>
-                            <tr className="border-b-2 border-zinc-100 transition-colors hover:bg-zinc-50/80">
+                            <tr className={`border-b-2 border-zinc-100 transition-colors hover:bg-zinc-50/80 ${selectedIds.includes(item.id) ? 'bg-indigo-50/30' : ''}`}>
+                              <td className="px-3 py-1.5 align-middle text-center">
+                                <div 
+                                  onClick={() => handleToggleSelect(item.id)}
+                                  className={`mx-auto w-4 h-4 rounded border cursor-pointer flex items-center justify-center transition-all ${selectedIds.includes(item.id) ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300 hover:border-indigo-400'}`}
+                                >
+                                  {selectedIds.includes(item.id) && <Check size={12} className="text-white" strokeWidth={4} />}
+                                </div>
+                              </td>
                               <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
                                 {submittedDate}
                               </td>
@@ -784,7 +936,14 @@ export default function ApprovalsTab() {
                                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 text-[8px] font-bold text-zinc-600">
                                     {getInitials(item.employeeName)}
                                   </div>
-                                  <span className="text-[13px] font-bold text-zinc-900 whitespace-nowrap">{item.employeeName}</span>
+                                  <div className="flex flex-col">
+                                    <span className="text-[13px] font-bold text-zinc-900 whitespace-nowrap">{item.employeeName}</span>
+                                    {item.requestType === 'Pre-Approval' && (
+                                      <span className="w-fit px-1 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[7px] font-black uppercase leading-none mt-0.5">
+                                        Pre-Approval
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </td>
                               <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-600 whitespace-nowrap">{item.createdBy || 'Self'}</td>

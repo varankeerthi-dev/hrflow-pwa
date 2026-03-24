@@ -174,16 +174,62 @@ export default function SalarySlipTab() {
       const otS = await getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth))), fOT = otS.docs.map(d => d.data()).find(o => o.status === 'approved')?.finalOTHours || aOT
       const otP = fOT * ((ts / end) / minH), adv = (await getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp)))).docs.map(d => d.data()).filter(a => a.status !== 'Recovered').reduce((s, c) => s + Number(c.amount), 0)
       const emi = (await getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active')))).docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
-      const reimb = (await getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp), where('paymentStatus', '==', 'Paid'), where('type', '==', 'Expense')))).docs.map(d => d.data()).filter(i => { const pd = i.paidAt?.toDate ? i.paidAt.toDate() : null; return pd && pd.getFullYear() === y && (pd.getMonth() + 1) === m }).reduce((s, c) => s + Number(c.partialAmount || c.amount), 0)
+
+      // PHASE 3: Combined Expenses (Paid + Approved With Salary)
+      const expSnap = await getDocs(query(
+        collection(db, 'organisations', user.orgId, 'advances_expenses'), 
+        where('employeeId', '==', selectedEmp), 
+        where('type', '==', 'Expense')
+      ))
+      const allExpenses = expSnap.docs.map(d => d.data())
+
+      const reimb = allExpenses.filter(i => {
+        // 1. Immediate Payouts that were Paid in this month
+        const isPaidThisMonth = i.paymentStatus === 'Paid' && i.paidAt?.toDate && 
+                               i.paidAt.toDate().getFullYear() === y && 
+                               (i.paidAt.toDate().getMonth() + 1) === m
+
+        // 2. 'With Salary' items that are Approved and match the salary month
+        const isWithSalaryApproved = i.payoutMethod === 'With Salary' && 
+                                    i.status === 'Approved' && 
+                                    i.paymentStatus !== 'Paid' &&
+                                    i.date?.startsWith(selectedMonth)
+
+        return isPaidThisMonth || isWithSalaryApproved
+      }).reduce((s, c) => s + Number(c.partialAmount || c.amount), 0)
+
       const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), g = b + h + otP + reimb, de = p + it + adv + emi
-      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: fOT, otPay: otP, basic: b, hra: h, expenseReimbursement: reimb, grossEarnings: g, pf: p, it, advanceDeduction: adv, loanEMI: emi, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun, sundayWorkedCount: sunW, holidayWorkedCount: holW })
-    } catch (e) { setGenErr(e.message) } finally { setLoading(false) }
+      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: fOT, otPay: otP, basic: b, hra: h, expenseReimbursement: reimb, grossEarnings: g, pf: p, it, advanceDeduction: adv, loanEMI: emi, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun, sundayWorkedCount: sunW, holidayWorkedCount: holW })    } catch (e) { setGenErr(e.message) } finally { setLoading(false) }
   }
 
   const handleFinalizeSlip = async () => {
     if (!slipData) return; setLoading(true)
     try {
-      const sid = `${slipData.employee.id}_${slipData.month}`; await setDoc(doc(db, 'organisations', user.orgId, 'salarySlips', sid), { ...slipData, finalizedAt: serverTimestamp(), finalizedBy: user.uid })
+      const sid = `${slipData.employee.id}_${slipData.month}`; 
+      await setDoc(doc(db, 'organisations', user.orgId, 'salarySlips', sid), { ...slipData, finalizedAt: serverTimestamp(), finalizedBy: user.uid })
+      
+      // PHASE 3: Auto-Settle 'With Salary' Expenses
+      const expSnap = await getDocs(query(
+        collection(db, 'organisations', user.orgId, 'advances_expenses'),
+        where('employeeId', '==', slipData.employee.id),
+        where('payoutMethod', '==', 'With Salary'),
+        where('status', '==', 'Approved'),
+        where('paymentStatus', '!=', 'Paid')
+      ))
+      
+      for (const edoc of expSnap.docs) {
+        const data = edoc.data()
+        if (data.date?.startsWith(slipData.month)) {
+          await updateDoc(edoc.ref, {
+            paymentStatus: 'Paid',
+            paidAt: serverTimestamp(),
+            paidBy: user.uid,
+            salarySlipId: sid,
+            updatedAt: serverTimestamp()
+          })
+        }
+      }
+
       if (slipData.loanEMI > 0) {
         const lS = await getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', slipData.employee.id), where('status', '==', 'Active')))
         for (const ld of lS.docs) {
