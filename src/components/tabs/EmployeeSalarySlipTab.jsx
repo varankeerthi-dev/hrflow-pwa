@@ -5,7 +5,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
-import { Wallet, Download } from 'lucide-center'
+import { Wallet, Download } from 'lucide-react'
 
 export default function EmployeeSalarySlipTab() {
   const { user } = useAuth()

@@ -7,7 +7,7 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp } from 'lucide-react'
+import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font } from '@react-pdf/renderer'
 import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery } from '@tanstack/react-query'
@@ -137,6 +137,9 @@ export default function SalarySlipTab() {
   const [summaryEmpDetail, setSummaryEmpDetail] = useState(null)
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false)
   const monthInputRef = useRef(null)
+  
+  // Loan UI State
+  const [loanActiveModule, setLoanActiveModule] = useState('Active Schedules')
 
   const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0 || l.startMonth > m) return 0; const o = l.monthOverrides?.[m]; if (o) return o.skip ? 0 : Math.min(o.amount, l.remainingAmount); return Math.min(l.emiAmount, l.remainingAmount) }
 
@@ -203,10 +206,10 @@ export default function SalarySlipTab() {
   useEffect(() => { if (!user?.orgId) return; getDoc(doc(db, 'organisations', user.orgId)).then(snap => { if (snap.exists()) setOrgLogo(snap.data().logoURL || '') }); fetchLoans() }, [user?.orgId])
   
   const fetchLoans = async () => { try { const q = query(collection(db, 'organisations', user.orgId, 'loans'), orderBy('createdAt', 'desc')); const snap = await getDocs(q); setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() }))); const actSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'activityLogs'), where('module', '==', 'Loans'), orderBy('timestamp', 'desc'), limit(5))); setLoanActivities(actSnap.docs.map(d => ({ id: d.id, ...d.data() }))) } catch (e) { console.error(e) } }
-  const handleCreateLoan = async () => { if (!loanForm.employeeId || !loanForm.totalAmount || !loanForm.emiAmount) return alert('Fill fields'); setLoading(true); try { const emp = employees.find(e => e.id === loanForm.employeeId); const docD = { ...loanForm, employeeName: emp?.name || 'Unknown', totalAmount: Number(loanForm.totalAmount), emiAmount: Number(loanForm.emiAmount), updatedAt: serverTimestamp() }; if (editingLoanId) { await updateDoc(doc(db, 'organisations', user.orgId, 'loans', editingLoanId), docD); await logActivity(user.orgId, user, { module: 'Loans', action: 'Updated', detail: `Updated for ${emp?.name}` }) } else { await addDoc(collection(db, 'organisations', user.orgId, 'loans'), { ...docD, remainingAmount: docD.totalAmount, status: 'Active', monthOverrides: {}, createdAt: serverTimestamp(), createdBy: user.uid }); await logActivity(user.orgId, user, { module: 'Loans', action: 'Created', detail: `Created \u20B9${docD.totalAmount} for ${emp?.name}` }) }; setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }); setEditingLoanId(null); setSlipData(null); fetchLoans(); alert('Success') } catch (e) { alert(e.message) } finally { setLoading(false) } }
-  const handleEditLoan = (l) => { setEditingLoanId(l.id); setEditLoanForm({ employeeId: l.employeeId, totalAmount: l.totalAmount, emiAmount: l.emiAmount, startMonth: l.startMonth, remarks: l.remarks || '' }) }
+  const handleCreateLoan = async () => { if (!loanForm.employeeId || !loanForm.totalAmount || !loanForm.emiAmount) return alert('Fill fields'); setLoading(true); try { const emp = employees.find(e => e.id === loanForm.employeeId); const docD = { ...loanForm, employeeName: emp?.name || 'Unknown', totalAmount: Number(loanForm.totalAmount), emiAmount: Number(loanForm.emiAmount), updatedAt: serverTimestamp() }; if (editingLoanId) { await updateDoc(doc(db, 'organisations', user.orgId, 'loans', editingLoanId), docD); await logActivity(user.orgId, user, { module: 'Loans', action: 'Updated', detail: `Updated for ${emp?.name}` }) } else { await addDoc(collection(db, 'organisations', user.orgId, 'loans'), { ...docD, remainingAmount: docD.totalAmount, status: 'Active', monthOverrides: {}, createdAt: serverTimestamp(), createdBy: user.uid }); await logActivity(user.orgId, user, { module: 'Loans', action: 'Created', detail: `Created ₹${docD.totalAmount} for ${emp?.name}` }) }; setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }); setEditingLoanId(null); setSlipData(null); fetchLoans(); alert('Success'); setLoanActiveModule('Active Schedules'); } catch (e) { alert(e.message) } finally { setLoading(false) } }
+  const handleEditLoan = (l) => { setEditingLoanId(l.id); setEditLoanForm({ employeeId: l.employeeId, totalAmount: l.totalAmount, emiAmount: l.emiAmount, startMonth: l.startMonth, remarks: l.remarks || '' }); setLoanActiveModule('Configuration'); }
   const handleDeleteLoan = async (id, name) => { if (!isAdmin || !confirm(`Delete for ${name}?`)) return; try { await deleteDoc(doc(db, 'organisations', user.orgId, 'loans', id)); await logActivity(user.orgId, user, { module: 'Loans', action: 'Deleted', detail: `Deleted for ${name}` }); setSlipData(null); fetchLoans(); alert('Deleted') } catch (e) { alert(e.message) } }
-  const handleUpdateOverride = async (id) => { if (!overrideForm.month) return alert('Select month'); try { const r = doc(db, 'organisations', user.orgId, 'loans', id), s = await getDoc(r); await updateDoc(r, { monthOverrides: { ...(s.data()?.monthOverrides || {}), [overrideForm.month]: { amount: overrideForm.skip ? 0 : Number(overrideForm.amount), skip: overrideForm.skip, reason: overrideForm.reason } } }); fetchLoans(); setOverrideForm({ month: '', amount: 0, reason: '', skip: false }) } catch (e) { alert(e.message) } }
+  const handleUpdateOverride = async (id) => { if (!overrideForm.month) return alert('Select month'); try { const r = doc(db, 'organisations', user.orgId, 'loans', id), s = await getDoc(r); await updateDoc(r, { monthOverrides: { ...(s.data()?.monthOverrides || {}), [overrideForm.month]: { amount: overrideForm.skip ? 0 : Number(overrideForm.amount), skip: overrideForm.skip, reason: overrideForm.reason } } }); fetchLoans(); setOverrideForm({ month: '', amount: 0, reason: '', skip: false }); setSelectedLoan(null); } catch (e) { alert(e.message) } }
 
   const handleGenerate = async () => {
     if (!selectedEmp || !selectedMonth) {
@@ -319,7 +322,7 @@ export default function SalarySlipTab() {
         const lS = await getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', slipData.employee.id), where('status', '==', 'Active')))
         for (const ld of lS.docs) {
           const d = ld.data(), de = calcEMI(d, slipData.month)
-          if (de > 0) { const nr = Math.max(0, d.remainingAmount - de); await updateDoc(ld.ref, { remainingAmount: nr, status: nr <= 0 ? 'Closed' : 'Active', updatedAt: serverTimestamp() }); await logActivity(user.orgId, user, { module: 'Loans', action: 'EMI Deducted', detail: `\u20B9${de} for ${slipData.employee.name}` }) }
+          if (de > 0) { const nr = Math.max(0, d.remainingAmount - de); await updateDoc(ld.ref, { remainingAmount: nr, status: nr <= 0 ? 'Closed' : 'Active', updatedAt: serverTimestamp() }); await logActivity(user.orgId, user, { module: 'Loans', action: 'EMI Deducted', detail: `₹${de} for ${slipData.employee.name}` }) }
         }
       }
       alert('Recorded'); fetchLoans()
@@ -582,12 +585,161 @@ export default function SalarySlipTab() {
         )}
 
         {activeTab === 'loan' && (
-          <div className="max-w-6xl mx-auto space-y-6 h-full overflow-auto font-inter p-4">
-            <div className="flex justify-between items-center border-b border-gray-200 pb-4"><div><h1 className="text-xl font-bold text-gray-900 font-google-sans tracking-tight">Loan Management</h1><p className="text-[11px] text-gray-500 font-medium">Lifecycle tracking for advances.</p></div><button onClick={() => { setEditingLoanId(null); setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: selectedMonth, remarks: '' }); }} className="h-9 px-5 bg-gray-900 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-black active:scale-95"><Plus size={14} /> New Schedule</button></div>
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="space-y-6"><div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5"><div className="flex items-center gap-2 text-gray-900 mb-5 font-bold uppercase text-[10px] font-google-sans tracking-widest"><Settings size={14} /> Configuration</div><div className="space-y-4"><div className="uppercase text-[9px] font-bold text-gray-400 font-google-sans">Employee<select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-9 border border-gray-200 rounded-lg px-3 bg-gray-50/50 mt-1.5 text-gray-900 font-semibold">{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div><div className="grid grid-cols-2 gap-4"><div className="uppercase text-[9px] font-bold text-gray-400 font-google-sans">Principal<input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-9 border border-gray-200 rounded-lg px-3 font-bold bg-gray-50/50 mt-1.5 text-gray-900" /></div><div className="uppercase text-[9px] font-bold text-gray-400 font-google-sans">EMI<input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-9 border border-gray-200 rounded-lg px-3 font-bold bg-gray-50/50 mt-1.5 text-gray-900" /></div></div><button onClick={handleCreateLoan} disabled={loading} className="w-full h-10 bg-gray-900 text-white font-bold rounded-lg uppercase text-[10px] shadow-xl hover:bg-black active:scale-[0.98]">{editingLoanId ? 'Update' : 'Activate'}</button></div></div><div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5"><div className="flex items-center gap-2 text-gray-900 mb-5 font-bold uppercase text-[10px] font-google-sans tracking-widest"><History size={14} /> Activity</div><div className="space-y-3">{loanActivities.map(act => (<div key={act.id} className="flex gap-2 border-l-2 border-gray-100 pl-3 py-1"><div className="flex-1 text-[10px] font-bold text-gray-800">{act.detail}</div></div>))}</div></div></div>
-              <div className="xl:col-span-2 space-y-6"><div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"><div className="px-5 py-3 border-b border-gray-100 bg-gray-50/30 font-google-sans font-bold uppercase text-[10px] tracking-widest text-gray-900">Active Schedules</div><div className="overflow-x-auto"><table className="w-full text-left border-collapse font-inter"><thead><tr className="bg-gray-50/50 text-[9px] font-bold uppercase text-gray-400 border-b border-gray-100"><th className="px-5 py-3">Employee</th><th className="px-5 py-3 text-right">Remaining</th><th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-gray-50">{loans.map(l => (<tr key={l.id} className="hover:bg-gray-50 transition-colors"><td className="px-5 py-3 font-bold text-gray-900 text-[12px]">{l.employeeName}</td><td className="px-5 py-3 text-right font-bold text-emerald-600 font-google-sans">{formatINR(l.remainingAmount)}</td><td className="px-5 py-3 text-right"><div className="flex justify-end gap-1"><button onClick={() => handleEditLoan(l)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-all"><Edit2 size={12}/></button><button onClick={() => setSelectedLoan(l)} className="p-1.5 hover:bg-amber-50 text-amber-600 rounded-lg transition-all"><AlertCircle size={12}/></button><button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-all"><Trash2 size={12}/></button></div></td></tr>))}</tbody></table></div></div>
-              {selectedLoan && (<div className="bg-white rounded-xl border-2 border-amber-200 p-5 space-y-4 shadow-lg animate-in slide-in-from-top-4 duration-300 font-inter"><div className="flex justify-between items-center border-b border-amber-100 pb-3 font-google-sans"><div className="flex items-center gap-2 text-amber-700 font-bold uppercase text-[10px] tracking-widest"><Info size={14}/> Override: {selectedLoan.employeeName}</div><button onClick={() => setSelectedLoan(null)} className="text-gray-400 hover:text-gray-900"><X size={14}/></button></div><div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"><div className="uppercase text-[8px] font-bold text-gray-400">Month<input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-9 border border-gray-200 rounded-lg px-2 font-bold mt-1 text-gray-900 outline-none"/></div><div className="uppercase text-[8px] font-bold text-gray-400">EMI (\u20B9)<input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-9 border border-gray-200 rounded-lg px-2 font-bold mt-1 text-gray-900 disabled:opacity-50 outline-none"/></div><div className="flex items-center gap-2 h-9 mb-0.5"><input type="checkbox" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500"/><label className="text-[9px] font-bold text-amber-700 uppercase font-google-sans">Skip</label></div><button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-9 bg-amber-600 text-white font-bold rounded-lg text-[9px] uppercase tracking-widest shadow-md hover:bg-amber-700 active:scale-95 transition-all">Submit</button></div></div>)}</div>
+          <div className="max-w-full space-y-4 flex flex-col h-full overflow-hidden">
+            <div className="flex border-b border-gray-200 overflow-x-auto shrink-0 bg-white">
+              {['Configuration', 'Active Schedules', 'Activity'].map(mod => {
+                const isActive = loanActiveModule === mod
+                return (
+                  <button
+                    key={mod}
+                    onClick={() => setLoanActiveModule(mod)}
+                    className={`whitespace-nowrap px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all ${
+                      isActive ? 'border-b-2 border-indigo-600 text-indigo-700 bg-indigo-50/50' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                    }`}
+                  >
+                    {mod}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex-1 overflow-auto p-4">
+              {loanActiveModule === 'Configuration' && (
+                <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden">
+                    <div className="p-6 bg-slate-950 text-white flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-black uppercase font-google-sans tracking-tight">Loan Setup</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Lifecycle tracking for advances</p>
+                      </div>
+                      <Settings className="text-indigo-500" size={24} />
+                    </div>
+                    <div className="p-8 space-y-6">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Employee</label>
+                        <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 transition-all">
+                          <option value="">Choose Employee...</option>
+                          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Principal Amount (₹)</label>
+                          <input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 font-black bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none text-indigo-600 text-lg" placeholder="0.00" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monthly EMI (₹)</label>
+                          <input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 font-black bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-lg" placeholder="0.00" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Recovery Remarks</label>
+                        <input type="text" value={loanForm.remarks} onChange={e => setEditLoanForm({...loanForm, remarks: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-600" placeholder="Reason for loan..." />
+                      </div>
+                      <div className="pt-4 flex gap-4">
+                        <button onClick={() => { setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }); setEditingLoanId(null); setLoanActiveModule('Active Schedules'); }} className="flex-1 h-12 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[11px] tracking-widest hover:bg-slate-200 transition-all">Cancel</button>
+                        <button onClick={handleCreateLoan} disabled={loading} className="flex-2 h-12 bg-indigo-600 text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 active:scale-95 transition-all">
+                          {editingLoanId ? 'Update Recovery Plan' : 'Activate Loan Schedule'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {loanActiveModule === 'Active Schedules' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="bg-white rounded-[32px] border border-gray-200 shadow-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse font-inter">
+                        <thead>
+                          <tr className="bg-slate-950 text-[10px] font-black uppercase tracking-widest text-slate-400 h-14">
+                            <th className="px-8 border-r border-slate-800">Employee</th>
+                            <th className="px-8 border-r border-slate-800 text-right">Remaining Principal</th>
+                            <th className="px-8 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {loans.length === 0 ? (
+                            <tr><td colSpan={3} className="px-8 py-20 text-center text-slate-300 font-black uppercase tracking-widest italic opacity-50">No active recovery schedules</td></tr>
+                          ) : loans.map(l => (
+                            <tr key={l.id} className="hover:bg-slate-50/50 transition-colors h-16 group">
+                              <td className="px-8 border-r border-slate-50 font-black text-slate-900 text-sm uppercase">{l.employeeName}</td>
+                              <td className="px-8 border-r border-slate-50 text-right font-black text-emerald-600 text-base tabular-nums">{formatINR(l.remainingAmount)}</td>
+                              <td className="px-8 text-right">
+                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                  <button onClick={() => handleEditLoan(l)} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm" title="Edit Schedule"><Edit2 size={16}/></button>
+                                  <button onClick={() => setSelectedLoan(l)} className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm" title="Manual Override"><RefreshCw size={16}/></button>
+                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm" title="Delete Plan"><Trash2 size={16}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {selectedLoan && (
+                    <div className="bg-white rounded-[32px] border-2 border-amber-400 p-8 shadow-2xl animate-in slide-in-from-top-4 duration-500 max-w-4xl mx-auto">
+                      <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-amber-100 rounded-2xl text-amber-700"><Info size={24}/></div>
+                          <div>
+                            <h3 className="font-black text-slate-900 uppercase font-google-sans tracking-tight">Manual Override</h3>
+                            <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">Adjusting: {selectedLoan.employeeName}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => setSelectedLoan(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all"><X size={20}/></button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Month</label>
+                          <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-12 border border-slate-200 rounded-2xl px-4 font-black text-slate-800 bg-slate-50 focus:ring-2 focus:ring-amber-500 outline-none"/>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Override EMI (₹)</label>
+                          <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-12 border border-slate-200 rounded-2xl px-4 font-black text-indigo-600 bg-slate-50 focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-50"/>
+                        </div>
+                        <div className="flex items-center gap-3 h-12 bg-amber-50 px-4 rounded-2xl border border-amber-100">
+                          <input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-5 h-5 rounded-lg text-amber-600 border-amber-300 focus:ring-amber-500 transition-all"/>
+                          <label htmlFor="skipEMI" className="text-[11px] font-black text-amber-700 uppercase cursor-pointer">Skip EMI</label>
+                        </div>
+                        <button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-12 bg-amber-600 text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-lg shadow-amber-600/20 hover:bg-amber-700 active:scale-95 transition-all">Apply Adjustment</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {loanActiveModule === 'Activity' && (
+                <div className="max-w-3xl mx-auto space-y-4 animate-in fade-in duration-500">
+                  <div className="bg-white rounded-[32px] border border-gray-200 shadow-xl overflow-hidden p-8">
+                    <div className="flex items-center gap-3 mb-8">
+                      <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600"><History size={24}/></div>
+                      <h3 className="text-xl font-black text-slate-900 uppercase font-google-sans tracking-tight">Recent Activity</h3>
+                    </div>
+                    <div className="space-y-6 relative">
+                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100"></div>
+                      {loanActivities.map((act, i) => (
+                        <div key={act.id} className="relative pl-10">
+                          <div className={`absolute left-2.5 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm transition-colors ${
+                            act.action === 'Deleted' ? 'bg-rose-500' : act.action === 'Updated' ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`}></div>
+                          <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 hover:border-indigo-200 transition-all">
+                            <div className="flex justify-between items-start gap-4">
+                              <span className="text-[13px] font-bold text-slate-800 leading-relaxed">{act.detail}</span>
+                              <span className="text-[9px] font-black text-slate-400 uppercase whitespace-nowrap bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
+                                {act.timestamp?.toDate ? act.timestamp.toDate().toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) : 'Just now'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
