@@ -924,6 +924,192 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
   )
 }
 
+// Create Day Planning Modal with drag-drop between Day/Night
+function CreateDayModal({ onClose, onSave, loading, employees, branches, departments }) {
+  const [form, setForm] = useState({
+    title: '',
+    publishDate: new Date().toISOString().split('T')[0],
+    visibility: 'all',
+    shiftDate: new Date().toISOString().split('T')[0],
+  })
+
+  const [dayShifts, setDayShifts] = useState([])
+  const [nightShifts, setNightShifts] = useState([])
+  const [showTimePicker, setShowTimePicker] = useState({ type: null, idx: null, field: null })
+
+  // Add employee to a section
+  const addEmployeeTo = (empId, section) => {
+    const emp = employees.find(e => e.id === empId)
+    if (!emp) return
+    const base = { employeeId: emp.id, employeeName: emp.name, inTime: '', outTime: '', notes: '', site: '' }
+    if (section === 'day') setDayShifts(prev => [...prev, base])
+    else setNightShifts(prev => [...prev, base])
+  }
+
+  const removeFrom = (section, idx) => {
+    if (section === 'day') setDayShifts(prev => prev.filter((_, i) => i !== idx))
+    else setNightShifts(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const updateShift = (section, idx, field, value) => {
+    const updater = (arr) => arr.map((s, i) => i === idx ? { ...s, [field]: value } : s)
+    if (section === 'day') setDayShifts(prev => updater(prev))
+    else setNightShifts(prev => updater(prev))
+  }
+
+  // Drag & Drop handlers (HTML5)
+  const onDragStart = (e, from, idx) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ from, idx }))
+  }
+  const onDragOver = (e) => { e.preventDefault() }
+  const onDropTo = (e, to) => {
+    e.preventDefault()
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'))
+      const { from, idx } = data
+      if (from === to) return
+      let item
+      if (from === 'day') {
+        item = dayShifts[idx]
+        setDayShifts(prev => prev.filter((_, i) => i !== idx))
+      } else {
+        item = nightShifts[idx]
+        setNightShifts(prev => prev.filter((_, i) => i !== idx))
+      }
+      if (to === 'day') setDayShifts(prev => [...prev, item])
+      else setNightShifts(prev => [...prev, item])
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  const handleSubmit = () => {
+    if (!form.title.trim()) { alert('Please enter a title'); return }
+    const allShifts = [
+      ...dayShifts.map(s => ({ ...s, section: 'day', date: form.shiftDate })),
+      ...nightShifts.map(s => ({ ...s, section: 'night', date: form.shiftDate })),
+    ]
+    if (allShifts.length === 0) { alert('Add at least one employee'); return }
+    const planningData = {
+      type: PLANNING_TYPES.DAY,
+      title: form.title,
+      message: '',
+      branch: '',
+      department: '',
+      publishDate: form.publishDate,
+      visibility: form.visibility,
+      shifts: allShifts,
+      createdAt: serverTimestamp()
+    }
+    onSave(planningData)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+          <h3 className="text-white font-black text-[13px] uppercase tracking-wide">Create Day Planning</h3>
+          <button onClick={onClose} className="text-white/80 hover:text-white">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Title" className="col-span-2 h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold" />
+            <input type="date" value={form.publishDate} onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))} className="h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold" />
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1 border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'day')}>
+              <h4 className="text-sm font-black">Day Shift</h4>
+              <div className="mt-2 mb-3 flex items-center gap-2">
+                <select onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'day'); e.target.value = '' } }} className="h-9 border border-gray-200 rounded-lg px-3 text-xs">
+                  <option value="">Add employee...</option>
+                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                </select>
+                <input type="date" value={form.shiftDate} onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} className="h-9 border border-gray-200 rounded-lg px-3 text-xs" />
+              </div>
+
+              <div className="space-y-2">
+                {dayShifts.map((s, idx) => (
+                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'day', idx)} className="p-2 border border-gray-100 rounded flex items-center gap-2">
+                    <div className="font-semibold text-sm flex-1">{s.employeeName}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'inTime' })} className="h-8 px-2 border border-gray-200 rounded text-xs">{s.inTime || 'Start'}</button>
+                        {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
+                          <TimePicker value={s.inTime || '09:00'} onChange={(t) => updateShift('day', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                        )}
+                      </div>
+                      <div className="relative">
+                        <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'outTime' })} className="h-8 px-2 border border-gray-200 rounded text-xs">{s.outTime || 'End'}</button>
+                        {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
+                          <TimePicker value={s.outTime || '18:00'} onChange={(t) => updateShift('day', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                        )}
+                      </div>
+                      <input value={s.notes} onChange={e => updateShift('day', idx, 'notes', e.target.value)} placeholder="Notes" className="h-8 border border-gray-200 rounded px-2 text-xs" />
+                      <button onClick={() => removeFrom('day', idx)} className="text-red-400 p-1"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'night')}>
+              <h4 className="text-sm font-black">Night Shift</h4>
+              <div className="mt-2 mb-3 flex items-center gap-2">
+                <select onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'night'); e.target.value = '' } }} className="h-9 border border-gray-200 rounded-lg px-3 text-xs">
+                  <option value="">Add employee...</option>
+                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                </select>
+                <input type="date" value={form.shiftDate} onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} className="h-9 border border-gray-200 rounded-lg px-3 text-xs" />
+              </div>
+
+              <div className="space-y-2">
+                {nightShifts.map((s, idx) => (
+                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'night', idx)} className="p-2 border border-gray-100 rounded flex items-center gap-2">
+                    <div className="font-semibold text-sm flex-1">{s.employeeName}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'inTime' })} className="h-8 px-2 border border-gray-200 rounded text-xs">{s.inTime || 'Start'}</button>
+                        {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
+                          <TimePicker value={s.inTime || '21:00'} onChange={(t) => updateShift('night', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                        )}
+                      </div>
+                      <div className="relative">
+                        <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'outTime' })} className="h-8 px-2 border border-gray-200 rounded text-xs">{s.outTime || 'End'}</button>
+                        {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
+                          <TimePicker value={s.outTime || '05:00'} onChange={(t) => updateShift('night', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                        )}
+                      </div>
+                      <input value={s.notes} onChange={e => updateShift('night', idx, 'notes', e.target.value)} placeholder="Notes" className="h-8 border border-gray-200 rounded px-2 text-xs" />
+                      <button onClick={() => removeFrom('night', idx)} className="text-red-400 p-1"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Visibility - placeholder for future rules */}
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Visibility</label>
+            <select value={form.visibility} onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))} className="w-40 h-10 border border-gray-200 rounded-lg px-3 text-xs">
+              <option value="all">All employees</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+          <button onClick={onClose} className="h-10 px-5 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase hover:bg-gray-50">Cancel</button>
+          <button onClick={handleSubmit} disabled={loading} className="h-10 px-6 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-indigo-700 disabled:opacity-50">{loading ? 'Creating...' : 'Create planning'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN SHIFT PLANNING TAB ───────────────────────────────────────────────
 export default function ShiftPlanningTab() {
   const { user } = useAuth()
@@ -932,6 +1118,7 @@ export default function ShiftPlanningTab() {
   const [plannings, setPlannings] = useState([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const [currentTab, setCurrentTab] = useState(PLANNING_TYPES.DAY)
   
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -975,11 +1162,23 @@ export default function ShiftPlanningTab() {
   const handleCreate = async (planningData) => {
     setSaving(true)
     try {
-      await addDoc(collection(db, 'organisations', user.orgId, 'shiftPlannings'), {
+      const docRef = await addDoc(collection(db, 'organisations', user.orgId, 'shiftPlannings'), {
         ...planningData,
         createdBy: user.uid,
         createdByName: user.name,
       })
+
+      // Attempt to sync to local serverless endpoint for SQL tracking
+      try {
+        await fetch('/api/sync-planning', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...planningData, firestoreId: docRef.id, createdBy: user.uid })
+        })
+      } catch (e) {
+        console.warn('Failed to sync to local SQL API', e)
+      }
+
       setShowCreateModal(false)
       fetchPlannings()
     } catch (err) {
@@ -1036,9 +1235,25 @@ export default function ShiftPlanningTab() {
   }
 
   const filteredPlannings = plannings.filter(p => 
-    p.title?.toLowerCase().includes(search.toLowerCase()) ||
-    p.type?.toLowerCase().includes(search.toLowerCase())
+    (p.title?.toLowerCase().includes(search.toLowerCase()) ||
+    p.type?.toLowerCase().includes(search.toLowerCase())) && p.type === currentTab
   )
+
+  const dayDashboard = useMemo(() => {
+    const dayPlannings = plannings.filter(p => p.type === PLANNING_TYPES.DAY)
+    const map = {}
+    dayPlannings.forEach(p => {
+      const date = p.shifts?.[0]?.date || p.publishDate || (p.createdAt?.toDate ? p.createdAt.toDate().toISOString().split('T')[0] : '')
+      if (!date) return
+      if (!map[date]) map[date] = { date, day:0, night:0, leaves:0, createdBy: p.createdByName || 'HR', createdAt: p.createdAt }
+      p.shifts?.forEach(s => {
+        const section = s.section || 'day'
+        if (section === 'day') map[date].day += 1
+        else if (section === 'night') map[date].night += 1
+      })
+    })
+    return Object.values(map).sort((a,b) => a.date.localeCompare(b.date))
+  }, [plannings])
 
   return (
     <div className="h-full flex flex-col font-inter overflow-hidden bg-gray-50/50 p-6">
@@ -1048,30 +1263,28 @@ export default function ShiftPlanningTab() {
         <p className="text-xs text-gray-500 mt-0.5">Create and manage shift plans for employees.</p>
       </div>
 
-      {/* Action Buttons */}
-      <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm p-4 mb-4 flex flex-wrap gap-2 shrink-0">
-        <button
-          onClick={() => { setCreateType(PLANNING_TYPES.DAY); setShowCreateModal(true); }}
-          className="h-[38px] px-5 bg-indigo-600 text-white rounded-lg text-[11px] font-bold uppercase hover:bg-indigo-700 transition-all shadow-md"
-        >
-          Day Planning
-        </button>
-        <button
-          onClick={() => { setCreateType(PLANNING_TYPES.WEEKLY); setShowCreateModal(true); }}
-          className="h-[38px] px-5 bg-indigo-600 text-white rounded-lg text-[11px] font-bold uppercase hover:bg-indigo-700 transition-all shadow-md"
-        >
-          Weekly Planning
-        </button>
-        <button
-          onClick={() => { setCreateType(PLANNING_TYPES.NEXT_FEW); setShowCreateModal(true); }}
-          className="h-[38px] px-5 bg-indigo-600 text-white rounded-lg text-[11px] font-bold uppercase hover:bg-indigo-700 transition-all shadow-md"
-        >
-          Next Few Days
-        </button>
-        
+      {/* Action Tabs */}
+      <div className="bg-gray-100 rounded-[12px] p-2 mb-4 flex items-center gap-2">
+        {Object.values(PLANNING_TYPES).map(t => (
+          <button
+            key={t}
+            onClick={() => setCurrentTab(t)}
+            className={`h-[38px] px-4 rounded-lg text-[11px] font-bold uppercase transition-all ${currentTab === t ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-orange-200'}`}
+          >
+            {t}
+          </button>
+        ))}
+
         <div className="flex-1"></div>
-        
-        <div className="flex items-center gap-2">
+
+        <button
+          onClick={() => { setCreateType(currentTab); setShowCreateModal(true); }}
+          className="h-[38px] px-5 bg-indigo-600 text-white rounded-lg text-[11px] font-bold uppercase hover:bg-indigo-700 transition-all shadow-md"
+        >
+          Create New
+        </button>
+
+        <div className="flex items-center gap-2 ml-2">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -1164,15 +1377,26 @@ export default function ShiftPlanningTab() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <CreatePlanningForm
-          type={createType}
-          onClose={() => setShowCreateModal(false)}
-          onSave={handleCreate}
-          loading={saving}
-          employees={employees}
-          branches={branches}
-          departments={departments}
-        />
+        createType === PLANNING_TYPES.DAY ? (
+          <CreateDayModal
+            onClose={() => setShowCreateModal(false)}
+            onSave={handleCreate}
+            loading={saving}
+            employees={employees}
+            branches={branches}
+            departments={departments}
+          />
+        ) : (
+          <CreatePlanningForm
+            type={createType}
+            onClose={() => setShowCreateModal(false)}
+            onSave={handleCreate}
+            loading={saving}
+            employees={employees}
+            branches={branches}
+            departments={departments}
+          />
+        )
       )}
 
       {/* View Modal */}
