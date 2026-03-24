@@ -890,138 +890,132 @@ export default function AdvanceExpenseTab() {
           </div>
 
           <div className="overflow-x-auto p-5">
-            <table className="w-full text-left border-collapse border border-gray-200 min-w-[900px]">
-              <thead>
-                <tr className={activeModule === 'Add Advance' ? 'bg-amber-100 border-b border-amber-200' : 'bg-blue-100 border-b border-blue-200'}>
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
-                    Request Date
-                  </th>
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[200px]">
-                    Employee
-                  </th>
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
-                    Category
-                  </th>
-                  {activeModule === 'Add Expense' && (
-                    <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
-                      Type
+            <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
+                <thead>
+                  <tr className="bg-zinc-50/80 border-b border-zinc-200">
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
+                      Request Date
                     </th>
-                  )}
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
-                    Payout
-                  </th>
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[100px]">
-                    Amount
-                  </th>
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
-                    Remarks
-                  </th>
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
-                    Project
-                  </th>
-                  <th className="p-3 w-[50px]"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {addRows.map((row, idx) => (
-                  <tr key={row.id} className={`border-b border-gray-100 transition-colors ${
-                    activeModule === 'Add Advance' 
-                      ? 'hover:bg-amber-50' 
-                      : 'hover:bg-blue-50'
-                  } ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                    <td className="p-2 border-r border-gray-100">
-                      <input 
-                        type="date" 
-                        value={row.date} 
-                        onChange={e => handleRowChange(row.id, 'date', e.target.value)} 
-                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
-                      />
-                    </td>
-                    <td className="p-2 border-r border-gray-100">
-                      <select 
-                        value={row.employeeId} 
-                        onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
-                        disabled={!canSelectAll}
-                        className={`w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
-                      >
-                        <option value="">Select employee...</option>
-                        {canSelectAll ? (
-                          employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)
-                        ) : (
-                          employees.filter(e => e.email === user.email || e.id === user.uid).map(e => (
-                            <option key={e.id} value={e.id}>{e.name}</option>
-                          ))
-                        )}
-                      </select>
-                    </td>
-                    <td className="p-2 border-r border-gray-100">
-                      <input 
-                        list="categories-list" 
-                        value={row.category} 
-                        onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
-                        className="no-arrow w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
-                        placeholder="Type category..." 
-                      />
-                    </td>
-                    <td className="p-2 border-r border-gray-100">
-                      <select 
-                        value={row.requestType} 
-                        onChange={e => handleRowChange(row.id, 'requestType', e.target.value)} 
-                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors"
-                      >
-                        <option value="Reimbursement">Reimbursement</option>
-                        <option value="Pre-Approval">Pre-Approval</option>
-                      </select>
-                    </td>
-                    <td className="p-2 border-r border-gray-100">
-                      <select 
-                        value={row.payoutMethod} 
-                        onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
-                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors"
-                      >
-                        <option value="Immediate">Immediate</option>
-                        <option value="With Salary">With Salary</option>
-                      </select>
-                    </td>
-                    <td className="p-2 border-r border-gray-100">
-                      <input 
-                        type="number" 
-                        value={row.amount} 
-                        onChange={e => handleRowChange(row.id, 'amount', e.target.value)} 
-                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
-                        placeholder="0.00" 
-                      />
-                    </td>
-                    <td className="p-2 border-r border-gray-100">
-                      <input 
-                        type="text" 
-                        value={row.reason} 
-                        onChange={e => handleRowChange(row.id, 'reason', e.target.value)} 
-                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
-                        placeholder="Remarks..." 
-                      />
-                    </td>
-                    <td className="p-2 border-r border-gray-100">
-                      <input 
-                        type="text" 
-                        value={row.project} 
-                        onChange={e => handleRowChange(row.id, 'project', e.target.value)} 
-                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white transition-colors" 
-                        placeholder="Project..." 
-                      />
-                    </td>
-                    <td className="p-2 text-center">
-                      <button 
-                        onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} 
-                        className="text-gray-400 hover:text-red-500 active:text-red-700 p-1 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[220px]">
+                      Employee
+                    </th>
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
+                      Category
+                    </th>
+                    {activeModule === 'Add Expense' && (
+                      <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
+                        Type
+                      </th>
+                    )}
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
+                      Payout
+                    </th>
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">
+                      Amount
+                    </th>
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">
+                      Remarks
+                    </th>
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">
+                      Project
+                    </th>
+                    <th className="h-10 w-[50px]"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {addRows.map((row, idx) => (
+                    <tr key={row.id} className={`border-b border-zinc-100 transition-colors hover:bg-zinc-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50/20'}`}>
+                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <input 
+                          type="date" 
+                          value={row.date} 
+                          onChange={e => handleRowChange(row.id, 'date', e.target.value)} 
+                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <select 
+                          value={row.employeeId} 
+                          onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
+                          disabled={!canSelectAll}
+                          className={`w-full h-9 border border-zinc-200 rounded-lg px-2 text-[12px] font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          <option value="">Select employee...</option>
+                          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <input 
+                          list="categories-list" 
+                          value={row.category} 
+                          onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
+                          className="no-arrow w-full h-9 border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
+                          placeholder="Type..." 
+                        />
+                      </td>
+                      {activeModule === 'Add Expense' && (
+                        <td className="px-2 py-1.5 border-r border-zinc-100">
+                          <select 
+                            value={row.requestType} 
+                            onChange={e => handleRowChange(row.id, 'requestType', e.target.value)} 
+                            className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[11px] font-black uppercase bg-zinc-50/50 outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                          >
+                            <option value="Reimbursement">Spent</option>
+                            <option value="Pre-Approval">Request</option>
+                          </select>
+                        </td>
+                      )}
+                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <select 
+                          value={row.payoutMethod} 
+                          onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
+                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[11px] font-black uppercase bg-zinc-50/50 outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                        >
+                          <option value="Immediate">Immediate</option>
+                          <option value="With Salary">Monthly</option>
+                        </select>
+                      </td>
+                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <input 
+                          type="number" 
+                          value={row.amount} 
+                          onChange={e => handleRowChange(row.id, 'amount', e.target.value)} 
+                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[13px] font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
+                          placeholder="0.00" 
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <input 
+                          type="text" 
+                          value={row.reason} 
+                          onChange={e => handleRowChange(row.id, 'reason', e.target.value)} 
+                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[11px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
+                          placeholder="..." 
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <input 
+                          type="text" 
+                          value={row.project} 
+                          onChange={e => handleRowChange(row.id, 'project', e.target.value)} 
+                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[11px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
+                          placeholder="..." 
+                        />
+                      </td>
+                      <td className="px-2 text-center">
+                        <button 
+                          onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} 
+                          className="text-zinc-300 hover:text-rose-500 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
