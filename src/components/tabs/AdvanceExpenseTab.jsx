@@ -862,9 +862,11 @@ export default function AdvanceExpenseTab() {
                   <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
                     Category
                   </th>
-                  <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
-                    Type
-                  </th>
+                  {activeModule === 'Add Expense' && (
+                    <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
+                      Type
+                    </th>
+                  )}
                   <th className="p-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[120px]">
                     Payout
                   </th>
