@@ -685,7 +685,7 @@ function ViewPlanningModal({ planning, onClose, onEdit }) {
 }
 
 // ── EDIT PLANNING FORM ───────────────────────────────────────────────────
-function EditPlanningForm({ planning, onClose, onSave, loading, employees, branches, departments }) {
+function EditPlanningForm({ planning, onClose, onSave, loading, employees, branches, departments, shifts }) {
   const [form, setForm] = useState({
     title: planning.title || '',
     message: planning.message || '',
@@ -696,21 +696,21 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
     attachmentName: planning.attachmentName || '',
   })
 
-  const [shifts, setShifts] = useState(planning.shifts || [])
+  const [shiftsList, setShiftsList] = useState(planning.shifts || [])
   const [showShiftInTimePicker, setShowShiftInTimePicker] = useState(null)
   const [showShiftOutTimePicker, setShowShiftOutTimePicker] = useState(null)
 
   const updateShift = (index, field, value) => {
-    setShifts(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s))
+    setShiftsList(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s))
   }
 
   const removeShift = (index) => {
-    setShifts(prev => prev.filter((_, i) => i !== index))
+    setShiftsList(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = () => {
     if (!form.title.trim()) { alert('Please enter a title'); return }
-    if (shifts.length === 0) { alert('Please add at least one employee'); return }
+    if (shiftsList.length === 0) { alert('Please add at least one employee'); return }
     
     const planningData = {
       ...planning,
@@ -721,7 +721,7 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
       publishDate: form.publishDate,
       visibility: form.visibility,
       attachmentName: form.attachmentName,
-      shifts: shifts.map(s => ({
+      shifts: shiftsList.map(s => ({
         ...s,
         inTime: s.inTime || '',
         outTime: s.outTime || '',
@@ -822,7 +822,7 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {shifts.map((shift, idx) => (
+                  {shiftsList.map((shift, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="px-3 py-2 font-semibold text-gray-700">{shift.employeeName}</td>
                       {planning.type === PLANNING_TYPES.WEEKLY && (
@@ -925,7 +925,7 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
 }
 
 // Create Day Planning Modal with drag-drop between Day/Night
-function CreateDayModal({ onClose, onSave, loading, employees, branches, departments }) {
+function CreateDayModal({ onClose, onSave, loading, employees, branches, departments, shifts }) {
   const [form, setForm] = useState({
     title: '',
     publishDate: new Date().toISOString().split('T')[0],
@@ -937,11 +937,30 @@ function CreateDayModal({ onClose, onSave, loading, employees, branches, departm
   const [nightShifts, setNightShifts] = useState([])
   const [showTimePicker, setShowTimePicker] = useState({ type: null, idx: null, field: null })
 
+  // Find default times from settings
+  const dayShiftSetting = useMemo(() => shifts?.find(s => s.type === 'Day' || s.name?.toLowerCase().includes('day')), [shifts])
+  const nightShiftSetting = useMemo(() => shifts?.find(s => s.type === 'Night' || s.name?.toLowerCase().includes('night')), [shifts])
+
   // Add employee to a section
   const addEmployeeTo = (empId, section) => {
     const emp = employees.find(e => e.id === empId)
     if (!emp) return
-    const base = { employeeId: emp.id, employeeName: emp.name, inTime: '', outTime: '', notes: '', site: '' }
+    
+    let inTime = ''
+    let outTime = ''
+    
+    if (section === 'day' && dayShiftSetting) {
+      inTime = dayShiftSetting.startTime || '09:00'
+      outTime = dayShiftSetting.endTime || '18:00'
+    } else if (section === 'night' && nightShiftSetting) {
+      inTime = nightShiftSetting.startTime || '21:00'
+      outTime = nightShiftSetting.endTime || '05:00'
+    } else {
+      inTime = section === 'day' ? '09:00' : '21:00'
+      outTime = section === 'day' ? '18:00' : '05:00'
+    }
+
+    const base = { employeeId: emp.id, employeeName: emp.name, inTime, outTime, notes: '', site: '' }
     if (section === 'day') setDayShifts(prev => [...prev, base])
     else setNightShifts(prev => [...prev, base])
   }
@@ -976,6 +995,16 @@ function CreateDayModal({ onClose, onSave, loading, employees, branches, departm
         item = nightShifts[idx]
         setNightShifts(prev => prev.filter((_, i) => i !== idx))
       }
+      
+      // Update times based on new section
+      if (to === 'day' && dayShiftSetting) {
+        item.inTime = dayShiftSetting.startTime || '09:00'
+        item.outTime = dayShiftSetting.endTime || '18:00'
+      } else if (to === 'night' && nightShiftSetting) {
+        item.inTime = nightShiftSetting.startTime || '21:00'
+        item.outTime = nightShiftSetting.endTime || '05:00'
+      }
+
       if (to === 'day') setDayShifts(prev => [...prev, item])
       else setNightShifts(prev => [...prev, item])
     } catch (err) {
@@ -1022,72 +1051,98 @@ function CreateDayModal({ onClose, onSave, loading, employees, branches, departm
 
           <div className="flex flex-col gap-4">
             <div className="border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'day')}>
-              <h4 className="text-sm font-black">Day Shift</h4>
-              <div className="mt-2 mb-3 flex items-center gap-2">
-                <select onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'day'); e.target.value = '' } }} className="h-9 border border-gray-200 rounded-lg px-3 text-xs">
-                  <option value="">Add employee...</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                </select>
-                <input type="date" value={form.shiftDate} onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} className="h-9 border border-gray-200 rounded-lg px-3 text-xs" />
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-sm font-black uppercase tracking-tight text-gray-700">Day Shift</h4>
+                <div className="flex items-center gap-2">
+                   <input type="date" value={form.shiftDate} onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} className="h-9 border border-gray-200 rounded-lg px-3 text-xs font-bold" />
+                </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 mb-4">
                 {dayShifts.map((s, idx) => (
-                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'day', idx)} className="p-2 border border-gray-100 rounded flex items-center gap-2">
-                    <div className="font-semibold text-sm flex-1">{s.employeeName}</div>
+                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'day', idx)} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 shadow-sm hover:border-indigo-300 transition-colors">
+                    <div className="font-black text-xs uppercase text-gray-800 flex-1">{s.employeeName}</div>
                     <div className="flex items-center gap-2">
                       <div className="relative">
-                        <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'inTime' })} className="h-8 px-2 border border-gray-200 rounded text-xs">{s.inTime || 'Start'}</button>
+                        <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'inTime' })} className="h-8 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black uppercase shadow-sm">{s.inTime || 'Start'}</button>
                         {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
                           <TimePicker value={s.inTime || '09:00'} onChange={(t) => updateShift('day', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
                         )}
                       </div>
                       <div className="relative">
-                        <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'outTime' })} className="h-8 px-2 border border-gray-200 rounded text-xs">{s.outTime || 'End'}</button>
+                        <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'outTime' })} className="h-8 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black uppercase shadow-sm">{s.outTime || 'End'}</button>
                         {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
                           <TimePicker value={s.outTime || '18:00'} onChange={(t) => updateShift('day', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
                         )}
                       </div>
-                      <input value={s.notes} onChange={e => updateShift('day', idx, 'notes', e.target.value)} placeholder="Notes" className="h-8 border border-gray-200 rounded px-2 text-xs" />
-                      <button onClick={() => removeFrom('day', idx)} className="text-red-400 p-1"><Trash2 size={14} /></button>
+                      <input value={s.notes} onChange={e => updateShift('day', idx, 'notes', e.target.value)} placeholder="Notes" className="h-8 border border-gray-200 bg-white rounded-md px-2 text-[10px] font-bold w-32 shadow-sm" />
+                      <button onClick={() => removeFrom('day', idx)} className="text-red-400 p-1.5 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
               </div>
+              
+              <div className="flex justify-center border-t border-gray-100 pt-3 mt-3">
+                <div className="relative inline-block">
+                  <select 
+                    onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'day'); e.target.value = '' } }} 
+                    className="appearance-none h-9 pl-4 pr-10 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 rounded-full text-[10px] font-black uppercase hover:bg-indigo-100 transition-all cursor-pointer shadow-sm"
+                  >
+                    <option value="">+ Add Employee to Day Shift</option>
+                    {employees.filter(emp => !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                  <Plus size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-500 pointer-events-none" />
+                </div>
+              </div>
             </div>
 
             <div className="border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'night')}>
-              <h4 className="text-sm font-black">Night Shift</h4>
-              <div className="mt-2 mb-3 flex items-center gap-2">
-                <select onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'night'); e.target.value = '' } }} className="h-9 border border-gray-200 rounded-lg px-3 text-xs">
-                  <option value="">Add employee...</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                </select>
-                <input type="date" value={form.shiftDate} onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} className="h-9 border border-gray-200 rounded-lg px-3 text-xs" />
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-sm font-black uppercase tracking-tight text-gray-700">Night Shift</h4>
+                <div className="flex items-center gap-2">
+                   <input type="date" value={form.shiftDate} onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} className="h-9 border border-gray-200 rounded-lg px-3 text-xs font-bold" />
+                </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 mb-4">
                 {nightShifts.map((s, idx) => (
-                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'night', idx)} className="p-2 border border-gray-100 rounded flex items-center gap-2">
-                    <div className="font-semibold text-sm flex-1">{s.employeeName}</div>
+                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'night', idx)} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 shadow-sm hover:border-indigo-300 transition-colors">
+                    <div className="font-black text-xs uppercase text-gray-800 flex-1">{s.employeeName}</div>
                     <div className="flex items-center gap-2">
                       <div className="relative">
-                        <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'inTime' })} className="h-8 px-2 border border-gray-200 rounded text-xs">{s.inTime || 'Start'}</button>
+                        <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'inTime' })} className="h-8 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black uppercase shadow-sm">{s.inTime || 'Start'}</button>
                         {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
                           <TimePicker value={s.inTime || '21:00'} onChange={(t) => updateShift('night', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
                         )}
                       </div>
                       <div className="relative">
-                        <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'outTime' })} className="h-8 px-2 border border-gray-200 rounded text-xs">{s.outTime || 'End'}</button>
+                        <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'outTime' })} className="h-8 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black uppercase shadow-sm">{s.outTime || 'End'}</button>
                         {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
                           <TimePicker value={s.outTime || '05:00'} onChange={(t) => updateShift('night', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
                         )}
                       </div>
-                      <input value={s.notes} onChange={e => updateShift('night', idx, 'notes', e.target.value)} placeholder="Notes" className="h-8 border border-gray-200 rounded px-2 text-xs" />
-                      <button onClick={() => removeFrom('night', idx)} className="text-red-400 p-1"><Trash2 size={14} /></button>
+                      <input value={s.notes} onChange={e => updateShift('night', idx, 'notes', e.target.value)} placeholder="Notes" className="h-8 border border-gray-200 bg-white rounded-md px-2 text-[10px] font-bold w-32 shadow-sm" />
+                      <button onClick={() => removeFrom('night', idx)} className="text-red-400 p-1.5 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="flex justify-center border-t border-gray-100 pt-3 mt-3">
+                <div className="relative inline-block">
+                  <select 
+                    onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'night'); e.target.value = '' } }} 
+                    className="appearance-none h-9 pl-4 pr-10 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 rounded-full text-[10px] font-black uppercase hover:bg-indigo-100 transition-all cursor-pointer shadow-sm"
+                  >
+                    <option value="">+ Add Employee to Night Shift</option>
+                    {employees.filter(emp => !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                  <Plus size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-500 pointer-events-none" />
+                </div>
               </div>
             </div>
           </div>
@@ -1116,6 +1171,7 @@ export default function ShiftPlanningTab() {
   const { employees } = useEmployees(user?.orgId)
   
   const [plannings, setPlannings] = useState([])
+  const [shifts, setShifts] = useState([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [currentTab, setCurrentTab] = useState(PLANNING_TYPES.DAY)
@@ -1138,16 +1194,21 @@ export default function ShiftPlanningTab() {
     return depts.length > 0 ? depts : ['HR', 'Engineering', 'Sales', 'Marketing']
   }, [employees])
 
-  const fetchPlannings = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!user?.orgId) return
     setLoading(true)
     try {
+      // Fetch Plannings
       const q = query(
         collection(db, 'organisations', user.orgId, 'shiftPlannings'),
         orderBy('createdAt', 'desc')
       )
       const snap = await getDocs(q)
       setPlannings(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+
+      // Fetch Shifts for timing reference
+      const shiftsSnap = await getDocs(collection(db, 'organisations', user.orgId, 'shifts'))
+      setShifts(shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
     } catch (err) {
       console.error(err)
     } finally {
@@ -1156,8 +1217,8 @@ export default function ShiftPlanningTab() {
   }, [user?.orgId])
 
   useEffect(() => {
-    fetchPlannings()
-  }, [fetchPlannings])
+    fetchData()
+  }, [fetchData])
 
   const handleCreate = async (planningData) => {
     setSaving(true)
@@ -1180,7 +1241,7 @@ export default function ShiftPlanningTab() {
       }
 
       setShowCreateModal(false)
-      fetchPlannings()
+      fetchData()
     } catch (err) {
       alert('Failed to create planning: ' + err.message)
     } finally {
@@ -1203,7 +1264,7 @@ export default function ShiftPlanningTab() {
       
       await updateDoc(doc(db, 'organisations', user.orgId, 'shiftPlannings', planningData.id), planningData)
       setEditPlanning(null)
-      fetchPlannings()
+      fetchData()
     } catch (err) {
       alert('Failed to update planning: ' + err.message)
     } finally {
@@ -1215,7 +1276,7 @@ export default function ShiftPlanningTab() {
     if (!confirm('Are you sure you want to delete this planning?')) return
     try {
       await deleteDoc(doc(db, 'organisations', user.orgId, 'shiftPlannings', id))
-      fetchPlannings()
+      fetchData()
     } catch (err) {
       alert('Failed to delete: ' + err.message)
     }
