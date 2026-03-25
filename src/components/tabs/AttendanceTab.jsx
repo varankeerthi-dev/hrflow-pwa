@@ -95,6 +95,69 @@ function displayShortDate(isoDate) {
   return `${months[d.getMonth()]} ${d.getDate()}`
 }
 
+function getDateRange(start, end) {
+  if (!start || !end) return []
+  let s = new Date(`${start}T00:00:00`)
+  let e = new Date(`${end}T00:00:00`)
+  if (s > e) [s, e] = [e, s]
+  const days = []
+  while (s <= e) {
+    days.push(s.toISOString().split('T')[0])
+    s.setDate(s.getDate() + 1)
+  }
+  return days
+}
+
+function parseTimeToMinutes(time24) {
+  if (!time24 || !time24.includes(':')) return null
+  const [h, m] = time24.split(':').map(Number)
+  if (Number.isNaN(h) || Number.isNaN(m)) return null
+  return (h * 60) + m
+}
+
+function calcWorkMinutes(row) {
+  if (!row?.inTime || !row?.outTime) return 0
+  const inM = parseTimeToMinutes(row.inTime)
+  const outM = parseTimeToMinutes(row.outTime)
+  if (inM == null || outM == null) return 0
+  let end = outM
+  if (end < inM) end += 24 * 60
+  return Math.max(0, end - inM)
+}
+
+function classifyAttendanceRow(row) {
+  if (!row) return 'none'
+  const status = (row.status || '').toLowerCase()
+  if (status === 'absent') return 'absent'
+  if (status === 'late') return 'late'
+  const remarks = row.remarks || ''
+  if (/\b(remote|wfh|work from home)\b/i.test(remarks)) return 'remote'
+  if (row.otHours) {
+    const [h, m] = row.otHours.split(':').map(Number)
+    if (((h || 0) * 60 + (m || 0)) >= 60) return 'overtime'
+  }
+  const inM = parseTimeToMinutes(row.inTime)
+  if ((row.shiftType || 'Day') === 'Day' && inM != null && inM >= (9 * 60 + 30)) return 'late'
+  return 'present'
+}
+
+function getStatusColor(status) {
+  switch (status) {
+    case 'present':
+      return 'bg-emerald-500'
+    case 'late':
+      return 'bg-amber-400'
+    case 'absent':
+      return 'bg-gray-300'
+    case 'remote':
+      return 'bg-blue-500'
+    case 'overtime':
+      return 'bg-violet-500'
+    default:
+      return 'bg-gray-100'
+  }
+}
+
 // Helper for time formatting
 function formatTimeDisplay(time24) {
   if (!time24) return '';
@@ -288,6 +351,69 @@ export default function AttendanceTab() {
   const [filterName, setFilterName] = useState('')
   const [reportData, setFilterReportData] = useState([])
   const [reportLoading, setReportLoading] = useState(false)
+
+  const reportDays = useMemo(() => getDateRange(filterStartDate, filterEndDate), [filterStartDate, filterEndDate])
+
+  const reportByEmployee = useMemo(() => {
+    const map = new Map()
+    reportData.forEach((row, idx) => {
+      const key = row.employeeId || row.name || `row-${idx}`
+      if (!map.has(key)) {
+        map.set(key, {
+          id: row.employeeId || key,
+          name: row.name || 'Unknown',
+          department: row.department || row.designation || row.role || row.site || 'General',
+          rows: {}
+        })
+      }
+      map.get(key).rows[row.date] = row
+    })
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [reportData])
+
+  const reportSummaryRows = useMemo(() => {
+    return reportByEmployee.map(emp => {
+      let present = 0
+      let absent = 0
+      let late = 0
+      let totalMinutes = 0
+      reportDays.forEach(day => {
+        const row = emp.rows[day]
+        if (!row) return
+        const status = classifyAttendanceRow(row)
+        if (status === 'absent') absent += 1
+        else present += 1
+        if (status === 'late') late += 1
+        totalMinutes += calcWorkMinutes(row)
+      })
+      const totalCount = present + absent
+      const attendancePct = totalCount ? Math.round((present / totalCount) * 1000) / 10 : 0
+      return {
+        id: emp.id,
+        name: emp.name,
+        department: emp.department,
+        present,
+        absent,
+        late,
+        totalHours: totalMinutes ? `${(totalMinutes / 60).toFixed(1)}h` : '0h',
+        attendancePct
+      }
+    })
+  }, [reportByEmployee, reportDays])
+
+  const reportTotals = useMemo(() => {
+    const todayRows = reportData.filter(r => r.date === filterEndDate)
+    const presentToday = todayRows.filter(r => (r.status || '').toLowerCase() !== 'absent').length
+    const absentToday = todayRows.filter(r => (r.status || '').toLowerCase() === 'absent').length
+    const totalMinutes = todayRows.reduce((sum, row) => sum + calcWorkMinutes(row), 0)
+    const avgWorkingHours = todayRows.length ? (totalMinutes / 60 / todayRows.length) : 0
+    return {
+      totalEmployees: reportByEmployee.length,
+      presentToday,
+      absentToday,
+      avgWorkingHours
+    }
+  }, [reportByEmployee.length, reportData, filterEndDate])
 
   const [rows, setRows] = useState([])
   const [saving, setSaving] = useState(false)
@@ -710,20 +836,7 @@ export default function AttendanceTab() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 justify-end">
-            <PDFDownloadLink
-              document={<AttendancePDF data={reportData} startDate={filterStartDate} endDate={filterEndDate} orgName={user?.orgName} />}
-              fileName={`attendance_report_${filterStartDate}_to_${filterEndDate}.pdf`}
-              className={`h-9 px-4 bg-emerald-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-2 ${!reportData.length ? 'opacity-50 pointer-events-none' : ''}`}
-            >
-              {({ loading }) => (
-                <>
-                  {loading ? <Spinner size="w-3 h-3" color="text-white" /> : <Download size={14} />}
-                  Export PDF
-                </>
-              )}
-            </PDFDownloadLink>
-          </div>
+          <div className="flex-1" />
         )}
       </div>
 
@@ -932,91 +1045,277 @@ export default function AttendanceTab() {
           </div>
         </>
       ) : (
-        <div className="flex flex-col flex-1 gap-4 overflow-hidden">
-          {/* Filters */}
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Start Date</label>
-                <input 
-                  type="date" 
-                  value={filterStartDate} 
-                  onChange={e => setFilterStartDate(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">End Date</label>
-                <input 
-                  type="date" 
-                  value={filterEndDate} 
-                  onChange={e => setFilterEndDate(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Name / Category</label>
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Search name or remark..." 
-                    value={filterName}
-                    onChange={e => setFilterName(e.target.value)}
-                    className="w-full h-10 border border-gray-200 rounded-lg pl-9 pr-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
+        <div className="flex flex-1 gap-4 overflow-hidden">
+          <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+            {/* Header */}
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance Dashboard</h2>
+                  <p className="text-sm text-gray-500">Monitor employee attendance and working patterns</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const end = new Date()
+                      const start = new Date()
+                      start.setDate(end.getDate() - 29)
+                      const nextStart = formatDateForInput(start)
+                      const nextEnd = formatDateForInput(end)
+                      setFilterStartDate(nextStart)
+                      setFilterEndDate(nextEnd)
+                      setTimeout(() => handleFilterSubmit(), 0)
+                    }}
+                    className="h-9 px-3 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold uppercase tracking-wider hover:bg-gray-200 transition-all flex items-center gap-2"
+                  >
+                    <Calendar size={14} /> Last 30 Days
+                  </button>
+                  <button
+                    onClick={handleFilterSubmit}
+                    disabled={reportLoading}
+                    className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-semibold uppercase tracking-wider hover:border-indigo-300 hover:text-indigo-600 transition-all flex items-center gap-2"
+                  >
+                    {reportLoading ? <Spinner size="w-3 h-3" /> : <RefreshCw size={14} />}
+                    Filter
+                  </button>
+                  <PDFDownloadLink
+                    document={<AttendancePDF data={reportData} startDate={filterStartDate} endDate={filterEndDate} orgName={user?.orgName} />}
+                    fileName={`attendance_report_${filterStartDate}_to_${filterEndDate}.pdf`}
+                    className={`h-9 px-3 bg-emerald-600 text-white rounded-lg text-xs font-semibold uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-2 ${!reportData.length ? 'opacity-50 pointer-events-none' : ''}`}
+                  >
+                    {({ loading }) => (
+                      <>
+                        {loading ? <Spinner size="w-3 h-3" color="text-white" /> : <Download size={14} />}
+                        Export
+                      </>
+                    )}
+                  </PDFDownloadLink>
                 </div>
               </div>
-              <button 
-                onClick={handleFilterSubmit}
-                disabled={reportLoading}
-                className="h-10 bg-indigo-600 text-white font-bold rounded-lg text-xs uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
-              >
-                {reportLoading ? <Spinner size="w-4 h-4" color="text-white" /> : <RefreshCw size={14} />}
-                Generate Report
-              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Start Date</label>
+                  <input
+                    type="date"
+                    value={filterStartDate}
+                    onChange={e => setFilterStartDate(e.target.value)}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">End Date</label>
+                  <input
+                    type="date"
+                    value={filterEndDate}
+                    onChange={e => setFilterEndDate(e.target.value)}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Name</label>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search employee..."
+                      value={filterName}
+                      onChange={e => setFilterName(e.target.value)}
+                      className="w-full h-10 border border-gray-200 rounded-lg pl-9 pr-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Category / Remark</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. site, remote, remark..."
+                    value={filterCategory}
+                    onChange={e => setFilterCategory(e.target.value)}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <button
+                  onClick={handleFilterSubmit}
+                  disabled={reportLoading}
+                  className="h-10 bg-indigo-600 text-white font-bold rounded-lg text-xs uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                >
+                  {reportLoading ? <Spinner size="w-4 h-4" color="text-white" /> : <RefreshCw size={14} />}
+                  Generate
+                </button>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">30-Day Attendance Timeline</h3>
+                    <p className="text-xs text-gray-500">
+                      {filterStartDate && filterEndDate ? `${displayShortDate(filterStartDate)} - ${displayShortDate(filterEndDate)}` : 'Select a range'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-[10px] font-semibold text-gray-500">
+                    {[
+                      { label: 'Present', color: 'bg-emerald-500' },
+                      { label: 'Late', color: 'bg-amber-400' },
+                      { label: 'Absent', color: 'bg-gray-300' },
+                      { label: 'Remote', color: 'bg-blue-500' },
+                      { label: 'Overtime', color: 'bg-violet-500' }
+                    ].map(item => (
+                      <div key={item.label} className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${item.color}`}></span>
+                        {item.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="overflow-auto">
+                {reportLoading ? (
+                  <div className="py-16 flex items-center justify-center"><Spinner /></div>
+                ) : reportByEmployee.length === 0 ? (
+                  <div className="py-16 text-center text-gray-300 font-medium">No report data. Select filters and click Generate.</div>
+                ) : (
+                  <table className="min-w-[900px] w-full text-left border-collapse">
+                    <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+                      <tr className="h-10">
+                        <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-20">Employee</th>
+                        {reportDays.map(day => {
+                          const d = new Date(day)
+                          const wd = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()]
+                          return (
+                            <th key={day} className="px-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-center">
+                              <div className="leading-none">{wd}</div>
+                              <div className="text-[9px] text-gray-500">{d.getDate()}</div>
+                            </th>
+                          )
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {reportByEmployee.map(emp => (
+                        <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-2 sticky left-0 bg-white z-10">
+                            <div className="text-[12px] font-semibold text-gray-800">{emp.name}</div>
+                            <div className="text-[10px] text-gray-400">{emp.department}</div>
+                          </td>
+                          {reportDays.map(day => {
+                            const row = emp.rows[day]
+                            const status = classifyAttendanceRow(row)
+                            const color = getStatusColor(status)
+                            return (
+                              <td key={`${emp.id}-${day}`} className="px-1 py-2 text-center">
+                                <div
+                                  className={`w-4 h-4 rounded-md ${color} ${status === 'none' ? 'border border-gray-100' : ''}`}
+                                  title={row ? `${displayDate(day)} - ${row.status || 'Present'}` : `${displayDate(day)} - No data`}
+                                ></div>
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            {/* Employee Statistics */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900">Employee Statistics ({reportDays.length || 0} Days)</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr className="h-10">
+                      <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                      <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</th>
+                      <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Days Present</th>
+                      <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Late Arrivals</th>
+                      <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Absences</th>
+                      <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Total Hours</th>
+                      <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Attendance %</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {reportSummaryRows.length === 0 ? (
+                      <tr><td colSpan={7} className="text-center py-12 text-gray-300 font-medium">No statistics yet.</td></tr>
+                    ) : (
+                      reportSummaryRows.map(row => (
+                        <tr key={row.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-[12px] font-semibold text-gray-900">{row.name}</td>
+                          <td className="px-4 py-3 text-[12px] text-gray-500">{row.department}</td>
+                          <td className="px-4 py-3 text-[12px] text-gray-700 text-center">{row.present}</td>
+                          <td className="px-4 py-3 text-[12px] text-amber-600 text-center">{row.late}</td>
+                          <td className="px-4 py-3 text-[12px] text-red-600 text-center">{row.absent}</td>
+                          <td className="px-4 py-3 text-[12px] text-gray-700 text-center">{row.totalHours}</td>
+                          <td className="px-4 py-3 text-[12px] text-center">
+                            <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold">
+                              {row.attendancePct}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          {/* Results Table */}
-          <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-            <div className="overflow-y-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
-                  <tr className="h-10">
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Shift</th>
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">In</th>
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Out</th>
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {reportLoading ? (
-                    <tr><td colSpan={7} className="text-center py-12"><Spinner /></td></tr>
-                  ) : reportData.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-20 text-gray-300 font-medium italic">No report data. Select filters and click Generate.</td></tr>
-                  ) : (
-                    reportData.map((row, i) => (
-                      <tr key={i} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-[12px] font-medium text-gray-500 whitespace-nowrap">{displayDate(row.date)}</td>
-                        <td className="px-4 py-3 text-[13px] font-bold text-gray-900 whitespace-nowrap">{row.name}</td>
-                        <td className="px-4 py-3 text-[12px] font-medium text-gray-600">{row.shiftType}</td>
-                        <td className="px-4 py-3 text-[12px] font-medium text-gray-800">{row.inTime || '-'}</td>
-                        <td className="px-4 py-3 text-[12px] font-medium text-gray-800">{row.outTime || '-'}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${row.status === 'Present' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-[12px] text-gray-500 truncate max-w-[150px]" title={row.remarks}>{row.remarks || '-'}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+          {/* Right Sidebar */}
+          <div className="hidden xl:flex w-[280px] shrink-0 flex-col gap-4">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Employees</p>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.totalEmployees || 0}</div>
+              <div className="text-[10px] text-gray-500 font-semibold mt-1">Active in range</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Present Today</p>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.presentToday || 0}</div>
+              <div className="text-[10px] text-indigo-600 font-semibold mt-1">
+                {reportTotals.totalEmployees ? `${Math.round((reportTotals.presentToday / reportTotals.totalEmployees) * 1000) / 10}%` : '0%'}
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Absent Today</p>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.absentToday || 0}</div>
+              <div className="text-[10px] text-gray-500 font-semibold mt-1">Based on {displayShortDate(filterEndDate)}</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Avg Working Hours</p>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">
+                {reportTotals.avgWorkingHours ? `${reportTotals.avgWorkingHours.toFixed(1)}h` : '0h'}
+              </div>
+              <div className="text-[10px] text-gray-500 font-semibold mt-1">Standard Shift</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-900">Team</p>
+                <span className="text-[10px] text-gray-400 font-bold uppercase">{activeEmployees.slice(0, 4).length} online</span>
+              </div>
+              <div className="mt-3 space-y-3">
+                {activeEmployees.slice(0, 4).map(emp => (
+                  <div key={emp.id} className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full text-white text-[10px] font-bold flex items-center justify-center" style={{ backgroundColor: getAvatarColor(emp.id) }}>
+                      {getInitials(emp.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[12px] font-semibold text-gray-800 truncate">{emp.name}</div>
+                      <div className="text-[10px] text-gray-400 truncate">{emp.role || emp.designation || 'Employee'}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="mt-4 w-full h-9 bg-emerald-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all">
+                + Invite Member
+              </button>
             </div>
           </div>
         </div>
