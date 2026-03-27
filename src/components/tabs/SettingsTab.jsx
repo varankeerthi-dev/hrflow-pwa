@@ -379,16 +379,6 @@ export default function SettingsTab() {
           await seedDefaultMinWorkHours(true)
         }
 
-        // Fetch Roles
-        const rolesSnap = await getDocs(collection(db, 'organisations', user.orgId, 'roles'))
-        const fetchedRoles = rolesSnap.docs.map(d => ({ id: d.id, ...d.data() })) || []
-        setRoles(fetchedRoles)
-
-        // Auto-seed default roles if none exist
-        if (fetchedRoles.length === 0) {
-          await seedDefaultRoles(true)
-        }
-
         // Fetch Users belonging to this org
         const usersQuery = query(collection(db, 'users'), where('orgId', '==', user.orgId))
         const usersSnap = await getDocs(usersQuery)
@@ -418,6 +408,23 @@ export default function SettingsTab() {
       }
     }
     fetchData()
+  }, [user?.orgId])
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const rolesQuery = collection(db, 'organisations', user.orgId, 'roles')
+    const unsubscribe = onSnapshot(rolesQuery, (snapshot) => {
+      const fetchedRoles = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) || []
+      setRoles(fetchedRoles)
+      
+      // Auto-seed default roles if none exist
+      if (fetchedRoles.length === 0) {
+        seedDefaultRoles(true)
+      }
+    }, (err) => {
+      console.error('Roles subscription error:', err)
+    })
+    return () => unsubscribe()
   }, [user?.orgId])
 
   useEffect(() => {
@@ -778,6 +785,7 @@ export default function SettingsTab() {
 
   const togglePermission = (modId, permKey) => {
     setNewRole(prev => {
+      if (!prev) return prev
       const perms = { ...(prev.permissions || {}) }
       if (!perms[modId]) perms[modId] = {}
       const currentVal = !!perms[modId][permKey]
@@ -1797,7 +1805,7 @@ export default function SettingsTab() {
                           <td colSpan={5} className="px-6 py-10 text-center text-gray-400 text-xs italic">No users found in this organization.</td>
                         </tr>
                       ) : users.map(u => {
-                        const associatedEmp = employees.find(e => e.email === u.email || e.id === u.employeeId)
+                        const associatedEmp = employees.find(e => e.email?.toLowerCase() === u.email?.toLowerCase() || e.id === u.employeeId)
                         const emailPrefix = u.email ? u.email.split('@')[0] : 'User'
                         const displayName = u.name || associatedEmp?.fullName || associatedEmp?.name || emailPrefix
                         
@@ -1886,13 +1894,6 @@ export default function SettingsTab() {
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-4">
                     <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Defined Roles</h3>
-                    <button 
-                      onClick={seedDefaultRoles}
-                      disabled={seeding}
-                      className="text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-all uppercase tracking-tight"
-                    >
-                      {seeding ? 'Seeding...' : 'Seed Default Roles'}
-                    </button>
                   </div>
                   <button 
                     onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }); setShowAddRole(true); }}
