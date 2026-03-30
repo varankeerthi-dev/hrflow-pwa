@@ -72,6 +72,21 @@ const EmployeeSlipPDF = ({ slipData, orgName }) => (
         </View>
       </View>
 
+      <View style={{flexDirection:'row', justifyContent:'center', gap:40, marginBottom:16, paddingVertical:12, backgroundColor:'#f8fafc', borderRadius:8}}>
+        <View style={{alignItems:'center'}}>
+          <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>BASIC</Text>
+          <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(slipData.basic || 0)}</Text>
+        </View>
+        <View style={{alignItems:'center'}}>
+          <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>HRA</Text>
+          <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(slipData.hra || 0)}</Text>
+        </View>
+        <View style={{alignItems:'center'}}>
+          <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>SALARY</Text>
+          <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR((slipData.basic || 0) + (slipData.hra || 0))}</Text>
+        </View>
+      </View>
+
       <View style={pdfStyles.sectionWrap}>
         <View style={pdfStyles.sectionHead}>
           <Text style={pdfStyles.sectionTitle}>EARNINGS</Text>

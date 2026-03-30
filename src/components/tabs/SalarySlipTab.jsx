@@ -59,6 +59,21 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
       </View>
     </View>
 
+    <View style={{flexDirection:'row', justifyContent:'center', gap:40, marginBottom:16, paddingVertical:12, backgroundColor:'#f8fafc', borderRadius:8}}>
+      <View style={{alignItems:'center'}}>
+        <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>BASIC</Text>
+        <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(data.basic || 0)}</Text>
+      </View>
+      <View style={{alignItems:'center'}}>
+        <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>HRA</Text>
+        <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(data.hra || 0)}</Text>
+      </View>
+      <View style={{alignItems:'center'}}>
+        <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>SALARY</Text>
+        <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR((data.basic || 0) + (data.hra || 0))}</Text>
+      </View>
+    </View>
+
     <View style={{border:1, borderColor:'#0f172a', borderRadius:8, overflow:'hidden', marginBottom:20}}>
       <View style={{flexDirection:'row', backgroundColor:'#0f172a', color:'white', padding:8}}>
         <Text style={{flex:1, fontSize:8, fontWeight:'bold', letterSpacing:1}}>EARNINGS</Text>
