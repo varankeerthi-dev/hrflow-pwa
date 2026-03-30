@@ -552,8 +552,12 @@ export default function SalarySlipTab() {
             {slipData ? (
               <div className="flex-1 overflow-hidden flex gap-4 p-2">
                 <div className="flex-1 min-w-0 overflow-hidden flex flex-col items-center">
-                  <div className="bg-white border-2 border-black shadow-2xl rounded-[24px] overflow-hidden relative flex flex-col w-full h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <div className="bg-white border-2 border-black shadow-2xl rounded-[24px] overflow-hidden relative flex flex-col w-full h-full print-area" style={{ fontFamily: "'Inter', sans-serif" }}>
                   <div className="flex justify-end gap-2 p-3 bg-slate-50 border-b border-slate-100 no-print shrink-0">
+                    <button onClick={() => window.print()} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
+                      <Download size={12} />
+                      Print
+                    </button>
                     <button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60">
                       <Download size={12} />
                       {exportingSlipPdf ? 'Preparing...' : 'Export PDF'}

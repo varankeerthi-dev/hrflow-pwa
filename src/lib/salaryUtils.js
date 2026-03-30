@@ -19,10 +19,8 @@ export function numberToWords(amount) {
 }
 
 export function formatINR(amount) {
-  if (amount === undefined || amount === null) return '₹0.00';
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+  if (amount === undefined || amount === null) return 'Rs. 0.00';
+  return 'Rs. ' + new Intl.NumberFormat('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount);
