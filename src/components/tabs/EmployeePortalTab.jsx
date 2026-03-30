@@ -12,6 +12,7 @@ import TimePicker from '../ui/TimePicker'
 import { useLeaves } from '../../hooks/useLeaves'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { 
   User, 
   Calendar, 
@@ -542,7 +543,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                     </div>
                   )}
                 </div>
-                <div className={`absolute bottom-2 right-2 w-5 h-5 rounded-full border-2 border-white shadow-sm ${employee?.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                <div className={`absolute bottom-2 right-2 w-5 h-5 rounded-full border-2 border-white shadow-sm ${isEmployeeActiveStatus(employee?.status) ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
               </div>
 
               <div className="text-center md:text-left flex-1">

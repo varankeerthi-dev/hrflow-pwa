@@ -7,6 +7,7 @@ import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calend
 import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 
 function formatOTHours(otHours) {
   if (!otHours) return '-'
@@ -82,7 +83,7 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
         const filteredEmployees = empSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(emp => {
-            if (emp.status === 'Active') return true
+            if (isEmployeeActiveStatus(emp.status)) return true
             
             if (emp.joinedDate) {
               const joinDate = new Date(emp.joinedDate)

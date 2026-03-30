@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
-import { 
-  Users, 
-  Calendar, 
+import {
+  Users,
+  Calendar,
   Clock, 
   AlertCircle, 
   CheckCircle2, 
@@ -11,6 +11,7 @@ import {
   ArrowRight
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 
 export default function HomeTab() {
   const { user } = useAuth()
@@ -26,7 +27,7 @@ export default function HomeTab() {
     if (!employees) return
     setStats({
       total: employees.length,
-      active: employees.filter(e => e.status === 'Active').length,
+      active: employees.filter(e => isEmployeeActiveStatus(e.status)).length,
       present: 0, // Would need attendance fetch
       pendingLeave: 0
     })

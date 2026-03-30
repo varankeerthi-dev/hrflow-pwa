@@ -12,6 +12,13 @@ import ImageViewer from '../ui/ImageViewer'
 import TimePicker from '../ui/TimePicker'
 
 import SalarySlabSettings from './SalarySlabSettings'
+import {
+  EMPLOYEE_STATUS_ACTIVE,
+  EMPLOYEE_STATUS_OPTIONS,
+  getEmployeeStatusBadgeClass,
+  getStatusTransitionRequirement,
+  normalizeEmployeeStatus,
+} from '../../lib/employeeStatus'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -24,6 +31,50 @@ function getAvatarColor(id) {
   return `hsl(${h}, 70%, 50%)`
 }
 
+function getTodayDate() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function createEmployeeFormState() {
+  return {
+    name: '',
+    empCode: '',
+    designation: '',
+    department: '',
+    shiftId: '',
+    workHours: 9,
+    minDailyHoursCategory: '',
+    site: '',
+    employmentType: 'Full-time',
+    monthlySalary: 0,
+    status: EMPLOYEE_STATUS_ACTIVE,
+    joinedDate: '',
+    activeFrom: '',
+    inactiveFrom: '',
+    rejoinDate: '',
+    statusHistory: [],
+    bloodGroup: '',
+    dob: '',
+    fatherName: '',
+    motherName: '',
+    maritalStatus: '',
+    email: '',
+    emergencyContact: '',
+    contactNo: '',
+    pfNo: '',
+    address: '',
+    bankAccount: '',
+    photoURL: '',
+    permissionHours: 2,
+    documents: [],
+    role: 'Employee',
+    reportingManager: '',
+    loginEnabled: false,
+    tempPassword: '',
+    minDailyHours: 8,
+  }
+}
+
 export default function SettingsTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading, updateEmployee, addEmployee, deleteEmployee } = useEmployees(user?.orgId)
@@ -34,6 +85,8 @@ export default function SettingsTab() {
   const [loading, setLoading] = useState(true)
   const [editingEmp, setEditingEmp] = useState(null)
   const [editForm, setEditForm] = useState({})
+  const [editOriginalStatus, setEditOriginalStatus] = useState(EMPLOYEE_STATUS_ACTIVE)
+  const [editStatusTransition, setEditStatusTransition] = useState(null)
   const [showAddShift, setShowAddShift] = useState(false)
   const [editingShift, setEditingShift] = useState(null)
   const [shifts, setShifts] = useState([])
@@ -86,38 +139,7 @@ export default function SettingsTab() {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
   const [showEndTimePicker, setShowEndTimePicker] = useState(false)
   const [newMinWorkHours, setNewMinWorkHours] = useState({ name: '', hours: 8, description: '' })
-  const [newEmployee, setNewEmployee] = useState({
-    name: '',
-    empCode: '',
-    designation: '',
-    department: '',
-    shiftId: '',
-    workHours: 9,
-    minDailyHoursCategory: '',
-    site: '',
-    employmentType: 'Full-time',
-    monthlySalary: 0,
-    status: 'Active',
-    joinedDate: '',
-    bloodGroup: '',
-    dob: '',
-    fatherName: '',
-    motherName: '',
-    maritalStatus: '',
-    email: '',
-    emergencyContact: '',
-    contactNo: '',
-    pfNo: '',
-    address: '',
-    bankAccount: '',
-    photoURL: '',
-    permissionHours: 2,
-    documents: [],
-    role: 'Employee',
-    reportingManager: '',
-    loginEnabled: false,
-    tempPassword: '',
-  })
+  const [newEmployee, setNewEmployee] = useState(createEmployeeFormState())
   const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
   const [viewerState, setViewerState] = useState(null) // { docs, index }
   const [newRole, setNewRole] = useState({ 
@@ -507,12 +529,116 @@ export default function SettingsTab() {
     return await getDownloadURL(storageRef)
   }
 
+  const getEmployeeFormWithDefaults = (employee) => {
+    const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
+    const mwhCategory = mwhList.find(m => m.hours === employee.minDailyHours) || mwhList.find(m => m.name === employee.minDailyHours)
+    const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
+
+    return {
+      ...createEmployeeFormState(),
+      ...employee,
+      status: normalizeEmployeeStatus(employee.status),
+      statusHistory: Array.isArray(employee.statusHistory) ? employee.statusHistory : [],
+      loginEnabled: employee.loginEnabled || false,
+      tempPassword: '',
+      minDailyHoursCategory: mwhCategory?.name || defaultCategory || employee.minDailyHours || '',
+    }
+  }
+
+  const buildStatusHistoryEntry = ({ fromStatus, toStatus, effectiveDate, dateField, actionLabel, name }) => ({
+    fromStatus,
+    toStatus,
+    effectiveDate,
+    dateField,
+    action: actionLabel,
+    employeeName: name || '',
+    changedAt: new Date().toISOString(),
+    changedBy: user.uid,
+    changedByName: user.name || user.email || 'Unknown',
+  })
+
+  const applyStatusMetadata = (baseData, transitionMeta, statusHistoryEntry) => {
+    if (!transitionMeta || !statusHistoryEntry) return baseData
+
+    const effectiveDate = statusHistoryEntry.effectiveDate
+    const nextData = {
+      ...baseData,
+      statusChangedAt: effectiveDate,
+      lastStatusChange: statusHistoryEntry,
+      statusHistory: [...(Array.isArray(baseData.statusHistory) ? baseData.statusHistory : []), statusHistoryEntry],
+    }
+
+    if (transitionMeta.field === 'activeFrom') {
+      nextData.activeFrom = effectiveDate
+    }
+
+    if (transitionMeta.field === 'inactiveFrom') {
+      nextData.inactiveFrom = effectiveDate
+    }
+
+    if (transitionMeta.field === 'rejoinDate') {
+      nextData.rejoinDate = effectiveDate
+      nextData.activeFrom = effectiveDate
+    }
+
+    return nextData
+  }
+
+  const handleEditStatusSelect = (nextStatus) => {
+    const normalizedNextStatus = normalizeEmployeeStatus(nextStatus)
+    const transitionMeta = getStatusTransitionRequirement(editOriginalStatus, normalizedNextStatus)
+
+    setEditForm(prev => ({
+      ...prev,
+      status: normalizedNextStatus,
+      ...(transitionMeta ? {
+        [transitionMeta.field]: prev[transitionMeta.field] || getTodayDate(),
+      } : {}),
+    }))
+
+    setEditStatusTransition(
+      transitionMeta
+        ? {
+            ...transitionMeta,
+            fromStatus: editOriginalStatus,
+            toStatus: normalizedNextStatus,
+          }
+        : null
+    )
+  }
+
+  const openEmployeeEditor = async (emp) => {
+    const baseForm = getEmployeeFormWithDefaults(emp)
+    const originalStatus = normalizeEmployeeStatus(baseForm.status)
+
+    setEditingEmp(emp.id)
+    setEditOriginalStatus(originalStatus)
+    setEditStatusTransition(null)
+    setEditForm(baseForm)
+
+    if (emp.email) {
+      const uSnap = await getDocs(query(collection(db, 'users'), where('orgId', '==', user.orgId), where('email', '==', emp.email.toLowerCase().trim())))
+      if (!uSnap.empty) {
+        const userData = uSnap.docs[0].data()
+        setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true }))
+      }
+    }
+  }
+
   const handleSaveEmployee = async () => {
     if (editingEmp && editForm.role && typeof editForm.role !== 'string') {
       return alert('Role must be a valid string')
     }
     setSaving(true)
     try {
+      const normalizedOriginalStatus = normalizeEmployeeStatus(editOriginalStatus)
+      const normalizedNextStatus = normalizeEmployeeStatus(editForm.status)
+      const statusTransition = getStatusTransitionRequirement(normalizedOriginalStatus, normalizedNextStatus)
+
+      if (statusTransition && !editForm[statusTransition.field]) {
+        return alert(`Please select ${statusTransition.label.toLowerCase()}.`)
+      }
+
       const selectedRoleName = editForm.role || 'employee'
       let selectedRolePerms = {}
       
@@ -548,17 +674,45 @@ export default function SettingsTab() {
         ),
         orgId: user.orgId,
         role: 'admin', // Force admin role
+        status: normalizedNextStatus,
         minDailyHours: mwhCategory ? mwhCategory.hours : (editForm.minDailyHours || 8)
       }
+
+      let statusHistoryEntry = null
+      if (statusTransition) {
+        statusHistoryEntry = buildStatusHistoryEntry({
+          fromStatus: normalizedOriginalStatus,
+          toStatus: normalizedNextStatus,
+          effectiveDate: editForm[statusTransition.field],
+          dateField: statusTransition.field,
+          actionLabel: statusTransition.logAction,
+          name: editForm.name,
+        })
+      }
+
+      const employeePayload = applyStatusMetadata(cleanEditForm, statusTransition, statusHistoryEntry)
       
-      if (cleanEditForm.minDailyHoursCategory) delete cleanEditForm.minDailyHoursCategory
-      if (cleanEditForm.id) delete cleanEditForm.id
+      if (employeePayload.minDailyHoursCategory) delete employeePayload.minDailyHoursCategory
+      if (employeePayload.id) delete employeePayload.id
       
-      await updateEmployee(editingEmp, cleanEditForm)
+      await updateEmployee(editingEmp, employeePayload)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
+
+      if (statusHistoryEntry) {
+        await logChange('EMPLOYEE_STATUS_CHANGE', editingEmp, {
+          name: editForm.name,
+          fromStatus: statusHistoryEntry.fromStatus,
+          toStatus: statusHistoryEntry.toStatus,
+          effectiveDate: statusHistoryEntry.effectiveDate,
+          dateField: statusHistoryEntry.dateField,
+          action: statusHistoryEntry.action,
+        })
+      }
 
       setEditingEmp(null)
       setEditForm({})
+      setEditOriginalStatus(EMPLOYEE_STATUS_ACTIVE)
+      setEditStatusTransition(null)
       alert('Employee details updated successfully!')
     } catch (err) {
       console.error('Error saving employee:', err)
@@ -588,7 +742,36 @@ export default function SettingsTab() {
       const empCode = newEmployee.empCode?.trim() ||
         `EMP-${Date.now().toString(36).toUpperCase().slice(-4)}`
 
-      const payload = { ...newEmployee, empCode, orgId: user.orgId }
+      const normalizedStatus = normalizeEmployeeStatus(newEmployee.status)
+      const initialStatusDate = newEmployee.joinedDate || getTodayDate()
+      const initialStatusEntry = buildStatusHistoryEntry({
+        fromStatus: null,
+        toStatus: normalizedStatus,
+        effectiveDate: initialStatusDate,
+        dateField: normalizedStatus === 'Inactive' ? 'inactiveFrom' : normalizedStatus === 'Rejoined' ? 'rejoinDate' : 'activeFrom',
+        actionLabel: 'created',
+        name: newEmployee.name,
+      })
+
+      let payload = {
+        ...newEmployee,
+        empCode,
+        orgId: user.orgId,
+        status: normalizedStatus,
+        statusHistory: [initialStatusEntry],
+        statusChangedAt: initialStatusDate,
+        lastStatusChange: initialStatusEntry,
+      }
+
+      if (normalizedStatus === 'Inactive') {
+        payload.inactiveFrom = payload.inactiveFrom || initialStatusDate
+      } else if (normalizedStatus === 'Rejoined') {
+        payload.rejoinDate = payload.rejoinDate || initialStatusDate
+        payload.activeFrom = payload.activeFrom || initialStatusDate
+      } else {
+        payload.activeFrom = payload.activeFrom || initialStatusDate
+      }
+
       const { tempPassword, ...employeeDoc } = payload
       const roleName = newEmployee.role || 'employee'
       let rolePermissions = {}
@@ -614,14 +797,14 @@ export default function SettingsTab() {
       // Convert minDailyHoursCategory to minDailyHours
       const mwhCategory = (Array.isArray(minWorkHours) ? minWorkHours : []).find(m => m.name === newEmployee.minDailyHoursCategory)
       const employeeWithMinHours = {
-        ...newEmployee,
+        ...employeeDoc,
         minDailyHours: mwhCategory?.hours || 8
       }
       delete employeeWithMinHours.minDailyHoursCategory
 
       // 1) Create employee master
       const empId = await addEmployee(employeeWithMinHours)
-      await logChange('EMPLOYEE_CREATE', empId, { name: employeeDoc.name })
+      await logChange('EMPLOYEE_CREATE', empId, { name: employeeDoc.name, status: employeeDoc.status })
 
       // 2) Optionally create login-enabled auth user
       if (employeeDoc.loginEnabled && employeeDoc.email && tempPassword) {
@@ -649,38 +832,7 @@ export default function SettingsTab() {
       }
 
       setShowAddEmployee(false)
-      setNewEmployee({
-        name: '',
-        empCode: '',
-        designation: '',
-        department: '',
-        shiftId: '',
-        workHours: 9,
-        site: '',
-        employmentType: 'Full-time',
-        monthlySalary: 0,
-        status: 'Active',
-        joinedDate: '',
-        bloodGroup: '',
-        dob: '',
-        fatherName: '',
-        motherName: '',
-        maritalStatus: '',
-        email: '',
-        emergencyContact: '',
-        contactNo: '',
-        pfNo: '',
-        address: '',
-        bankAccount: '',
-        photoURL: '',
-        permissionHours: 2,
-        minDailyHours: 8,
-        documents: [],
-        role: 'Employee',
-        reportingManager: '',
-        loginEnabled: false,
-        tempPassword: '',
-      })
+      setNewEmployee(createEmployeeFormState())
       alert('New employee created successfully!')
     } catch (err) {
       console.error('Error adding employee:', err)
@@ -1388,7 +1540,7 @@ export default function SettingsTab() {
         {activeSubTab === 'employee' && (() => {
           // Derive filter options
           const deptOptions = [...new Set(employees.map(e => e.department).filter(Boolean))]
-          const statusOptions = ['All', 'Active', 'Inactive']
+          const statusOptions = ['All', ...EMPLOYEE_STATUS_OPTIONS]
 
   const canCreateEmployee = isAdmin || userPermissions['Employees']?.create === true
   const canEditEmployee = isAdmin || userPermissions['Employees']?.edit === true
@@ -1486,9 +1638,7 @@ export default function SettingsTab() {
                           : 'bg-gray-100 text-gray-600'
 
                         // Status badge
-                        const statusBadge = emp.status === 'Active'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                          : 'bg-red-50 text-red-600 border border-red-100'
+                        const statusBadge = getEmployeeStatusBadgeClass(emp.status)
 
                         return (
                           <tr
@@ -1504,11 +1654,7 @@ export default function SettingsTab() {
                               <button
                                 onClick={() => { 
                                   if (!canEditEmployee) return;
-                                  const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
-                                  const mwhCategory = mwhList.find(m => m.hours === emp.minDailyHours) || mwhList.find(m => m.name === emp.minDailyHours)
-                                  const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
-                                  setEditingEmp(emp.id); 
-                                  setEditForm({ ...emp, minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || '' }) 
+                                  openEmployeeEditor(emp)
                                 }}
                                 className={`flex items-center gap-3 text-left ${!canEditEmployee ? 'cursor-default' : ''}`}
                               >
@@ -1624,27 +1770,7 @@ export default function SettingsTab() {
                                 </button>
                                 <button
                                   onClick={async () => {
-                                    const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
-                                    const mwhCategory = mwhList.find(m => m.hours === emp.minDailyHours) || mwhList.find(m => m.name === emp.minDailyHours)
-                                    const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
-
-                                    // Set basic info immediately to avoid blank form
-                                    setEditingEmp(emp.id)
-                                    setEditForm({ 
-                                      ...emp, 
-                                      loginEnabled: emp.loginEnabled || false, 
-                                      tempPassword: '',
-                                      minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || ''
-                                    })
-                                    
-                                    // Fetch additional login info safely using query
-                                    if (emp.email) {
-                                      const uSnap = await getDocs(query(collection(db, 'users'), where('orgId', '==', user.orgId), where('email', '==', emp.email.toLowerCase().trim())))
-                                      if (!uSnap.empty) {
-                                        const userData = uSnap.docs[0].data()
-                                        setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true }))
-                                      }
-                                    }
+                                    await openEmployeeEditor(emp)
                                   }}
                                   title="Edit employee"
                                   className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
@@ -1945,7 +2071,12 @@ export default function SettingsTab() {
       {/* COMPREHENSIVE EMPLOYEE EDITOR MODAL */}
       <Modal 
         isOpen={!!editingEmp} 
-        onClose={() => setEditingEmp(null)} 
+        onClose={() => {
+          setEditingEmp(null)
+          setEditForm({})
+          setEditOriginalStatus(EMPLOYEE_STATUS_ACTIVE)
+          setEditStatusTransition(null)
+        }} 
         title={`EDIT EMPLOYEE: ${editForm.name || ''}`}
       >
         <div className="flex flex-col h-[85vh] max-w-3xl mx-auto font-inter bg-white">
@@ -2022,6 +2153,16 @@ export default function SettingsTab() {
                 />
               </div>
               <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Department</label>
+                <input
+                  type="text"
+                  placeholder="e.g. HR, Finance"
+                  value={editForm.department || ''}
+                  onChange={e => setEditForm(s => ({ ...s, department: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours *</label>
                 <select
                   value={editForm.minDailyHoursCategory || (Array.isArray(minWorkHours) ? minWorkHours[0]?.name : '') || ''}
@@ -2079,9 +2220,61 @@ export default function SettingsTab() {
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
+              <div className="col-span-2">
+                <label className="block text-[11px] font-bold text-gray-700 mb-2">Status</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {EMPLOYEE_STATUS_OPTIONS.map(status => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => handleEditStatusSelect(status)}
+                      className={`h-10 rounded-lg text-sm font-semibold border transition-all ${
+                        normalizeEmployeeStatus(editForm.status) === status
+                          ? status === EMPLOYEE_STATUS_ACTIVE
+                            ? 'bg-green-600 text-white border-green-600'
+                            : status === 'Inactive'
+                              ? 'bg-red-500 text-white border-red-500'
+                              : 'bg-sky-600 text-white border-sky-600'
+                          : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {editStatusTransition && (
+                <div className="col-span-2 border border-amber-200 bg-amber-50 rounded-xl p-4 space-y-3">
+                  <div>
+                    <p className="text-[11px] font-black text-amber-700 uppercase tracking-widest">
+                      Status Change: {editOriginalStatus} to {normalizeEmployeeStatus(editForm.status)}
+                    </p>
+                    <p className="text-[11px] text-amber-700 mt-1">{editStatusTransition.helperText}</p>
+                  </div>
+                  <div className="max-w-xs">
+                    <label className="block text-[11px] font-bold text-amber-800 mb-1">{editStatusTransition.label}</label>
+                    <input
+                      type="date"
+                      value={editForm[editStatusTransition.field] || ''}
+                      onChange={e => setEditForm(s => ({ ...s, [editStatusTransition.field]: e.target.value }))}
+                      className="w-full h-10 border border-amber-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="col-span-2">
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Address</label>
+                <textarea
+                  placeholder="Full residential address"
+                  value={editForm.address || ''}
+                  onChange={e => setEditForm(s => ({ ...s, address: e.target.value }))}
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
+                />
+              </div>
 
               {/* Login Enabled Toggle */}
-              <div className="flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
+              <div className="col-span-2 flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
                 <div>
                   <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
                   <p className="text-[10px] text-indigo-500">Allow employee to access the system</p>
@@ -2097,7 +2290,7 @@ export default function SettingsTab() {
 
               {/* Password Field - Only shown when login is enabled */}
               {editForm.loginEnabled && (
-                <div>
+                <div className="col-span-2">
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">Temporary Password *</label>
                   <input
                     type="text"
@@ -2111,7 +2304,7 @@ export default function SettingsTab() {
               )}
 
               {/* Documents Upload Section */}
-              <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+              <div className="col-span-2 border border-gray-100 rounded-xl p-4 bg-gray-50/50">
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5"><Paperclip size={13} /> Documents</label>
                   <span className="text-[10px] text-gray-400">{(editForm.documents || []).length} file(s)</span>
@@ -2201,7 +2394,12 @@ export default function SettingsTab() {
           <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex gap-3 bg-white">
             <button
               type="button"
-              onClick={() => setEditingEmp(null)}
+              onClick={() => {
+                setEditingEmp(null)
+                setEditForm({})
+                setEditOriginalStatus(EMPLOYEE_STATUS_ACTIVE)
+                setEditStatusTransition(null)
+              }}
               className="px-5 h-10 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-200 transition-all"
             >
               Cancel
@@ -2345,18 +2543,29 @@ export default function SettingsTab() {
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
               </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Marital Status</label>
+                <select value={newEmployee.maritalStatus || ''} onChange={e => setNewEmployee(s => ({ ...s, maritalStatus: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select...</option>
+                  {['Single', 'Married', 'Divorced', 'Widowed'].map(ms => <option key={ms}>{ms}</option>)}
+                </select>
+              </div>
               <div className="col-span-2">
                 <label className="block text-[11px] font-bold text-gray-700 mb-2">Status</label>
                 <div className="flex gap-2">
-                  {['Active', 'Inactive'].map(s => (
+                  {EMPLOYEE_STATUS_OPTIONS.map(s => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => setNewEmployee(e => ({ ...e, status: s }))}
                       className={`flex-1 h-10 rounded-lg text-sm font-semibold border transition-all ${newEmployee.status === s
-                        ? s === 'Active'
+                        ? s === EMPLOYEE_STATUS_ACTIVE
                           ? 'bg-green-600 text-white border-green-600'
-                          : 'bg-red-500 text-white border-red-500'
+                          : s === 'Inactive'
+                            ? 'bg-red-500 text-white border-red-500'
+                            : 'bg-sky-600 text-white border-sky-600'
                         : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
                         }`}
                     >

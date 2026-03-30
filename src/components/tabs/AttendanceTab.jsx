@@ -7,6 +7,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
@@ -454,7 +455,7 @@ export default function AttendanceTab() {
   }
 
   const sortedEmployees = useMemo(() => {
-    const active = employees.filter(e => e.status === 'Active')
+    const active = employees.filter(e => isEmployeeActiveStatus(e.status))
     if (!Array.isArray(rowOrder) || !rowOrder.length) return active
     return [...active].sort((a, b) => {
       const idxA = rowOrder.indexOf(a.id)

@@ -1,7 +1,25 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // DIAGNOSTIC: Open rules to everyone to isolate the "insufficient permissions" error
+    // Explicitly keep employee/profile/status-log paths open for the current app setup.
+    match /organisations/{orgId} {
+      match /employees/{employeeId} {
+        allow read, write: if true;
+      }
+
+      match /logs/{logId} {
+        allow read, write: if true;
+      }
+
+      match /{document=**} {
+        allow read, write: if true;
+      }
+    }
+
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
     match /{document=**} {
       allow read, write: if true;
     }

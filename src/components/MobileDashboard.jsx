@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
+import { isEmployeeActiveStatus } from '../lib/employeeStatus'
 import { doc, getDoc, collection, getDocs, addDoc, query, where, orderBy, limit } from 'firebase/firestore'
 import {
   Calendar,
@@ -333,7 +334,7 @@ export default function MobileDashboard() {
         
         const activeEmployees = employeesSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
-          .filter(e => e.status === 'Active')
+          .filter(e => isEmployeeActiveStatus(e.status))
         
         const todayAttendance = attendanceSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))

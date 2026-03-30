@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { getDocs, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'
+import { getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { employeesCol, employeeDoc, shiftsCol } from '../lib/firestore'
+import { isEmployeeActiveStatus } from '../lib/employeeStatus'
 
 export function useEmployees(orgId, activeOnly = false) {
   const [employees, setEmployees] = useState([])
@@ -15,18 +16,14 @@ export function useEmployees(orgId, activeOnly = false) {
     }
     setLoading(true)
     try {
-      let q = employeesCol(orgId)
-      if (activeOnly) {
-        q = query(employeesCol(orgId), where('status', '==', 'Active'))
-      }
-      const snapshot = await getDocs(q)
+      const snapshot = await getDocs(employeesCol(orgId))
 
       // Fetch all shifts once to avoid N+1 queries
       const shiftsSnap = await getDocs(shiftsCol(orgId))
       const shiftMap = {}
       shiftsSnap.forEach(s => { shiftMap[s.id] = s.data() })
 
-      const emps = snapshot.docs.map(d => {
+      let emps = snapshot.docs.map(d => {
         const data = d.data()
         return {
           id: d.id,
@@ -34,6 +31,11 @@ export function useEmployees(orgId, activeOnly = false) {
           shift: data.shiftId ? shiftMap[data.shiftId] : null
         }
       })
+
+      if (activeOnly) {
+        emps = emps.filter(emp => isEmployeeActiveStatus(emp.status))
+      }
+
       setEmployees(emps)
     } catch (e) {
       setError(e.message)
