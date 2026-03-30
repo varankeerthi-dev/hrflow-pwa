@@ -5,7 +5,7 @@ import { db, storage, auth, secondaryAuth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check, Search } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -279,6 +279,9 @@ export default function SettingsTab() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [saved, setSaved] = useState(false)
   const [orgError, setOrgError] = useState('')
+  const [employeeDirectorySearch, setEmployeeDirectorySearch] = useState('')
+  const [employeeDirectoryStatus, setEmployeeDirectoryStatus] = useState('All')
+  const [employeeDirectoryPage, setEmployeeDirectoryPage] = useState(1)
 
   // Roster Columns - Name, Designation, Contact mandatory; rest user-configurable
   const mandatoryColumns = ['name', 'designation', 'emergencyContact']
@@ -346,6 +349,7 @@ export default function SettingsTab() {
   }, {})
 
   const permissionRights = ['view', 'create', 'edit', 'delete', 'approve', 'export']
+  const roleMatrixActions = permissionRights.filter(action => action !== 'export')
 
   // Role Groups & Rights
   const roleGroups = []
@@ -1057,13 +1061,42 @@ export default function SettingsTab() {
     }
   }
 
+  const areAllRoleMatrixActionsEnabled = (modulePermissions = {}) =>
+    roleMatrixActions.every(action => modulePermissions?.[action] === true)
+
   const togglePermission = (modId, permKey) => {
     setNewRole(prev => {
       if (!prev) return prev
       const perms = { ...(prev.permissions || {}) }
       if (!perms[modId]) perms[modId] = {}
       const currentVal = !!perms[modId][permKey]
-      perms[modId] = { ...perms[modId], [permKey]: !currentVal }
+      const nextModulePerms = { ...perms[modId], [permKey]: !currentVal }
+      const allEnabled = areAllRoleMatrixActionsEnabled(nextModulePerms)
+      perms[modId] = {
+        ...nextModulePerms,
+        full: allEnabled,
+        ...(allEnabled ? { export: true } : {}),
+      }
+      return { ...prev, permissions: perms }
+    })
+  }
+
+  const toggleAllPermissions = (modId) => {
+    setNewRole(prev => {
+      if (!prev) return prev
+      const perms = { ...(prev.permissions || {}) }
+      const currentModulePerms = perms[modId] || {}
+      const shouldEnableAll = !areAllRoleMatrixActionsEnabled(currentModulePerms)
+      const nextModulePerms = roleMatrixActions.reduce((acc, action) => {
+        acc[action] = shouldEnableAll
+        return acc
+      }, { ...currentModulePerms })
+
+      perms[modId] = {
+        ...nextModulePerms,
+        full: shouldEnableAll,
+        export: shouldEnableAll ? true : false,
+      }
       return { ...prev, permissions: perms }
     })
   }
@@ -1347,6 +1380,10 @@ export default function SettingsTab() {
 
   const handlePrintRoster = () => { window.print() }
 
+  useEffect(() => {
+    setEmployeeDirectoryPage(1)
+  }, [employeeDirectorySearch, employeeDirectoryStatus])
+
   const makeAllEmployeesAdmin = async () => {
     if (!user?.orgId) return
     if (!confirm('This will set ALL users in this organization to the "Admin" role with full permissions. Continue?')) return
@@ -1406,12 +1443,6 @@ export default function SettingsTab() {
 
   const activeEmployeesCount = employees.filter(emp => isEmployeeActiveStatus(emp.status)).length
   const currentSettingsMeta = settingsSubTabMeta[activeSubTab] || settingsSubTabMeta.organization
-  const settingsSummaryCards = [
-    { label: 'Employees', value: employees.length, helper: `${activeEmployeesCount} active` },
-    { label: 'Users', value: users.length, helper: `${roles.length} roles` },
-    { label: 'Shifts', value: shifts.length, helper: `${minWorkHours.length} hour rules` },
-    { label: 'Holidays', value: orgSettings.holidays.length, helper: `${orgSettings.advanceCategories.length} advance cats` },
-  ]
 
   return (
     <div className="h-full flex flex-col text-[11px] font-inter text-slate-900">
@@ -1429,7 +1460,7 @@ export default function SettingsTab() {
 
       <div className="mb-6 overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.14),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] shadow-[0_28px_100px_rgba(15,23,42,0.10)] no-print">
         <div className="px-5 py-6 md:px-7 md:py-7">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex flex-col gap-6">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 shadow-sm">
                 <span className="h-2 w-2 rounded-full bg-indigo-500" />
@@ -1441,16 +1472,6 @@ export default function SettingsTab() {
               <p className="mt-3 max-w-xl text-[13px] leading-6 text-slate-600 md:text-[14px]">
                 {currentSettingsMeta.description}
               </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {settingsSummaryCards.map(card => (
-                <div key={card.label} className="rounded-[22px] border border-white/80 bg-white/85 px-4 py-4 shadow-sm backdrop-blur">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{card.label}</p>
-                  <p className="mt-2 text-[24px] font-black tracking-[-0.04em] text-slate-950">{card.value}</p>
-                  <p className="mt-1 text-[11px] font-medium text-slate-500">{card.helper}</p>
-                </div>
-              ))}
             </div>
           </div>
 
@@ -1871,6 +1892,302 @@ export default function SettingsTab() {
         {activeSubTab === 'approval_settings' && renderApprovalSettings()}
 
         {activeSubTab === 'employee' && (() => {
+          const canCreateEmployee = isAdmin || userPermissions['Employees']?.create === true
+          const canEditEmployee = isAdmin || userPermissions['Employees']?.edit === true
+          const canDeleteEmployee = isAdmin || userPermissions['Employees']?.delete === true
+          const orderedEmployees = getOrderedEmployees()
+          const statusTabs = [
+            { id: 'All', label: 'All', count: employees.length },
+            { id: EMPLOYEE_STATUS_ACTIVE, label: EMPLOYEE_STATUS_ACTIVE, count: employees.filter(emp => normalizeEmployeeStatus(emp.status) === EMPLOYEE_STATUS_ACTIVE).length },
+            { id: 'Inactive', label: 'Inactive', count: employees.filter(emp => normalizeEmployeeStatus(emp.status) === 'Inactive').length },
+            { id: 'Rejoined', label: 'Rejoined', count: employees.filter(emp => normalizeEmployeeStatus(emp.status) === 'Rejoined').length },
+          ]
+          const searchTerm = employeeDirectorySearch.trim().toLowerCase()
+          const filteredEmployees = orderedEmployees.filter(emp => {
+            const normalizedStatus = normalizeEmployeeStatus(emp.status)
+            const matchesStatus = employeeDirectoryStatus === 'All' || normalizedStatus === employeeDirectoryStatus
+            if (!matchesStatus) return false
+            if (!searchTerm) return true
+
+            const searchable = [
+              emp.empCode,
+              emp.name,
+              emp.email,
+              emp.designation,
+              emp.department,
+              emp.site,
+              emp.emergencyContact,
+              emp.shift?.name,
+            ]
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase()
+
+            return searchable.includes(searchTerm)
+          })
+          const pageSize = 10
+          const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize))
+          const currentPage = Math.min(employeeDirectoryPage, totalPages)
+          const pageStart = (currentPage - 1) * pageSize
+          const paginatedEmployees = filteredEmployees.slice(pageStart, pageStart + pageSize)
+          const visiblePageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1).filter(page =>
+            totalPages <= 5 || Math.abs(page - currentPage) <= 1 || page === 1 || page === totalPages
+          )
+          const departmentPalette = [
+            'bg-violet-50 text-violet-700',
+            'bg-emerald-50 text-emerald-700',
+            'bg-amber-50 text-amber-700',
+            'bg-sky-50 text-sky-700',
+            'bg-rose-50 text-rose-700',
+            'bg-indigo-50 text-indigo-700',
+          ]
+          const departmentLookup = [...new Set(employees.map(emp => emp.department).filter(Boolean))]
+
+          return (
+            <div className="space-y-4 no-print">
+              <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+                <div className="border-b border-slate-200 px-5 py-5 md:px-6">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                      <h2 className="text-[20px] font-black tracking-[-0.03em] text-slate-950">Employee Directory</h2>
+                      <p className="mt-1 text-[12px] text-slate-500">Track people, roles, and employee records from one operational list.</p>
+                    </div>
+
+                    <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[470px]">
+                      <div className="flex flex-col gap-3 md:flex-row">
+                        <label className="relative flex-1">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            value={employeeDirectorySearch}
+                            onChange={(event) => setEmployeeDirectorySearch(event.target.value)}
+                            placeholder="Search employee, email, department, or site"
+                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-[12px] font-medium text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                          />
+                        </label>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setRowOrder(employees.map(e => e.id)); setShowRowOrder(true) }}
+                            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-[12px] font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50"
+                          >
+                            <Filter size={14} />
+                            Row Order
+                          </button>
+                          {canCreateEmployee && (
+                            <button
+                              onClick={() => setShowAddEmployee(true)}
+                              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-indigo-600 px-4 text-[12px] font-semibold text-white transition-all hover:bg-indigo-700"
+                            >
+                              <Plus size={14} />
+                              Add Employee
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {statusTabs.map(tab => {
+                          const active = employeeDirectoryStatus === tab.id
+                          return (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setEmployeeDirectoryStatus(tab.id)}
+                              className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold transition-all ${
+                                active
+                                  ? 'bg-indigo-50 text-indigo-700 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.18)]'
+                                  : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                              }`}
+                            >
+                              <span>{tab.label}</span>
+                              <span className="ml-1 text-slate-400">[{tab.count}]</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse print-section">
+                    <thead>
+                      <tr className="bg-slate-50/90">
+                        <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Employee ID</th>
+                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Employee Name</th>
+                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Department</th>
+                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Designation</th>
+                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Status</th>
+                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Join Date</th>
+                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Site</th>
+                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Contact</th>
+                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {empLoading ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-16 text-center">
+                            <Spinner />
+                          </td>
+                        </tr>
+                      ) : paginatedEmployees.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-16 text-center text-[13px] font-medium text-slate-400">
+                            {employees.length === 0
+                              ? <>No employees yet. Use <span className="font-semibold text-slate-500">Add Employee</span> to create the first record.</>
+                              : 'No employees match the current search or status filter.'}
+                          </td>
+                        </tr>
+                      ) : paginatedEmployees.map(emp => {
+                        const normalizedStatus = normalizeEmployeeStatus(emp.status)
+                        const statusTone =
+                          normalizedStatus === 'Inactive'
+                            ? { dot: 'bg-rose-500', text: 'text-rose-600' }
+                            : normalizedStatus === 'Rejoined'
+                              ? { dot: 'bg-amber-500', text: 'text-amber-600' }
+                              : { dot: 'bg-emerald-500', text: 'text-emerald-600' }
+                        const deptColor = emp.department
+                          ? (departmentPalette[departmentLookup.indexOf(emp.department) % departmentPalette.length] || 'bg-slate-100 text-slate-600')
+                          : 'bg-slate-100 text-slate-500'
+
+                        return (
+                          <tr key={emp.id} className="group border-b border-slate-100 transition-colors hover:bg-slate-50/70">
+                            <td className="px-5 py-4 text-[12px] font-black tracking-[-0.01em] text-slate-700">
+                              {emp.empCode || `EMP-${emp.id.slice(-4).toUpperCase()}`}
+                            </td>
+                            <td className="px-4 py-4">
+                              <button
+                                onClick={() => {
+                                  if (!canEditEmployee) return
+                                  openEmployeeEditor(emp)
+                                }}
+                                className={`flex items-center gap-3 text-left ${canEditEmployee ? '' : 'cursor-default'}`}
+                              >
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-black text-white" style={{ backgroundColor: getAvatarColor(emp.id) }}>
+                                  {emp.photoURL ? <img src={emp.photoURL} className="h-full w-full object-cover" alt="" /> : getInitials(emp.name)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-[12px] font-semibold text-slate-800">{emp.name}</p>
+                                  <p className="truncate text-[11px] text-slate-400">{emp.email || 'No email added'}</p>
+                                </div>
+                              </button>
+                            </td>
+                            <td className="px-4 py-4">
+                              {emp.department ? (
+                                <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${deptColor}`}>{emp.department}</span>
+                              ) : (
+                                <span className="text-[11px] text-slate-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4 text-[12px] text-slate-600">{emp.designation || 'Unassigned'}</td>
+                            <td className="px-4 py-4">
+                              <span className={`inline-flex items-center gap-2 text-[11px] font-semibold ${statusTone.text}`}>
+                                <span className={`h-2.5 w-2.5 rounded-[4px] ${statusTone.dot}`} />
+                                {normalizedStatus || 'Active'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-[12px] text-slate-500">{emp.joinedDate || '—'}</td>
+                            <td className="px-4 py-4 text-[12px] text-slate-500">{emp.site || '—'}</td>
+                            <td className="px-4 py-4 text-[12px] text-slate-500">{emp.emergencyContact || '—'}</td>
+                            <td className="px-4 py-4 text-right">
+                              <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                <button
+                                  onClick={() => {
+                                    if (emp.documents?.length) setViewerState({ docs: emp.documents, index: 0 })
+                                  }}
+                                  title="View documents"
+                                  className={`rounded-lg p-2 text-slate-400 transition-all ${emp.documents?.length ? 'hover:bg-slate-100 hover:text-slate-700' : 'cursor-default opacity-20'}`}
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    await openEmployeeEditor(emp)
+                                  }}
+                                  title="Edit employee"
+                                  className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"
+                                >
+                                  <Edit size={14} />
+                                </button>
+                                {canDeleteEmployee && (
+                                  <button
+                                    onClick={async () => {
+                                      if (confirm(`Are you sure you want to delete ${emp.name}? This action cannot be undone.`)) {
+                                        await deleteEmployee(emp.id)
+                                      }
+                                    }}
+                                    title="Delete employee"
+                                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 text-[12px] text-slate-500 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    {filteredEmployees.length === 0
+                      ? 'Viewing 0 results from employee directory'
+                      : `Viewing ${pageStart + 1}-${Math.min(pageStart + paginatedEmployees.length, filteredEmployees.length)} results of ${filteredEmployees.length} employee records`}
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEmployeeDirectoryPage(page => Math.max(1, page - 1))}
+                      disabled={currentPage === 1}
+                      className="rounded-xl px-3 py-2 text-[12px] font-medium text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    {visiblePageNumbers.map((page, index) => {
+                      const previousPage = visiblePageNumbers[index - 1]
+                      const showGap = previousPage && page - previousPage > 1
+                      return (
+                        <React.Fragment key={page}>
+                          {showGap && <span className="px-1 text-slate-300">…</span>}
+                          <button
+                            type="button"
+                            onClick={() => setEmployeeDirectoryPage(page)}
+                            className={`h-9 min-w-9 rounded-xl px-3 text-[12px] font-semibold transition-all ${
+                              page === currentPage
+                                ? 'bg-indigo-50 text-indigo-700'
+                                : 'text-slate-500 hover:bg-slate-100'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      )
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setEmployeeDirectoryPage(page => Math.min(totalPages, page + 1))}
+                      disabled={currentPage === totalPages}
+                      className="rounded-xl px-3 py-2 text-[12px] font-medium text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                    <button onClick={handlePrintRoster} className="ml-2 rounded-xl px-3 py-2 text-[12px] font-medium text-slate-500 transition-all hover:bg-slate-100">
+                      Export PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {false && activeSubTab === 'employee' && (() => {
           // Derive filter options
           const deptOptions = [...new Set(employees.map(e => e.department).filter(Boolean))]
           const statusOptions = ['All', ...EMPLOYEE_STATUS_OPTIONS]
@@ -3505,8 +3822,9 @@ export default function SettingsTab() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100">
-                      <th className="px-4 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-[0.18em] w-[34%]">Module Name</th>
-                      {['View', 'Create', 'Edit', 'Delete', 'Approve'].map(action => (
+                      <th className="px-4 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-[0.18em] w-[28%]">Module Name</th>
+                      <th className="px-2 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] text-center">All</th>
+                      {roleMatrixActions.map(action => (
                         <th key={action} className="px-2 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] text-center">{action}</th>
                       ))}
                     </tr>
@@ -3515,14 +3833,27 @@ export default function SettingsTab() {
                     {Object.entries(moduleGroups).map(([group, groupModules]) => (
                       <React.Fragment key={group}>
                         <tr className="bg-gray-50/30">
-                          <td colSpan={6} className="px-4 py-1.5 text-[9px] font-black text-indigo-600 uppercase tracking-[0.22em]">{group}</td>
+                          <td colSpan={7} className="px-4 py-1.5 text-[9px] font-black text-indigo-600 uppercase tracking-[0.22em]">{group}</td>
                         </tr>
                         {groupModules.map(mod => (
                           <tr key={mod.id} className="hover:bg-gray-50/50 transition-colors">
                             <td className="px-4 py-2">
                               <span className="text-[10px] leading-tight font-bold text-gray-700 uppercase tracking-[0.06em]">{mod.label}</span>
                             </td>
-                            {['view', 'create', 'edit', 'delete', 'approve'].map(action => (
+                            <td className="px-2 py-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => toggleAllPermissions(mod.id)}
+                                className={`min-w-[30px] h-4 rounded border inline-flex items-center justify-center px-1.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all ${
+                                  areAllRoleMatrixActionsEnabled(newRole.permissions?.[mod.id])
+                                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                                    : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'
+                                }`}
+                              >
+                                All
+                              </button>
+                            </td>
+                            {roleMatrixActions.map(action => (
                               <td key={action} className="px-2 py-2 text-center">
                                 <button
                                   type="button"
