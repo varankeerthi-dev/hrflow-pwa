@@ -183,8 +183,8 @@ export default function EmployeeSalarySlipTab() {
       const fileName = `SalarySlip_${(user?.name || 'Employee').replace(/\s+/g, '_')}_${month}.pdf`
       downloadPdfBlob(blob, fileName)
     } catch (error) {
-      console.error('Employee salary slip export failed', error)
-      alert('Failed to export PDF. Please try again.')
+      console.error('Employee PDF export failed:', error)
+      alert('Failed to export PDF: ' + (error?.message || error?.toString() || 'Unknown error'))
     } finally {
       setExportingPdf(false)
     }

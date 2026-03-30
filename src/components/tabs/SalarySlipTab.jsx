@@ -329,8 +329,8 @@ export default function SalarySlipTab() {
 
       downloadPdfBlob(blob, fileName)
     } catch (error) {
-      console.error('Salary slip export failed', error)
-      alert('Failed to export PDF. Please try again.')
+      console.error('Salary slip export failed:', error)
+      alert('Failed to export PDF: ' + (error?.message || error?.toString() || 'Unknown error'))
     } finally {
       setExportingSlipPdf(false)
     }
