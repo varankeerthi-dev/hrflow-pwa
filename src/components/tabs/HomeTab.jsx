@@ -13,17 +13,14 @@ import {
   ArrowRight,
   TrendingUp,
   DollarSign,
-  Briefcase,
-  FileText,
   CheckCircle,
-  XCircle,
-  AlertCircle,
   Wallet,
   Mail,
-  Bell,
-  Activity
+  Activity,
+  Briefcase,
+  FileText,
+  RefreshCw
 } from 'lucide-react'
-import Spinner from '../ui/Spinner'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 
 export default function HomeTab() {
@@ -33,6 +30,7 @@ export default function HomeTab() {
   const [attendanceData, setAttendanceData] = useState({})
   const [leavePending, setLeavePending] = useState(0)
   const [recentLogs, setRecentLogs] = useState([])
+  const [activeTab, setActiveTab] = useState('manpower')
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -69,7 +67,7 @@ export default function HomeTab() {
       const logsQuery = query(
         collection(db, 'organisations', user.orgId, 'activityLogs'),
         orderBy('timestamp', 'desc'),
-        limit(20)
+        limit(15)
       )
       const logsSnap = await getDocs(logsQuery)
       setRecentLogs(logsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
@@ -106,107 +104,115 @@ export default function HomeTab() {
     }
   }, [employees, attendanceData, leavePending])
 
-  const cards = [
-    { id: 'manpower', label: 'Manpower', color: 'bg-blue-500', tab: 'attendance-list' },
-    { id: 'advance', label: 'Adv/Exp', color: 'bg-amber-500', tab: 'advance' },
-    { id: 'leave', label: 'Leave', color: 'bg-rose-500', tab: 'leave' },
-    { id: 'tasks', label: 'Task', color: 'bg-purple-500', tab: 'tasks' }
+  const tabs = [
+    { id: 'manpower', label: 'Manpower', icon: Users, color: 'blue' },
+    { id: 'advance', label: 'Adv/Exp', icon: Wallet, color: 'amber' },
+    { id: 'leave', label: 'Leave', icon: Calendar, color: 'red' },
+    { id: 'tasks', label: 'Task', icon: Briefcase, color: 'purple' }
   ]
 
-  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
+  const navigateTo = (tab) => {
+    const tabMap = { manpower: 'attendance-list', advance: 'advance', leave: 'leave', tasks: 'tasks' }
+    navigate(`/?tab=${tabMap[tab]}`)
+  }
 
   return (
-    <div className="p-6 font-inter space-y-4">
-      <div className="flex items-center gap-3 overflow-x-auto pb-2">
-        {cards.map(card => (
-          <button
-            key={card.id}
-            onClick={() => {
-              navigate(`/?tab=${card.tab}`)
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all shrink-0 ${
-              card.id === 'tasks' 
-                ? 'border-purple-500 bg-purple-50 text-purple-700 hover:bg-purple-100' 
-                : card.id === 'advance'
-                ? 'border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                : card.id === 'leave'
-                ? 'border-rose-500 bg-rose-50 text-rose-700 hover:bg-rose-100'
-                : 'border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-100'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${card.color}`}></span>
-            <span className="text-xs font-bold uppercase tracking-wider">{card.label}</span>
-          </button>
-        ))}
+    <div className="p-6 font-inter space-y-6">
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        {tabs.map(tab => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id)
+                navigateTo(tab.id)
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                isActive 
+                  ? 'bg-white shadow-sm text-slate-900' 
+                  : 'text-slate-500 hover:bg-white/50 hover:text-slate-700'
+              }`}
+            >
+              <Icon size={16} className={isActive ? `text-${tab.color}-600` : ''} />
+              <span className="text-sm font-medium">{tab.label}</span>
+            </button>
+          )
+        })}
       </div>
 
-      <div className="flex gap-4 flex-wrap">
-        <ManpowerCard stats={stats} onClick={() => navigate('/?tab=attendance-list')} />
-        <AdvanceExpenseCard onClick={() => navigate('/?tab=advance')} />
-        <LeavePermissionCard onClick={() => navigate('/?tab=leave')} />
-      </div>
-
-      <RecentUpdatesCard logs={recentLogs} />
-      <TeamTaskCard onClick={() => navigate('/?tab=tasks')} />
-    </div>
-  )
-}
-
-function ManpowerCard({ stats, onClick }) {
-  const headerStyle = { fontFamily: 'Raleway, sans-serif', fontSize: '15px' }
-  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
-  
-  return (
-    <button onClick={onClick} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[400px] shrink-0 hover:shadow-md transition-all text-left">
-      <div className="flex">
-        <div className="w-1 bg-blue-500"></div>
-        <div className="flex-1 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-black text-slate-900 uppercase" style={headerStyle}>Manpower</h2>
-            <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">Live</span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <MetricBox label="Headcount" value={stats.total} icon={<Users size={14} />} />
-            <MetricBox label="Present" value={stats.present} icon={<CheckCircle size={14} />} />
-            <MetricBox label="Day Shift" value={stats.dayShift} icon={<Sun size={14} />} />
-            <MetricBox label="Night Shift" value={stats.nightShift} icon={<Moon size={14} />} />
-          </div>
-
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
-                <Calendar size={14} className="text-amber-500" />
+      {/* Cards Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Manpower Card */}
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-600"></div>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-semibold text-slate-900 tracking-tight">Manpower</h2>
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Live</span>
               </div>
-              <div>
-                <p className="font-black text-slate-900" style={textStyle}>{stats.leave}</p>
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">On Leave</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <StatBox label="Headcount" value={stats.total} icon={Users} color="blue" />
+              <StatBox label="Present" value={stats.present} icon={CheckCircle} color="emerald" />
+              <StatBox label="Day Shift" value={stats.dayShift} icon={Sun} color="amber" />
+              <StatBox label="Night Shift" value={stats.nightShift} icon={Moon} color="indigo" />
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                  <Calendar size={18} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-900">{stats.leave}</p>
+                  <p className="text-sm text-slate-500 font-medium">On Leave</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Advance/Expense Card */}
+        <AdvanceExpenseCard onClick={() => navigateTo('advance')} />
+
+        {/* Leave/Permission Card */}
+        <LeavePermissionCard onClick={() => navigateTo('leave')} />
       </div>
-    </button>
+
+      {/* Recent Updates */}
+      <RecentUpdatesCard logs={recentLogs} />
+
+      {/* Team Tasks */}
+      <TeamTaskCard onClick={() => navigateTo('tasks')} />
+    </div>
   )
 }
 
-function MetricBox({ label, value, icon }) {
-  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
+function StatBox({ label, value, icon: Icon, color }) {
   return (
-    <div className="bg-slate-50 rounded-xl p-3">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-slate-400">{icon}</span>
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+    <div className="bg-slate-50 rounded-xl p-4 hover:bg-slate-100 transition-colors duration-200 group">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`w-8 h-8 rounded-lg bg-${color}-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
+          <Icon size={16} className={`text-${color}-600`} />
+        </div>
+        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</span>
       </div>
-      <p className="font-black text-slate-900" style={textStyle}>{value}</p>
+      <p className="text-3xl font-bold text-slate-900">{value}</p>
     </div>
   )
 }
 
 function AdvanceExpenseCard({ onClick }) {
   const [requests, setRequests] = useState([])
-  const headerStyle = { fontFamily: 'Raleway, sans-serif', fontSize: '15px' }
-  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
   
   useEffect(() => {
     async function fetchPending() {
@@ -227,44 +233,45 @@ function AdvanceExpenseCard({ onClick }) {
   }
 
   return (
-    <button onClick={onClick} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[400px] shrink-0 hover:shadow-md transition-all text-left">
-      <div className="flex">
-        <div className="w-1 bg-amber-500"></div>
-        <div className="flex-1 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-black text-slate-900 uppercase" style={headerStyle}>Advance/Expense</h2>
-            <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Pending</span>
-          </div>
-          
-          <div className="space-y-2">
-            {requests.length === 0 ? (
-              <p className="text-slate-400 text-center py-2" style={textStyle}>No pending requests</p>
-            ) : (
-              requests.map(req => (
-                <div key={req.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-amber-100 flex items-center justify-center">
-                      <Wallet size={12} className="text-amber-600" />
-                    </div>
-                    <span className="text-slate-700 font-medium truncate max-w-[150px]" style={textStyle}>{req.employeeName || req.name || 'Employee'}</span>
-                  </div>
-                  <span className="font-bold text-slate-900" style={textStyle}>{formatINR(req.amount)}</span>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
-                <Wallet size={14} className="text-amber-500" />
+    <button onClick={onClick} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden text-left w-full">
+      <div className="h-1 bg-gradient-to-r from-amber-500 to-amber-600"></div>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-base font-semibold text-slate-900 tracking-tight">Advance/Expense</h2>
+          <span className="px-2 py-1 bg-amber-50 text-amber-700 text-xs font-semibold uppercase tracking-wide rounded-lg">{requests.length} Pending</span>
+        </div>
+        
+        <div className="space-y-3">
+          {requests.length === 0 ? (
+            <div className="text-center py-6">
+              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2">
+                <CheckCircle size={20} className="text-slate-300" />
               </div>
-              <div>
-                <p className="font-black text-slate-900" style={textStyle}>{requests.length}</p>
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">Pending Approval</p>
-              </div>
+              <p className="text-sm text-slate-400">No pending requests</p>
             </div>
+          ) : (
+            requests.map(req => (
+              <div key={req.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <Wallet size={14} className="text-amber-700" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 truncate max-w-[160px]">{req.employeeName || req.name || 'Employee'}</span>
+                </div>
+                <span className="text-sm font-bold text-slate-900 tabular-nums">{formatINR(req.amount)}</span>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+              <Wallet size={14} className="text-amber-700" />
+            </div>
+            <span className="text-sm text-slate-500 font-medium">Approval</span>
           </div>
+          <ArrowRight size={16} className="text-slate-300" />
         </div>
       </div>
     </button>
@@ -273,8 +280,6 @@ function AdvanceExpenseCard({ onClick }) {
 
 function LeavePermissionCard({ onClick }) {
   const [pending, setPending] = useState({ leave: 0, permission: 0 })
-  const headerStyle = { fontFamily: 'Raleway, sans-serif', fontSize: '15px' }
-  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
   
   useEffect(() => {
     async function fetchPending() {
@@ -290,31 +295,38 @@ function LeavePermissionCard({ onClick }) {
   }, [])
 
   return (
-    <button onClick={onClick} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[400px] shrink-0 hover:shadow-md transition-all text-left">
-      <div className="flex">
-        <div className="w-1 bg-rose-500"></div>
-        <div className="flex-1 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-black text-slate-900 uppercase" style={headerStyle}>Leave/Permission</h2>
-            <span className="text-xs font-bold text-rose-500 uppercase tracking-widest">Pending</span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-slate-50 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Calendar size={14} className="text-rose-500" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Leave</span>
+    <button onClick={onClick} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden text-left w-full">
+      <div className="h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-base font-semibold text-slate-900 tracking-tight">Leave/Permission</h2>
+          <span className="px-2 py-1 bg-red-50 text-red-700 text-xs font-semibold uppercase tracking-wide rounded-lg">{(pending.leave + pending.permission)} Pending</span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-slate-50 rounded-xl p-4 hover:bg-slate-100 transition-colors duration-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                <Calendar size={16} className="text-red-600" />
               </div>
-              <p className="font-black text-slate-900" style={textStyle}>{pending.leave}</p>
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Leave</span>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Clock size={14} className="text-rose-500" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Permission</span>
-              </div>
-              <p className="font-black text-slate-900" style={textStyle}>{pending.permission}</p>
-            </div>
+            <p className="text-3xl font-bold text-slate-900">{pending.leave}</p>
           </div>
+          <div className="bg-slate-50 rounded-xl p-4 hover:bg-slate-100 transition-colors duration-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                <Clock size={16} className="text-purple-600" />
+              </div>
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Permission</span>
+            </div>
+            <p className="text-3xl font-bold text-slate-900">{pending.permission}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+          <span className="text-sm text-slate-500 font-medium">View Requests</span>
+          <ArrowRight size={16} className="text-slate-300" />
         </div>
       </div>
     </button>
@@ -322,36 +334,44 @@ function LeavePermissionCard({ onClick }) {
 }
 
 function RecentUpdatesCard({ logs }) {
+  const formatTime = (timestamp) => {
+    if (!timestamp?.toDate) return ''
+    return timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="flex">
-        <div className="w-1 bg-indigo-500"></div>
-        <div className="flex-1 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Recent Updates</h2>
-            <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-widest">{logs.length} Activities</span>
-          </div>
-          
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {logs.length === 0 ? (
-              <p className="text-[10px] text-slate-400 text-center py-4">No recent activities</p>
-            ) : (
-              logs.slice(0, 10).map(log => (
-                <div key={log.id} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
-                  <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                    <Activity size={10} className="text-indigo-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[9px] font-bold text-slate-700 truncate">{log.detail || log.action || 'Activity'}</p>
-                    <p className="text-[7px] text-slate-400">{log.module}</p>
-                  </div>
-                  <span className="text-[7px] text-slate-400 shrink-0">
-                    {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                  </span>
+    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-indigo-500 to-indigo-600"></div>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-slate-900 tracking-tight">Recent Updates</h2>
+          <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">{logs.length} Activities</span>
+        </div>
+        
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {logs.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Activity size={20} className="text-slate-300" />
+              </div>
+              <p className="text-sm text-slate-400">No recent activities</p>
+            </div>
+          ) : (
+            logs.map(log => (
+              <div key={log.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors duration-200">
+                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+                  <Activity size={14} className="text-indigo-600" />
                 </div>
-              ))
-            )}
-          </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-700 truncate">{log.detail || log.action || 'Activity'}</p>
+                  <p className="text-xs text-slate-400">{log.module}</p>
+                </div>
+                <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+                  {formatTime(log.timestamp)}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -375,186 +395,25 @@ function TeamTaskCard({ onClick }) {
   }, [])
 
   return (
-    <button onClick={onClick} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full hover:shadow-md transition-all">
-      <div className="flex">
-        <div className="w-1 bg-purple-500"></div>
-        <div className="flex-1 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Team Tasks</h2>
-            <ArrowRight size={14} className="text-slate-400" />
+    <button onClick={onClick} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden w-full text-left">
+      <div className="h-1 bg-gradient-to-r from-purple-500 to-purple-600"></div>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-base font-semibold text-slate-900 tracking-tight">Team Tasks</h2>
+          <ArrowRight size={18} className="text-slate-300" />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-purple-50 rounded-xl p-5 hover:bg-purple-100 transition-colors duration-200">
+            <p className="text-3xl font-bold text-purple-700">{tasks.pending}</p>
+            <p className="text-sm text-purple-600 font-medium mt-1">Pending Tasks</p>
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-purple-50 rounded-xl p-3 text-center">
-              <p className="text-xl font-black text-purple-700">{tasks.pending}</p>
-              <p className="text-[8px] text-purple-600 font-bold uppercase">Pending</p>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-3 text-center">
-              <p className="text-xl font-black text-slate-700">{tasks.completed}</p>
-              <p className="text-[8px] text-slate-500 font-bold uppercase">Completed</p>
-            </div>
+          <div className="bg-slate-50 rounded-xl p-5 hover:bg-slate-100 transition-colors duration-200">
+            <p className="text-3xl font-bold text-slate-700">{tasks.completed}</p>
+            <p className="text-sm text-slate-500 font-medium mt-1">Completed</p>
           </div>
         </div>
       </div>
     </button>
-  )
-}
-
-function AttendanceCard({ stats }) {
-  const attendanceRate = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0
-  
-  return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="flex">
-        <div className="w-1 bg-emerald-500"></div>
-        <div className="flex-1 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Attendance</h2>
-            <span className="text-xs font-bold text-emerald-500 uppercase tracking-widest">Today</span>
-          </div>
-          
-          <div className="flex items-center gap-12">
-            <div className="relative w-32 h-32">
-              <svg className="w-32 h-32 transform -rotate-90">
-                <circle cx="64" cy="64" r="56" stroke="#f1f5f9" strokeWidth="12" fill="none" />
-                <circle cx="64" cy="64" r="56" stroke="#10b981" strokeWidth="12" fill="none" 
-                  strokeDasharray={351.86} strokeDashoffset={351.86 - (351.86 * attendanceRate / 100)} 
-                  strokeLinecap="round" />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <p className="text-2xl font-black text-slate-900">{attendanceRate}%</p>
-                <p className="text-[8px] text-slate-400 font-bold uppercase">Rate</p>
-              </div>
-            </div>
-            
-            <div className="flex-1 grid grid-cols-2 gap-4">
-              <div className="bg-emerald-50 rounded-xl p-4">
-                <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Present</p>
-                <p className="text-xl font-black text-emerald-700">{stats.present}</p>
-              </div>
-              <div className="bg-slate-50 rounded-xl p-4">
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Absent</p>
-                <p className="text-xl font-black text-slate-700">{stats.total - stats.present}</p>
-              </div>
-              <div className="bg-amber-50 rounded-xl p-4">
-                <p className="text-[9px] font-bold text-amber-600 uppercase tracking-wider mb-1">On Leave</p>
-                <p className="text-xl font-black text-amber-700">{stats.leave}</p>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-4">
-                <p className="text-[9px] font-bold text-blue-600 uppercase tracking-wider mb-1">Total</p>
-                <p className="text-xl font-black text-blue-700">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function PayrollCard({ employees }) {
-  const totalSalary = employees.reduce((sum, emp) => sum + (Number(emp.totalSalary) || 0), 0)
-  
-  return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="flex">
-        <div className="w-1 bg-amber-500"></div>
-        <div className="flex-1 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Payroll</h2>
-            <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Overview</span>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-slate-50 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign size={16} className="text-amber-500" />
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Monthly CTC</span>
-              </div>
-              <p className="text-2xl font-black text-slate-900">Rs. {(totalSalary / 100000).toFixed(1)}L</p>
-            </div>
-            
-            <div className="bg-slate-50 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Users size={16} className="text-amber-500" />
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Employees</span>
-              </div>
-              <p className="text-2xl font-black text-slate-900">{employees.length}</p>
-            </div>
-            
-            <div className="bg-slate-50 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp size={16} className="text-amber-500" />
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Avg Salary</span>
-              </div>
-              <p className="text-2xl font-black text-slate-900">Rs. {employees.length ? Math.round(totalSalary / employees.length).toLocaleString() : 0}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function RequestsCard() {
-  const [requests, setRequests] = useState({ leave: 0, advance: 0, correction: 0 })
-  
-  useEffect(() => {
-    async function fetchRequests() {
-      const { user } = window
-      if (!user?.orgId) return
-      
-      const [leaveSnap, advanceSnap, correctionSnap] = await Promise.all([
-        getDocs(query(collection(db, 'organisations', user.orgId, 'leaveRequests'), where('status', '==', 'Pending'))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('status', '==', 'Pending'))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'attendanceCorrections'), where('status', '==', 'Pending')))
-      ])
-      
-      setRequests({
-        leave: leaveSnap.size,
-        advance: advanceSnap.size,
-        correction: correctionSnap.size
-      })
-    }
-    fetchRequests()
-  }, [])
-
-  const totalPending = requests.leave + requests.advance + requests.correction
-  
-  return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="flex">
-        <div className="w-1 bg-rose-500"></div>
-        <div className="flex-1 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Requests</h2>
-            <span className="text-xs font-bold text-rose-500 uppercase tracking-widest">{totalPending} Pending</span>
-          </div>
-          
-          <div className="space-y-4">
-            <RequestRow type="Leave Requests" count={requests.leave} icon={<Calendar size={18} />} color="bg-blue-50 text-blue-600" />
-            <RequestRow type="Advance/Expense" count={requests.advance} icon={<DollarSign size={18} />} color="bg-amber-50 text-amber-600" />
-            <RequestRow type="Attendance Corrections" count={requests.correction} icon={<FileText size={18} />} color="bg-purple-50 text-purple-600" />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function RequestRow({ type, count, icon, color }) {
-  return (
-    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
-          {icon}
-        </div>
-        <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">{type}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-lg font-black text-slate-900">{count}</span>
-        <ArrowRight size={14} className="text-slate-300" />
-      </div>
-    </div>
   )
 }
