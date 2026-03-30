@@ -96,19 +96,19 @@ export default function HomeTab() {
 
   return (
     <div className="p-6 font-inter">
-      <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-2">
+      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
         {cards.map(card => (
           <button
             key={card.id}
             onClick={() => setSelectedCard(card.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-full border-2 transition-all shrink-0 h-10 w-[30px] overflow-hidden ${
               selectedCard === card.id 
                 ? 'border-slate-900 bg-white shadow-md' 
                 : 'border-transparent bg-slate-100 text-slate-500 hover:bg-slate-200'
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${card.color}`}></span>
-            <span className="text-xs font-bold uppercase tracking-wider">{card.label}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${card.color}`}></span>
+            <span className="text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">{card.label}</span>
           </button>
         ))}
       </div>
@@ -123,31 +123,30 @@ export default function HomeTab() {
 
 function ManpowerCard({ stats }) {
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="flex">
         <div className="w-1 bg-blue-500"></div>
-        <div className="flex-1 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Manpower</h2>
-            <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">Live</span>
+        <div className="flex-1 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Manpower</h2>
+            <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">Live</span>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <MetricBox label="Total Headcount" value={stats.total} icon={<Users size={18} />} />
-            <MetricBox label="Total Present" value={stats.present} icon={<CheckCircle size={18} />} />
-            <MetricBox label="Day Shift" value={stats.dayShift} icon={<Sun size={18} />} />
-            <MetricBox label="Night Shift" value={stats.nightShift} icon={<Moon size={18} />} />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricBox label="Headcount" value={stats.total} icon={<Users size={14} />} />
+            <MetricBox label="Present" value={stats.present} icon={<CheckCircle size={14} />} />
+            <MetricBox label="Day Shift" value={stats.dayShift} icon={<Sun size={14} />} />
+            <MetricBox label="Night Shift" value={stats.nightShift} icon={<Moon size={14} />} />
           </div>
 
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">On Leave</p>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
-                <Calendar size={18} className="text-amber-500" />
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center">
+                <Calendar size={12} className="text-amber-500" />
               </div>
               <div>
-                <p className="text-2xl font-black text-slate-900">{stats.leave}</p>
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">Pending Leaves</p>
+                <p className="text-lg font-black text-slate-900">{stats.leave}</p>
+                <p className="text-[8px] text-slate-500 font-medium uppercase tracking-wide">On Leave</p>
               </div>
             </div>
           </div>
@@ -159,12 +158,12 @@ function ManpowerCard({ stats }) {
 
 function MetricBox({ label, value, icon }) {
   return (
-    <div className="bg-slate-50 rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="bg-slate-50 rounded-xl p-2">
+      <div className="flex items-center gap-1 mb-1">
         <span className="text-slate-400">{icon}</span>
-        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
       </div>
-      <p className="text-2xl font-black text-slate-900">{value}</p>
+      <p className="text-lg font-black text-slate-900">{value}</p>
     </div>
   )
 }
