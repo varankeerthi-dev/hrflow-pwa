@@ -49,7 +49,7 @@ const EmployeeSlipPDF = ({ slipData, orgName }) => (
         <View style={{ textAlign: 'right' }}>
           <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0f172a' }}>PAYSLIP</Text>
           <Text style={{ fontSize: 8, color: '#64748b', marginTop: 4 }}>
-            {new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {slipData?.month ? new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '-'}
           </Text>
         </View>
       </View>
@@ -164,7 +164,7 @@ export default function EmployeeSalarySlipTab() {
 
     try {
       setExportingPdf(true)
-      const blob = await pdf(<EmployeeSlipPDF slipData={slipData} orgName={user?.orgName} />).toBlob()
+      const blob = await pdf(<EmployeeSlipPDF slipData={slipData} orgName={user?.orgName || 'Organization'} />).toBlob()
       const fileName = `SalarySlip_${(user?.name || 'Employee').replace(/\s+/g, '_')}_${month}.pdf`
       downloadPdfBlob(blob, fileName)
     } catch (error) {

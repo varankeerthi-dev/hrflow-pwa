@@ -37,7 +37,7 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
       </View>
       <View style={{textAlign:'right'}}>
         <Text style={{fontSize:12, fontWeight: 'bold', color:'#0f172a'}}>PAYSLIP</Text>
-        <Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{new Date(data.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
+        <Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{data?.month ? new Date(data.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '-'}</Text>
       </View>
     </View>
     
@@ -306,10 +306,10 @@ export default function SalarySlipTab() {
       let blob
 
       try {
-        blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />).toBlob()
+        blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName || 'Organization'} orgLogo={orgLogo} />).toBlob()
       } catch (logoError) {
         console.warn('Salary slip export with logo failed, retrying without logo', logoError)
-        blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo="" />).toBlob()
+        blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName || 'Organization'} orgLogo="" />).toBlob()
       }
 
       downloadPdfBlob(blob, fileName)

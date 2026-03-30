@@ -1,4 +1,5 @@
 export function numberToWords(amount) {
+  if (amount === undefined || amount === null || isNaN(amount)) return 'Zero';
   const num = Math.floor(amount);
   if (num === 0) return 'Zero';
   const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
