@@ -412,6 +412,8 @@ export default function SalarySlipTab() {
       }).reduce((s, c) => s + Number(c.partialAmount || c.amount), 0)
 
       const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100)
+      const bFull = ts * (slab.basicPercent / 100)
+      const hFull = ts * (slab.hraPercent / 100)
       // Removal of IT logic but keeping calculation consistency
       const de = p + adv + emi + fineA
       const g = b + h + otP + reimb + sunP
@@ -428,6 +430,8 @@ export default function SalarySlipTab() {
         otPay: otP, 
         basic: b, 
         hra: h, 
+        basicFull: bFull,
+        hraFull: hFull,
         expenseReimbursement: reimb, 
         sundayPay: sunP, 
         grossEarnings: g, 
@@ -647,15 +651,15 @@ export default function SalarySlipTab() {
                     <div className="flex justify-center gap-16 mb-6 py-4 bg-slate-50 rounded-xl px-4">
                       <div className="text-center">
                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Basic</p>
-                        <p className="text-base font-black text-slate-900">{formatINR(slipData.basic)}</p>
+                        <p className="text-base font-black text-slate-900">{formatINR(slipData.basicFull)}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">HRA</p>
-                        <p className="text-base font-black text-slate-900">{formatINR(slipData.hra)}</p>
+                        <p className="text-base font-black text-slate-900">{formatINR(slipData.hraFull)}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Salary</p>
-                        <p className="text-base font-black text-indigo-600">{formatINR(slipData.basic + slipData.hra)}</p>
+                        <p className="text-base font-black text-indigo-600">{formatINR(slipData.basicFull + slipData.hraFull)}</p>
                       </div>
                     </div>
 
