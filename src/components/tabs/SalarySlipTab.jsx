@@ -399,7 +399,7 @@ export default function SalarySlipTab() {
       const emi = loanSnap.docs.map(d => d.data()).filter(l => !l.deleted && !l.isDeleted).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
       const sunP = sunW * (ts / end)
       const fineA = fSnapRes.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).filter(f => !f.deleted && !f.isDeleted).reduce((s, d) => s + Number(d.amount || 0), 0)
-      const otP = fOT * ((ts / end) / minH)
+      const otP = aOT * ((ts / end) / minH)
 
       const allExpenses = activeRequests.filter(item => item.type === 'Expense').filter(i => !deletedIds.has(i.id))
       const reimb = allExpenses.filter(i => {
@@ -428,7 +428,7 @@ export default function SalarySlipTab() {
         paidDays: paid, 
         lopDays: lop, 
         autoOTHours: aOT, 
-        finalOT: fOT, 
+        finalOT: aOT, 
         otPay: otP, 
         basic: b, 
         hra: h, 
