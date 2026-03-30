@@ -77,6 +77,35 @@ export default function HomeTab() {
     fetchLogs()
   }, [user?.orgId])
 
+  const stats = useMemo(() => {
+    if (!employees.length) return { total: 0, present: 0, dayShift: 0, nightShift: 0, leave: 0 }
+    
+    let present = 0
+    let dayShift = 0
+    let nightShift = 0
+    let leave = 0
+
+    employees.forEach(emp => {
+      const att = attendanceData[emp.id]
+      if (att) {
+        if (!att.isAbsent) {
+          present++
+          if (att.shiftType === 'Night') nightShift++
+          else dayShift++
+        }
+      }
+      if (att?.isLeave) leave++
+    })
+
+    return {
+      total: employees.length,
+      present,
+      dayShift,
+      nightShift,
+      leave: leavePending
+    }
+  }, [employees, attendanceData, leavePending])
+
   const cards = [
     { id: 'manpower', label: 'Manpower', color: 'bg-blue-500', tab: 'attendance-list' },
     { id: 'advance', label: 'Adv/Exp', color: 'bg-amber-500', tab: 'advance' },
