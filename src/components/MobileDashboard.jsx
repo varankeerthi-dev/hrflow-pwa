@@ -518,7 +518,7 @@ export default function MobileDashboard() {
                   <button
                     key={mod.id}
                     onClick={() => setActiveTab(mod.id)}
-                    className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                    className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-lg text-[13px] leading-5 transition-all duration-200 ${
                       activeTab === mod.id
                         ? 'sidebar-active shadow-sm'
                         : 'text-gray-600 hover:sidebar-hover'
@@ -528,7 +528,7 @@ export default function MobileDashboard() {
                       <div className={`${activeTab === mod.id ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
                         {mod.icon}
                       </div>
-                      <span className="font-medium tracking-tight">{mod.label}</span>
+                      <span className="font-medium leading-5 tracking-tight">{mod.label}</span>
                     </div>
                     {mod.badge && (
                       <Badge variant="destructive" className="px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center text-[10px]">
@@ -562,7 +562,7 @@ export default function MobileDashboard() {
           
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] leading-5 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all"
           >
             <LogOut size={16} />
             <span className="font-medium">Sign Out</span>
@@ -669,13 +669,13 @@ export default function MobileDashboard() {
                       <button
                         key={mod.id}
                         onClick={() => { setActiveTab(mod.id); setShowMenu(false) }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] leading-5 transition-all ${
                           activeTab === mod.id ? 'sidebar-active shadow-lg' : 'text-gray-600 hover:sidebar-hover'
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={activeTab === mod.id ? 'text-white' : 'text-gray-400'}>{mod.icon}</div>
-                          <span className="font-medium">{mod.label}</span>
+                          <span className="font-medium leading-5">{mod.label}</span>
                         </div>
                         {mod.badge && <Badge variant="destructive">{mod.badge}</Badge>}
                       </button>
@@ -686,7 +686,7 @@ export default function MobileDashboard() {
             </nav>
 
             <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors font-medium">
+              <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] leading-5 text-red-600 hover:bg-red-50 transition-colors font-medium">
                 <LogOut size={18} />
                 <span className="uppercase tracking-widest">Sign Out</span>
               </button>

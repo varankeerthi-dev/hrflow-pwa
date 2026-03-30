@@ -476,7 +476,7 @@ useEffect(() => {
                           </span>
                           
                           {!isCollapsed && (
-                            <span className="text-[13px] font-medium truncate">
+                            <span className="text-[13px] leading-5 font-medium truncate">
                               {tab.label}
                             </span>
                           )}
@@ -501,7 +501,7 @@ useEffect(() => {
               className={`w-full flex items-center rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-2.5 py-2 gap-2.5'}`}
             >
               <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform`} />
-              {!isCollapsed && <span className="text-[13px] font-medium">Collapse</span>}
+              {!isCollapsed && <span className="text-[13px] leading-5 font-medium">Collapse</span>}
             </button>
           </div>
         </aside>
