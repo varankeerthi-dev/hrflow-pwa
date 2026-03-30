@@ -386,15 +386,17 @@ export default function SalarySlipTab() {
       const advDocs = advSnap.docs
         .map(d => d.data())
         .filter(a => a.status !== 'Recovered')
+        .filter(a => !a.deleted)
+        .filter(a => !a.isDeleted)
         .filter(a => !a.linkedRequestId || activeRequestIds.has(a.linkedRequestId))
       const advExpRowsComputed = computeAdvExpRows({ activeRequests, advDocs, selectedMonth, y, m })
       setAdvExpRows(advExpRowsComputed)
 
       const adv = advDocs
         .reduce((s, c) => s + Number(c.amount), 0)
-      const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
+      const emi = loanSnap.docs.map(d => d.data()).filter(l => !l.deleted && !l.isDeleted).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
       const sunP = sunW * (ts / end)
-      const fineA = fSnapRes.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, d) => s + Number(d.amount || 0), 0)
+      const fineA = fSnapRes.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).filter(f => !f.deleted && !f.isDeleted).reduce((s, d) => s + Number(d.amount || 0), 0)
 
       const allExpenses = activeRequests.filter(item => item.type === 'Expense')
       const reimb = allExpenses.filter(i => {
@@ -633,6 +635,21 @@ export default function SalarySlipTab() {
                       <div className="flex justify-between border-b border-slate-100 py-1.5">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Total No. of Days</span>
                         <span className="text-[9px] font-bold text-slate-900">{slipData.totalMonthDays}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center gap-16 mb-6 py-4 bg-slate-50 rounded-xl px-4">
+                      <div className="text-center">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Basic</p>
+                        <p className="text-base font-black text-slate-900">{formatINR(slipData.basic)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">HRA</p>
+                        <p className="text-base font-black text-slate-900">{formatINR(slipData.hra)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Salary</p>
+                        <p className="text-base font-black text-indigo-600">{formatINR(slipData.basic + slipData.hra)}</p>
                       </div>
                     </div>
 

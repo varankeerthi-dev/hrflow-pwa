@@ -308,6 +308,21 @@ export default function EmployeeSalarySlipTab() {
               </div>
             </div>
 
+            <div className="flex justify-center gap-16 mb-6 py-4 bg-slate-50 rounded-xl px-4">
+              <div className="text-center">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Basic</p>
+                <p className="text-lg font-black text-slate-900">{formatINR(slipData.basic)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">HRA</p>
+                <p className="text-lg font-black text-slate-900">{formatINR(slipData.hra)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Salary</p>
+                <p className="text-lg font-black text-indigo-600">{formatINR(slipData.basic + slipData.hra)}</p>
+              </div>
+            </div>
+
             <div className="border border-slate-200 rounded-[24px] overflow-hidden mb-8 shadow-sm bg-slate-50/30">
               <div className="grid grid-cols-2 bg-slate-950 divide-x divide-slate-800">
                 <div className="flex justify-between p-4 font-black text-[13px] uppercase tracking-[0.16em] text-white">
