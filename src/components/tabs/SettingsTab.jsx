@@ -38,6 +38,7 @@ import {
   EMPLOYEE_STATUS_OPTIONS,
   getEmployeeStatusBadgeClass,
   getStatusTransitionRequirement,
+  isEmployeeActiveStatus,
   normalizeEmployeeStatus,
 } from '../../lib/employeeStatus'
 
@@ -138,6 +139,62 @@ const stripedRowSx = {
   },
 }
 
+const settingsPanelClassName = 'rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]'
+const settingsInsetPanelClassName = 'rounded-[22px] border border-slate-200 bg-slate-50/70'
+const settingsInputClassName = 'w-full h-11 rounded-2xl border border-slate-200 bg-white px-4 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
+const settingsTextareaClassName = 'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-none'
+const settingsSectionLabelClassName = 'mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500'
+const settingsSubTabMeta = {
+  organization: {
+    title: 'Organization Control Center',
+    description: 'Maintain company identity, hierarchy, banking details, and invite access from one polished workspace.',
+    kicker: 'Company setup',
+    pill: 'Core profile',
+  },
+  employee: {
+    title: 'Employee Directory',
+    description: 'Search, review, and maintain your workforce records with a cleaner management surface.',
+    kicker: 'People records',
+    pill: 'Directory',
+  },
+  user_roles: {
+    title: 'Users & Roles',
+    description: 'Control product access, assign ownership, and manage linked user identities without friction.',
+    kicker: 'Access control',
+    pill: 'Security',
+  },
+  shift: {
+    title: 'Shifts & Work Rules',
+    description: 'Keep attendance logic clear with readable shift tables and minimum-hour definitions.',
+    kicker: 'Attendance rules',
+    pill: 'Scheduling',
+  },
+  salary: {
+    title: 'Salary Slab Settings',
+    description: 'Configure payroll structures, increment history, and release windows in a focused flow.',
+    kicker: 'Payroll rules',
+    pill: 'Compensation',
+  },
+  advance_cat: {
+    title: 'Advance Categories',
+    description: 'Organize request types with quick inline editing instead of interruptive prompts.',
+    kicker: 'Expense setup',
+    pill: 'Categories',
+  },
+  holidays: {
+    title: 'Holiday Calendar',
+    description: 'Manage annual holidays with a simple, legible layout that is easy to update and review.',
+    kicker: 'Calendar',
+    pill: 'Time off',
+  },
+  approval_settings: {
+    title: 'Approval Workflows',
+    description: 'Tune request approvals with clearer staging, stronger hierarchy, and easier decision visibility.',
+    kicker: 'Governance',
+    pill: 'Approvals',
+  },
+}
+
 export default function SettingsTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading, updateEmployee, addEmployee, deleteEmployee } = useEmployees(user?.orgId)
@@ -215,6 +272,8 @@ export default function SettingsTab() {
     advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
     holidays: []
   })
+  const [newAdvanceCategory, setNewAdvanceCategory] = useState('')
+  const [newHoliday, setNewHoliday] = useState({ name: '', date: '' })
 
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
@@ -1323,8 +1382,39 @@ export default function SettingsTab() {
     }
   }
 
+  const handleAddAdvanceCategory = () => {
+    const trimmed = newAdvanceCategory.trim()
+    if (!trimmed) return
+    if (orgSettings.advanceCategories.some(cat => cat.toLowerCase() === trimmed.toLowerCase())) {
+      alert('This category already exists.')
+      return
+    }
+    setOrgSettings(s => ({ ...s, advanceCategories: [...s.advanceCategories, trimmed] }))
+    setNewAdvanceCategory('')
+  }
+
+  const handleAddHoliday = () => {
+    const name = newHoliday.name.trim()
+    const date = newHoliday.date
+    if (!name || !date) {
+      alert('Holiday name and date are required.')
+      return
+    }
+    setOrgSettings(s => ({ ...s, holidays: [...s.holidays, { name, date }] }))
+    setNewHoliday({ name: '', date: '' })
+  }
+
+  const activeEmployeesCount = employees.filter(emp => isEmployeeActiveStatus(emp.status)).length
+  const currentSettingsMeta = settingsSubTabMeta[activeSubTab] || settingsSubTabMeta.organization
+  const settingsSummaryCards = [
+    { label: 'Employees', value: employees.length, helper: `${activeEmployeesCount} active` },
+    { label: 'Users', value: users.length, helper: `${roles.length} roles` },
+    { label: 'Shifts', value: shifts.length, helper: `${minWorkHours.length} hour rules` },
+    { label: 'Holidays', value: orgSettings.holidays.length, helper: `${orgSettings.advanceCategories.length} advance cats` },
+  ]
+
   return (
-    <div className="h-full flex flex-col text-[11px] font-inter">
+    <div className="h-full flex flex-col text-[11px] font-inter text-slate-900">
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -1337,24 +1427,70 @@ export default function SettingsTab() {
         .group-header { color: #1e293b; font-weight: 800; font-size: 13px; margin-top: 24px; margin-bottom: 12px; }
       `}</style>
 
-      {/* Custom Sub-Tab Navigation with Border & States */}
-      <div className="flex flex-wrap gap-2 mb-6 no-print">
-        {visibleSubTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
-            className={`px-4 py-2.5 text-[12px] font-semibold transition-all rounded-lg border-2 -mb-px whitespace-nowrap ${
-              activeSubTab === tab.id
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'border-gray-200 bg-white text-gray-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="mb-6 overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.14),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] shadow-[0_28px_100px_rgba(15,23,42,0.10)] no-print">
+        <div className="px-5 py-6 md:px-7 md:py-7">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                {currentSettingsMeta.kicker}
+              </div>
+              <h1 className="mt-4 text-[28px] font-black tracking-[-0.04em] text-slate-950 md:text-[34px]">
+                {currentSettingsMeta.title}
+              </h1>
+              <p className="mt-3 max-w-xl text-[13px] leading-6 text-slate-600 md:text-[14px]">
+                {currentSettingsMeta.description}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {settingsSummaryCards.map(card => (
+                <div key={card.label} className="rounded-[22px] border border-white/80 bg-white/85 px-4 py-4 shadow-sm backdrop-blur">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{card.label}</p>
+                  <p className="mt-2 text-[24px] font-black tracking-[-0.04em] text-slate-950">{card.value}</p>
+                  <p className="mt-1 text-[11px] font-medium text-slate-500">{card.helper}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {visibleSubTabs.map(tab => {
+              const meta = settingsSubTabMeta[tab.id] || {}
+              const isActive = activeSubTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveSubTab(tab.id)}
+                  aria-pressed={isActive}
+                  className={`rounded-[22px] border px-4 py-4 text-left transition-all ${
+                    isActive
+                      ? 'border-indigo-500 bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
+                      : 'border-slate-200 bg-white/88 text-slate-700 hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-lg'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`text-[12px] font-black tracking-[-0.02em] ${isActive ? 'text-white' : 'text-slate-900'}`}>
+                      {tab.label}
+                    </span>
+                    <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] ${
+                      isActive ? 'bg-white/14 text-indigo-100' : 'bg-indigo-50 text-indigo-600'
+                    }`}>
+                      {meta.pill || 'Settings'}
+                    </span>
+                  </div>
+                  <p className={`mt-2 text-[11px] leading-5 ${isActive ? 'text-slate-200' : 'text-slate-500'}`}>
+                    {meta.description}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto pr-1">
         {activeSubTab === 'organization' && (
           loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
@@ -1362,14 +1498,22 @@ export default function SettingsTab() {
               Loading organisation data...
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl no-print">
+            <div className="grid max-w-6xl grid-cols-1 gap-5 lg:grid-cols-2 no-print">
               {/* Left Card - Organization Information */}
-              <div className="bg-white rounded-2xl p-6 space-y-6" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
-                <h3 className="text-base font-bold text-gray-800">Organization Information</h3>
+              <div className={`${settingsPanelClassName} p-6 space-y-6 md:p-7`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Brand and profile</p>
+                    <h3 className="mt-2 text-[21px] font-black tracking-[-0.03em] text-slate-950">Organization Information</h3>
+                  </div>
+                  <div className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">
+                    {saved ? 'Saved' : 'Draft'}
+                  </div>
+                </div>
 
                 {/* Logo Upload */}
-                <div className="flex flex-col items-center pb-6 border-b border-gray-100">
-                  <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden bg-gray-50 group hover:border-indigo-400 transition-all cursor-pointer" style={{ width: '90px', height: '90px' }}>
+                <div className={`${settingsInsetPanelClassName} flex flex-col items-center p-6`}>
+                  <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[28px] border-2 border-dashed border-slate-300 bg-white transition-all hover:border-indigo-400">
                     {uploadingLogo ? (
                       <div className="flex flex-col items-center justify-center">
                         <svg className="animate-spin h-6 w-6 text-indigo-500" viewBox="0 0 24 24" fill="none">
@@ -1416,8 +1560,8 @@ export default function SettingsTab() {
                     }} />
                   </div>
                   <div className="mt-3 text-center">
-                    <p className="text-[13px] font-semibold text-gray-700">Upload Logo</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Supported: PNG, JPG</p>
+                    <p className="text-[13px] font-bold text-slate-900">Upload Logo</p>
+                    <p className="mt-1 text-[11px] text-slate-500">Supported: PNG, JPG</p>
                   </div>
                 </div>
 
@@ -1431,22 +1575,20 @@ export default function SettingsTab() {
                     { label: 'GSTIN', key: 'gstin' }
                   ].map(f => (
                     <div key={f.key}>
-                      <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">{f.label}{f.required && <span className="text-red-500"> *</span>}</label>
+                      <label className={settingsSectionLabelClassName}>{f.label}{f.required && <span className="text-red-500"> *</span>}</label>
                       {f.isTextarea ? (
                         <textarea
                           value={orgSettings[f.key] || ''}
                           onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))}
                           rows={3}
-                          className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
-                          style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                          className={settingsTextareaClassName}
                         />
                       ) : (
                         <input
                           type="text"
                           value={orgSettings[f.key] || ''}
                           onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))}
-                          className="w-full h-[42px] border rounded-lg px-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50"
-                          style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                          className={settingsInputClassName}
                         />
                       )}
                     </div>
@@ -1455,59 +1597,59 @@ export default function SettingsTab() {
               </div>
 
               {/* Right Card - Structure & Accounts */}
-              <div className="bg-white rounded-2xl p-6 space-y-6" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
-                <h3 className="text-base font-bold text-gray-800">Structure & Accounts</h3>
+              <div className={`${settingsPanelClassName} p-6 space-y-6 md:p-7`}>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Operations and access</p>
+                  <h3 className="mt-2 text-[21px] font-black tracking-[-0.03em] text-slate-950">Structure & Accounts</h3>
+                </div>
 
                 {/* Hierarchy Section */}
-                <div className="pb-5 border-b border-gray-100">
-                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Hierarchy</label>
+                <div className={`${settingsInsetPanelClassName} p-5`}>
+                  <label className={settingsSectionLabelClassName}>Hierarchy</label>
                   <textarea
                     value={orgSettings.hierarchy || ''}
                     onChange={e => setOrgSettings(s => ({ ...s, hierarchy: e.target.value }))}
                     rows={2}
                     placeholder="CEO > Manager > Staff"
-                    className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
-                    style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                    className={settingsTextareaClassName}
                   />
-                  <p className="text-[11px] text-gray-400 mt-1.5">Define your reporting structure</p>
+                  <p className="mt-2 text-[11px] text-slate-500">Define your reporting structure</p>
                 </div>
 
                 {/* Branches Section */}
-                <div className="pb-5 border-b border-gray-100">
-                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Branches</label>
+                <div className={`${settingsInsetPanelClassName} p-5`}>
+                  <label className={settingsSectionLabelClassName}>Branches</label>
                   <textarea
                     value={orgSettings.branches || ''}
                     onChange={e => setOrgSettings(s => ({ ...s, branches: e.target.value }))}
                     rows={2}
                     placeholder="Chennai, Mumbai, Bangalore"
-                    className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
-                    style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                    className={settingsTextareaClassName}
                   />
                 </div>
 
                 {/* Bank Accounts Section */}
-                <div className="pb-5 border-b border-gray-100">
-                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Bank Accounts</label>
+                <div className={`${settingsInsetPanelClassName} p-5`}>
+                  <label className={settingsSectionLabelClassName}>Bank Accounts</label>
                   <textarea
                     value={orgSettings.bankAccounts || ''}
                     onChange={e => setOrgSettings(s => ({ ...s, bankAccounts: e.target.value }))}
                     rows={2}
                     placeholder="HDFC - 123456&#10;SBI - 987654"
-                    className="w-full h-[42px] min-h-[42px] border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 resize-none"
-                    style={{ borderColor: '#e4e6eb', padding: '0 12px' }}
+                    className={settingsTextareaClassName}
                   />
                 </div>
 
                 {/* Invite Code */}
-                <div>
-                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Invite Code</label>
+                <div className={`${settingsInsetPanelClassName} p-5`}>
+                  <label className={settingsSectionLabelClassName}>Invite Code</label>
                   <div className="flex gap-2">
-                    <div className="flex-1 bg-gray-50 border rounded-lg px-3 py-2.5 font-mono text-sm text-indigo-600 select-all" style={{ borderColor: '#e4e6eb' }}>
+                    <div className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm text-indigo-600 select-all">
                       {orgSettings.code || 'N/A'}
                     </div>
                     <button
                       onClick={() => navigator.clipboard.writeText(orgSettings.code)}
-                      className="px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-all"
+                      className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-200"
                     >
                       Copy
                     </button>
@@ -1515,11 +1657,11 @@ export default function SettingsTab() {
                 </div>
 
                 {/* Share Link for Employees */}
-                <div className="border-t border-gray-100 pt-5">
-                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Employee Login Link</label>
-                  <p className="text-[11px] text-gray-400 mb-3">Share this link with employees so they can create their account</p>
+                <div className={`${settingsInsetPanelClassName} p-5`}>
+                  <label className={settingsSectionLabelClassName}>Employee Login Link</label>
+                  <p className="mb-3 text-[11px] text-slate-500">Share this link with employees so they can create their account</p>
                   <div className="flex gap-2">
-                    <div className="flex-1 bg-gray-50 border rounded-lg px-3 py-2.5 font-mono text-xs text-indigo-600 select-all break-all" style={{ borderColor: '#e4e6eb' }}>
+                    <div className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-xs text-indigo-600 break-all">
                       {typeof window !== 'undefined' ? window.location.origin : ''}/login
                     </div>
                     <button
@@ -1528,7 +1670,7 @@ export default function SettingsTab() {
                         navigator.clipboard.writeText(link)
                         alert('Login link copied to clipboard!')
                       }}
-                      className="px-4 py-2.5 bg-indigo-600 border border-indigo-600 rounded-lg text-sm font-medium text-white hover:bg-indigo-700 transition-all flex items-center gap-1.5"
+                      className="flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-indigo-700"
                     >
                       <Share2 size={14} /> Share
                     </button>
@@ -1542,8 +1684,9 @@ export default function SettingsTab() {
                 <button
                   onClick={handleSaveOrg}
                   disabled={saving}
-                  className={`w-full h-[46px] rounded-xl font-semibold text-white transition-all flex items-center justify-center ${saved ? 'bg-green-500' : 'hover:shadow-lg hover:-translate-y-0.5'}`}
-                  style={{ background: saved ? '#22c55e' : 'linear-gradient(135deg,#6366f1,#4f46e5)' }}
+                  className={`flex h-12 w-full items-center justify-center rounded-[20px] text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all ${
+                    saved ? 'bg-emerald-500' : 'bg-slate-950 hover:-translate-y-0.5 hover:shadow-2xl'
+                  }`}
                 >
                   {saving ? 'SAVING...' : saved ? 'SAVED ✓' : 'SAVE ALL CHANGES'}
                 </button>
@@ -1553,48 +1696,175 @@ export default function SettingsTab() {
         )}
 
         {activeSubTab === 'advance_cat' && (
-          <div className="max-w-md bg-white rounded-2xl border p-6 shadow-sm no-print">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-sm font-black text-gray-800 uppercase">Advance Categories</h3>
-              <Plus size={16} className="text-indigo-600 cursor-pointer" onClick={() => {
-                const name = prompt('New Category Name:')
-                if (name) setOrgSettings(s => ({ ...s, advanceCategories: [...s.advanceCategories, name] }))
-              }} />
-            </div>
-            <div className="space-y-2">
-              {orgSettings.advanceCategories.map((cat, i) => (
-                <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl group">
-                  <span className="font-bold text-gray-700">{cat}</span>
-                  <Trash2 size={14} className="text-gray-300 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={() => setOrgSettings(s => ({ ...s, advanceCategories: s.advanceCategories.filter((_, idx) => idx !== i) }))} />
+          <div className="grid max-w-5xl grid-cols-1 gap-5 xl:grid-cols-[0.85fr_1.15fr] no-print">
+            <div className={`${settingsPanelClassName} p-6 md:p-7`}>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Create category</p>
+              <h3 className="mt-2 text-[22px] font-black tracking-[-0.03em] text-slate-950">Advance Categories</h3>
+              <p className="mt-2 text-[13px] leading-6 text-slate-500">
+                Add request types inline so the finance setup stays quick and predictable for the whole team.
+              </p>
+
+              <div className={`${settingsInsetPanelClassName} mt-6 space-y-4 p-5`}>
+                <div>
+                  <label className={settingsSectionLabelClassName}>Category Name</label>
+                  <input
+                    type="text"
+                    value={newAdvanceCategory}
+                    onChange={e => setNewAdvanceCategory(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddAdvanceCategory() }}
+                    className={settingsInputClassName}
+                    placeholder="e.g. Laptop Purchase"
+                  />
                 </div>
-              ))}
+                <button
+                  type="button"
+                  onClick={handleAddAdvanceCategory}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-black uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
+                >
+                  <Plus size={14} />
+                  Add Category
+                </button>
+              </div>
             </div>
-            <button onClick={() => handleSaveOrg('Advance categories updated successfully!')} className="w-full mt-6 bg-indigo-600 text-white font-black py-2.5 rounded-xl uppercase shadow-lg">Save Categories</button>
+
+            <div className={`${settingsPanelClassName} overflow-hidden`}>
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Current list</p>
+                  <h4 className="mt-2 text-[18px] font-black tracking-[-0.03em] text-slate-950">{orgSettings.advanceCategories.length} Categories</h4>
+                </div>
+                <div className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">
+                  Inline editable
+                </div>
+              </div>
+
+              <div className="divide-y divide-slate-200">
+                {orgSettings.advanceCategories.length === 0 ? (
+                  <div className="px-6 py-12 text-center text-[13px] font-medium text-slate-400">
+                    No categories added yet.
+                  </div>
+                ) : orgSettings.advanceCategories.map((cat, i) => (
+                  <div key={cat} className={`flex items-center justify-between gap-4 px-6 py-4 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}`}>
+                    <div>
+                      <p className="text-[13px] font-bold text-slate-900">{cat}</p>
+                      <p className="mt-1 text-[11px] text-slate-500">Used in advance and expense request forms.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOrgSettings(s => ({ ...s, advanceCategories: s.advanceCategories.filter((_, idx) => idx !== i) }))}
+                      className="rounded-2xl p-2 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-slate-200 px-6 py-5">
+                <button onClick={() => handleSaveOrg('Advance categories updated successfully!')} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
+                  Save Categories
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         {activeSubTab === 'holidays' && (
-          <div className="max-w-2xl bg-white rounded-2xl border p-6 shadow-sm no-print">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-sm font-black text-gray-800 uppercase">Annual Holidays</h3>
-              <button onClick={() => {
-                const name = prompt('Holiday Name:')
-                const date = prompt('Date (YYYY-MM-DD):')
-                if (name && date) setOrgSettings(s => ({ ...s, holidays: [...s.holidays, { name, date }] }))
-              }} className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest">+ Add Holiday</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {orgSettings.holidays.map((h, i) => (
-                <div key={i} className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm relative group">
-                  <div>
-                    <p className="font-black text-gray-800 uppercase tracking-tight">{h.name}</p>
-                    <p className="text-[10px] font-bold text-indigo-500 font-mono mt-1">{h.date}</p>
-                  </div>
-                  <Trash2 size={14} className="text-red-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={() => setOrgSettings(s => ({ ...s, holidays: s.holidays.filter((_, idx) => idx !== i) }))} />
+          <div className="grid max-w-6xl grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr] no-print">
+            <div className={`${settingsPanelClassName} p-6 md:p-7`}>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Calendar entry</p>
+              <h3 className="mt-2 text-[22px] font-black tracking-[-0.03em] text-slate-950">Annual Holidays</h3>
+              <p className="mt-2 text-[13px] leading-6 text-slate-500">
+                Build the holiday calendar with proper date fields instead of popups, so updates are faster and less error-prone.
+              </p>
+
+              <div className={`${settingsInsetPanelClassName} mt-6 space-y-4 p-5`}>
+                <div>
+                  <label className={settingsSectionLabelClassName}>Holiday Name</label>
+                  <input
+                    type="text"
+                    value={newHoliday.name}
+                    onChange={e => setNewHoliday(s => ({ ...s, name: e.target.value }))}
+                    className={settingsInputClassName}
+                    placeholder="e.g. Independence Day"
+                  />
                 </div>
-              ))}
+                <div>
+                  <label className={settingsSectionLabelClassName}>Date</label>
+                  <input
+                    type="date"
+                    value={newHoliday.date}
+                    onChange={e => setNewHoliday(s => ({ ...s, date: e.target.value }))}
+                    className={settingsInputClassName}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddHoliday}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-black uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
+                >
+                  <Plus size={14} />
+                  Add Holiday
+                </button>
+              </div>
             </div>
-            <button onClick={() => handleSaveOrg('Holiday list updated successfully!')} className="w-full mt-8 bg-indigo-600 text-white font-black py-3 rounded-2xl uppercase shadow-xl tracking-widest">Update Holiday List</button>
+
+            <div className={`${settingsPanelClassName} overflow-hidden`}>
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Calendar list</p>
+                  <h4 className="mt-2 text-[18px] font-black tracking-[-0.03em] text-slate-950">{orgSettings.holidays.length} Holidays</h4>
+                </div>
+                <div className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">
+                  Annual schedule
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Holiday</th>
+                      <th className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Date</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orgSettings.holidays
+                      .map((holiday, originalIndex) => ({ holiday, originalIndex }))
+                      .sort((a, b) => (a.holiday.date || '').localeCompare(b.holiday.date || ''))
+                      .map(({ holiday, originalIndex }, i) => (
+                        <tr key={`${holiday.name}-${holiday.date}-${originalIndex}`} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
+                          <td className="px-6 py-4 text-[13px] font-bold text-slate-900">{holiday.name}</td>
+                          <td className="px-6 py-4 font-mono text-[12px] text-indigo-600">{holiday.date}</td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setOrgSettings(s => ({ ...s, holidays: s.holidays.filter((_, idx) => idx !== originalIndex) }))}
+                              className="rounded-2xl p-2 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    {orgSettings.holidays.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-12 text-center text-[13px] font-medium text-slate-400">
+                          No holidays added yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="border-t border-slate-200 px-6 py-5">
+                <button onClick={() => handleSaveOrg('Holiday list updated successfully!')} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
+                  Update Holiday List
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1880,62 +2150,196 @@ export default function SettingsTab() {
           const canManageMWH = isAdmin || userPermissions['Settings']?.edit === true
 
           return (
-          <div className="space-y-4 no-print">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-black text-gray-800 uppercase">Shift Management</h3>
-              {canCreateShift && (
-                <button onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">CREATE SHIFT</button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(Array.isArray(shifts) ? shifts : []).map(s => (
-                <div key={s.id} className="bg-white p-4 rounded-none border shadow-sm group relative">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-black text-gray-800 uppercase tracking-tight">{s.name}</h4>
-                    <span className={`px-1.5 py-0.5 rounded-none text-[8px] font-bold ${s.isFlexible ? 'bg-purple-100 text-purple-600' : 'bg-indigo-50 text-indigo-600'}`}>{s.isFlexible ? 'FLEXIBLE' : s.type || 'Day'}</span>
-                  </div>
-                  <div className="text-[10px] font-bold text-gray-400">{s.isFlexible ? 'Anytime' : `${s.startTime || '09:00'} - ${s.endTime || '18:00'}`}</div>
-                  <div className="mt-3 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {canEditShift && (
-                      <button onClick={() => { setEditingShift(s); setNewShift(s); setShowAddShift(true); }} className="text-indigo-600 font-black">Edit</button>
-                    )}
-                    {canDeleteShift && (
-                      <button onClick={async () => { if (confirm('Delete shift?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'shifts', s.id)); setShifts(prev => prev.filter(x => x.id !== s.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
-                    )}
-                  </div>
+            <div className="space-y-5 no-print">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className={`${settingsPanelClassName} p-5`}>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Total Shifts</p>
+                  <p className="mt-2 text-[26px] font-black tracking-[-0.04em] text-slate-950">{shifts.length}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">Configured attendance schedules.</p>
                 </div>
-              ))}
-            </div>
+                <div className={`${settingsPanelClassName} p-5`}>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Flexible Rules</p>
+                  <p className="mt-2 text-[26px] font-black tracking-[-0.04em] text-slate-950">{shifts.filter(shift => shift.isFlexible).length}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">Shifts without fixed time ranges.</p>
+                </div>
+                <div className={`${settingsPanelClassName} p-5`}>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Hour Categories</p>
+                  <p className="mt-2 text-[26px] font-black tracking-[-0.04em] text-slate-950">{minWorkHours.length}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">Minimum work hour definitions.</p>
+                </div>
+              </div>
 
-            {/* Minimum Work Hours Section */}
-            <div className="space-y-4 no-print mt-8 pt-8 border-t border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-black text-gray-800 uppercase">Minimum Work Hours</h3>
-                {canManageMWH && (
-                  <button onClick={() => { setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }); setShowAddMinWorkHours(true); }} className="bg-amber-500 text-white px-4 py-2 rounded-none font-black text-[10px] shadow-lg">ADD CATEGORY</button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
-                  <div key={m.id} className="bg-white p-4 rounded-none border shadow-sm group relative">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-black text-gray-800 uppercase tracking-tight">{m.name}</h4>
-                      <span className="px-1.5 py-0.5 rounded-none text-[8px] font-bold bg-amber-50 text-amber-600">{m.hours} Hours</span>
-                    </div>
-                    <div className="text-[10px] font-bold text-gray-400">{m.description || 'No description'}</div>
-                    <div className="mt-3 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {canManageMWH && (
-                        <>
-                          <button onClick={() => { setEditingMinWorkHours(m); setNewMinWorkHours(m); setShowAddMinWorkHours(true); }} className="text-indigo-600 font-black">Edit</button>
-                          <button onClick={async () => { if (confirm('Delete minimum work hours category?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'minWorkHours', m.id)); setMinWorkHours(prev => prev.filter(x => x.id !== m.id)); } }} className="text-red-400 font-bold hover:text-red-600">Delete</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Box sx={{ display: 'grid', gap: 3 }}>
+                <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid #e5e7eb', overflow: 'hidden', background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)' }}>
+                  <Box sx={{ px: 3, py: 2.5, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2, borderBottom: '1px solid #e5e7eb' }}>
+                    <Box>
+                      <Typography sx={{ ...interMuiSx, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>Shift Management</Typography>
+                      <Typography sx={{ ...interMuiSx, fontSize: '0.78rem', color: '#64748b', mt: 0.5 }}>
+                        Keep all schedule definitions in one readable table for payroll and attendance alignment.
+                      </Typography>
+                    </Box>
+                    {canCreateShift && (
+                      <MuiButton
+                        variant="contained"
+                        onClick={() => { setEditingShift(null); setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false }); setShowAddShift(true); }}
+                        startIcon={<Plus size={16} />}
+                        sx={{ ...interMuiSx, borderRadius: 999, textTransform: 'none', fontWeight: 700, boxShadow: 'none', bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca', boxShadow: 'none' } }}
+                      >
+                        Create Shift
+                      </MuiButton>
+                    )}
+                  </Box>
+
+                  <TableContainer component={Paper} elevation={0} sx={settingsTableContainerSx}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={settingsTableHeadCellSx}>Shift</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Type</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Timing</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Hours</TableCell>
+                          <TableCell align="right" sx={settingsTableHeadCellSx}>Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {shifts.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} sx={{ ...settingsTableBodyCellSx, py: 6, textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                              No shifts configured yet.
+                            </TableCell>
+                          </TableRow>
+                        ) : shifts.map(shift => (
+                          <TableRow key={shift.id} sx={stripedRowSx}>
+                            <TableCell sx={settingsTableBodyCellSx}>
+                              <Stack spacing={0.5}>
+                                <Typography sx={{ ...interMuiSx, fontWeight: 800, color: '#111827' }}>{shift.name}</Typography>
+                                <Typography sx={{ ...interMuiSx, fontSize: '0.74rem', color: '#64748b' }}>
+                                  {shift.isFlexible ? 'Flexible scheduling' : 'Fixed attendance window'}
+                                </Typography>
+                              </Stack>
+                            </TableCell>
+                            <TableCell sx={settingsTableBodyCellSx}>
+                              <Chip
+                                label={shift.isFlexible ? 'Flexible' : (shift.type || 'Day')}
+                                size="small"
+                                sx={{ ...interMuiSx, fontWeight: 700, bgcolor: shift.isFlexible ? '#f3e8ff' : '#eef2ff', color: shift.isFlexible ? '#7c3aed' : '#4338ca' }}
+                              />
+                            </TableCell>
+                            <TableCell sx={settingsTableBodyCellSx}>
+                              {shift.isFlexible ? 'Anytime' : `${shift.startTime || '09:00'} - ${shift.endTime || '18:00'}`}
+                            </TableCell>
+                            <TableCell sx={settingsTableBodyCellSx}>{shift.workHours || 0} hrs</TableCell>
+                            <TableCell align="right" sx={settingsTableBodyCellSx}>
+                              <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                {canEditShift && (
+                                  <IconButton onClick={() => { setEditingShift(shift); setNewShift(shift); setShowAddShift(true); }} size="small" sx={{ color: '#4f46e5' }}>
+                                    <Edit size={16} />
+                                  </IconButton>
+                                )}
+                                {canDeleteShift && (
+                                  <IconButton
+                                    onClick={async () => {
+                                      if (confirm('Delete shift?')) {
+                                        await deleteDoc(doc(db, 'organisations', user.orgId, 'shifts', shift.id))
+                                        setShifts(prev => prev.filter(x => x.id !== shift.id))
+                                      }
+                                    }}
+                                    size="small"
+                                    sx={{ color: '#dc2626' }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </IconButton>
+                                )}
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+
+                <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid #e5e7eb', overflow: 'hidden', background: '#ffffff' }}>
+                  <Box sx={{ px: 3, py: 2.5, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2, borderBottom: '1px solid #e5e7eb' }}>
+                    <Box>
+                      <Typography sx={{ ...interMuiSx, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>Minimum Work Hours</Typography>
+                      <Typography sx={{ ...interMuiSx, fontSize: '0.78rem', color: '#64748b', mt: 0.5 }}>
+                        Use categories to standardize attendance expectations across different employee groups.
+                      </Typography>
+                    </Box>
+                    {canManageMWH && (
+                      <MuiButton
+                        variant="outlined"
+                        onClick={() => { setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }); setShowAddMinWorkHours(true); }}
+                        startIcon={<Plus size={16} />}
+                        sx={{ ...interMuiSx, borderRadius: 999, textTransform: 'none', fontWeight: 700 }}
+                      >
+                        Add Category
+                      </MuiButton>
+                    )}
+                  </Box>
+
+                  <TableContainer component={Paper} elevation={0} sx={settingsTableContainerSx}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={settingsTableHeadCellSx}>Category</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Minimum Hours</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Description</TableCell>
+                          <TableCell align="right" sx={settingsTableHeadCellSx}>Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {minWorkHours.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} sx={{ ...settingsTableBodyCellSx, py: 6, textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                              No minimum work hour categories yet.
+                            </TableCell>
+                          </TableRow>
+                        ) : minWorkHours.map(rule => (
+                          <TableRow key={rule.id} sx={stripedRowSx}>
+                            <TableCell sx={settingsTableBodyCellSx}>
+                              <Typography sx={{ ...interMuiSx, fontWeight: 800, color: '#111827' }}>{rule.name}</Typography>
+                            </TableCell>
+                            <TableCell sx={settingsTableBodyCellSx}>
+                              <Chip
+                                label={`${rule.hours} Hours`}
+                                size="small"
+                                sx={{ ...interMuiSx, fontWeight: 700, bgcolor: '#fffbeb', color: '#b45309' }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ ...settingsTableBodyCellSx, color: '#64748b' }}>
+                              {rule.description || 'No description'}
+                            </TableCell>
+                            <TableCell align="right" sx={settingsTableBodyCellSx}>
+                              {canManageMWH && (
+                                <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                  <IconButton onClick={() => { setEditingMinWorkHours(rule); setNewMinWorkHours(rule); setShowAddMinWorkHours(true); }} size="small" sx={{ color: '#4f46e5' }}>
+                                    <Edit size={16} />
+                                  </IconButton>
+                                  <IconButton
+                                    onClick={async () => {
+                                      if (confirm('Delete minimum work hours category?')) {
+                                        await deleteDoc(doc(db, 'organisations', user.orgId, 'minWorkHours', rule.id))
+                                        setMinWorkHours(prev => prev.filter(x => x.id !== rule.id))
+                                      }
+                                    }}
+                                    size="small"
+                                    sx={{ color: '#dc2626' }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </IconButton>
+                                </Stack>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+              </Box>
             </div>
-          </div>
           )
         })()}
 
