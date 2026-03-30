@@ -333,7 +333,7 @@ useEffect(() => {
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-none h-14 shrink-0">
         <div className="max-w-full mx-auto px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hidden md:block transition-all transition-colors"><PanelLeft size={18} /></button>
+            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 hidden md:block transition-all" title="Toggle Sidebar"><PanelLeft size={18} /></button>
             <div className="flex items-center gap-2">
               {orgSettings?.logoURL ? (
                 <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
@@ -377,9 +377,9 @@ useEffect(() => {
                         setActiveTab(item.tab)
                         if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab)
                       }}
-                      className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-[11px] font-medium whitespace-nowrap transition-all ${activeTab === item.tab
-                        ? 'bg-gray-100 border-gray-400 text-gray-800'
-                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 hover:bg-gray-50'
+                      className={`flex items-center gap-1.5 px-3 h-8 rounded-lg border text-[11px] font-medium whitespace-nowrap transition-all header-button ${activeTab === item.tab
+                        ? 'header-button-active'
+                        : ''
                         }`}
                     >
                       <span>{item.icon}</span>
@@ -394,7 +394,7 @@ useEffect(() => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}
-              className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md text-left transition-all hover:text-indigo-600"
             >
               <div className="flex flex-col items-end text-right">
                 <span className="text-[13px] font-bold text-gray-800 tracking-tight">{user?.name}</span>
@@ -416,21 +416,21 @@ useEffect(() => {
             <button
               onClick={() => setShowLog(s => !s)}
               title="Activity Log"
-              className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'}`}
+              className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
             >
               <History size={16} />
             </button>
-            <button onClick={logout} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all" title="Logout"><LogOut size={16} /></button>
+            <button onClick={logout} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all" title="Logout"><LogOut size={16} /></button>
           </div>
         </div>
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Quno-inspired Minimal Sidebar */}
+        {/* Modern Indigo-themed Sidebar */}
         <aside 
-          className={`bg-white border-r border-gray-100 hidden md:flex flex-col shrink-0 transition-all duration-200 ${isCollapsed ? 'w-[56px]' : 'w-[200px]'}`}
+          className={`bg-white border-r border-gray-200 hidden md:flex flex-col shrink-0 transition-all duration-200 ${isCollapsed ? 'w-[56px]' : 'w-[210px]'}`}
         >
-          <nav className="flex-1 px-1.5 py-2 space-y-0 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 px-1.5 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
             {sections.map(section => {
               // Filter section tabs by user permissions
               const sectionTabs = tabs.filter(t => section.tabs.includes(t.id));
@@ -440,21 +440,21 @@ useEffect(() => {
               const isGroupActive = expandedGroups[section.id];
               
               return (
-                <div key={section.id} className="mb-0.5">
+                <div key={section.id} className="mb-1">
                   {!isCollapsed && (
                     <button
                       onClick={() => setExpandedGroups(prev => ({ ...prev, [section.id]: !prev[section.id] }))}
-                      className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide hover:text-orange-600 transition-colors"
+                      className="w-full flex items-center justify-between px-2.5 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider hover:text-indigo-600 transition-colors section-header"
                     >
                       <span>{section.title}</span>
                       <ChevronRight 
-                        size={12} 
+                        size={14} 
                         className={`transition-transform duration-200 ${isGroupActive ? 'rotate-90' : ''}`} 
                       />
                     </button>
                   )}
                   
-                  <div className={`space-y-0 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
+                  <div className={`space-y-0.5 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id
                       return (
@@ -465,24 +465,24 @@ useEffect(() => {
                             if (tab.id === 'summary') setSummarySubTab('summary')
                           }}
                           title={isCollapsed ? tab.label : ''}
-                          className={`w-full group flex items-center rounded-lg transition-all duration-150 ${isCollapsed ? 'justify-center px-0 py-1.5' : 'px-2 py-1.5 gap-2.5'} ${
+                          className={`w-full group flex items-center rounded-lg transition-all duration-150 ${isCollapsed ? 'justify-center px-0 py-2' : 'px-2.5 py-2 gap-2.5'} ${
                             isActive 
-                              ? 'bg-green-800 text-white font-medium shadow-sm' 
-                              : 'text-gray-500 hover:bg-orange-50 hover:text-orange-600'
+                              ? 'sidebar-active shadow-sm' 
+                              : 'text-gray-600 hover:sidebar-hover'
                           }`}
                         >
-                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-orange-500'}`}>
+                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
                             {React.cloneElement(tab.icon, { size: 18 })}
                           </span>
                           
                           {!isCollapsed && (
-                            <span className="text-[13px] truncate">
+                            <span className="text-[13px] font-medium truncate">
                               {tab.label}
                             </span>
                           )}
 
                           {tab.id === 'approvals' && (
-                            <span className={`ml-auto shrink-0 flex items-center justify-center bg-red-500 text-white text-[10px] font-semibold w-5 h-5 rounded-full ${isCollapsed ? 'absolute -top-1 -right-1' : ''}`}>
+                            <span className={`ml-auto shrink-0 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full ${isCollapsed ? 'absolute -top-1 -right-1' : ''}`}>
                               {tab.badge}
                             </span>
                           )}
@@ -495,29 +495,29 @@ useEffect(() => {
             })}
           </nav>
 
-          <div className="p-1.5 border-t border-gray-100">
+          <div className="p-1.5 border-t border-gray-200">
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className={`w-full flex items-center rounded-lg text-gray-400 hover:bg-orange-50 hover:text-orange-600 transition-all ${isCollapsed ? 'justify-center py-1.5' : 'px-2 py-1.5 gap-2.5'}`}
+              className={`w-full flex items-center rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-2.5 py-2 gap-2.5'}`}
             >
               <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform`} />
-              {!isCollapsed && <span className="text-[13px]">Collapse</span>}
+              {!isCollapsed && <span className="text-[13px] font-medium">Collapse</span>}
             </button>
           </div>
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 overflow-x-auto flex items-center shrink-0 no-scrollbar">
-            <div className="flex px-1.5 h-12">
+          <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-200 overflow-x-auto flex items-center shrink-0 no-scrollbar">
+            <div className="flex px-1.5 h-12 gap-0.5">
               {tabs.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-3 h-full flex items-center text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-green-800 text-green-800' : 'border-transparent text-gray-400 hover:text-orange-600'}`}>
-                  <span className={`mr-2 ${activeTab === tab.id ? 'text-green-800' : 'text-[#6b7280]'}`}>{tab.icon}</span> {tab.label}
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-3 h-full flex items-center text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}>
+                  <span className={`mr-1.5 transition-colors ${activeTab === tab.id ? 'text-indigo-600' : 'text-gray-400'}`}>{tab.icon}</span> {tab.label}
                 </button>
               ))}
             </div>
           </nav>
 
-          <main className="flex-1 overflow-auto bg-[#f9fafb]/30">
+          <main className="flex-1 overflow-auto bg-gray-50">
             <div className="w-full h-full flex flex-col">
               {renderTabContent()}
             </div>
