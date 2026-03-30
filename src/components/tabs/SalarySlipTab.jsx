@@ -267,22 +267,28 @@ export default function SalarySlipTab() {
       }
 
       // Parallel data fetching - removed complex where clauses requiring indexes
-      const [otSRes, advSnap, loanSnap, fSnapRes, expSnap] = await Promise.all([
+      const [otSRes, advSnap, loanSnap, fSnapRes, requestSnap] = await Promise.all([
         getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp), where('type', '==', 'Expense')))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp)))
       ]);
 
       const fOT = otSRes.docs.map(d => d.data()).find(o => o.month === selectedMonth && o.status === 'approved')?.finalOTHours || aOT
       const otP = fOT * ((ts / end) / minH)
-      const adv = advSnap.docs.map(d => d.data()).filter(a => a.status !== 'Recovered').reduce((s, c) => s + Number(c.amount), 0)
+      const activeRequests = requestSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const activeRequestIds = new Set(activeRequests.map(item => item.id))
+      const adv = advSnap.docs
+        .map(d => d.data())
+        .filter(a => a.status !== 'Recovered')
+        .filter(a => !a.linkedRequestId || activeRequestIds.has(a.linkedRequestId))
+        .reduce((s, c) => s + Number(c.amount), 0)
       const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
       const sunP = sunW * (ts / end)
       const fineA = fSnapRes.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, d) => s + Number(d.amount || 0), 0)
 
-      const allExpenses = expSnap.docs.map(d => d.data())
+      const allExpenses = activeRequests.filter(item => item.type === 'Expense')
       const reimb = allExpenses.filter(i => {
         const isPaidThisMonth = i.paymentStatus === 'Paid' && i.paidAt?.toDate && 
                                i.paidAt.toDate().getFullYear() === y && 
