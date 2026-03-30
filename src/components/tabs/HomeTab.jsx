@@ -116,6 +116,9 @@ export default function HomeTab() {
     { id: 'tasks', label: 'Task', color: 'bg-purple-500' }
   ]
 
+  const headerStyle = { fontFamily: 'Raleway, sans-serif', fontSize: '15px' }
+  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
+
   return (
     <div className="p-6 font-inter space-y-4">
       <div className="flex items-center gap-3 overflow-x-auto pb-2">
@@ -156,31 +159,34 @@ export default function HomeTab() {
 }
 
 function ManpowerCard({ stats }) {
+  const headerStyle = { fontFamily: 'Raleway, sans-serif', fontSize: '15px' }
+  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
+  
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[150px] shrink-0">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[400px] shrink-0">
       <div className="flex">
         <div className="w-1 bg-blue-500"></div>
-        <div className="flex-1 p-3">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-black text-slate-900 uppercase tracking-tight">Manpower</h2>
-            <span className="text-[8px] font-bold text-blue-500 uppercase tracking-widest">Live</span>
+        <div className="flex-1 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-black text-slate-900 uppercase" style={headerStyle}>Manpower</h2>
+            <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">Live</span>
           </div>
           
-          <div className="space-y-2">
-            <MetricBox label="Headcount" value={stats.total} icon={<Users size={12} />} />
-            <MetricBox label="Present" value={stats.present} icon={<CheckCircle size={12} />} />
-            <MetricBox label="Day" value={stats.dayShift} icon={<Sun size={12} />} />
-            <MetricBox label="Night" value={stats.nightShift} icon={<Moon size={12} />} />
+          <div className="grid grid-cols-2 gap-3">
+            <MetricBox label="Headcount" value={stats.total} icon={<Users size={14} />} />
+            <MetricBox label="Present" value={stats.present} icon={<CheckCircle size={14} />} />
+            <MetricBox label="Day Shift" value={stats.dayShift} icon={<Sun size={14} />} />
+            <MetricBox label="Night Shift" value={stats.nightShift} icon={<Moon size={14} />} />
           </div>
 
-          <div className="mt-2 pt-2 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-amber-50 flex items-center justify-center">
-                <Calendar size={10} className="text-amber-500" />
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
+                <Calendar size={14} className="text-amber-500" />
               </div>
               <div>
-                <p className="text-sm font-black text-slate-900">{stats.leave}</p>
-                <p className="text-[6px] text-slate-500 font-medium uppercase tracking-wide">On Leave</p>
+                <p className="font-black text-slate-900" style={textStyle}>{stats.leave}</p>
+                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">On Leave</p>
               </div>
             </div>
           </div>
@@ -191,19 +197,22 @@ function ManpowerCard({ stats }) {
 }
 
 function MetricBox({ label, value, icon }) {
+  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
   return (
-    <div className="bg-slate-50 rounded-lg p-1.5">
-      <div className="flex items-center gap-1 mb-0.5">
+    <div className="bg-slate-50 rounded-xl p-3">
+      <div className="flex items-center gap-2 mb-1">
         <span className="text-slate-400">{icon}</span>
-        <span className="text-[6px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
       </div>
-      <p className="text-sm font-black text-slate-900">{value}</p>
+      <p className="font-black text-slate-900" style={textStyle}>{value}</p>
     </div>
   )
 }
 
 function AdvanceExpenseCard() {
-  const [pending, setPending] = useState(0)
+  const [requests, setRequests] = useState([])
+  const headerStyle = { fontFamily: 'Raleway, sans-serif', fontSize: '15px' }
+  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
   
   useEffect(() => {
     async function fetchPending() {
@@ -211,46 +220,67 @@ function AdvanceExpenseCard() {
       if (!user?.orgId) return
       const snap = await getDocs(query(
         collection(db, 'organisations', user.orgId, 'advances_expenses'),
-        where('status', '==', 'Pending')
+        where('status', '==', 'Pending'),
+        limit(5)
       ))
-      setPending(snap.size)
+      setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     }
     fetchPending()
   }, [])
 
+  const formatINR = (amount) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0)
+  }
+
   return (
-    <button className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[150px] shrink-0 hover:shadow-md transition-all">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[400px] shrink-0">
       <div className="flex">
         <div className="w-1 bg-amber-500"></div>
-        <div className="flex-1 p-3">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-black text-slate-900 uppercase tracking-tight">Adv/Exp</h2>
-            <span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest">Pending</span>
+        <div className="flex-1 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-black text-slate-900 uppercase" style={headerStyle}>Advance/Expense</h2>
+            <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Pending</span>
           </div>
           
-          <div className="bg-slate-50 rounded-lg p-3 text-center">
-            <p className="text-2xl font-black text-slate-900">{pending}</p>
-            <p className="text-[6px] text-slate-400 font-bold uppercase tracking-wider">Requests</p>
+          <div className="space-y-2">
+            {requests.length === 0 ? (
+              <p className="text-slate-400 text-center py-2" style={textStyle}>No pending requests</p>
+            ) : (
+              requests.map(req => (
+                <div key={req.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-amber-100 flex items-center justify-center">
+                      <Wallet size={12} className="text-amber-600" />
+                    </div>
+                    <span className="text-slate-700 font-medium truncate max-w-[150px]" style={textStyle}>{req.employeeName || req.name || 'Employee'}</span>
+                  </div>
+                  <span className="font-bold text-slate-900" style={textStyle}>{formatINR(req.amount)}</span>
+                </div>
+              ))
+            )}
           </div>
 
-          <div className="mt-2 pt-2 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-amber-50 flex items-center justify-center">
-                <Wallet size={10} className="text-amber-500" />
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
+                <Wallet size={14} className="text-amber-500" />
               </div>
               <div>
-                <p className="text-[8px] text-slate-500 font-medium uppercase tracking-wide">Approval</p>
+                <p className="font-black text-slate-900" style={textStyle}>{requests.length}</p>
+                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">Pending Approval</p>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 
 function LeavePermissionCard() {
   const [pending, setPending] = useState({ leave: 0, permission: 0 })
+  const headerStyle = { fontFamily: 'Raleway, sans-serif', fontSize: '15px' }
+  const textStyle = { fontFamily: 'sans-serif', fontSize: '13px' }
   
   useEffect(() => {
     async function fetchPending() {
@@ -266,28 +296,34 @@ function LeavePermissionCard() {
   }, [])
 
   return (
-    <button className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[150px] shrink-0 hover:shadow-md transition-all">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[400px] shrink-0">
       <div className="flex">
         <div className="w-1 bg-rose-500"></div>
-        <div className="flex-1 p-3">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-black text-slate-900 uppercase tracking-tight">Leave/Perm</h2>
-            <span className="text-[8px] font-bold text-rose-500 uppercase tracking-widest">Pending</span>
+        <div className="flex-1 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-black text-slate-900 uppercase" style={headerStyle}>Leave/Permission</h2>
+            <span className="text-xs font-bold text-rose-500 uppercase tracking-widest">Pending</span>
           </div>
           
-          <div className="space-y-2">
-            <div className="bg-slate-50 rounded-lg p-2 flex justify-between items-center">
-              <span className="text-[6px] text-slate-400 font-bold uppercase">Leave</span>
-              <span className="text-sm font-black text-slate-900">{pending.leave}</span>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar size={14} className="text-rose-500" />
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Leave</span>
+              </div>
+              <p className="font-black text-slate-900" style={textStyle}>{pending.leave}</p>
             </div>
-            <div className="bg-slate-50 rounded-lg p-2 flex justify-between items-center">
-              <span className="text-[6px] text-slate-400 font-bold uppercase">Permission</span>
-              <span className="text-sm font-black text-slate-900">{pending.permission}</span>
+            <div className="bg-slate-50 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock size={14} className="text-rose-500" />
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Permission</span>
+              </div>
+              <p className="font-black text-slate-900" style={textStyle}>{pending.permission}</p>
             </div>
           </div>
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 
