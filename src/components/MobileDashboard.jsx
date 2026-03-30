@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
 import { isEmployeeActiveStatus } from '../lib/employeeStatus'
-import { doc, getDoc, collection, getDocs, addDoc, query, where, orderBy, limit } from 'firebase/firestore'
+import { doc, getDoc, collection, getDocs, addDoc, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore'
 import {
   Calendar,
   PencilLine,
@@ -491,26 +491,26 @@ export default function MobileDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex overflow-hidden">
       {/* ─── Desktop Sidebar (Hidden on Mobile) ─── */}
-      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-slate-200 border-r border-slate-800 transition-all shrink-0">
-        <div className="p-6 flex items-center gap-3 border-b border-slate-800/50">
+      <aside className="hidden lg:flex flex-col w-64 bg-white text-gray-900 border-r border-gray-200 transition-all shrink-0">
+        <div className="p-6 flex items-center gap-3 border-b border-gray-200">
           {orgSettings?.logoURL ? (
             <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
           ) : (
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
               <Building2 size={18} />
             </div>
           )}
-          <span className="text-sm font-semibold tracking-tight truncate">
+          <span className="text-sm font-bold text-gray-900 tracking-tight truncate">
             {orgSettings?.name || user?.orgName || 'HRFlow ERP'}
           </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-6 custom-scrollbar">
           {Object.entries(moduleSections).map(([section, modules]) => (
             <div key={section} className="space-y-2">
-              <h3 className="px-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+              <h3 className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider section-header">
                 {section}
               </h3>
               <div className="space-y-1">
@@ -518,14 +518,14 @@ export default function MobileDashboard() {
                   <button
                     key={mod.id}
                     onClick={() => setActiveTab(mod.id)}
-                    className={`w-full flex items-center justify-between group px-3 py-2 rounded-md text-sm transition-all duration-200 ${
+                    className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
                       activeTab === mod.id
-                        ? 'bg-slate-800 text-white border-l-2 border-blue-500 shadow-sm'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                        ? 'sidebar-active shadow-sm'
+                        : 'text-gray-600 hover:sidebar-hover'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`${activeTab === mod.id ? mod.color : 'text-slate-500 group-hover:text-slate-300'}`}>
+                      <div className={`${activeTab === mod.id ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
                         {mod.icon}
                       </div>
                       <span className="font-medium tracking-tight">{mod.label}</span>
@@ -542,27 +542,27 @@ export default function MobileDashboard() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-800/50 space-y-2">
+        <div className="p-4 border-t border-gray-200 space-y-2">
           <button 
             onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}
-            className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800 transition-colors"
+            className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-indigo-50 transition-colors hover:text-indigo-600"
           >
             {currentEmployee?.photoURL ? (
-              <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-slate-700" />
+              <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-300">
+              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white">
                 {getInitials(user?.name)}
               </div>
             )}
             <div className="flex-1 text-left truncate">
-              <p className="text-xs font-bold text-white truncate">{user?.name}</p>
-              <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">{user?.role || 'Member'}</p>
+              <p className="text-xs font-bold text-gray-900 truncate">{user?.name}</p>
+              <p className="text-[10px] text-gray-500 truncate uppercase tracking-tighter">{user?.role || 'Member'}</p>
             </div>
           </button>
           
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-400 hover:bg-red-900/20 hover:text-red-400 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all"
           >
             <LogOut size={16} />
             <span className="font-medium">Sign Out</span>
@@ -577,15 +577,15 @@ export default function MobileDashboard() {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setShowMenu(true)}
-              className="p-2 -ml-2 rounded-lg hover:bg-gray-100 text-slate-600 transition-colors"
+              className="p-2 -ml-2 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition-colors"
             >
               <Menu size={20} />
             </button>
-            <span className="text-sm font-black text-slate-900 tracking-tight uppercase">
+            <span className="text-sm font-bold text-gray-900 tracking-tight uppercase">
               {getCurrentModuleLabel()}
             </span>
           </div>
-          <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}>
+          <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="hover:bg-indigo-50 p-2 rounded-lg transition-colors">
             {currentEmployee?.photoURL ? (
               <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
             ) : (
@@ -597,17 +597,17 @@ export default function MobileDashboard() {
         </header>
 
         {/* Desktop Header / Breadcrumb */}
-        <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-white border-b border-slate-200 shrink-0">
+        <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-white border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-slate-400 font-medium">Organization</span>
-            <ChevronRight size={14} className="text-slate-300" />
-            <span className="text-slate-900 font-bold tracking-tight">{getCurrentModuleLabel()}</span>
+            <span className="text-gray-500 font-medium">Organization</span>
+            <ChevronRight size={14} className="text-gray-300" />
+            <span className="text-gray-900 font-bold tracking-tight">{getCurrentModuleLabel()}</span>
           </div>
           <div className="flex items-center gap-4">
-            <div className="h-8 w-px bg-slate-200 mx-2" />
+            <div className="h-8 w-px bg-gray-200 mx-2" />
             <div className="text-right">
-              <p className="text-xs font-bold text-slate-900 leading-none">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-              <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tighter">Attendance System</p>
+              <p className="text-xs font-bold text-gray-900 leading-none">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+              <p className="text-[10px] text-gray-500 font-medium mt-1 uppercase tracking-tighter">Attendance System</p>
             </div>
           </div>
         </header>
@@ -632,7 +632,7 @@ export default function MobileDashboard() {
                 key={item.id}
                 onClick={item.onClick || (() => setActiveTab(item.id))}
                 className={`flex flex-col items-center gap-1 transition-colors ${
-                  activeTab === item.id && !item.onClick ? 'text-indigo-600' : 'text-slate-400'
+                  activeTab === item.id && !item.onClick ? 'text-indigo-600' : 'text-gray-500'
                 }`}
               >
                 {item.icon}
@@ -646,16 +646,16 @@ export default function MobileDashboard() {
       {/* ─── Mobile Sidebar Overlay ─── */}
       {showMenu && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-slate-900 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
-            <div className="p-6 flex items-center justify-between border-b border-slate-800">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+            <div className="p-6 flex items-center justify-between border-b border-gray-200">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
                   <Building2 size={16} />
                 </div>
-                <span className="text-sm font-bold text-white tracking-tight uppercase">HRFlow Menu</span>
+                <span className="text-sm font-bold text-gray-900 tracking-tight uppercase">HRFlow Menu</span>
               </div>
-              <button onClick={() => setShowMenu(false)} className="p-2 text-slate-400 hover:text-white rounded-lg">
+              <button onClick={() => setShowMenu(false)} className="p-2 text-gray-500 hover:text-gray-900 rounded-lg transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -663,19 +663,19 @@ export default function MobileDashboard() {
             <nav className="flex-1 overflow-y-auto p-4 space-y-6">
               {Object.entries(moduleSections).map(([section, modules]) => (
                 <div key={section} className="space-y-2">
-                  <h3 className="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">{section}</h3>
+                  <h3 className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider section-header">{section}</h3>
                   <div className="space-y-1">
                     {modules.map(mod => (
                       <button
                         key={mod.id}
                         onClick={() => { setActiveTab(mod.id); setShowMenu(false) }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${
-                          activeTab === mod.id ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800/50'
+                          activeTab === mod.id ? 'sidebar-active shadow-lg' : 'text-gray-600 hover:sidebar-hover'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={activeTab === mod.id ? mod.color : 'text-slate-500'}>{mod.icon}</div>
-                          <span className="font-semibold">{mod.label}</span>
+                          <div className={activeTab === mod.id ? 'text-white' : 'text-gray-400'}>{mod.icon}</div>
+                          <span className="font-medium">{mod.label}</span>
                         </div>
                         {mod.badge && <Badge variant="destructive">{mod.badge}</Badge>}
                       </button>
@@ -685,10 +685,10 @@ export default function MobileDashboard() {
               ))}
             </nav>
 
-            <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-              <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-red-400 hover:bg-red-950/30 transition-colors">
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors font-medium">
                 <LogOut size={18} />
-                <span className="font-bold uppercase tracking-widest">Sign Out</span>
+                <span className="uppercase tracking-widest">Sign Out</span>
               </button>
             </div>
           </div>
