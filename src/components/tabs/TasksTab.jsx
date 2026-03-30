@@ -322,20 +322,20 @@ export default function TasksTab() {
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, status.id)}
         >
-          {/* Column Header */}
+          {/* Column Header - Plane.so inspired */}
           <div className="px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="flex-shrink-0">
                 {status.icon}
               </span>
-              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <span className="text-[13px] font-600 text-gray-800">
                 {status.label}
               </span>
-              <span className="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-100 font-medium">
+              <span className="text-[11px] text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200 font-500">
                 {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
               </span>
             </div>
-            <button className="text-gray-300 hover:text-gray-600 p-1 hover:bg-gray-50 rounded transition-colors">
+            <button className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-md transition-colors">
               <MoreHorizontal size={14} />
             </button>
           </div>
@@ -409,8 +409,8 @@ export default function TasksTab() {
                       </button>
                       
                       <div className="flex-1 min-w-0">
-                        {/* Title */}
-                        <h4 className={`text-sm font-medium text-gray-800 leading-snug break-words mb-2 ${
+                        {/* Title - Plane.so style */}
+                        <h4 className={`text-[13px] font-500 text-gray-900 leading-snug break-words mb-2 ${
                           task.status === 'Completed' ? 'line-through text-gray-400' : ''
                         }`}>
                           {task.title}
@@ -418,7 +418,7 @@ export default function TasksTab() {
                         
                         {/* Description Preview (if any) */}
                         {task.description && (
-                          <p className="text-[11px] text-gray-500 line-clamp-1 leading-tight mb-2 italic">
+                          <p className="text-[12px] text-gray-600 line-clamp-1 leading-tight mb-2">
                             {task.description}
                           </p>
                         )}
@@ -875,10 +875,10 @@ export default function TasksTab() {
 
   return (
     <div className="flex flex-col h-full bg-white text-gray-900 font-sans">
-      {/* Header & Tabs */}
-      <div className="px-6 py-6 border-b-4 border-gray-900 bg-white">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-google-sans tracking-tighter uppercase">Tasks</h1>
+      {/* Header & Tabs - Plane.so inspired clean typography */}
+      <div className="px-6 py-5 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-700 text-gray-900">Tasks</h1>
           <button 
             onClick={() => {
               if (activeTab === 'reminders') {
@@ -888,58 +888,58 @@ export default function TasksTab() {
                 setShowAddModal(true)
               }
             }}
-            className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-none text-xs uppercase tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-none"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-[12px] font-600 tracking-wide transition-all shadow-sm active:scale-95"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             <span>{activeTab === 'reminders' ? 'New Announcement' : 'New Task'}</span>
           </button>
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex gap-0 overflow-hidden border-2 border-gray-900">
+          <div className="flex gap-1 overflow-hidden bg-gray-100 rounded-lg p-1">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-4 text-xs font-google-sans uppercase tracking-widest transition-all border-r-2 border-gray-900 last:border-r-0 ${
+                className={`flex items-center gap-2 px-4 py-2 text-[12px] font-600 transition-all rounded-md ${
                   activeTab === tab.id 
-                    ? `${tab.color} text-white` 
-                    : 'bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-white text-indigo-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                {React.cloneElement(tab.icon, { size: 16 })}
+                {React.cloneElement(tab.icon, { size: 14 })}
                 {tab.label}
               </button>
             ))}
           </div>
 
           {activeTab !== 'reminders' && activeTab !== 'idea' && (
-            <div className="flex items-center gap-0 border-2 border-gray-900 overflow-hidden">
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('board')}
-                className={`flex items-center gap-2 px-4 py-3 text-[10px] uppercase tracking-wider transition-all border-r-2 border-gray-900 ${
-                  viewMode === 'board' ? 'bg-gray-900 text-white' : 'bg-white text-gray-400 hover:text-gray-900'
+                className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-600 transition-all rounded-md ${
+                  viewMode === 'board' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <Layout size={14} />
+                <Layout size={13} />
                 <span>Board</span>
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`flex items-center gap-2 px-4 py-3 text-[10px] uppercase tracking-wider transition-all border-r-2 border-gray-900 ${
-                  viewMode === 'table' ? 'bg-gray-900 text-white' : 'bg-white text-gray-400 hover:text-gray-900'
+                className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-600 transition-all rounded-md ${
+                  viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <Table size={14} />
+                <Table size={13} />
                 <span>Table</span>
               </button>
               <button
                 onClick={() => setViewMode('dashboard')}
-                className={`flex items-center gap-2 px-4 py-3 text-[10px] uppercase tracking-wider transition-all ${
-                  viewMode === 'dashboard' ? 'bg-gray-900 text-white' : 'bg-white text-gray-400 hover:text-gray-900'
+                className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-600 transition-all rounded-md ${
+                  viewMode === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <BarChart2 size={14} />
+                <BarChart2 size={13} />
                 <span>Dashboard</span>
               </button>
             </div>
@@ -1004,7 +1004,7 @@ export default function TasksTab() {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-x-auto p-6 bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="flex-1 overflow-x-auto p-6 bg-gray-50">
         {activeTab === 'reminders' ? (
           <div className="max-w-4xl mx-auto space-y-4">
             {reminders.length === 0 ? (
@@ -1124,7 +1124,7 @@ export default function TasksTab() {
           {/* Title Section */}
           <div className="space-y-4">
             <div>
-              <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Task Title</label>
+              <label className="block text-[12px] font-600 text-gray-700 mb-2">Task Title</label>
               <input
                 type="text"
                 required
@@ -1137,7 +1137,7 @@ export default function TasksTab() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Description</label>
+              <label className="block text-[12px] font-600 text-gray-700 mb-2">Description</label>
               <textarea
                 className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[80px] resize-none placeholder:text-gray-400"
                 placeholder="Add some details..."
@@ -1152,7 +1152,7 @@ export default function TasksTab() {
             <div className="space-y-6">
               {/* Priority Selector */}
               <div>
-                <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Priority</label>
+                <label className="block text-[12px] font-600 text-gray-700 mb-2">Priority</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['normal', 'high', 'urgent'].map((p) => (
                     <button
@@ -1175,7 +1175,7 @@ export default function TasksTab() {
 
               {/* Status */}
               <div>
-                <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Initial Status</label>
+                <label className="block text-[12px] font-600 text-gray-700 mb-2">Initial Status</label>
                 <select
                   className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
                   value={newTask.status}
@@ -1190,7 +1190,7 @@ export default function TasksTab() {
             <div className="space-y-6">
               {/* Due Date */}
               <div>
-                <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Due Date</label>
+                <label className="block text-[12px] font-600 text-gray-700 mb-2">Due Date</label>
                 <div className="relative">
                   <DatePicker
                     selected={newTask.dueDate}
@@ -1205,7 +1205,7 @@ export default function TasksTab() {
 
               {/* Internal Notes */}
               <div>
-                <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Internal Notes</label>
+                <label className="block text-[12px] font-600 text-gray-700 mb-2">Internal Notes</label>
                 <input
                   type="text"
                   className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
@@ -1219,7 +1219,7 @@ export default function TasksTab() {
 
           {/* Multi-Assignee Selector */}
           <div>
-            <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Assign To</label>
+            <label className="block text-[12px] font-600 text-gray-700 mb-2">Assign To</label>
             <div className="flex flex-wrap gap-1.5 p-3 bg-gray-50/50 border border-gray-200 rounded-lg min-h-[45px]">
               {loginEnabledEmployees.map(emp => {
                 const isSelected = newTask.assignedTo?.includes(emp.id)
