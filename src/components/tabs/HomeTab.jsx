@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import {
   Users,
   Calendar,
@@ -16,16 +17,22 @@ import {
   FileText,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Wallet,
+  Mail,
+  Bell,
+  Activity
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 
 export default function HomeTab() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const [attendanceData, setAttendanceData] = useState({})
   const [leavePending, setLeavePending] = useState(0)
+  const [recentLogs, setRecentLogs] = useState([])
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -55,6 +62,20 @@ export default function HomeTab() {
     }
     fetchAttendance()
   }, [user?.orgId, employees.length, today])
+
+  useEffect(() => {
+    async function fetchLogs() {
+      if (!user?.orgId) return
+      const logsQuery = query(
+        collection(db, 'organisations', user.orgId, 'activityLogs'),
+        orderBy('timestamp', 'desc'),
+        limit(20)
+      )
+      const logsSnap = await getDocs(logsQuery)
+      setRecentLogs(logsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+    }
+    fetchLogs()
+  }, [user?.orgId])
 
   const stats = useMemo(() => {
     if (!employees.length) return { total: 0, present: 0, dayShift: 0, nightShift: 0, leave: 0 }
@@ -91,20 +112,29 @@ export default function HomeTab() {
     { id: 'manpower', label: 'Manpower', color: 'bg-blue-500' },
     { id: 'attendance', label: 'Attendance', color: 'bg-emerald-500' },
     { id: 'payroll', label: 'Payroll', color: 'bg-amber-500' },
-    { id: 'requests', label: 'Requests', color: 'bg-rose-500' }
+    { id: 'requests', label: 'Requests', color: 'bg-rose-500' },
+    { id: 'tasks', label: 'Task', color: 'bg-purple-500' }
   ]
 
   return (
-    <div className="p-6 font-inter">
-      <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-2">
+    <div className="p-6 font-inter space-y-4">
+      <div className="flex items-center gap-3 overflow-x-auto pb-2">
         {cards.map(card => (
           <button
             key={card.id}
-            onClick={() => setSelectedCard(card.id)}
+            onClick={() => {
+              if (card.id === 'tasks') {
+                navigate('/?tab=tasks')
+              } else {
+                setSelectedCard(card.id)
+              }
+            }}
             className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all shrink-0 ${
-              selectedCard === card.id 
-                ? 'border-slate-900 bg-white shadow-md' 
-                : 'border-transparent bg-slate-100 text-slate-500 hover:bg-slate-200'
+              card.id === 'tasks' 
+                ? 'border-purple-500 bg-purple-50 text-purple-700 hover:bg-purple-100' 
+                : selectedCard === card.id 
+                  ? 'border-slate-900 bg-white shadow-md' 
+                  : 'border-transparent bg-slate-100 text-slate-500 hover:bg-slate-200'
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${card.color}`}></span>
@@ -113,10 +143,14 @@ export default function HomeTab() {
         ))}
       </div>
 
-      {selectedCard === 'manpower' && <ManpowerCard stats={stats} />}
-      {selectedCard === 'attendance' && <AttendanceCard stats={stats} />}
-      {selectedCard === 'payroll' && <PayrollCard employees={employees} />}
-      {selectedCard === 'requests' && <RequestsCard />}
+      <div className="flex gap-4 flex-wrap">
+        <ManpowerCard stats={stats} />
+        <AdvanceExpenseCard />
+        <LeavePermissionCard />
+      </div>
+
+      <RecentUpdatesCard logs={recentLogs} />
+      <TeamTaskCard onClick={() => navigate('/?tab=tasks')} />
     </div>
   )
 }
@@ -165,6 +199,174 @@ function MetricBox({ label, value, icon }) {
       </div>
       <p className="text-sm font-black text-slate-900">{value}</p>
     </div>
+  )
+}
+
+function AdvanceExpenseCard() {
+  const [pending, setPending] = useState(0)
+  
+  useEffect(() => {
+    async function fetchPending() {
+      const { user } = window
+      if (!user?.orgId) return
+      const snap = await getDocs(query(
+        collection(db, 'organisations', user.orgId, 'advances_expenses'),
+        where('status', '==', 'Pending')
+      ))
+      setPending(snap.size)
+    }
+    fetchPending()
+  }, [])
+
+  return (
+    <button className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[150px] shrink-0 hover:shadow-md transition-all">
+      <div className="flex">
+        <div className="w-1 bg-amber-500"></div>
+        <div className="flex-1 p-3">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-black text-slate-900 uppercase tracking-tight">Adv/Exp</h2>
+            <span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest">Pending</span>
+          </div>
+          
+          <div className="bg-slate-50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-black text-slate-900">{pending}</p>
+            <p className="text-[6px] text-slate-400 font-bold uppercase tracking-wider">Requests</p>
+          </div>
+
+          <div className="mt-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-amber-50 flex items-center justify-center">
+                <Wallet size={10} className="text-amber-500" />
+              </div>
+              <div>
+                <p className="text-[8px] text-slate-500 font-medium uppercase tracking-wide">Approval</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
+  )
+}
+
+function LeavePermissionCard() {
+  const [pending, setPending] = useState({ leave: 0, permission: 0 })
+  
+  useEffect(() => {
+    async function fetchPending() {
+      const { user } = window
+      if (!user?.orgId) return
+      const [leaveSnap, permSnap] = await Promise.all([
+        getDocs(query(collection(db, 'organisations', user.orgId, 'leaveRequests'), where('status', '==', 'Pending'))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'permissionRequests'), where('status', '==', 'Pending')))
+      ])
+      setPending({ leave: leaveSnap.size, permission: permSnap.size })
+    }
+    fetchPending()
+  }, [])
+
+  return (
+    <button className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-[150px] shrink-0 hover:shadow-md transition-all">
+      <div className="flex">
+        <div className="w-1 bg-rose-500"></div>
+        <div className="flex-1 p-3">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-black text-slate-900 uppercase tracking-tight">Leave/Perm</h2>
+            <span className="text-[8px] font-bold text-rose-500 uppercase tracking-widest">Pending</span>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="bg-slate-50 rounded-lg p-2 flex justify-between items-center">
+              <span className="text-[6px] text-slate-400 font-bold uppercase">Leave</span>
+              <span className="text-sm font-black text-slate-900">{pending.leave}</span>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-2 flex justify-between items-center">
+              <span className="text-[6px] text-slate-400 font-bold uppercase">Permission</span>
+              <span className="text-sm font-black text-slate-900">{pending.permission}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
+  )
+}
+
+function RecentUpdatesCard({ logs }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="flex">
+        <div className="w-1 bg-indigo-500"></div>
+        <div className="flex-1 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Recent Updates</h2>
+            <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-widest">{logs.length} Activities</span>
+          </div>
+          
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {logs.length === 0 ? (
+              <p className="text-[10px] text-slate-400 text-center py-4">No recent activities</p>
+            ) : (
+              logs.slice(0, 10).map(log => (
+                <div key={log.id} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
+                  <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+                    <Activity size={10} className="text-indigo-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] font-bold text-slate-700 truncate">{log.detail || log.action || 'Activity'}</p>
+                    <p className="text-[7px] text-slate-400">{log.module}</p>
+                  </div>
+                  <span className="text-[7px] text-slate-400 shrink-0">
+                    {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TeamTaskCard({ onClick }) {
+  const [tasks, setTasks] = useState({ pending: 0, completed: 0 })
+  
+  useEffect(() => {
+    async function fetchTasks() {
+      const { user } = window
+      if (!user?.orgId) return
+      const [pendingSnap, completedSnap] = await Promise.all([
+        getDocs(query(collection(db, 'organisations', user.orgId, 'tasks'), where('status', '!=', 'Completed'))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'tasks'), where('status', '==', 'Completed')))
+      ])
+      setTasks({ pending: pendingSnap.size, completed: completedSnap.size })
+    }
+    fetchTasks()
+  }, [])
+
+  return (
+    <button onClick={onClick} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full hover:shadow-md transition-all">
+      <div className="flex">
+        <div className="w-1 bg-purple-500"></div>
+        <div className="flex-1 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Team Tasks</h2>
+            <ArrowRight size={14} className="text-slate-400" />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-purple-50 rounded-xl p-3 text-center">
+              <p className="text-xl font-black text-purple-700">{tasks.pending}</p>
+              <p className="text-[8px] text-purple-600 font-bold uppercase">Pending</p>
+            </div>
+            <div className="bg-slate-50 rounded-xl p-3 text-center">
+              <p className="text-xl font-black text-slate-700">{tasks.completed}</p>
+              <p className="text-[8px] text-slate-500 font-bold uppercase">Completed</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
   )
 }
 
