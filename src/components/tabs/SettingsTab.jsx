@@ -6,6 +6,27 @@ import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTime
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import {
+  Avatar as MuiAvatar,
+  Box,
+  Button as MuiButton,
+  Chip,
+  FormControl,
+  IconButton,
+  MenuItem,
+  Paper,
+  Select as MuiSelect,
+  Stack,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  Typography,
+} from '@mui/material'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
@@ -73,6 +94,48 @@ function createEmployeeFormState() {
     tempPassword: '',
     minDailyHours: 8,
   }
+}
+
+const interMuiSx = {
+  fontFamily: '"Inter", sans-serif',
+}
+
+const settingsTableContainerSx = {
+  borderRadius: 4,
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 18px 40px rgba(15, 23, 42, 0.06)',
+  overflow: 'hidden',
+  ...interMuiSx,
+}
+
+const settingsTableHeadCellSx = {
+  ...interMuiSx,
+  borderBottom: '1px solid #e5e7eb',
+  color: '#64748b',
+  fontSize: '0.68rem',
+  fontWeight: 800,
+  letterSpacing: '0.14em',
+  textTransform: 'uppercase',
+  backgroundColor: '#f8fafc',
+}
+
+const settingsTableBodyCellSx = {
+  ...interMuiSx,
+  borderBottom: '1px solid #eef2f7',
+  color: '#0f172a',
+  fontSize: '0.82rem',
+}
+
+const stripedRowSx = {
+  '&:nth-of-type(odd)': {
+    backgroundColor: '#ffffff',
+  },
+  '&:nth-of-type(even)': {
+    backgroundColor: '#f8fafc',
+  },
+  '&:hover': {
+    backgroundColor: '#eef4ff',
+  },
 }
 
 export default function SettingsTab() {
@@ -1877,192 +1940,341 @@ export default function SettingsTab() {
         })()}
 
         {activeSubTab === 'user_roles' && !showInvitePage && (
-          <div className="space-y-6">
-            {/* Sub-tabs: Users / Roles */}
-            <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
-              <button 
-                onClick={() => setActiveUserRoleSubTab('users')}
-                className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeUserRoleSubTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+          <Box sx={{ ...interMuiSx, display: 'grid', gap: 3 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: 4,
+                border: '1px solid #e5e7eb',
+                overflow: 'hidden',
+                background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+              }}
+            >
+              <Box
+                sx={{
+                  px: 3,
+                  py: 2.5,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                  borderBottom: '1px solid #e5e7eb',
+                }}
               >
-                Users
-              </button>
-              <button 
-                onClick={() => setActiveUserRoleSubTab('roles')}
-                className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeUserRoleSubTab === 'roles' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                Roles
-              </button>
-            </div>
+                <Box>
+                  <Typography sx={{ ...interMuiSx, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                    Users & Roles
+                  </Typography>
+                  <Typography sx={{ ...interMuiSx, fontSize: '0.78rem', color: '#64748b', mt: 0.5 }}>
+                    Manage access, assigned roles, and linked employee identities from one workspace.
+                  </Typography>
+                </Box>
+                <Tabs
+                  value={activeUserRoleSubTab}
+                  onChange={(_, value) => setActiveUserRoleSubTab(value)}
+                  sx={{
+                    minHeight: 42,
+                    '& .MuiTabs-indicator': { height: 3, borderRadius: 999, backgroundColor: '#4f46e5' },
+                    '& .MuiTab-root': {
+                      ...interMuiSx,
+                      minHeight: 42,
+                      textTransform: 'none',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: '#64748b',
+                    },
+                    '& .Mui-selected': { color: '#312e81 !important' },
+                  }}
+                >
+                  <Tab label="Users" value="users" />
+                  <Tab label="Roles" value="roles" />
+                </Tabs>
+              </Box>
 
-            {activeUserRoleSubTab === 'users' && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-300">
-                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                  <div className="flex items-center gap-4">
-                    <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Users List</h3>
-                    <button 
-                      onClick={makeAllEmployeesAdmin}
-                      disabled={seeding}
-                      className="text-[10px] font-bold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 transition-all uppercase tracking-tight"
+              {activeUserRoleSubTab === 'users' && (
+                <Box sx={{ p: 3, display: 'grid', gap: 2.5 }}>
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                      <Typography sx={{ ...interMuiSx, fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#475569' }}>
+                        Users Directory
+                      </Typography>
+                      <Chip
+                        label={`${users.length} total`}
+                        size="small"
+                        sx={{ ...interMuiSx, fontWeight: 700, bgcolor: '#eef2ff', color: '#4338ca' }}
+                      />
+                    </Stack>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                      <MuiButton
+                        variant="outlined"
+                        color="error"
+                        onClick={makeAllEmployeesAdmin}
+                        disabled={seeding}
+                        sx={{
+                          ...interMuiSx,
+                          borderRadius: 999,
+                          textTransform: 'none',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {seeding ? 'Processing...' : 'Make All Admin'}
+                      </MuiButton>
+                      <MuiButton
+                        variant="contained"
+                        onClick={() => setShowInvitePage(true)}
+                        startIcon={<Plus size={16} />}
+                        sx={{
+                          ...interMuiSx,
+                          borderRadius: 999,
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          boxShadow: 'none',
+                          bgcolor: '#4f46e5',
+                          '&:hover': { bgcolor: '#4338ca', boxShadow: 'none' },
+                        }}
+                      >
+                        Invite User
+                      </MuiButton>
+                    </Stack>
+                  </Stack>
+
+                  <TableContainer component={Paper} elevation={0} sx={settingsTableContainerSx}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={settingsTableHeadCellSx}>User</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Role</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Description</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Status</TableCell>
+                          <TableCell align="right" sx={settingsTableHeadCellSx}>Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {users.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} sx={{ ...settingsTableBodyCellSx, py: 6, textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                              No users found in this organization.
+                            </TableCell>
+                          </TableRow>
+                        ) : users.map(u => {
+                          const associatedEmp = employees.find(e => e.email?.toLowerCase() === u.email?.toLowerCase() || e.id === u.employeeId)
+                          const emailPrefix = u.email ? u.email.split('@')[0] : 'User'
+                          const displayName = u.name || associatedEmp?.fullName || associatedEmp?.name || emailPrefix
+                          const roleDescription = roles.find(r => r.name.toLowerCase() === (u.role || '').toLowerCase())?.description || 'No description available'
+                          const statusLabel = associatedEmp?.status || 'Active'
+                          const statusColor = statusLabel === 'Inactive' ? 'error' : statusLabel === 'Rejoined' ? 'info' : 'success'
+
+                          return (
+                            <TableRow key={u.id} sx={stripedRowSx}>
+                              <TableCell sx={settingsTableBodyCellSx}>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                  <MuiAvatar sx={{ ...interMuiSx, width: 40, height: 40, fontSize: '0.82rem', fontWeight: 800, bgcolor: getAvatarColor(u.id) }}>
+                                    {getInitials(displayName)}
+                                  </MuiAvatar>
+                                  <Box sx={{ minWidth: 0 }}>
+                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                      <Typography noWrap sx={{ ...interMuiSx, fontWeight: 700, color: '#111827', maxWidth: 220 }}>
+                                        {displayName}
+                                      </Typography>
+                                      {u.id === user.uid && (
+                                        <Chip
+                                          label="You"
+                                          size="small"
+                                          sx={{ ...interMuiSx, height: 20, fontSize: '0.68rem', fontWeight: 800, bgcolor: '#ecfdf5', color: '#047857' }}
+                                        />
+                                      )}
+                                    </Stack>
+                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.25 }}>
+                                      <Typography noWrap sx={{ ...interMuiSx, fontSize: '0.74rem', color: '#64748b', maxWidth: 260 }}>
+                                        {u.email}
+                                      </Typography>
+                                      {(u.empCode || associatedEmp?.empCode) && (
+                                        <Chip
+                                          label={u.empCode || associatedEmp?.empCode}
+                                          size="small"
+                                          sx={{ ...interMuiSx, height: 20, fontSize: '0.68rem', fontWeight: 800, bgcolor: '#eef2ff', color: '#4338ca' }}
+                                        />
+                                      )}
+                                    </Stack>
+                                  </Box>
+                                </Stack>
+                              </TableCell>
+                              <TableCell sx={settingsTableBodyCellSx}>
+                                <FormControl size="small" sx={{ minWidth: 150 }}>
+                                  <MuiSelect
+                                    value={u.role || ''}
+                                    onChange={(e) => handleUpdateUserRole(u.id, e.target.value)}
+                                    displayEmpty
+                                    sx={{
+                                      ...interMuiSx,
+                                      borderRadius: 999,
+                                      bgcolor: '#ffffff',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 700,
+                                      color: '#4338ca',
+                                      '& .MuiOutlinedInput-notchedOutline': { borderColor: '#c7d2fe' },
+                                    }}
+                                  >
+                                    <MenuItem value="">No Role</MenuItem>
+                                    {roles.map(r => <MenuItem key={r.id} value={r.name}>{r.name}</MenuItem>)}
+                                    {!roles.find(r => r.name.toLowerCase() === 'admin') && <MenuItem value="admin">Admin</MenuItem>}
+                                  </MuiSelect>
+                                </FormControl>
+                              </TableCell>
+                              <TableCell sx={{ ...settingsTableBodyCellSx, color: '#64748b', maxWidth: 260 }}>
+                                <Typography sx={{ ...interMuiSx, fontSize: '0.78rem', color: '#64748b' }}>
+                                  {roleDescription}
+                                </Typography>
+                              </TableCell>
+                              <TableCell sx={settingsTableBodyCellSx}>
+                                <Chip
+                                  label={statusLabel}
+                                  color={statusColor}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ ...interMuiSx, fontWeight: 700 }}
+                                />
+                              </TableCell>
+                              <TableCell align="right" sx={settingsTableBodyCellSx}>
+                                <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                  <IconButton
+                                    onClick={async () => {
+                                      const emp = employees.find(e => e.email === u.email || e.id === u.employeeId)
+                                      if (emp) {
+                                        await openEmployeeEditor(emp)
+                                        setActiveSubTab('employee')
+                                      } else {
+                                        alert('No linked employee record found for this user.')
+                                      }
+                                    }}
+                                    size="small"
+                                    sx={{ color: '#4f46e5' }}
+                                  >
+                                    <Edit size={16} />
+                                  </IconButton>
+                                  <IconButton
+                                    onClick={() => handleDeleteUser(u.id, u.name || associatedEmp?.name || u.email)}
+                                    size="small"
+                                    sx={{ color: '#dc2626' }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </IconButton>
+                                </Stack>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              )}
+
+              {activeUserRoleSubTab === 'roles' && (
+                <Box sx={{ p: 3, display: 'grid', gap: 2.5 }}>
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography sx={{ ...interMuiSx, fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#475569' }}>
+                        Roles Registry
+                      </Typography>
+                      <Chip
+                        label={`${roles.length} roles`}
+                        size="small"
+                        sx={{ ...interMuiSx, fontWeight: 700, bgcolor: '#f1f5f9', color: '#334155' }}
+                      />
+                    </Stack>
+                    <MuiButton
+                      variant="contained"
+                      onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }); setShowAddRole(true); }}
+                      startIcon={<Plus size={16} />}
+                      sx={{
+                        ...interMuiSx,
+                        borderRadius: 999,
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        boxShadow: 'none',
+                        bgcolor: '#4f46e5',
+                        '&:hover': { bgcolor: '#4338ca', boxShadow: 'none' },
+                      }}
                     >
-                      {seeding ? 'Processing...' : 'Make All Admin'}
-                    </button>
-                  </div>
-                  <button 
-                    onClick={() => setShowInvitePage(true)}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2"
-                  >
-                    <Plus size={14} /> Invite User
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="bg-gray-50/50 border-b border-gray-100">
-                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">User Detail</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Role</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {users.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-6 py-10 text-center text-gray-400 text-xs italic">No users found in this organization.</td>
-                        </tr>
-                      ) : users.map(u => {
-                        const associatedEmp = employees.find(e => e.email?.toLowerCase() === u.email?.toLowerCase() || e.id === u.employeeId)
-                        const emailPrefix = u.email ? u.email.split('@')[0] : 'User'
-                        const displayName = u.name || associatedEmp?.fullName || associatedEmp?.name || emailPrefix
-                        
-                        return (
-                        <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm flex-shrink-0" style={{ backgroundColor: getAvatarColor(u.id) }}>
-                                {getInitials(displayName)}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <div className="font-bold text-gray-800 text-sm truncate">{displayName}</div>
-                                  {u.id === user.uid && (
-                                    <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 uppercase tracking-tighter shrink-0">
-                                      You
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                                  <div className="text-[10px] text-gray-400 font-medium truncate">{u.email}</div>
-                                  {(u.empCode || associatedEmp?.empCode) && (
-                                    <span className="text-[9px] font-black bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter shrink-0">
-                                      {u.empCode || associatedEmp?.empCode}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <select 
-                              value={u.role || ''} 
-                              onChange={(e) => handleUpdateUserRole(u.id, e.target.value)}
-                              className="bg-transparent border-none text-xs font-bold text-indigo-600 focus:ring-0 cursor-pointer hover:bg-indigo-50 px-2 py-1 rounded-lg transition-all"
-                            >
-                              <option value="">No Role</option>
-                              {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-                              {!roles.find(r => r.name.toLowerCase() === 'admin') && <option value="admin">Admin</option>}
-                            </select>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-[10px] text-gray-500 max-w-[200px] truncate italic">
-                              {roles.find(r => r.name.toLowerCase() === (u.role || '').toLowerCase())?.description || 'No description available'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[9px] font-black uppercase tracking-widest">Active</span>
-                          </td>
-                          <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => {
-                                const emp = employees.find(e => e.email === u.email || e.id === u.employeeId);
-                                if (emp) {
-                                  // Fix: pass emp.id string, not the whole object
-                                  setEditingEmp(emp.id);
-                                  setEditForm({ ...emp });
-                                  // Fix: the tab id is 'employee', not 'employees'
-                                  setActiveSubTab('employee');
-                                } else {
-                                  alert('No linked employee record found for this user.');
-                                }
-                              }}
-                              className="p-2 text-gray-400 hover:text-indigo-600 transition-colors" title="Edit Linked Employee"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteUser(u.id, u.name || associatedEmp?.name || u.email)}
-                              className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Remove Login Access"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                      Add Role
+                    </MuiButton>
+                  </Stack>
 
-            {activeUserRoleSubTab === 'roles' && (
-              <div className="space-y-4 animate-in fade-in duration-300">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="flex items-center gap-4">
-                    <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">Defined Roles</h3>
-                  </div>
-                  <button 
-                    onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }); setShowAddRole(true); }}
-                    className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 uppercase tracking-widest"
-                  >
-                    <Plus size={18} /> Add Role
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {roles.length === 0 ? (
-                    <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-gray-100">
-                      <p className="text-gray-400 text-sm">No custom roles defined yet.</p>
-                    </div>
-                  ) : roles.map(role => (
-                    <div key={role.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all group">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="cursor-pointer" onClick={() => { setEditingRole(role); setNewRole({ ...role }); setShowAddRole(true); }}>
-                          <h4 className="font-black text-gray-800 uppercase tracking-tight text-base group-hover:text-indigo-600 transition-colors">{role.name}</h4>
-                          <p className="text-[11px] text-gray-400 mt-1 font-medium leading-relaxed">{role.description || 'No description provided for this role.'}</p>
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={async () => { if (confirm(`Delete role "${role.name}"?`)) { await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id)); setRoles(r => r.filter(x => x.id !== role.id)); } }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
-                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-widest">
-                          {Object.keys(role.permissions || {}).length} Modules
-                        </span>
-                        <button 
-                          onClick={() => { setEditingRole(role); setNewRole({ ...role }); setShowAddRole(true); }}
-                          className="text-[10px] font-black text-gray-400 hover:text-indigo-600 uppercase tracking-widest"
-                        >
-                          Edit Permissions
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+                  <TableContainer component={Paper} elevation={0} sx={settingsTableContainerSx}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={settingsTableHeadCellSx}>Role</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Description</TableCell>
+                          <TableCell sx={settingsTableHeadCellSx}>Modules</TableCell>
+                          <TableCell align="right" sx={settingsTableHeadCellSx}>Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {roles.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} sx={{ ...settingsTableBodyCellSx, py: 6, textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                              No custom roles defined yet.
+                            </TableCell>
+                          </TableRow>
+                        ) : roles.map(role => (
+                          <TableRow key={role.id} sx={stripedRowSx}>
+                            <TableCell sx={settingsTableBodyCellSx}>
+                              <Stack spacing={0.5}>
+                                <Typography sx={{ ...interMuiSx, fontWeight: 800, color: '#111827' }}>
+                                  {role.name}
+                                </Typography>
+                                <Typography sx={{ ...interMuiSx, fontSize: '0.74rem', color: '#64748b' }}>
+                                  {role.name === 'Admin' ? 'Highest access scope' : 'Custom access profile'}
+                                </Typography>
+                              </Stack>
+                            </TableCell>
+                            <TableCell sx={{ ...settingsTableBodyCellSx, color: '#64748b' }}>
+                              <Typography sx={{ ...interMuiSx, fontSize: '0.78rem', color: '#64748b' }}>
+                                {role.description || 'No description provided for this role.'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell sx={settingsTableBodyCellSx}>
+                              <Chip
+                                label={`${Object.keys(role.permissions || {}).length} modules`}
+                                size="small"
+                                sx={{ ...interMuiSx, fontWeight: 700, bgcolor: '#eef2ff', color: '#4338ca' }}
+                              />
+                            </TableCell>
+                            <TableCell align="right" sx={settingsTableBodyCellSx}>
+                              <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                <IconButton
+                                  onClick={() => { setEditingRole(role); setNewRole({ ...role }); setShowAddRole(true); }}
+                                  size="small"
+                                  sx={{ color: '#4f46e5' }}
+                                >
+                                  <Edit size={16} />
+                                </IconButton>
+                                <IconButton
+                                  onClick={async () => {
+                                    if (confirm(`Delete role "${role.name}"?`)) {
+                                      await deleteDoc(doc(db, 'organisations', user.orgId, 'roles', role.id))
+                                      setRoles(r => r.filter(x => x.id !== role.id))
+                                    }
+                                  }}
+                                  size="small"
+                                  sx={{ color: '#dc2626' }}
+                                >
+                                  <Trash2 size={16} />
+                                </IconButton>
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              )}
+            </Paper>
+          </Box>
         )}
 
         {activeSubTab === 'salary' && <SalarySlabSettings />}
