@@ -13,7 +13,7 @@ const pdfStyles = StyleSheet.create({
   header: { borderBottomWidth: 2, borderBottomColor: '#0f172a', paddingBottom: 14, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between' },
   title: { fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase' },
   subhead: { fontSize: 8, color: '#4f46e5', marginTop: 4, letterSpacing: 1.2 },
-  infoGrid: { flexDirection: 'row', gap: 20, marginBottom: 20 },
+  infoGrid: { flexDirection: 'row', marginBottom: 20 },
   infoCol: { flex: 1 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
   infoLabel: { fontSize: 9, color: '#64748b', fontWeight: 'bold' },
@@ -72,16 +72,16 @@ const EmployeeSlipPDF = ({ slipData, orgName }) => (
         </View>
       </View>
 
-      <View style={{flexDirection:'row', justifyContent:'center', gap:40, marginBottom:16, paddingVertical:12, backgroundColor:'#f8fafc', borderRadius:8}}>
-        <View style={{alignItems:'center'}}>
+      <View style={{flexDirection:'row', justifyContent:'center', marginBottom:16, paddingVertical:12, backgroundColor:'#f8fafc', borderRadius:8}}>
+        <View style={{alignItems:'center', marginHorizontal:20}}>
           <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>BASIC</Text>
           <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(slipData.basic || 0)}</Text>
         </View>
-        <View style={{alignItems:'center'}}>
+        <View style={{alignItems:'center', marginHorizontal:20}}>
           <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>HRA</Text>
           <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(slipData.hra || 0)}</Text>
         </View>
-        <View style={{alignItems:'center'}}>
+        <View style={{alignItems:'center', marginHorizontal:20}}>
           <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>SALARY</Text>
           <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR((slipData.basic || 0) + (slipData.hra || 0))}</Text>
         </View>

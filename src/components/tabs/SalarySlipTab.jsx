@@ -59,22 +59,22 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
       </View>
     </View>
 
-    <View style={{flexDirection:'row', justifyContent:'center', gap:40, marginBottom:16, paddingVertical:12, backgroundColor:'#f8fafc', borderRadius:8}}>
-      <View style={{alignItems:'center'}}>
+    <View style={{flexDirection:'row', justifyContent:'center', marginBottom:16, paddingVertical:12, backgroundColor:'#f8fafc', borderRadius:8}}>
+      <View style={{alignItems:'center', marginHorizontal:20}}>
         <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>BASIC</Text>
         <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(data.basic || 0)}</Text>
       </View>
-      <View style={{alignItems:'center'}}>
+      <View style={{alignItems:'center', marginHorizontal:20}}>
         <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>HRA</Text>
         <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR(data.hra || 0)}</Text>
       </View>
-      <View style={{alignItems:'center'}}>
+      <View style={{alignItems:'center', marginHorizontal:20}}>
         <Text style={{fontSize:8, fontFamily:'Helvetica', color:'#64748b', fontWeight:'bold', marginBottom:2}}>SALARY</Text>
         <Text style={{fontSize:11, fontFamily:'Helvetica', color:'#0f172a', fontWeight:'bold'}}>{formatINR((data.basic || 0) + (data.hra || 0))}</Text>
       </View>
     </View>
 
-    <View style={{border:1, borderColor:'#0f172a', borderRadius:8, overflow:'hidden', marginBottom:20}}>
+    <View style={{borderWidth:1, borderColor:'#0f172a', borderRadius:8, overflow:'hidden', marginBottom:20}}>
       <View style={{flexDirection:'row', backgroundColor:'#0f172a', color:'white', padding:8}}>
         <Text style={{flex:1, fontSize:8, fontWeight:'bold', letterSpacing:1}}>EARNINGS</Text>
         <Text style={{flex:1, textAlign:'right', fontSize:8, fontWeight:'bold', letterSpacing:1}}>DEDUCTIONS</Text>
@@ -120,30 +120,30 @@ const AttendanceSummaryPDF = ({ data, month, orgName }) => (
           <Text style={{ fontSize: 8, marginTop: 2 }}>ATTENDANCE SUMMARY - {new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
         </View>
       </View>
-      <View style={{ border: 1, borderColor: '#000' }}>
-        <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', fontWeight: 'bold', borderBottom: 1 }}>
-          <Text style={{ width: 25, padding: 3, borderRight: 1 }}>S.No</Text>
-          <Text style={{ flex: 2, padding: 3, borderRight: 1 }}>Employee Name</Text>
-          <Text style={{ width: 45, padding: 3, borderRight: 1 }}>Emp ID</Text>
-          <Text style={{ width: 30, padding: 3, borderRight: 1 }}>Days</Text>
-          <Text style={{ width: 35, padding: 3, borderRight: 1 }}>Worked</Text>
-          <Text style={{ width: 90, padding: 3, borderRight: 1, textAlign: 'center' }}>HOLIDAYS</Text>
-          <Text style={{ width: 60, padding: 3, borderRight: 1, textAlign: 'center' }}>LEAVE</Text>
-          <Text style={{ width: 30, padding: 3, borderRight: 1 }}>OT</Text>
-          <Text style={{ width: 70, padding: 3, borderRight: 1, textAlign: 'center' }}>HOL. WK</Text>
+      <View style={{ borderWidth: 1, borderColor: '#000' }}>
+        <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', fontWeight: 'bold', borderBottomWidth: 1 }}>
+          <Text style={{ width: 25, padding: 3, borderRightWidth: 1 }}>S.No</Text>
+          <Text style={{ flex: 2, padding: 3, borderRightWidth: 1 }}>Employee Name</Text>
+          <Text style={{ width: 45, padding: 3, borderRightWidth: 1 }}>Emp ID</Text>
+          <Text style={{ width: 30, padding: 3, borderRightWidth: 1 }}>Days</Text>
+          <Text style={{ width: 35, padding: 3, borderRightWidth: 1 }}>Worked</Text>
+          <Text style={{ width: 90, padding: 3, borderRightWidth: 1, textAlign: 'center' }}>HOLIDAYS</Text>
+          <Text style={{ width: 60, padding: 3, borderRightWidth: 1, textAlign: 'center' }}>LEAVE</Text>
+          <Text style={{ width: 30, padding: 3, borderRightWidth: 1 }}>OT</Text>
+          <Text style={{ width: 70, padding: 3, borderRightWidth: 1, textAlign: 'center' }}>HOL. WK</Text>
           <Text style={{ width: 45, padding: 3 }}>PAY DAYS</Text>
         </View>
         {data.map((row, i) => (
-          <View key={i} style={{ flexDirection: 'row', borderBottom: 1 }}>
-            <Text style={{ width: 25, padding: 3, borderRight: 1 }}>{row.sno}</Text>
-            <Text style={{ flex: 2, padding: 3, borderRight: 1 }}>{row.name}</Text>
-            <Text style={{ width: 45, padding: 3, borderRight: 1 }}>{row.empId}</Text>
-            <Text style={{ width: 30, padding: 3, borderRight: 1 }}>{row.totalDays}</Text>
-            <Text style={{ width: 35, padding: 3, borderRight: 1 }}>{row.worked}</Text>
-            <Text style={{ width: 90, padding: 3, borderRight: 1, textAlign: 'center' }}>{row.sunday} / {row.holidays} / {row.totalHolidays}</Text>
-            <Text style={{ width: 60, padding: 3, borderRight: 1, textAlign: 'center' }}>{row.leave} / {row.lop}</Text>
-            <Text style={{ width: 30, padding: 3, borderRight: 1 }}>{row.ot}</Text>
-            <Text style={{ width: 70, padding: 3, borderRight: 1, textAlign: 'center' }}>{row.sunW} / {row.holW}</Text>
+          <View key={i} style={{ flexDirection: 'row', borderBottomWidth: 1 }}>
+            <Text style={{ width: 25, padding: 3, borderRightWidth: 1 }}>{row.sno}</Text>
+            <Text style={{ flex: 2, padding: 3, borderRightWidth: 1 }}>{row.name}</Text>
+            <Text style={{ width: 45, padding: 3, borderRightWidth: 1 }}>{row.empId}</Text>
+            <Text style={{ width: 30, padding: 3, borderRightWidth: 1 }}>{row.totalDays}</Text>
+            <Text style={{ width: 35, padding: 3, borderRightWidth: 1 }}>{row.worked}</Text>
+            <Text style={{ width: 90, padding: 3, borderRightWidth: 1, textAlign: 'center' }}>{row.sunday} / {row.holidays} / {row.totalHolidays}</Text>
+            <Text style={{ width: 60, padding: 3, borderRightWidth: 1, textAlign: 'center' }}>{row.leave} / {row.lop}</Text>
+            <Text style={{ width: 30, padding: 3, borderRightWidth: 1 }}>{row.ot}</Text>
+            <Text style={{ width: 70, padding: 3, borderRightWidth: 1, textAlign: 'center' }}>{row.sunW} / {row.holW}</Text>
             <Text style={{ width: 45, padding: 3 }}>{row.totalWorkingDays}</Text>
           </View>
         ))}
