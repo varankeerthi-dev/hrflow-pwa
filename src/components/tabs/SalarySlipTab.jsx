@@ -291,24 +291,6 @@ export default function SalarySlipTab() {
     }
     setLoading(true); setGenErr(''); setAdvExpRows([])
     try {
-      const sid = `${selectedEmp}_${selectedMonth}`, sSnap = await getDoc(doc(db, 'organisations', user.orgId, 'salarySlips', sid));
-      if (sSnap.exists()) { 
-        setSlipData(sSnap.data());
-
-        // Still compute the side "Advances & Expenses" list for this month.
-        const [y, m] = selectedMonth.split('-').map(Number)
-        const [advSnap, requestSnap] = await Promise.all([
-          getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))),
-          getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp)))
-        ])
-
-        const activeRequests = requestSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-        const advDocs = advSnap.docs.map(d => d.data())
-        setAdvExpRows(computeAdvExpRows({ activeRequests, advDocs, selectedMonth, y, m }))
-
-        return
-      };
-      
       const emp = employees.find(e => e.id === selectedEmp); 
       if (!emp) {
         alert('Employee data not found');
@@ -482,15 +464,43 @@ export default function SalarySlipTab() {
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto space-y-4 flex flex-col h-full overflow-hidden p-2 w-full">
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end shrink-0">
-              <div className="flex-1 min-w-[200px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Target Employee<select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[11px] font-semibold bg-white outline-none mt-1 text-gray-900 normal-case"><option value="">Select Employee</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-              <div className="w-[150px] font-google-sans uppercase text-[9px] font-bold text-gray-400">Pay Period<input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[11px] font-bold mt-1 text-gray-900 normal-case" /></div>
-              <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-9 px-6 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[9px] shadow-lg hover:bg-black transition-all">Generate</button>
+              <div className="w-[240px] max-w-full font-google-sans uppercase text-[9px] font-bold text-gray-400">
+                Target Employee
+                <select
+                  value={selectedEmp}
+                  onChange={e => setSelectedEmp(e.target.value)}
+                  className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[11px] font-semibold bg-white outline-none mt-1 text-gray-900 normal-case"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  <option value="">Select Employee</option>
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+              <div className="w-[170px] font-google-sans uppercase text-[9px] font-bold text-gray-400">
+                Pay Period
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={e => setSelectedMonth(e.target.value)}
+                  className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[11px] font-bold mt-1 text-gray-900 normal-case"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                />
+              </div>
+              <div className="flex flex-col items-start gap-2">
+                <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-9 px-6 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[14px] shadow-lg hover:bg-black transition-all disabled:opacity-60">Generate</button>
+                {loading && (
+                  <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500">
+                    <span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+                    Generating slip...
+                  </div>
+                )}
+              </div>
             </div>
             
             {slipData ? (
               <div className="flex-1 overflow-hidden flex gap-4 p-2">
                 <div className="flex-1 min-w-0 overflow-hidden flex flex-col items-center">
-                  <div className="bg-white border border-gray-100 shadow-2xl rounded-[24px] overflow-hidden relative flex flex-col w-full h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <div className="bg-white border-2 border-black shadow-2xl rounded-[24px] overflow-hidden relative flex flex-col w-full h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
                   <div className="flex justify-end gap-2 p-3 bg-slate-50 border-b border-slate-100 no-print shrink-0">
                     <PDFDownloadLink key={`${slipData.employee?.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee?.name?.replace(/\s+/g, '_')}.pdf`} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
                       {({ loading }) => <><Download size={12} />{loading ? 'Wait...' : 'Export PDF'}</>}
