@@ -143,13 +143,13 @@ export default function HomeTab() {
         })}
       </div>
 
-      {/* Cards Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Manpower Card */}
-        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+      {/* Cards Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Manpower Card - Smaller */}
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden lg:col-span-1">
           <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-600"></div>
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-slate-900 tracking-tight">Manpower</h2>
               <div className="flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">
@@ -160,32 +160,32 @@ export default function HomeTab() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <StatBox label="Headcount" value={stats.total} icon={Users} color="blue" />
-              <StatBox label="Present" value={stats.present} icon={CheckCircle} color="emerald" />
-              <StatBox label="Day Shift" value={stats.dayShift} icon={Sun} color="amber" />
-              <StatBox label="Night Shift" value={stats.nightShift} icon={Moon} color="indigo" />
+            <div className="grid grid-cols-2 gap-2">
+              <StatBox label="Headcount" value={stats.total} icon={Users} color="blue" small />
+              <StatBox label="Present" value={stats.present} icon={CheckCircle} color="emerald" small />
+              <StatBox label="Day" value={stats.dayShift} icon={Sun} color="amber" small />
+              <StatBox label="Night" value={stats.nightShift} icon={Moon} color="indigo" small />
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                  <Calendar size={18} className="text-amber-600" />
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <Calendar size={14} className="text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-slate-900">{stats.leave}</p>
-                  <p className="text-sm text-slate-500 font-medium">On Leave</p>
+                  <p className="text-xl font-bold text-slate-900">{stats.leave}</p>
+                  <p className="text-xs text-slate-500 font-medium">On Leave</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Advance/Expense Card */}
-        <AdvanceExpenseCard onClick={() => navigateTo('advance')} />
-
-        {/* Leave/Permission Card */}
-        <LeavePermissionCard onClick={() => navigateTo('leave')} />
+        {/* Advance & Leave Cards - Same Row */}
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AdvanceExpenseCard onClick={() => navigateTo('advance')} />
+          <LeavePermissionCard onClick={() => navigateTo('leave')} />
+        </div>
       </div>
 
       {/* Recent Updates */}
@@ -197,16 +197,16 @@ export default function HomeTab() {
   )
 }
 
-function StatBox({ label, value, icon: Icon, color }) {
+function StatBox({ label, value, icon: Icon, color, small }) {
   return (
-    <div className="bg-slate-50 rounded-xl p-4 hover:bg-slate-100 transition-colors duration-200 group">
-      <div className="flex items-center gap-2 mb-2">
-        <div className={`w-8 h-8 rounded-lg bg-${color}-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
-          <Icon size={16} className={`text-${color}-600`} />
+    <div className={`bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors duration-200 group ${small ? 'p-2' : 'rounded-xl p-4'}`}>
+      <div className={`flex items-center gap-2 ${small ? 'mb-1' : 'mb-2'}`}>
+        <div className={`${small ? 'w-6 h-6' : 'w-8 h-8'} rounded-lg bg-${color}-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
+          <Icon size={small ? 12 : 16} className={`text-${color}-600`} />
         </div>
-        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</span>
+        <span className={`font-medium text-slate-500 uppercase tracking-wide ${small ? 'text-[8px]' : 'text-xs'}`}>{label}</span>
       </div>
-      <p className="text-3xl font-bold text-slate-900">{value}</p>
+      <p className={`font-bold text-slate-900 ${small ? 'text-xl' : 'text-3xl'}`}>{value}</p>
     </div>
   )
 }
@@ -233,10 +233,10 @@ function AdvanceExpenseCard({ onClick }) {
   }
 
   return (
-    <button onClick={onClick} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden text-left w-full">
+    <button onClick={onClick} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden text-left h-full">
       <div className="h-1 bg-gradient-to-r from-amber-500 to-amber-600"></div>
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-slate-900 tracking-tight">Advance/Expense</h2>
           <span className="px-2 py-1 bg-amber-50 text-amber-700 text-xs font-semibold uppercase tracking-wide rounded-lg">{requests.length} Pending</span>
         </div>
@@ -295,9 +295,9 @@ function LeavePermissionCard({ onClick }) {
   }, [])
 
   return (
-    <button onClick={onClick} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden text-left w-full">
+    <button onClick={onClick} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden text-left h-full">
       <div className="h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
-      <div className="p-6">
+      <div className="p-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-base font-semibold text-slate-900 tracking-tight">Leave/Permission</h2>
           <span className="px-2 py-1 bg-red-50 text-red-700 text-xs font-semibold uppercase tracking-wide rounded-lg">{(pending.leave + pending.permission)} Pending</span>
