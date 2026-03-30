@@ -142,7 +142,7 @@ export default function SalarySlipTab() {
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const [activeTab, setActiveTab] = useState('salary-summary'), [selectedEmp, setSelectedEmp] = useState(''), [selectedMonth, setSelectedMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
   const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
-  const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState('')
+  const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [advExpRows, setAdvExpRows] = useState([]), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState('')
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(true)
   const [summaryEmpDetail, setSummaryEmpDetail] = useState(null)
@@ -153,6 +153,65 @@ export default function SalarySlipTab() {
   const [loanActiveModule, setLoanActiveModule] = useState('Active Schedules')
 
   const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0 || l.startMonth > m) return 0; const o = l.monthOverrides?.[m]; if (o) return o.skip ? 0 : Math.min(o.amount, l.remainingAmount); return Math.min(l.emiAmount, l.remainingAmount) }
+
+  const computeAdvExpRows = ({ activeRequests, advDocs, selectedMonth, y, m }) => {
+    const monthPrefix = selectedMonth
+    const activeRequestIds = new Set(activeRequests.map((r) => r.id))
+
+    // ADVANCES: show only linked Advance requests whose request date falls in `selectedMonth`
+    const advancesByRequestId = new Map()
+    for (const advDoc of advDocs) {
+      if (advDoc?.status === 'Recovered') continue
+
+      const linkedId = advDoc?.linkedRequestId
+      if (linkedId && !activeRequestIds.has(linkedId)) continue
+
+      const req = linkedId ? activeRequests.find((r) => r.id === linkedId) : null
+      if (!req || req.type !== 'Advance') continue
+      if (!req.date?.startsWith(monthPrefix)) continue
+
+      const amount = Number(advDoc?.amount || 0)
+      advancesByRequestId.set(linkedId, (advancesByRequestId.get(linkedId) || 0) + amount)
+    }
+
+    const advRows = Array.from(advancesByRequestId.entries()).map(([requestId, amount]) => {
+      const req = activeRequests.find((r) => r.id === requestId)
+      return {
+        date: req?.date || selectedMonth,
+        type: 'Advance',
+        amount
+      }
+    })
+
+    // EXPENSES: use the same inclusion logic as `reimb` calculation in `handleGenerate`
+    const expRows = []
+    for (const req of activeRequests) {
+      if (req.type !== 'Expense') continue
+
+      const isPaidThisMonth = req.paymentStatus === 'Paid' && req.paidAt?.toDate &&
+        req.paidAt.toDate().getFullYear() === y &&
+        (req.paidAt.toDate().getMonth() + 1) === m
+
+      const isWithSalaryApproved = req.payoutMethod === 'With Salary' &&
+        req.status === 'Approved' &&
+        req.paymentStatus !== 'Paid' &&
+        req.date?.startsWith(selectedMonth)
+
+      if (!isPaidThisMonth && !isWithSalaryApproved) continue
+
+      // Keep "Date" aligned to request date (like the rest of the slip UI uses `date`)
+      const date = req.date || selectedMonth
+      const amount = Number(req.partialAmount || req.amount || 0)
+
+      expRows.push({
+        date,
+        type: 'Expense',
+        amount
+      })
+    }
+
+    return [...advRows, ...expRows].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+  }
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
     queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
@@ -230,13 +289,24 @@ export default function SalarySlipTab() {
       alert('Please select an employee and month');
       return;
     }
-    setLoading(true); setGenErr('')
+    setLoading(true); setGenErr(''); setAdvExpRows([])
     try {
       const sid = `${selectedEmp}_${selectedMonth}`, sSnap = await getDoc(doc(db, 'organisations', user.orgId, 'salarySlips', sid));
       if (sSnap.exists()) { 
-        setSlipData(sSnap.data()); 
-        setLoading(false); 
-        return 
+        setSlipData(sSnap.data());
+
+        // Still compute the side "Advances & Expenses" list for this month.
+        const [y, m] = selectedMonth.split('-').map(Number)
+        const [advSnap, requestSnap] = await Promise.all([
+          getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))),
+          getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp)))
+        ])
+
+        const activeRequests = requestSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        const advDocs = advSnap.docs.map(d => d.data())
+        setAdvExpRows(computeAdvExpRows({ activeRequests, advDocs, selectedMonth, y, m }))
+
+        return
       };
       
       const emp = employees.find(e => e.id === selectedEmp); 
@@ -279,10 +349,14 @@ export default function SalarySlipTab() {
       const otP = fOT * ((ts / end) / minH)
       const activeRequests = requestSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       const activeRequestIds = new Set(activeRequests.map(item => item.id))
-      const adv = advSnap.docs
+      const advDocs = advSnap.docs
         .map(d => d.data())
         .filter(a => a.status !== 'Recovered')
         .filter(a => !a.linkedRequestId || activeRequestIds.has(a.linkedRequestId))
+      const advExpRowsComputed = computeAdvExpRows({ activeRequests, advDocs, selectedMonth, y, m })
+      setAdvExpRows(advExpRowsComputed)
+
+      const adv = advDocs
         .reduce((s, c) => s + Number(c.amount), 0)
       const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
       const sunP = sunW * (ts / end)
@@ -414,8 +488,9 @@ export default function SalarySlipTab() {
             </div>
             
             {slipData ? (
-              <div className="flex-1 overflow-hidden flex flex-col items-center justify-center p-2">
-                <div className="bg-white border border-gray-100 shadow-2xl rounded-[24px] overflow-hidden relative flex flex-col w-full max-w-4xl max-h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+              <div className="flex-1 overflow-hidden flex gap-4 p-2">
+                <div className="flex-1 min-w-0 overflow-hidden flex flex-col items-center">
+                  <div className="bg-white border border-gray-100 shadow-2xl rounded-[24px] overflow-hidden relative flex flex-col w-full h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
                   <div className="flex justify-end gap-2 p-3 bg-slate-50 border-b border-slate-100 no-print shrink-0">
                     <PDFDownloadLink key={`${slipData.employee?.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee?.name?.replace(/\s+/g, '_')}.pdf`} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
                       {({ loading }) => <><Download size={12} />{loading ? 'Wait...' : 'Export PDF'}</>}
@@ -570,6 +645,47 @@ export default function SalarySlipTab() {
                   </div>
                 </div>
               </div>
+              <div className="w-[340px] shrink-0 overflow-hidden">
+                <div className="bg-white border border-gray-100 shadow-sm rounded-[24px] overflow-hidden relative flex flex-col h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
+                    <div className="text-[12px] font-black text-slate-900 uppercase tracking-widest">Advances & Expenses</div>
+                    <div className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.3em] mt-2">
+                      {new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </div>
+                  </div>
+                  <div className="p-3 overflow-auto flex-1">
+                    <table className="w-full border-collapse text-left text-[10px]">
+                      <thead>
+                        <tr>
+                          <th className="pb-2 pr-2 font-black text-slate-400 uppercase tracking-widest">Date</th>
+                          <th className="pb-2 pr-2 font-black text-slate-400 uppercase tracking-widest">Type</th>
+                          <th className="pb-2 font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {advExpRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="py-10 text-center text-[11px] font-medium text-slate-400">No applied items</td>
+                          </tr>
+                        ) : (
+                          advExpRows.map((row, i) => (
+                            <tr key={`${row.type}_${row.date}_${i}`} className="border-t border-slate-100">
+                              <td className="py-2 pr-2 font-bold text-slate-700">{row.date}</td>
+                              <td className="py-2 pr-2">
+                                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tight ${row.type === 'Advance' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}`}>
+                                  {row.type}
+                                </span>
+                              </td>
+                              <td className="py-2 text-right font-black text-indigo-600 tabular-nums">{formatINR(row.amount)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
             ) : (
               <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
                 <div className="text-center space-y-4">
