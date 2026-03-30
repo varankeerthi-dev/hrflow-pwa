@@ -4,7 +4,7 @@ import { db } from '../../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import { Wallet, Download } from 'lucide-react'
-import { Document, Page, PDFDownloadLink, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Document, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
 
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : formatINR(val)
 
@@ -108,6 +108,17 @@ const EmployeeSlipPDF = ({ slipData, orgName }) => (
   </Document>
 )
 
+const downloadPdfBlob = (blob, fileName) => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 export default function EmployeeSalarySlipTab() {
   const { user } = useAuth()
   const [month, setMonth] = useState(() => {
@@ -116,6 +127,7 @@ export default function EmployeeSalarySlipTab() {
   })
   const [status, setStatus] = useState('checking')
   const [slipData, setSlipData] = useState(null)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   useEffect(() => {
     const checkWindowAndSlip = async () => {
@@ -147,6 +159,22 @@ export default function EmployeeSalarySlipTab() {
     checkWindowAndSlip()
   }, [user?.orgId, user?.employeeId, month])
 
+  const handleExportPdf = async () => {
+    if (!slipData || exportingPdf) return
+
+    try {
+      setExportingPdf(true)
+      const blob = await pdf(<EmployeeSlipPDF slipData={slipData} orgName={user?.orgName} />).toBlob()
+      const fileName = `SalarySlip_${(user?.name || 'Employee').replace(/\s+/g, '_')}_${month}.pdf`
+      downloadPdfBlob(blob, fileName)
+    } catch (error) {
+      console.error('Employee salary slip export failed', error)
+      alert('Failed to export PDF. Please try again.')
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb] -m-6 font-inter text-gray-900 overflow-hidden">
       <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shrink-0">
@@ -163,18 +191,14 @@ export default function EmployeeSalarySlipTab() {
           </div>
         </div>
         {status === 'available' && slipData && (
-          <PDFDownloadLink
-            document={<EmployeeSlipPDF slipData={slipData} orgName={user?.orgName} />}
-            fileName={`SalarySlip_${user?.name?.replace(/\s+/g, '_')}_${month}.pdf`}
+          <button
+            onClick={handleExportPdf}
+            disabled={exportingPdf}
             className="h-9 px-5 bg-indigo-600 text-white font-black rounded-xl text-[13px] uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all"
           >
-            {({ loading }) => (
-              <>
-                <Download size={14} />
-                {loading ? 'Preparing PDF...' : 'Export PDF'}
-              </>
-            )}
-          </PDFDownloadLink>
+            <Download size={14} />
+            {exportingPdf ? 'Preparing PDF...' : 'Export PDF'}
+          </button>
         )}
       </div>
 

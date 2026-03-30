@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimest
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
 import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font, pdf } from '@react-pdf/renderer'
 import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
@@ -137,6 +137,17 @@ const AttendanceSummaryPDF = ({ data, month, orgName }) => (
   </Document>
 )
 
+const downloadPdfBlob = (blob, fileName) => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 export default function SalarySlipTab() {
   const { user } = useAuth(), { employees } = useEmployees(user?.orgId, true), { slabs, increments } = useSalarySlab(user?.orgId), { fetchByDate } = useAttendance(user?.orgId)
   const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -147,6 +158,7 @@ export default function SalarySlipTab() {
   const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(true)
   const [summaryEmpDetail, setSummaryEmpDetail] = useState(null)
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false)
+  const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
   const monthInputRef = useRef(null)
   
   // Loan UI State
@@ -283,6 +295,31 @@ export default function SalarySlipTab() {
   const handleEditLoan = (l) => { setEditingLoanId(l.id); setEditLoanForm({ employeeId: l.employeeId, totalAmount: l.totalAmount, emiAmount: l.emiAmount, startMonth: l.startMonth, remarks: l.remarks || '' }); setLoanActiveModule('Configuration'); }
   const handleDeleteLoan = async (id, name) => { if (!isAdmin || !confirm(`Delete for ${name}?`)) return; try { await deleteDoc(doc(db, 'organisations', user.orgId, 'loans', id)); await logActivity(user.orgId, user, { module: 'Loans', action: 'Deleted', detail: `Deleted for ${name}` }); setSlipData(null); fetchLoans(); alert('Deleted') } catch (e) { alert(e.message) } }
   const handleUpdateOverride = async (id) => { if (!overrideForm.month) return alert('Select month'); try { const r = doc(db, 'organisations', user.orgId, 'loans', id), s = await getDoc(r); await updateDoc(r, { monthOverrides: { ...(s.data()?.monthOverrides || {}), [overrideForm.month]: { amount: overrideForm.skip ? 0 : Number(overrideForm.amount), skip: overrideForm.skip, reason: overrideForm.reason } } }); fetchLoans(); setOverrideForm({ month: '', amount: 0, reason: '', skip: false }); setSelectedLoan(null); } catch (e) { alert(e.message) } }
+
+  const handleExportSalarySlipPdf = async () => {
+    if (!slipData || exportingSlipPdf) return
+
+    const fileName = `SalarySlip_${(slipData.employee?.name || 'Employee').replace(/\s+/g, '_')}.pdf`
+
+    try {
+      setExportingSlipPdf(true)
+      let blob
+
+      try {
+        blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />).toBlob()
+      } catch (logoError) {
+        console.warn('Salary slip export with logo failed, retrying without logo', logoError)
+        blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo="" />).toBlob()
+      }
+
+      downloadPdfBlob(blob, fileName)
+    } catch (error) {
+      console.error('Salary slip export failed', error)
+      alert('Failed to export PDF. Please try again.')
+    } finally {
+      setExportingSlipPdf(false)
+    }
+  }
 
   const handleGenerate = async () => {
     if (!selectedEmp || !selectedMonth) {
@@ -502,9 +539,10 @@ export default function SalarySlipTab() {
                 <div className="flex-1 min-w-0 overflow-hidden flex flex-col items-center">
                   <div className="bg-white border-2 border-black shadow-2xl rounded-[24px] overflow-hidden relative flex flex-col w-full h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
                   <div className="flex justify-end gap-2 p-3 bg-slate-50 border-b border-slate-100 no-print shrink-0">
-                    <PDFDownloadLink key={`${slipData.employee?.id}_${slipData.month}`} document={<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />} fileName={`SalarySlip_${slipData.employee?.name?.replace(/\s+/g, '_')}.pdf`} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
-                      {({ loading }) => <><Download size={12} />{loading ? 'Wait...' : 'Export PDF'}</>}
-                    </PDFDownloadLink>
+                    <button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60">
+                      <Download size={12} />
+                      {exportingSlipPdf ? 'Preparing...' : 'Export PDF'}
+                    </button>
                     <button onClick={handleFinalizeSlip} className="h-8 bg-indigo-600 text-white px-4 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all">
                       <CheckCircle2 size={12} /> Finalize
                     </button>
