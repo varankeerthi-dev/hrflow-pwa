@@ -198,8 +198,8 @@ export default function SalarySlabSettings() {
                   <th className={headCellClassName}>Payroll</th>
                   <th className={headCellClassName}>Employee</th>
                   <th className={headCellClassName}>Gross CTC</th>
-                  <th className={headCellClassName}>Earnings</th>
-                  <th className={headCellClassName}>Deductions</th>
+                  <th className={headCellClassName}>E (B% / H%)</th>
+                  <th className={headCellClassName}>D (T% / P%)</th>
                   <th className={`${headCellClassName} text-right`}>Save</th>
                 </tr>
               </thead>
@@ -233,58 +233,50 @@ export default function SalarySlabSettings() {
                         />
                       </td>
                       <td className={bodyCellClassName}>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className={`${insetClassName} p-3`}>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">Basic</p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <input
-                                type="number"
-                                value={form.basicPercent}
-                                onChange={e => handleFormChange(emp.id, 'basicPercent', e.target.value)}
-                                className="h-9 w-16 rounded-xl border border-emerald-100 bg-white px-2 text-center text-[12px] font-bold text-slate-900 outline-none focus:border-emerald-400"
-                              />
-                              <span className="text-[11px] font-bold text-slate-400">%</span>
-                            </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1">
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">B</p>
+                            <input
+                              type="number"
+                              max="999"
+                              value={form.basicPercent}
+                              onChange={e => handleFormChange(emp.id, 'basicPercent', e.target.value)}
+                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-emerald-400"
+                            />
                           </div>
-                          <div className={`${insetClassName} p-3`}>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">HRA</p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <input
-                                type="number"
-                                value={form.hraPercent}
-                                onChange={e => handleFormChange(emp.id, 'hraPercent', e.target.value)}
-                                className="h-9 w-16 rounded-xl border border-emerald-100 bg-white px-2 text-center text-[12px] font-bold text-slate-900 outline-none focus:border-emerald-400"
-                              />
-                              <span className="text-[11px] font-bold text-slate-400">%</span>
-                            </div>
+                          <div className="flex items-center gap-1">
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">H</p>
+                            <input
+                              type="number"
+                              max="999"
+                              value={form.hraPercent}
+                              onChange={e => handleFormChange(emp.id, 'hraPercent', e.target.value)}
+                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-emerald-400"
+                            />
                           </div>
                         </div>
                       </td>
                       <td className={bodyCellClassName}>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className={`${insetClassName} p-3`}>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">Tax</p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <input
-                                type="number"
-                                value={form.incomeTaxPercent}
-                                onChange={e => handleFormChange(emp.id, 'incomeTaxPercent', e.target.value)}
-                                className="h-9 w-16 rounded-xl border border-rose-100 bg-white px-2 text-center text-[12px] font-bold text-slate-900 outline-none focus:border-rose-400"
-                              />
-                              <span className="text-[11px] font-bold text-slate-400">%</span>
-                            </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1">
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">T</p>
+                            <input
+                              type="number"
+                              max="999"
+                              value={form.incomeTaxPercent}
+                              onChange={e => handleFormChange(emp.id, 'incomeTaxPercent', e.target.value)}
+                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-rose-400"
+                            />
                           </div>
-                          <div className={`${insetClassName} p-3`}>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">PF</p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <input
-                                type="number"
-                                value={form.pfPercent}
-                                onChange={e => handleFormChange(emp.id, 'pfPercent', e.target.value)}
-                                className="h-9 w-16 rounded-xl border border-rose-100 bg-white px-2 text-center text-[12px] font-bold text-slate-900 outline-none focus:border-rose-400"
-                              />
-                              <span className="text-[11px] font-bold text-slate-400">%</span>
-                            </div>
+                          <div className="flex items-center gap-1">
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">P</p>
+                            <input
+                              type="number"
+                              max="999"
+                              value={form.pfPercent}
+                              onChange={e => handleFormChange(emp.id, 'pfPercent', e.target.value)}
+                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-rose-400"
+                            />
                           </div>
                         </div>
                       </td>
