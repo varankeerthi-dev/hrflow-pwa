@@ -380,6 +380,7 @@ export default function SalarySlipTab() {
         getDocs(query(collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'), where('employeeId', '==', selectedEmp)))
       ])
 
+      const activeRequests = requestSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       const deletedIds = new Set([...deletedAdvSnap.docs.map(d => d.id)])
 
       const activeRequestIds = new Set(activeRequests.map(item => item.id))
