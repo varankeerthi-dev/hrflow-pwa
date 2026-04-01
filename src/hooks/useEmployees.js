@@ -55,6 +55,7 @@ export function useEmployees(orgId, activeOnly = false) {
   }
 
   const updateEmployee = async (empId, payload) => {
+    if (!orgId) throw new Error('Organization ID not found. Please log in again.')
     await updateDoc(employeeDoc(orgId, empId), {
       ...payload,
       updatedAt: serverTimestamp(),
@@ -63,11 +64,13 @@ export function useEmployees(orgId, activeOnly = false) {
   }
 
   const deactivateEmployee = async (empId) => {
+    if (!orgId) throw new Error('Organization ID not found. Please log in again.')
     await updateDoc(employeeDoc(orgId, empId), { status: 'Inactive' })
     fetchEmployees()
   }
 
   const deleteEmployee = async (empId) => {
+    if (!orgId) throw new Error('Organization ID not found. Please log in again.')
     await deleteDoc(employeeDoc(orgId, empId))
     fetchEmployees()
   }
