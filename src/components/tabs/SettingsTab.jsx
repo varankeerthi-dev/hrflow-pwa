@@ -754,6 +754,10 @@ export default function SettingsTab() {
   }
 
   const handleSaveEmployee = async () => {
+    if (!user?.orgId) {
+      alert('Error: Organization ID not found. Please log in again.')
+      return
+    }
     if (editingEmp && editForm.role && typeof editForm.role !== 'string') {
       return alert('Role must be a valid string')
     }
@@ -925,6 +929,10 @@ export default function SettingsTab() {
   }
 
   const handleAddEmployee = async () => {
+    if (!user?.orgId) {
+      alert('Error: Organization ID not found. Please log in again.')
+      return
+    }
     setSaving(true)
     try {
       const empCode = newEmployee.empCode?.trim() ||
