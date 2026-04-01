@@ -997,33 +997,72 @@ export default function SettingsTab() {
       // 2) Optionally create login-enabled auth user
       if (employeeDoc.loginEnabled && employeeDoc.email && tempPassword) {
         const trimmedPassword = tempPassword.trim()
+        const normalizedEmail = employeeDoc.email.toLowerCase().trim()
+
         if (trimmedPassword.length < 6) {
           alert('Password must be at least 6 characters long.')
           setSaving(false)
           return
         }
 
-        // Use secondaryAuth to avoid logging out the admin
-        const cred = await createUserWithEmailAndPassword(secondaryAuth, employeeDoc.email.toLowerCase().trim(), trimmedPassword)
-        await updateProfile(cred.user, { displayName: employeeDoc.name })
+        let userUid = null
+        try {
+          // Use secondaryAuth to avoid logging out the admin
+          const cred = await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, trimmedPassword)
+          await updateProfile(cred.user, { displayName: employeeDoc.name })
+          userUid = cred.user.uid
+          console.log('Created new Firebase Auth account')
+        } catch (authErr) {
+          if (authErr.code === 'auth/email-already-in-use') {
+            console.log('Auth account already exists, checking Firestore user doc...')
+          } else {
+            throw authErr
+          }
+        }
 
-        await setDoc(
-          doc(db, 'users', cred.user.uid),
-          {
-            email: employeeDoc.email,
-            name: employeeDoc.name,
+        // Check if user already exists in Firestore users collection
+        const uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', normalizedEmail)))
+        
+        if (!uSnap.empty) {
+          // User doc exists, re-link it to the new employee record
+          const userDocRef = uSnap.docs[0].ref
+          await updateDoc(userDocRef, {
             orgId: user.orgId,
+            employeeId: empId,
+            name: employeeDoc.name,
             role: roleName,
             permissions: rolePermissions,
-            employeeId: empId,
             empCode,
             department: employeeDoc.department || '',
             reportingManager: employeeDoc.reportingManager || '',
-            createdAt: serverTimestamp(),
             loginEnabled: true,
-          },
-          { merge: true }
-        )
+            updatedAt: serverTimestamp()
+          })
+          console.log('Re-linked existing user doc to new employee record')
+        } else {
+          // No user doc found
+          if (userUid) {
+            // New auth account was created, create the user doc
+            await setDoc(doc(db, 'users', userUid), {
+              email: normalizedEmail,
+              name: employeeDoc.name,
+              orgId: user.orgId,
+              role: roleName,
+              permissions: rolePermissions,
+              employeeId: empId,
+              empCode,
+              department: employeeDoc.department || '',
+              reportingManager: employeeDoc.reportingManager || '',
+              createdAt: serverTimestamp(),
+              loginEnabled: true,
+            })
+            console.log('Created new user doc for new auth account')
+          } else {
+            // Auth account exists but no user doc found in Firestore
+            alert('A login account with this email already exists but is not linked to any user record. Please use a different email or contact support.')
+            // We still created the employee master, but couldn't setup login
+          }
+        }
       }
 
       setShowAddEmployee(false)
