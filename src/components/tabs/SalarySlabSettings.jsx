@@ -28,7 +28,7 @@ export default function SalarySlabSettings() {
   useEffect(() => {
     const initialForms = {}
     employees.forEach(emp => {
-      const slab = slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, includeInPayroll: true }
+      const slab = slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, includeInPayroll: emp.includeInSalary !== false }
       initialForms[emp.id] = { ...slab, includeInPayroll: slab.includeInPayroll !== false }
     })
     setForms(initialForms)

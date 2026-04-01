@@ -95,6 +95,7 @@ function createEmployeeFormState() {
     tempPassword: '',
     minDailyHours: 8,
     hideInAttendance: false,
+    includeInSalary: true,
   }
 }
 
@@ -3237,6 +3238,21 @@ export default function SettingsTab() {
                 </button>
               </div>
 
+              {/* Include in Salary Toggle */}
+              <div className="col-span-2 flex items-center justify-between bg-emerald-50 p-3 rounded-none border border-emerald-100">
+                <div>
+                  <label className="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Include in Salary</label>
+                  <p className="text-[10px] text-emerald-600">Will appear in payroll and salary slips</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditForm(s => ({ ...s, includeInSalary: !s.includeInSalary }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.includeInSalary !== false ? 'bg-emerald-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.includeInSalary !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
               {/* Password Field - Only shown when login is enabled */}
               {editForm.loginEnabled && (
                 <div className="col-span-2">
@@ -3571,6 +3587,21 @@ export default function SettingsTab() {
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.hideInAttendance ? 'bg-red-600' : 'bg-gray-300'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.hideInAttendance ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {/* Include in Salary Toggle */}
+            <div className="flex items-center justify-between bg-emerald-50 p-3 rounded-none border border-emerald-100">
+              <div>
+                <label className="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Include in Salary</label>
+                <p className="text-[10px] text-emerald-600">Will appear in payroll and salary slips</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNewEmployee(s => ({ ...s, includeInSalary: !s.includeInSalary }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.includeInSalary !== false ? 'bg-emerald-600' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.includeInSalary !== false ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
 

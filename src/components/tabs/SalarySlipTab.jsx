@@ -263,7 +263,7 @@ export default function SalarySlipTab() {
       const allAdvExp = advSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
       const allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed)
       
-      return employees.map((emp, idx) => {
+      return employees.filter(e => e.includeInSalary !== false).map((emp, idx) => {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
         let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunW = 0, holW = 0
         for (let i = 1; i <= daysInMonth; i++) {
@@ -535,6 +535,7 @@ export default function SalarySlipTab() {
                 >
                   <option value="">Select Employee</option>
                   {employees.filter(e => {
+                    if (e.includeInSalary === false) return false
                     if (e.status === 'Inactive' && e.inactiveFrom) {
                       return e.inactiveFrom.startsWith(selectedMonth) || e.inactiveFrom < selectedMonth
                     }
@@ -914,7 +915,7 @@ export default function SalarySlipTab() {
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Employee</label>
                         <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 transition-all">
                           <option value="">Choose Employee...</option>
-                          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                          {employees.filter(e => e.includeInSalary !== false).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                       </div>
                       <div className="grid grid-cols-2 gap-6">
