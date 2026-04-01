@@ -826,6 +826,66 @@ export default function SettingsTab() {
       await updateEmployee(editingEmp, employeePayload)
       await logChange('EMPLOYEE_UPDATE', editingEmp, { name: editForm.name })
 
+      // 2) Create or Update auth user if loginEnabled is true
+      if (employeePayload.loginEnabled && employeePayload.email) {
+        // Check if user already exists in Firestore users collection
+        const uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', employeePayload.email.toLowerCase().trim())))
+        
+        if (uSnap.empty) {
+          // No user doc exists, so we probably need to create the Firebase Auth account too
+          if (editForm.tempPassword) {
+            try {
+              const cred = await createUserWithEmailAndPassword(secondaryAuth, employeePayload.email, editForm.tempPassword)
+              await updateProfile(cred.user, { displayName: employeePayload.name })
+              
+              await setDoc(doc(db, 'users', cred.user.uid), {
+                email: employeePayload.email.toLowerCase().trim(),
+                name: employeePayload.name,
+                orgId: user.orgId,
+                role: selectedRoleName,
+                permissions: selectedRolePerms,
+                employeeId: editingEmp,
+                empCode: employeePayload.empCode || '',
+                department: employeePayload.department || '',
+                createdAt: serverTimestamp(),
+                loginEnabled: true
+              })
+              console.log('Created new auth user during employee save')
+            } catch (authErr) {
+              console.error('Auth creation error in handleSaveEmployee:', authErr)
+              // If user already exists in Auth but not in our users collection, 
+              // we can't do much without their UID, but usually they stay in sync.
+              if (authErr.code !== 'auth/email-already-in-use') {
+                throw authErr
+              }
+            }
+          }
+        } else {
+          // User doc exists, just update loginEnabled and other fields
+          const userDoc = uSnap.docs[0]
+          await updateDoc(userDoc.ref, {
+            loginEnabled: true,
+            role: selectedRoleName,
+            permissions: selectedRolePerms,
+            name: employeePayload.name,
+            empCode: employeePayload.empCode || '',
+            department: employeePayload.department || '',
+            updatedAt: serverTimestamp()
+          })
+          console.log('Updated existing user doc during employee save')
+        }
+      } else if (!employeePayload.loginEnabled && employeePayload.email) {
+        // If login is disabled, update the user doc if it exists
+        const uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', employeePayload.email.toLowerCase().trim())))
+        if (!uSnap.empty) {
+          await updateDoc(uSnap.docs[0].ref, {
+            loginEnabled: false,
+            updatedAt: serverTimestamp()
+          })
+          console.log('Disabled existing user doc during employee save')
+        }
+      }
+
       if (statusHistoryEntry) {
         await logChange('EMPLOYEE_STATUS_CHANGE', editingEmp, {
           name: editForm.name,
@@ -936,8 +996,15 @@ export default function SettingsTab() {
 
       // 2) Optionally create login-enabled auth user
       if (employeeDoc.loginEnabled && employeeDoc.email && tempPassword) {
+        const trimmedPassword = tempPassword.trim()
+        if (trimmedPassword.length < 6) {
+          alert('Password must be at least 6 characters long.')
+          setSaving(false)
+          return
+        }
+
         // Use secondaryAuth to avoid logging out the admin
-        const cred = await createUserWithEmailAndPassword(secondaryAuth, employeeDoc.email, tempPassword)
+        const cred = await createUserWithEmailAndPassword(secondaryAuth, employeeDoc.email.toLowerCase().trim(), trimmedPassword)
         await updateProfile(cred.user, { displayName: employeeDoc.name })
 
         await setDoc(

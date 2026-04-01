@@ -239,6 +239,17 @@ export default function Login() {
 
       if (identifier.includes('@')) {
         await login(identifier, password)
+        // Check if login is enabled for this user in Firestore
+        const userDoc = await getDocs(query(collection(db, 'users'), where('email', '==', identifier.toLowerCase().trim())))
+        if (!userDoc.empty) {
+          const userData = userDoc.docs[0].data()
+          if (userData.loginEnabled === false) {
+            await logout()
+            setError('Your login access has been disabled. Please contact your administrator.')
+            setLoading(false)
+            return
+          }
+        }
       } else {
         const q = query(collection(db, 'users'), where('empCode', '==', identifier))
         const snap = await getDocs(q)
@@ -246,6 +257,13 @@ export default function Login() {
           throw { code: 'auth/user-not-found' }
         }
         const data = snap.docs[0].data()
+        
+        if (data.loginEnabled === false) {
+          setError('Your login access has been disabled. Please contact your administrator.')
+          setLoading(false)
+          return
+        }
+
         await login(data.email, password)
       }
 
