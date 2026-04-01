@@ -189,14 +189,145 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   )
 }
 
+// ─── Onboarding View ────────
+function OnboardingView({ user, onJoin, onCreate, onComplete, onLogout }) {
+  const [view, setView] = useState(user?.orgId ? 'invite' : 'choice')
+  const [orgCode, setOrgCode] = useState('')
+  const [orgName, setOrgName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleJoin = async (e) => {
+    if (e) e.preventDefault()
+    const code = e ? orgCode.trim() : user.orgId
+    if (!code) { setError('Please enter code.'); return }
+    setLoading(true); setError('')
+    try { 
+      if (e) await onJoin(code.toLowerCase())
+      await onComplete() 
+    }
+    catch (err) { setError(err.message); setLoading(false) }
+  }
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!orgName.trim()) { setError('Please enter name.'); return }
+    setLoading(true); setError('')
+    try { 
+      await onCreate(orgName.trim())
+      await onComplete()
+    }
+    catch (err) { setError(err.message); setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-xl">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-10 mx-4 border border-slate-100 ring-1 ring-slate-900/5">
+        <div className="flex flex-col items-center mb-10 text-center">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-2xl shadow-indigo-200 ring-4 ring-white">
+            <span className="text-white text-4xl">👋</span>
+          </div>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">Welcome, {user?.name?.split(' ')[0]}!</h2>
+          <p className="text-slate-500 font-medium text-sm mt-3 leading-relaxed">Let's get your workspace ready.</p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <p className="text-[11px] font-bold uppercase tracking-wider">{error}</p>
+          </div>
+        )}
+
+        {view === 'choice' && (
+          <div className="space-y-4">
+            <button onClick={() => setView('create')} className="w-full group relative overflow-hidden bg-indigo-600 p-5 rounded-2xl text-white transition-all hover:shadow-xl hover:shadow-indigo-200 active:scale-[0.98]">
+              <div className="relative z-10 flex flex-col items-center">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">Launch New</span>
+                <span className="text-lg font-black tracking-tight">Create Organization</span>
+              </div>
+            </button>
+            <button onClick={() => setView('join')} className="w-full group p-5 rounded-2xl border-2 border-slate-100 text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-200 active:scale-[0.98]">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Existing Team</span>
+                <span className="text-lg font-black tracking-tight">Join with Code</span>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {view === 'invite' && (
+          <div className="space-y-6">
+            <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100/50 text-center">
+              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2 block">Found an Invitation</span>
+              <p className="text-slate-800 font-bold text-lg leading-snug">You've been invited to join <span className="text-indigo-600">{user?.orgName || 'your organization'}</span>.</p>
+            </div>
+            <button onClick={() => handleJoin()} disabled={loading} className="w-full bg-indigo-600 p-5 rounded-2xl text-white font-black text-lg shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 disabled:opacity-50">
+              {loading ? 'Joining...' : 'Accept Invitation & Join'}
+            </button>
+            <button onClick={() => setView('choice')} className="w-full text-slate-400 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 transition-colors">
+              I want to create my own instead
+            </button>
+          </div>
+        )}
+
+        {(view === 'join' || view === 'create') && (
+          <form onSubmit={view === 'join' ? handleJoin : handleCreate} className="space-y-5">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                {view === 'join' ? 'Organization Invite Code' : 'Organization Name'}
+              </label>
+              <input
+                type="text"
+                value={view === 'join' ? orgCode : orgName}
+                onChange={(e) => view === 'join' ? setOrgCode(e.target.value) : setOrgName(e.target.value)}
+                placeholder={view === 'join' ? 'e.g. apple-001' : 'e.g. Acme Corp'}
+                className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-6 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white focus:border-indigo-500 transition-all"
+                required
+              />
+            </div>
+            <button type="submit" disabled={loading} className="w-full h-14 bg-indigo-600 rounded-2xl text-white font-black text-lg shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 disabled:opacity-50">
+              {loading ? 'Processing...' : (view === 'join' ? 'Join Workspace' : 'Launch Workspace')}
+            </button>
+            <button type="button" onClick={() => setView('choice')} className="w-full text-slate-400 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 transition-colors">
+              Go Back
+            </button>
+          </form>
+        )}
+
+        <div className="mt-10 pt-8 border-t border-slate-100 flex justify-center">
+          <button onClick={onLogout} className="text-slate-400 hover:text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
+            <LogOut size={12} /> Sign out of account
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const navigate = useNavigate()
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
   
   // Requirement: Delay employee lookup until auth user and orgId are available
   const canFetchEmployees = user && !!user.orgId
   const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
-  
+
+  const handleCompleteOnboarding = async () => {
+    if (!user?.uid) return
+    try {
+      const { updateDoc, doc, serverTimestamp } = await import('firebase/firestore')
+      await updateDoc(doc(db, 'users', user.uid), {
+        onboardingComplete: true,
+        updatedAt: serverTimestamp()
+      })
+      window.location.reload()
+    } catch (err) {
+      console.error('Onboarding complete error:', err)
+      alert('Failed to complete setup.')
+    }
+  }
+
   const [activeTab, setActiveTab] = useState('attendance')
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [summarySubTab, setSummarySubTab] = useState('summary')

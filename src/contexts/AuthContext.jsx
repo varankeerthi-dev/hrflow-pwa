@@ -13,7 +13,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth'
 
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, query, where, getDocs, collectionGroup } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
 const AuthContext = createContext()
@@ -136,27 +136,54 @@ export function AuthProvider({ children }) {
   }
 
   const register = async (name, email, password, orgId) => {
-    const result = await createUserWithEmailAndPassword(auth, email, password)
+    const normalizedEmail = email.toLowerCase().trim()
+    const result = await createUserWithEmailAndPassword(auth, normalizedEmail, password)
     const firebaseUser = result.user
     await updateProfile(firebaseUser, { displayName: name })
 
-    const resolvedOrgId = orgId?.trim() || null
+    let resolvedOrgId = orgId?.trim() || null
+    let assignedRole = resolvedOrgId ? 'admin' : null
+    let employeeId = null
 
-    if (resolvedOrgId) {
+    // CROSS-CHECK: If no orgId provided, search for this email in ALL employee collections
+    if (!resolvedOrgId) {
+      try {
+        const q = query(collectionGroup(db, 'employees'), where('email', '==', normalizedEmail))
+        const snap = await getDocs(q)
+        if (!snap.empty) {
+          // Found an invitation!
+          const empDoc = snap.docs[0]
+          employeeId = empDoc.id
+          // The parent of 'employees' sub-collection is the organization document
+          resolvedOrgId = empDoc.ref.parent.parent.id
+          assignedRole = 'employee'
+          console.log('register: Found existing invitation for org:', resolvedOrgId)
+        }
+      } catch (err) {
+        console.warn('register: Error cross-checking employees (maybe collectionGroup index missing?):', err)
+      }
+    }
+
+    if (resolvedOrgId && assignedRole === 'admin') {
       const orgSnap = await getDoc(doc(db, 'organisations', resolvedOrgId))
       if (!orgSnap.exists()) throw new Error('Organisation code not found.')
     }
 
     const userDoc = {
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       name,
       orgId: resolvedOrgId,
-      role: resolvedOrgId ? 'admin' : null,
+      role: assignedRole,
+      employeeId: employeeId,
       loginEnabled: true,
+      onboardingComplete: false, // Flag to trigger onboarding UI
       createdAt: new Date().toISOString(),
     }
     await setDoc(doc(db, 'users', firebaseUser.uid), userDoc)
-    setUser({ uid: firebaseUser.uid, ...userDoc })
+    
+    // Read the full doc to get orgName etc if we just joined one
+    const fullUser = await readUserDoc(firebaseUser.uid)
+    setUser(fullUser || { uid: firebaseUser.uid, ...userDoc })
     return firebaseUser
   }
 
