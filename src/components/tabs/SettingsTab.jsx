@@ -541,6 +541,7 @@ export default function SettingsTab() {
             ...prev,
             ...data,
             name: data.name || user?.orgName || prev.name || '',
+            code: data.code || orgSnap.id,
             advanceCategories: data.advanceCategories || prev.advanceCategories,
             holidays: data.holidays || prev.holidays
           }))
