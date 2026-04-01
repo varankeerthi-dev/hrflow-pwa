@@ -347,58 +347,6 @@ export default function Login() {
     navigate('/')
   }
 
-  const handleRegister = async (e) => {
-    e.preventDefault()
-    setError('')
-    if (regPassword !== confirmPassword) { setError('Passwords do not match.'); return }
-    setLoading(true)
-    try {
-      await register(name, regEmail, regPassword, orgCode)
-      navigate('/')
-    } catch (err) {
-      setError(formatAuthError(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleGoogle = async () => {
-    setError('')
-    setLoading(true)
-    try {
-      await loginWithGoogle()
-      // onAuthStateChanged will update user — if no orgId, OrgJoinModal will show
-    } catch (err) {
-      if (err.message === 'LINK_REQUIRED') {
-        setLinkData({ email: err.email, googleCredential: err.googleCredential })
-      } else {
-        setError(formatAuthError(err))
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleForgotPassword = async (e) => {
-    e.preventDefault()
-    if (!forgotEmail.trim()) return
-    setForgotLoading(true)
-    try {
-      await resetPassword(forgotEmail.trim())
-      setForgotSent(true)
-    } catch (err) {
-      setError(formatAuthError(err))
-    } finally {
-      setForgotLoading(false)
-    }
-  }
-
-  const handleLink = async (email, password, googleCredential) => {
-    await linkGoogleToEmail(email, password, googleCredential)
-    setLinkData(null)
-    navigate('/')
-  }
-
   // ── Shared Google & divider block ─────────────────────────────────────────
   const googleBlock = (
     <>
