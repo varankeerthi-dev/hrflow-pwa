@@ -200,6 +200,8 @@ export function AuthProvider({ children }) {
           name: firebaseUser.displayName || '',
           orgId: null,
           role: null,
+          loginEnabled: true,
+          onboardingComplete: false,
           createdAt: new Date().toISOString(),
         }
         await setDoc(doc(db, 'users', firebaseUser.uid), newDoc)
