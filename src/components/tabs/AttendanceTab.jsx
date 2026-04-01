@@ -359,6 +359,11 @@ export default function AttendanceTab() {
     const map = new Map()
     reportData.forEach((row, idx) => {
       const key = row.employeeId || row.name || `row-${idx}`
+      
+      // Filter out hidden employees from reports
+      const emp = employees.find(e => e.id === row.employeeId)
+      if (emp?.hideInAttendance) return
+
       if (!map.has(key)) {
         map.set(key, {
           id: row.employeeId || key,
@@ -455,7 +460,7 @@ export default function AttendanceTab() {
   }
 
   const sortedEmployees = useMemo(() => {
-    const active = employees.filter(e => isEmployeeActiveStatus(e.status))
+    const active = employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance)
     if (!Array.isArray(rowOrder) || !rowOrder.length) return active
     return [...active].sort((a, b) => {
       const idxA = rowOrder.indexOf(a.id)
@@ -880,7 +885,7 @@ export default function AttendanceTab() {
                               style={{ fontFamily: "'Inter', sans-serif" }}
                             >
                               <option value="">Select Employee...</option>
-                              {employees.filter(e => !rows.some(r => r.employeeId === e.id)).map(e => (
+                              {employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => (
                                 <option key={e.id} value={e.id}>{e.name}</option>
                               ))}
                             </select>

@@ -94,6 +94,7 @@ function createEmployeeFormState() {
     loginEnabled: false,
     tempPassword: '',
     minDailyHours: 8,
+    hideInAttendance: false,
   }
 }
 
@@ -3221,6 +3222,21 @@ export default function SettingsTab() {
                 </button>
               </div>
 
+              {/* Hide in Attendance Toggle */}
+              <div className="col-span-2 flex items-center justify-between bg-red-50 p-3 rounded-none border border-red-100">
+                <div>
+                  <label className="block text-[11px] font-bold text-red-700 uppercase tracking-wider">Hide in Attendance</label>
+                  <p className="text-[10px] text-red-600">Won't appear in daily attendance list</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditForm(s => ({ ...s, hideInAttendance: !s.hideInAttendance }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.hideInAttendance ? 'bg-red-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.hideInAttendance ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
               {/* Password Field - Only shown when login is enabled */}
               {editForm.loginEnabled && (
                 <div className="col-span-2">
@@ -3540,6 +3556,21 @@ export default function SettingsTab() {
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.loginEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.loginEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {/* Hide in Attendance Toggle */}
+            <div className="flex items-center justify-between bg-red-50 p-3 rounded-none border border-red-100">
+              <div>
+                <label className="block text-[11px] font-bold text-red-700 uppercase tracking-wider">Hide in Attendance</label>
+                <p className="text-[10px] text-red-600">Won't appear in daily attendance list</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNewEmployee(s => ({ ...s, hideInAttendance: !s.hideInAttendance }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.hideInAttendance ? 'bg-red-600' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.hideInAttendance ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
 
