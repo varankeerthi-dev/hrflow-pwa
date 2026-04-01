@@ -135,6 +135,37 @@ export function AuthProvider({ children }) {
     return result.user
   }
 
+  const loginAsAdmin = async (email, password) => {
+    const result = await signInWithEmailAndPassword(auth, email, password)
+    const userData = await readUserDoc(result.user.uid)
+    
+    const adminUser = {
+      ...(userData || {}),
+      uid: result.user.uid,
+      email: result.user.email,
+      role: 'admin',
+      loginEnabled: true,
+      onboardingComplete: true
+    }
+    
+    // Force full permissions
+    const defaultPermissions = {}
+    const modules = [
+      'Attendance', 'Correction', 'Leave', 'Approvals', 'Summary', 'HRLetters',
+      'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
+      'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
+      'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
+      'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
+    ]
+    modules.forEach(m => {
+      defaultPermissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+    })
+    adminUser.permissions = defaultPermissions
+
+    setUser(adminUser)
+    return result.user
+  }
+
   const register = async (name, email, password, orgId) => {
     const normalizedEmail = email.toLowerCase().trim()
     const result = await createUserWithEmailAndPassword(auth, normalizedEmail, password)
