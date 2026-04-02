@@ -806,7 +806,7 @@ export default function SettingsTab() {
           Object.entries(baseEditForm).filter(([_, v]) => v !== undefined && v !== null && typeof v !== 'function')
         ),
         orgId: user.orgId,
-        role: 'admin', // Force admin role
+        role: selectedRoleName,
         status: normalizedNextStatus,
         minDailyHours: mwhCategory ? mwhCategory.hours : (editForm.minDailyHours || 8)
       }
@@ -1118,6 +1118,18 @@ export default function SettingsTab() {
     const handleUpdateUserRole = async (uid, newRoleName) => {
     if (!isAdmin && userPermissions['Roles']?.edit !== true) return alert('You do not have permission to change user roles.')
     try {
+      // Fetch org document to check for creatorId
+      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+      const orgData = orgSnap.exists() ? orgSnap.data() : null
+      const isCreator = orgData && orgData.creatorId === uid
+      
+      if (isCreator && newRoleName.toLowerCase() !== 'admin') {
+        const otherAdmins = users.filter(u => u.id !== uid && u.role?.toLowerCase() === 'admin')
+        if (otherAdmins.length === 0) {
+          return alert('As the organization creator, you cannot change your role from Admin unless there is at least one other Admin user in the organization.')
+        }
+      }
+
       let permissions = {}
       const rolesArray = Array.isArray(roles) ? roles : []
       const roleObj = rolesArray.find(r => r.name.toLowerCase() === newRoleName.toLowerCase())
@@ -1154,6 +1166,22 @@ export default function SettingsTab() {
       }
 
       await updateDoc(doc(db, 'users', uid), updatePayload)
+
+      // Update adminUids in the organisation document
+      if (orgSnap.exists()) {
+        let adminUids = orgData.adminUids || []
+        const isCurrentlyAdmin = adminUids.includes(uid)
+        const isNewAdmin = newRoleName.toLowerCase() === 'admin'
+
+        if (isNewAdmin && !isCurrentlyAdmin) {
+          adminUids.push(uid)
+          await updateDoc(doc(db, 'organisations', user.orgId), { adminUids })
+        } else if (!isNewAdmin && isCurrentlyAdmin) {
+          adminUids = adminUids.filter(id => id !== uid)
+          await updateDoc(doc(db, 'organisations', user.orgId), { adminUids })
+        }
+      }
+
       setUsers(prev => prev.map(u => u.id === uid ? { ...u, ...updatePayload } : u))
       alert('User role and permissions updated successfully')
     } catch (err) {

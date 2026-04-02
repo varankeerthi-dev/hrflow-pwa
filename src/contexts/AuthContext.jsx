@@ -284,6 +284,7 @@ export function AuthProvider({ children }) {
       name: orgName.trim(),
       code,
       adminUids: [firebaseUser.uid],
+      creatorId: firebaseUser.uid,
       createdAt: new Date().toISOString(),
     }
 
