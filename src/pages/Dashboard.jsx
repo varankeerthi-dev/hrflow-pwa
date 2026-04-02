@@ -602,7 +602,7 @@ useEffect(() => {
                               : 'text-gray-600 hover:sidebar-hover'
                           }`}
                         >
-                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
+                          <span className={`shrink-0 ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-600'}`}>
                             {React.cloneElement(tab.icon, { size: 18 })}
                           </span>
                           

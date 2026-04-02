@@ -39,13 +39,15 @@ body {
 
 /* Enhanced UI Utilities */
 .sidebar-active {
-  background-color: var(--color-primary);
-  color: white;
-  font-weight: 600;
+  background-color: #ffffff;
+  color: var(--color-primary);
+  font-weight: 700;
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0;
 }
 
 .sidebar-hover {
-  background-color: #eef2ff;
+  background-color: #f8fafc;
   color: var(--color-primary);
   transition: all 0.2s ease;
 }

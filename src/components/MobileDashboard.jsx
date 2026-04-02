@@ -525,7 +525,7 @@ export default function MobileDashboard() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`${activeTab === mod.id ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
+                      <div className={`${activeTab === mod.id ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-600'}`}>
                         {mod.icon}
                       </div>
                       <span className="font-medium leading-5 tracking-tight">{mod.label}</span>
@@ -674,7 +674,7 @@ export default function MobileDashboard() {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={activeTab === mod.id ? 'text-white' : 'text-gray-400'}>{mod.icon}</div>
+                          <div className={activeTab === mod.id ? 'text-indigo-600' : 'text-gray-400'}>{mod.icon}</div>
                           <span className="font-medium leading-5">{mod.label}</span>
                         </div>
                         {mod.badge && <Badge variant="destructive">{mod.badge}</Badge>}
