@@ -855,7 +855,7 @@ export default function AttendanceTab() {
         <>
           {/* Main Table Card */}
           <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
-            <div className="overflow-x-visible min-h-[500px]">
+            <div className="overflow-x-visible pb-[400px]">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-[73px] z-10 bg-gray-50">
                   <tr className="h-10 border-b border-gray-200">
