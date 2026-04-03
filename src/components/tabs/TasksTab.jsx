@@ -28,7 +28,9 @@ import {
   FileText,
   Edit3,
   Download,
-  List
+  List,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
@@ -70,6 +72,14 @@ export default function TasksTab() {
   
   const [activeTab, setActiveTab] = useState('team')
   const [viewMode, setViewMode] = useState('board')
+  const [calendarDate, setCalendarDate] = useState(new Date())
+  const [statusFilter, setStatusFilter] = useState({
+    'To Do': true,
+    'In Progress': true,
+    'On Hold': true,
+    'Review': true,
+    'Completed': false
+  })
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
@@ -909,6 +919,217 @@ export default function TasksTab() {
     )
   }
 
+  // Calendar View - Notion Style
+  const renderCalendarView = () => {
+    const year = calendarDate.getFullYear()
+    const month = calendarDate.getMonth()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const firstDayOfMonth = new Date(year, month, 1).getDay()
+    const monthName = calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    
+    // Get days from previous month
+    const prevMonthDays = []
+    const prevMonthLastDay = new Date(year, month, 0).getDate()
+    for (let i = firstDayOfMonth - 1; i >= 0; i--) {
+      prevMonthDays.push(prevMonthLastDay - i)
+    }
+    
+    // Filter tasks that are visible in calendar (exclude completed by default)
+    const visibleTasks = filteredTasks.filter(task => {
+      if (!task.dueDate) return false
+      if (task.status === 'Completed' && !statusFilter['Completed']) return false
+      return statusFilter[task.status] !== false
+    })
+    
+    // Group tasks by date
+    const tasksByDate = {}
+    visibleTasks.forEach(task => {
+      const taskDate = task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)
+      if (taskDate.getMonth() === month && taskDate.getFullYear() === year) {
+        const day = taskDate.getDate()
+        if (!tasksByDate[day]) tasksByDate[day] = []
+        tasksByDate[day].push(task)
+      }
+    })
+    
+    const handlePrevMonth = () => {
+      setCalendarDate(new Date(year, month - 1, 1))
+    }
+    
+    const handleNextMonth = () => {
+      setCalendarDate(new Date(year, month + 1, 1))
+    }
+    
+    const handleDrop = async (e, day) => {
+      e.preventDefault()
+      const taskId = e.dataTransfer.getData('taskId')
+      if (!taskId) return
+      
+      const newDate = new Date(year, month, day)
+      try {
+        await updateTask(taskId, { dueDate: newDate })
+        setDraggedTaskId(null)
+      } catch (err) {
+        console.error('Failed to move task:', err)
+      }
+    }
+    
+    const handleDragOver = (e) => {
+      e.preventDefault()
+    }
+
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    
+    return (
+      <div className="h-full flex flex-col bg-white">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-slate-800">{monthName}</h2>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={handlePrevMonth}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <ChevronLeft size={18} className="text-slate-600" />
+              </button>
+              <button 
+                onClick={handleNextMonth}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <ChevronRight size={18} className="text-slate-600" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Status Filter Toggle */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-medium">Show:</span>
+            {STATUSES.filter(s => s.id !== 'Completed').map(status => (
+              <button
+                key={status.id}
+                onClick={() => setStatusFilter(prev => ({ ...prev, [status.id]: !prev[status.id] }))}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
+                  statusFilter[status.id] 
+                    ? 'bg-slate-100 text-slate-700' 
+                    : 'bg-transparent text-slate-400 line-through'
+                }`}
+              >
+                {status.icon}
+                {status.label}
+              </button>
+            ))}
+            <div className="h-4 w-px bg-slate-200 mx-1"></div>
+            <button
+              onClick={() => setStatusFilter(prev => ({ ...prev, 'Completed': !prev['Completed'] }))}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
+                statusFilter['Completed'] 
+                  ? 'bg-emerald-50 text-emerald-700' 
+                  : 'bg-transparent text-slate-400 line-through'
+              }`}
+            >
+              <CheckCircle2 size={12} className="text-emerald-500" />
+              Completed
+            </button>
+          </div>
+        </div>
+        
+        {/* Calendar Grid - No scrollable */}
+        <div className="flex-1 flex flex-col">
+          {/* Week Headers */}
+          <div className="grid grid-cols-7 border-b border-slate-200">
+            {weekDays.map(day => (
+              <div key={day} className="px-3 py-2 text-xs font-medium text-slate-500 text-center bg-slate-50">
+                {day}
+              </div>
+            ))}
+          </div>
+          
+          {/* Calendar Days - Fixed height */}
+          <div className="flex-1 grid grid-cols-7 grid-rows-6">
+            {/* Previous month days */}
+            {prevMonthDays.map((day, idx) => (
+              <div 
+                key={`prev-${idx}`} 
+                className="border-r border-b border-slate-100 bg-slate-50/50 p-2 text-slate-300 text-sm"
+              >
+                {day}
+              </div>
+            ))}
+            
+            {/* Current month days */}
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+              const dayTasks = tasksByDate[day] || []
+              const isToday = new Date().getDate() === day && 
+                              new Date().getMonth() === month && 
+                              new Date().getFullYear() === year
+              
+              return (
+                <div
+                  key={day}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, day)}
+                  className={`border-r border-b border-slate-100 p-2 min-h-[80px] transition-colors hover:bg-slate-50/50 ${
+                    isToday ? 'bg-indigo-50/30' : ''
+                  }`}
+                >
+                  <div className={`text-sm font-medium mb-1 ${isToday ? 'text-indigo-600' : 'text-slate-700'}`}>
+                    {day}
+                    {isToday && <span className="ml-1 text-xs text-indigo-500">Today</span>}
+                  </div>
+                  <div className="space-y-1">
+                    {dayTasks.slice(0, 3).map(task => {
+                      const assignees = getAssigneeInfo(task.assignedTo)
+                      return (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('taskId', task.id)
+                            setDraggedTaskId(task.id)
+                          }}
+                          onClick={() => openEditModal(task)}
+                          className={`text-[10px] p-1.5 rounded cursor-pointer transition-all hover:shadow-sm ${
+                            task.priority === 'urgent' ? 'bg-rose-50 border border-rose-200 text-rose-700' :
+                            task.priority === 'high' ? 'bg-amber-50 border border-amber-200 text-amber-700' :
+                            'bg-slate-50 border border-slate-200 text-slate-700'
+                          }`}
+                        >
+                          <div className="truncate font-medium">{task.title}</div>
+                          {assignees.length > 0 && (
+                            <div className="flex items-center gap-0.5 mt-0.5 text-[8px] text-slate-500">
+                              <User size={8} />
+                              {assignees.length > 1 ? `${assignees.length}` : assignees[0].name.split(' ')[0]}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {dayTasks.length > 3 && (
+                      <div className="text-[9px] text-slate-400 text-center">
+                        +{dayTasks.length - 3} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            
+            {/* Next month days to fill grid */}
+            {Array.from({ length: 42 - (prevMonthDays.length + daysInMonth) }, (_, i) => i + 1).map((day, idx) => (
+              <div 
+                key={`next-${idx}`} 
+                className="border-r border-b border-slate-100 bg-slate-50/50 p-2 text-slate-300 text-sm"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Idea tab filtered ideas - computed at top level to avoid hook violation
   const filteredIdeas = useMemo(() => {
     if (activeTab !== 'idea') return []
@@ -1196,6 +1417,7 @@ export default function TasksTab() {
             {[
               { id: 'board', icon: <Layout size={14} />, label: 'Board' },
               { id: 'table', icon: <Table size={14} />, label: 'Table' },
+              { id: 'calendar', icon: <CalendarIcon size={14} />, label: 'Calendar' },
               { id: 'dashboard', icon: <BarChart2 size={14} />, label: 'Stats' }
             ].map(m => (
               <button
@@ -1235,6 +1457,7 @@ export default function TasksTab() {
           <div className="h-full animate-in fade-in slide-in-from-bottom-4 duration-700">
             {viewMode === 'board' && renderBoardView()}
             {viewMode === 'table' && renderTableView()}
+            {viewMode === 'calendar' && renderCalendarView()}
             {viewMode === 'dashboard' && renderDashboardView()}
           </div>
         )}
@@ -1364,7 +1587,7 @@ export default function TasksTab() {
                     }}
                     className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-all flex items-center gap-1.5 border ${
                       isSelected 
-                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-100' 
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-100' 
                         : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
@@ -1658,6 +1881,24 @@ export default function TasksTab() {
                 className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+                    try {
+                      await deleteTask(editingTask.id)
+                      setShowEditModal(false)
+                      setEditingTask(null)
+                    } catch (err) {
+                      console.error('Failed to delete task:', err)
+                      alert('Failed to delete task')
+                    }
+                  }
+                }}
+                className="px-6 py-2.5 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={16} className="inline mr-1" /> Delete
               </button>
               <button
                 type="submit"
