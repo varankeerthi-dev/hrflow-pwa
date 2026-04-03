@@ -251,32 +251,58 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
     const printContent = document.getElementById('monthly-pivot-table')
     if (!printContent) return
     
+    // Create a clone to modify for printing (removing sticky classes etc)
+    const clone = printContent.cloneNode(true)
+    // Remove sticky classes from headers and first column for clean print
+    clone.querySelectorAll('.sticky').forEach(el => {
+      el.classList.remove('sticky', 'left-0', 'top-0', 'z-10', 'z-20', 'z-30', 'z-40')
+    })
+
     const printWindow = window.open('', '', 'width=1200,height=800')
     printWindow.document.write(`
       <html>
         <head>
           <title>Monthly Attendance - ${formatMonth(selectedMonth)}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
           <script src="https://cdn.tailwindcss.com"></script>
           <style>
+            body { font-family: 'Inter', sans-serif; padding: 20px; }
+            table { border-collapse: collapse; width: 100%; font-size: 7px; table-layout: fixed; }
+            th, td { 
+              border: 1px solid #e5e7eb !important; 
+              padding: 4px 2px !important; 
+              text-align: center;
+              word-wrap: break-word;
+            }
+            th { background-color: #f9fafb !important; font-weight: 900; text-transform: uppercase; }
+            .bg-emerald-500 { background-color: #10b981 !important; color: white !important; }
+            .bg-rose-500 { background-color: #f43f5e !important; color: white !important; }
+            .bg-violet-500 { background-color: #8b5cf6 !important; color: white !important; }
+            .bg-amber-400 { background-color: #fbbf24 !important; color: white !important; }
             @media print {
+              @page { size: landscape; margin: 1cm; }
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              table { font-size: 8px; }
-              th, td { padding: 2px !important; }
             }
           </style>
         </head>
-        <body class="p-4">
-          <h1 class="text-center text-sm font-inter font-bold mb-2">Monthly Attendance - ${formatMonth(selectedMonth)}</h1>
-          ${printContent.outerHTML}
+        <body>
+          <div style="margin-bottom: 20px; text-align: center;">
+            <h1 style="font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Monthly Attendance Report</h1>
+            <p style="font-size: 12px; color: #6b7280; font-weight: 700;">${formatMonth(selectedMonth)}</p>
+          </div>
+          ${clone.outerHTML}
         </body>
       </html>
     `)
     printWindow.document.close()
-    printWindow.focus()
-    setTimeout(() => {
-      printWindow.print()
-      printWindow.close()
-    }, 500)
+    
+    // Wait for Tailwind and Fonts to load before printing
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 1000)
+    }
   }
 
   const saveDisplayOrder = async () => {
