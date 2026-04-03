@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
+import { useAttendance } from '../../hooks/useAttendance'
 import { db, storage, auth, secondaryAuth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
@@ -201,6 +202,7 @@ const settingsSubTabMeta = {
 export default function SettingsTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading, updateEmployee, addEmployee, deleteEmployee } = useEmployees(user?.orgId)
+  const { recalculateOTForEmployee } = useAttendance(user?.orgId)
   const [activeSubTab, setActiveSubTab] = useState('organization')
   const [users, setUsers] = useState([])
   const [roles, setRoles] = useState([])
@@ -263,6 +265,10 @@ export default function SettingsTab() {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false)
   const [newMinWorkHours, setNewMinWorkHours] = useState({ name: '', hours: 8, description: '' })
   const [newEmployee, setNewEmployee] = useState(createEmployeeFormState())
+  const [newEmployeeOriginalWorkHours, setNewEmployeeOriginalWorkHours] = useState(9)
+  const [newEmployeeOriginalShiftId, setNewEmployeeOriginalShiftId] = useState('')
+  const [editOriginalWorkHours, setEditOriginalWorkHours] = useState(9)
+  const [editOriginalShiftId, setEditOriginalShiftId] = useState('')
   const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
   const [viewerState, setViewerState] = useState(null) // { docs, index }
   const [newRole, setNewRole] = useState({ 
@@ -745,6 +751,8 @@ export default function SettingsTab() {
     setEditOriginalStatus(originalStatus)
     setEditStatusTransition(null)
     setEditForm(baseForm)
+    setEditOriginalWorkHours(baseForm.workHours || 9)
+    setEditOriginalShiftId(baseForm.shiftId || '')
 
     if (emp.email) {
       const uSnap = await getDocs(query(collection(db, 'users'), where('orgId', '==', user.orgId), where('email', '==', emp.email.toLowerCase().trim())))
@@ -752,6 +760,97 @@ export default function SettingsTab() {
         const userData = uSnap.docs[0].data()
         setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true }))
       }
+    }
+  }
+
+  const handleShiftChange = (newShiftId, formType) => {
+    const selectedShift = shifts.find(s => s.id === newShiftId)
+    const newWorkHours = selectedShift ? (selectedShift.workHours || 9) : 9
+    
+    if (formType === 'edit') {
+      const oldShiftId = editOriginalShiftId
+      const oldWorkHours = editOriginalWorkHours
+      
+      if (newShiftId !== oldShiftId || newWorkHours !== oldWorkHours) {
+        const effectiveDate = prompt('Shift schedule change detected.\n\nEnter Effective From Date (YYYY-MM-DD):', new Date().toISOString().split('T')[0])
+        if (effectiveDate && /^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
+          setEditForm(prev => ({
+            ...prev,
+            shiftId: newShiftId,
+            workHours: newWorkHours,
+            shiftEffectiveDate: effectiveDate,
+            shiftChangeHistory: [...(prev.shiftChangeHistory || []), {
+              fromShiftId: oldShiftId,
+              toShiftId: newShiftId,
+              fromWorkHours: oldWorkHours,
+              toWorkHours: newWorkHours,
+              effectiveDate: effectiveDate,
+              changedAt: new Date().toISOString(),
+              changedBy: user.uid
+            }]
+          }))
+          alert(`Shift change will be effective from ${effectiveDate}. OT hours will be recalculated from this date.`)
+        } else if (effectiveDate !== null) {
+          alert('Invalid date format. Please use YYYY-MM-DD format.')
+          return
+        }
+      } else {
+        setEditForm(prev => ({ ...prev, shiftId: newShiftId, workHours: newWorkHours }))
+      }
+    } else {
+      // New employee form
+      setNewEmployee(prev => ({
+        ...prev,
+        shiftId: newShiftId,
+        workHours: newWorkHours
+      }))
+      setNewEmployeeOriginalShiftId(newShiftId)
+      setNewEmployeeOriginalWorkHours(newWorkHours)
+    }
+  }
+
+  const handleWorkHoursChange = (newWorkHours, formType) => {
+    if (formType === 'edit') {
+      const oldWorkHours = editOriginalWorkHours
+      
+      if (newWorkHours !== oldWorkHours) {
+        const effectiveDate = prompt('Work hours change detected.\n\nEnter Effective From Date (YYYY-MM-DD):', new Date().toISOString().split('T')[0])
+        if (effectiveDate && /^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
+          setEditForm(prev => ({
+            ...prev,
+            workHours: newWorkHours,
+            shiftEffectiveDate: effectiveDate,
+            shiftChangeHistory: [...(prev.shiftChangeHistory || []), {
+              fromWorkHours: oldWorkHours,
+              toWorkHours: newWorkHours,
+              effectiveDate: effectiveDate,
+              changedAt: new Date().toISOString(),
+              changedBy: user.uid
+            }]
+          }))
+          alert(`Work hours change will be effective from ${effectiveDate}. OT hours will be recalculated from this date.`)
+        } else if (effectiveDate !== null) {
+          alert('Invalid date format. Please use YYYY-MM-DD format.')
+          return
+        }
+      } else {
+        setEditForm(prev => ({ ...prev, workHours: newWorkHours }))
+      }
+    } else {
+      // New employee form
+      setNewEmployee(prev => ({ ...prev, workHours: newWorkHours }))
+      setNewEmployeeOriginalWorkHours(newWorkHours)
+    }
+  }
+
+  const recalculateAttendanceOT = async (employeeId, effectiveDate, newWorkHours) => {
+    try {
+      const updatedCount = await recalculateOTForEmployee(employeeId, effectiveDate, newWorkHours)
+      console.log(`Recalculated OT for ${updatedCount} attendance records from ${effectiveDate}`)
+      return updatedCount
+    } catch (err) {
+      console.error('Error recalculating OT:', err)
+      return 0
     }
   }
 
@@ -901,6 +1000,25 @@ export default function SettingsTab() {
           dateField: statusHistoryEntry.dateField,
           action: statusHistoryEntry.action,
         })
+      }
+
+      // 3) Handle shift/workHours change and recalculate OT if effective date is present
+      if (editForm.shiftEffectiveDate && editForm.workHours) {
+        const recalcCount = await recalculateAttendanceOT(
+          editingEmp, 
+          editForm.shiftEffectiveDate, 
+          editForm.workHours
+        )
+        if (recalcCount > 0) {
+          await logChange('EMPLOYEE_SHIFT_CHANGE', editingEmp, {
+            name: editForm.name,
+            effectiveDate: editForm.shiftEffectiveDate,
+            newWorkHours: editForm.workHours,
+            recordsAffected: recalcCount,
+            message: `Scheduled OT recalculation for ${recalcCount} attendance records from ${editForm.shiftEffectiveDate}`
+          })
+          alert(`Employee updated! OT recalculation has been scheduled for ${recalcCount} attendance records from ${editForm.shiftEffectiveDate}.`)
+        }
       }
 
       setEditingEmp(null)
@@ -2157,32 +2275,32 @@ export default function SettingsTab() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse print-section">
+                  <table className="w-full border-collapse text-left min-w-[900px]">
                     <thead>
-                      <tr className="bg-slate-50/90">
-                        <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Employee ID</th>
-                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Employee Name</th>
-                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Department</th>
-                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Designation</th>
-                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Status</th>
-                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Join Date</th>
-                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Site</th>
-                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Contact</th>
-                        <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Actions</th>
+                      <tr className="bg-zinc-50/80 border-b border-zinc-200">
+                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[140px]">Employee ID</th>
+                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Employee Name</th>
+                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Department</th>
+                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Designation</th>
+                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Status</th>
+                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[120px]">Join Date</th>
+                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Site</th>
+                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Contact</th>
+                        <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="[&_tr:last-child]:border-0">
                       {empLoading ? (
                         <tr>
-                          <td colSpan={9} className="px-4 py-16 text-center">
+                          <td colSpan={9} className="px-3 py-16 text-center">
                             <Spinner />
                           </td>
                         </tr>
                       ) : paginatedEmployees.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="px-4 py-16 text-center text-[13px] font-medium text-slate-400">
+                          <td colSpan={9} className="px-3 py-16 text-center text-xs font-medium text-zinc-400">
                             {employees.length === 0
-                              ? <>No employees yet. Use <span className="font-semibold text-slate-500">Add Employee</span> to create the first record.</>
+                              ? <>No employees yet. Use <span className="font-semibold text-zinc-500">Add Employee</span> to create the first record.</>
                               : 'No employees match the current search or status filter.'}
                           </td>
                         </tr>
@@ -2195,15 +2313,15 @@ export default function SettingsTab() {
                               ? { dot: 'bg-amber-500', text: 'text-amber-600' }
                               : { dot: 'bg-emerald-500', text: 'text-emerald-600' }
                         const deptColor = emp.department
-                          ? (departmentPalette[departmentLookup.indexOf(emp.department) % departmentPalette.length] || 'bg-slate-100 text-slate-600')
-                          : 'bg-slate-100 text-slate-500'
+                          ? (departmentPalette[departmentLookup.indexOf(emp.department) % departmentPalette.length] || 'bg-zinc-100 text-zinc-600')
+                          : 'bg-zinc-100 text-zinc-500'
 
                         return (
-                          <tr key={emp.id} className="group border-b border-slate-100 transition-colors hover:bg-slate-50/70">
-                            <td className="px-5 py-4 text-[12px] font-black tracking-[-0.01em] text-slate-700">
+                          <tr key={emp.id} className="border-b border-zinc-100 transition-colors hover:bg-zinc-50/80">
+                            <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-700">
                               {emp.empCode || `EMP-${emp.id.slice(-4).toUpperCase()}`}
                             </td>
-                            <td className="px-4 py-4">
+                            <td className="px-3 py-1.5 align-middle">
                               <button
                                 onClick={() => {
                                   if (!canEditEmployee) return
@@ -2211,40 +2329,40 @@ export default function SettingsTab() {
                                 }}
                                 className={`flex items-center gap-3 text-left ${canEditEmployee ? '' : 'cursor-default'}`}
                               >
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-black text-white" style={{ backgroundColor: getAvatarColor(emp.id) }}>
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: getAvatarColor(emp.id) }}>
                                   {emp.photoURL ? <img src={emp.photoURL} className="h-full w-full object-cover" alt="" /> : getInitials(emp.name)}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="truncate text-[12px] font-semibold text-slate-800">{emp.name}</p>
-                                  <p className="truncate text-[11px] text-slate-400">{emp.email || 'No email added'}</p>
+                                  <p className="truncate text-[12px] font-semibold text-zinc-800">{emp.name}</p>
+                                  <p className="truncate text-[11px] text-zinc-400">{emp.email || 'No email added'}</p>
                                 </div>
                               </button>
                             </td>
-                            <td className="px-4 py-4">
+                            <td className="px-3 py-1.5 align-middle">
                               {emp.department ? (
-                                <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${deptColor}`}>{emp.department}</span>
+                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${deptColor}`}>{emp.department}</span>
                               ) : (
-                                <span className="text-[11px] text-slate-300">—</span>
+                                <span className="text-[11px] text-zinc-300">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-4 text-[12px] text-slate-600">{emp.designation || 'Unassigned'}</td>
-                            <td className="px-4 py-4">
+                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-600">{emp.designation || 'Unassigned'}</td>
+                            <td className="px-3 py-1.5 align-middle">
                               <span className={`inline-flex items-center gap-2 text-[11px] font-semibold ${statusTone.text}`}>
-                                <span className={`h-2.5 w-2.5 rounded-[4px] ${statusTone.dot}`} />
+                                <span className={`h-2 w-2 rounded-full ${statusTone.dot}`} />
                                 {normalizedStatus || 'Active'}
                               </span>
                             </td>
-                            <td className="px-4 py-4 text-[12px] text-slate-500">{emp.joinedDate || '—'}</td>
-                            <td className="px-4 py-4 text-[12px] text-slate-500">{emp.site || '—'}</td>
-                            <td className="px-4 py-4 text-[12px] text-slate-500">{emp.emergencyContact || '—'}</td>
-                            <td className="px-4 py-4 text-right">
-                              <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{emp.joinedDate || '—'}</td>
+                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{emp.site || '—'}</td>
+                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{emp.emergencyContact || '—'}</td>
+                            <td className="px-3 py-1.5 align-middle text-right">
+                              <div className="flex items-center justify-end gap-1">
                                 <button
                                   onClick={() => {
                                     if (emp.documents?.length) setViewerState({ docs: emp.documents, index: 0 })
                                   }}
                                   title="View documents"
-                                  className={`rounded-lg p-2 text-slate-400 transition-all ${emp.documents?.length ? 'hover:bg-slate-100 hover:text-slate-700' : 'cursor-default opacity-20'}`}
+                                  className={`rounded-lg p-1.5 text-zinc-400 transition-all ${emp.documents?.length ? 'hover:bg-zinc-100 hover:text-zinc-700' : 'cursor-default opacity-20'}`}
                                 >
                                   <Eye size={14} />
                                 </button>
@@ -2253,7 +2371,7 @@ export default function SettingsTab() {
                                     await openEmployeeEditor(emp)
                                   }}
                                   title="Edit employee"
-                                  className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"
+                                  className="rounded-lg p-1.5 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
                                 >
                                   <Edit size={14} />
                                 </button>
@@ -3254,6 +3372,39 @@ export default function SettingsTab() {
                 </select>
               </div>
               <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Shift Schedule</label>
+                <select
+                  value={editForm.shiftId || ''}
+                  onChange={e => handleShiftChange(e.target.value, 'edit')}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select Shift...</option>
+                  {shifts.map(shift => (
+                    <option key={shift.id} value={shift.id}>{shift.name} ({shift.workHours || 9} hrs)</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Daily Work Hours</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="24"
+                  step="0.5"
+                  value={editForm.workHours || 9}
+                  onChange={e => handleWorkHoursChange(parseFloat(e.target.value) || 9, 'edit')}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              {editForm.shiftEffectiveDate && (
+                <div className="col-span-2">
+                  <label className="block text-[11px] font-bold text-emerald-700 mb-1">
+                    Shift Change Effective From: {editForm.shiftEffectiveDate}
+                  </label>
+                  <p className="text-[10px] text-gray-500">OT calculations will use this date for historical recalculation</p>
+                </div>
+              )}
+              <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
                 <select value={editForm.bloodGroup || ''} onChange={e => setEditForm(s => ({ ...s, bloodGroup: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
@@ -3641,6 +3792,39 @@ export default function SettingsTab() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Shift Schedule</label>
+                <select
+                  value={newEmployee.shiftId || ''}
+                  onChange={e => handleShiftChange(e.target.value, 'new')}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="">Select Shift...</option>
+                  {shifts.map(shift => (
+                    <option key={shift.id} value={shift.id}>{shift.name} ({shift.workHours || 9} hrs)</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Daily Work Hours</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="24"
+                  step="0.5"
+                  value={newEmployee.workHours || 9}
+                  onChange={e => handleWorkHoursChange(parseFloat(e.target.value) || 9, 'new')}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              {newEmployee.shiftEffectiveDate && (
+                <div className="col-span-2">
+                  <label className="block text-[11px] font-bold text-emerald-700 mb-1">
+                    Shift Change Effective From: {newEmployee.shiftEffectiveDate}
+                  </label>
+                  <p className="text-[10px] text-gray-500">OT calculations will use this date for historical recalculation</p>
+                </div>
+              )}
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
                 <select value={newEmployee.bloodGroup} onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))}

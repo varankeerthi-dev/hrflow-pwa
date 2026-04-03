@@ -105,7 +105,46 @@ export function useAttendance(orgId) {
     }
   }, [orgId])
 
-  return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary, deleteByDate, fetchRange }
+  const recalculateOTForEmployee = useCallback(async (employeeId, effectiveDate, workHours) => {
+    if (!orgId || !employeeId || !effectiveDate) return 0
+    setLoading(true)
+    try {
+      const q = query(
+        attendanceCol(orgId),
+        where('employeeId', '==', employeeId),
+        where('date', '>=', effectiveDate)
+      )
+      const snapshot = await getDocs(q)
+      
+      let updatedCount = 0
+      const batch = snapshot.docs.map(d => {
+        const data = d.data()
+        // Only recalculate if we have both in and out times
+        if (data.inTime && data.outTime) {
+          const newOTHours = calcOT(data.inTime, data.outTime, data.date, data.outDate || data.date, workHours)
+          updatedCount++
+          return setDoc(attendanceDoc(orgId, data.date, employeeId), {
+            ...data,
+            otHours: newOTHours,
+            recalcWorkHours: workHours,
+            recalculatedAt: serverTimestamp(),
+            recalculatedBy: user?.uid || 'system'
+          }, { merge: true })
+        }
+        return Promise.resolve()
+      })
+      
+      await Promise.all(batch)
+      return updatedCount
+    } catch (e) {
+      setError(e.message)
+      return 0
+    } finally {
+      setLoading(false)
+    }
+  }, [orgId, user])
+
+  return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary, deleteByDate, fetchRange, recalculateOTForEmployee }
 }
 
 export function calcOT(inTime, outTime, inDate, outDate, workHours) {

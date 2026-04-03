@@ -804,19 +804,19 @@ export default function ApprovalsTab() {
         <>
           <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[900px]">
-                <thead>
-                  <tr className="bg-zinc-50/80 border-b border-zinc-200">
-                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Requesting date</th>
-                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[100px]">Type</th>
-                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[200px]">Employee</th>
-                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">Amount</th>
-                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[160px]">Method</th>
-                    <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Ref Number</th>
-                    <th className="h-10 px-4 text-right align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500">Action</th>
+              <table className="w-full caption-bottom text-sm border-collapse min-w-[900px]">
+                <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+                  <tr className="border-b border-zinc-200">
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[140px]">Requesting date</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[100px]">Type</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Employee</th>
+                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[120px]">Amount</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[160px]">Method</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[140px]">Ref Number</th>
+                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-50">
+                <tbody className="[&_tr:last-child]:border-0">
                   {paymentQueue.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-20 text-center text-zinc-300 font-bold uppercase italic tracking-widest opacity-40">No pending payments</td>
@@ -1480,28 +1480,28 @@ export default function ApprovalsTab() {
             </div>
             <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden w-full">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[900px]">
-                  <thead>
-                    <tr className="bg-zinc-50/80 border-b border-zinc-200">
-                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Requested Date</th>
-                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[240px]">Requested by</th>
-                      <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[100px]">Type</th>
+                <table className="w-full caption-bottom text-sm border-collapse min-w-[900px]">
+                  <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+                    <tr className="border-b border-zinc-200">
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[140px]">Requested Date</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Requested by</th>
+                      <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[100px]">Type</th>
                       
                       {leaveApprovalSetting?.type === 'multi' ? (
                         <>
-                          <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">Dept Head</th>
-                          <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">MD Approval</th>
+                          <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[180px]">Dept Head</th>
+                          <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap min-w-[140px]">MD Approval</th>
                         </>
                       ) : (
-                        <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">Approval Status</th>
+                        <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[180px]">Approval Status</th>
                       )}
 
-                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">Leave Period</th>
-                      <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">Final Status</th>
-                      <th className="h-10 px-4 text-right align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500">Action</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[180px]">Leave Period</th>
+                      <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[120px]">Final Status</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-50">
+                  <tbody className="[&_tr:last-child]:border-0">
                     {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length === 0 ? (
                       <tr>
                         <td colSpan={leaveApprovalSetting?.type === 'multi' ? 8 : 7} className="py-16 text-center text-zinc-300 font-bold uppercase italic tracking-widest opacity-40">No pending requests</td>
