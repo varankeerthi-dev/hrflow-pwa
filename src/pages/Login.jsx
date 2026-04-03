@@ -243,7 +243,8 @@ export default function Login() {
         memberships={user.memberships}
         onSelect={async (orgId) => {
           await switchOrganisation(orgId)
-          navigate('/')
+          // Use window.location for full page reload with cache bypass
+          window.location.href = window.location.origin + '/?nocache=' + Date.now()
         }}
         onJoin={joinOrganisation}
         onCreate={createOrganisation}

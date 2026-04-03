@@ -16,10 +16,71 @@ export default function LoginOrgSelector({ user, memberships, onSelect, onJoin, 
     setIsLoading(true)
     setError('')
     try {
+      // Clear all cached data before switching organization
+      clearAllCachedData()
+      
       await onSelect(selectedOrgId)
     } catch (err) {
       setError(err.message || 'Failed to select organization')
       setIsLoading(false)
+    }
+  }
+
+  const clearAllCachedData = () => {
+    try {
+      console.log('Clearing cached data for organization switch...')
+      
+      // 1. Clear localStorage (except critical auth tokens)
+      const keysToKeep = ['firebase:authUser', 'firebase:previousUser']
+      const allKeys = Object.keys(localStorage)
+      allKeys.forEach(key => {
+        if (!keysToKeep.some(keepKey => key.startsWith(keepKey))) {
+          localStorage.removeItem(key)
+        }
+      })
+      
+      // 2. Clear sessionStorage completely
+      sessionStorage.clear()
+      
+      // 3. Clear any app-specific cache keys
+      const appCacheKeys = [
+        'hrflow_employees',
+        'hrflow_attendance',
+        'hrflow_leaves',
+        'hrflow_settings',
+        'hrflow_cache',
+        'org_data',
+        'employee_data',
+        'last_sync'
+      ]
+      appCacheKeys.forEach(key => {
+        localStorage.removeItem(key)
+        sessionStorage.removeItem(key)
+      })
+      
+      // 4. Clear IndexedDB databases
+      if (window.indexedDB) {
+        const dbs = ['firebaseLocalStorageDb', 'hrflow-offline-cache']
+        dbs.forEach(dbName => {
+          try {
+            const req = indexedDB.deleteDatabase(dbName)
+            req.onsuccess = () => console.log('Deleted IndexedDB:', dbName)
+          } catch (e) {
+            console.warn('Error deleting IndexedDB:', e)
+          }
+        })
+      }
+      
+      // 5. Unregister service workers
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(registration => registration.unregister())
+        })
+      }
+      
+      console.log('All cached data cleared successfully')
+    } catch (err) {
+      console.error('Error clearing cached data:', err)
     }
   }
 
@@ -304,6 +365,20 @@ export default function LoginOrgSelector({ user, memberships, onSelect, onJoin, 
           You can switch organizations anytime from the header menu after logging in.
         </p>
       </div>
+
+      {/* Full-screen loading overlay during organization switch */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center z-[100]">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+          <h3 className="text-xl font-bold text-zinc-900 mb-1">Switching Organization...</h3>
+          <p className="text-sm text-zinc-500">Clearing cached data and loading new organization</p>
+          <div className="mt-4 px-6 py-3 bg-zinc-100 rounded-xl">
+            <p className="text-sm text-zinc-700">
+              <span className="font-semibold">Selected:</span> {memberships.find(m => m.orgId === selectedOrgId)?.orgName}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -53,14 +53,88 @@ export default function OrganizationSwitcher() {
     setIsLoading(true)
     setError('')
     try {
+      // Clear all cached data before switching
+      clearAllCachedData()
+      
       await switchOrganisation(orgId)
       setIsOpen(false)
-      // Reload the page to refresh all data hooks with new org context
-      window.location.reload()
+      
+      // Force a full page reload with cache bypass
+      window.location.href = window.location.origin + '/?nocache=' + Date.now()
     } catch (err) {
       setError(err.message || 'Failed to switch organization')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const clearAllCachedData = () => {
+    try {
+      console.log('Clearing cached data for organization switch...')
+      
+      // 1. Clear localStorage (except critical auth tokens)
+      const keysToKeep = ['firebase:authUser', 'firebase:previousUser'] // Keep auth session
+      const allKeys = Object.keys(localStorage)
+      allKeys.forEach(key => {
+        if (!keysToKeep.some(keepKey => key.startsWith(keepKey))) {
+          localStorage.removeItem(key)
+          console.log('Cleared localStorage:', key)
+        }
+      })
+      
+      // 2. Clear sessionStorage completely
+      sessionStorage.clear()
+      console.log('Cleared sessionStorage')
+      
+      // 3. Clear any app-specific cache keys that might exist
+      const appCacheKeys = [
+        'hrflow_employees',
+        'hrflow_attendance',
+        'hrflow_leaves',
+        'hrflow_settings',
+        'hrflow_cache',
+        'org_data',
+        'employee_data',
+        'last_sync'
+      ]
+      appCacheKeys.forEach(key => {
+        localStorage.removeItem(key)
+        sessionStorage.removeItem(key)
+      })
+      
+      // 4. Clear IndexedDB databases if supported
+      if (window.indexedDB) {
+        const dbs = ['firebaseLocalStorageDb', 'hrflow-offline-cache']
+        dbs.forEach(dbName => {
+          try {
+            const req = indexedDB.deleteDatabase(dbName)
+            req.onsuccess = () => console.log('Deleted IndexedDB:', dbName)
+            req.onerror = () => console.warn('Failed to delete IndexedDB:', dbName)
+          } catch (e) {
+            console.warn('Error deleting IndexedDB:', e)
+          }
+        })
+      }
+      
+      // 5. Unregister service workers to clear their cache
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(registration => {
+            registration.unregister()
+            console.log('Unregistered service worker')
+          })
+        })
+      }
+      
+      // 6. Clear any React Query / SWR cache by resetting global state
+      if (window.__REACT_QUERY_GLOBAL_CACHE__) {
+        window.__REACT_QUERY_GLOBAL_CACHE__.clear()
+      }
+      
+      console.log('All cached data cleared successfully')
+    } catch (err) {
+      console.error('Error clearing cached data:', err)
+      // Continue anyway - the page reload will help
     }
   }
 
@@ -74,10 +148,11 @@ export default function OrganizationSwitcher() {
       await joinOrganisation(orgCode.trim())
       setShowJoinModal(false)
       setOrgCode('')
-      window.location.reload()
+      // Clear cache and reload with new org
+      clearAllCachedData()
+      window.location.href = window.location.origin + '/?nocache=' + Date.now()
     } catch (err) {
       setError(err.message || 'Failed to join organization')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -92,10 +167,11 @@ export default function OrganizationSwitcher() {
       await createOrganisation(orgName.trim())
       setShowCreateModal(false)
       setOrgName('')
-      window.location.reload()
+      // Clear cache and reload with new org
+      clearAllCachedData()
+      window.location.href = window.location.origin + '/?nocache=' + Date.now()
     } catch (err) {
       setError(err.message || 'Failed to create organization')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -319,6 +395,19 @@ export default function OrganizationSwitcher() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Full-screen loading overlay during organization switch */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center z-[100]">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+          <h3 className="text-lg font-bold text-zinc-900 mb-1">Switching Organization...</h3>
+          <p className="text-sm text-zinc-500">Clearing cached data and loading new organization</p>
+          <div className="mt-4 px-4 py-2 bg-zinc-100 rounded-lg">
+            <p className="text-xs text-zinc-600">
+              <span className="font-semibold">From:</span> {currentOrg.orgName}
+            </p>
           </div>
         </div>
       )}
