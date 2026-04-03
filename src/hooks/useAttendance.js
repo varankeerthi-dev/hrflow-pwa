@@ -172,12 +172,20 @@ export function calcOT(inTime, outTime, inDate, outDate, workHours) {
   }
 
   const workedMins = outMins - inMins
-  const expectedMins = (parseFloat(workHours) || 9) * 60
+  const expectedMins = (parseFloat(workHours) || 8) * 60
 
-  const otMins = Math.max(0, workedMins - expectedMins)
+  // Calculate raw OT minutes
+  const rawOtMins = Math.max(0, workedMins - expectedMins)
+  
+  // Only count OT if more than 30 minutes over permitted hours
+  // If OT is 30 mins or less, return 00:00
+  // If OT is more than 30 mins, return the full OT (not subtracting the 30 mins)
+  if (rawOtMins <= 30) {
+    return '00:00'
+  }
   
   // Round to next 5 minutes
-  const roundedOtMins = Math.ceil(otMins / 5) * 5
+  const roundedOtMins = Math.ceil(rawOtMins / 5) * 5
   
   const otHrs = Math.floor(roundedOtMins / 60)
   const otRemMins = roundedOtMins % 60
