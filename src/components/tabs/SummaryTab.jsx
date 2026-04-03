@@ -398,42 +398,43 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
               })
               
               return [
-                { label: 'Avg. Attendance', value: `${Math.round(filteredSummaryData.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (filteredSummaryData.length || 1) * 100)}%`, color: 'indigo' },
-                { label: 'Total OT Logged', value: `${filteredSummaryData.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'green' },
-                { label: 'Total Absences', value: filteredSummaryData.reduce((acc, curr) => acc + curr.absent, 0), color: 'red' }
+                { label: 'Avg. Attendance', value: `${Math.round(filteredSummaryData.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (filteredSummaryData.length || 1) * 100)}%`, color: 'indigo', icon: BarChart3 },
+                { label: 'Total OT Logged', value: `${filteredSummaryData.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'emerald', icon: Calendar },
+                { label: 'Total Absences', value: filteredSummaryData.reduce((acc, curr) => acc + curr.absent, 0), color: 'rose', icon: X }
               ].map(stat => (
-                <div key={stat.label} className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100">
-                  <p className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                  <p className={`text-2xl font-black text-${stat.color}-600 tracking-tighter`}>{stat.value}</p>
+                <div key={stat.label} className={`relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 group transition-all hover:shadow-md`}>
+                  <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full bg-${stat.color}-50/50 group-hover:scale-110 transition-transform`}></div>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1 relative z-10">{stat.label}</p>
+                  <p className={`text-3xl font-black text-${stat.color}-600 tracking-tighter relative z-10`}>{stat.value}</p>
                 </div>
               ))
             })()}
           </div>
 
           {/* Detailed Report Table Card */}
-          <div className="bg-[#E8E8E8] rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-50">
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-zinc-100 bg-zinc-50/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <FileSpreadsheet size={16} className="text-gray-400" />
-                <span className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest">Granular Resource Report</span>
+                <FileSpreadsheet size={16} className="text-zinc-400" />
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Granular Resource Analytics</span>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="h-[42px] bg-[#f9fafb]">
-                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider">Employee Name</th>
-                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider text-center">Present</th>
-                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider text-center">Absent</th>
-                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider text-center">OT Hours</th>
-                    <th className="px-[16px] text-[12px] font-inter font-semibold text-[#6b7280] uppercase tracking-wider text-right">Reliability</th>
+                  <tr className="h-10 bg-zinc-50/50 border-b border-zinc-100">
+                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Employee</th>
+                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">Present</th>
+                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">Absent</th>
+                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">OT Hours</th>
+                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right">Performance</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#f1f5f9]">
+                <tbody className="divide-y divide-zinc-50">
                   {summaryLoading ? (
                     <tr><td colSpan={5} className="text-center py-12"><Spinner /></td></tr>
                   ) : summaryData.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">No activity data for this period</td></tr>
+                    <tr><td colSpan={5} className="text-center py-20 text-zinc-300 font-black uppercase tracking-widest text-lg opacity-20 italic">No activity data</td></tr>
                   ) : (
                     summaryData
                       .filter(row => {
@@ -445,26 +446,28 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                         const total = row.present + row.absent
                         const pct = total > 0 ? Math.round((row.present / total) * 100) : 0
                         return (
-                          <tr key={row.employeeId} className="h-[48px] hover:bg-[#f8fafc] transition-colors group">
-                            <td className="px-[16px]">
-                              <p className="text-[13px] font-bold text-gray-700 uppercase tracking-tight">{emp?.name || 'Deleted Account'}</p>
-                              <p className="text-[10px] font-inter text-gray-400 font-medium">{emp?.department || 'Operations'}</p>
+                          <tr key={row.employeeId} className="h-14 hover:bg-zinc-50/50 transition-colors group">
+                            <td className="px-6">
+                              <div className="flex flex-col">
+                                <span className="text-[13px] font-black text-zinc-800 uppercase tracking-tight">{emp?.name || 'Deleted Account'}</span>
+                                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">{emp?.department || 'Operations'}</span>
+                              </div>
                             </td>
-                            <td className="px-[16px] text-center">
-                              <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-md text-[11px] font-inter font-bold">{row.present}d</span>
+                            <td className="px-6 text-center">
+                              <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-100">{row.present}D</span>
                             </td>
-                            <td className="px-[16px] text-center">
-                              <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-md text-[11px] font-inter font-bold">{row.absent}d</span>
+                            <td className="px-6 text-center">
+                              <span className="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-rose-100">{row.absent}D</span>
                             </td>
-                            <td className="px-[16px] text-center">
-                              <span className="font-mono font-bold text-gray-600 text-[13px]">{row.otHours.toFixed(1)}h</span>
+                            <td className="px-6 text-center">
+                              <span className="font-mono font-black text-zinc-600 text-[12px] tracking-tight">{row.otHours.toFixed(1)}h</span>
                             </td>
-                            <td className="px-[16px] text-right">
+                            <td className="px-6 text-right">
                               <div className="flex flex-col items-end gap-1">
-                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-indigo-500' : pct > 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div>
+                                <div className="w-24 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-emerald-500' : pct > 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }}></div>
                                 </div>
-                                <span className="text-[10px] font-inter font-black text-gray-400 uppercase tracking-widest">{pct}%</span>
+                                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{pct}% Reliability</span>
                               </div>
                             </td>
                           </tr>
@@ -480,51 +483,52 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
 
       {/* Monthly Pivot View */}
       {activeSubTab === 'monthlyView' && (
-        <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+        <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/30">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-gray-400" />
-              <span className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest">
-                Daily Attendance Grid ({monthlyViewData.employees?.length || 0} Employees)
+              <FileSpreadsheet size={16} className="text-zinc-400" />
+              <span className="text-[11px] font-black text-zinc-400 uppercase tracking-widest leading-none">
+                Resource Attendance Grid ({monthlyViewData.employees?.length || 0} Employees)
               </span>
             </div>
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setShowColumnSettings(true)}
-                className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-inter font-medium text-gray-600 transition-all"
+                className="h-[32px] px-3 flex items-center gap-2 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-lg text-[10px] font-black text-zinc-600 transition-all uppercase tracking-widest shadow-sm"
               >
-                <Filter size={14} /> Column Settings
+                <Filter size={12} /> Columns
               </button>
               <button 
                 onClick={() => setShowOrderModal(true)}
-                className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-inter font-medium text-gray-600 transition-all"
+                className="h-[32px] px-3 flex items-center gap-2 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-lg text-[10px] font-black text-zinc-600 transition-all uppercase tracking-widest shadow-sm"
               >
-                <Filter size={14} /> Display Order
+                <GripVertical size={12} /> Order
               </button>
               <button 
                 onClick={exportPDF}
-                className="h-[36px] px-4 bg-indigo-600 text-white rounded-lg text-[11px] font-inter font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all"
+                className="h-[32px] px-4 bg-zinc-900 text-white rounded-lg text-[10px] font-black flex items-center gap-2 hover:bg-black transition-all uppercase tracking-widest shadow-md"
               >
-                <Download size={14} /> Export PDF
+                <Download size={12} /> Export PDF
               </button>
             </div>
           </div>
-          <div className="px-4 pb-2 flex gap-4 text-[10px] font-inter border-b border-gray-100">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-50 border border-green-200 rounded"></span> Present</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-50 border border-red-200 rounded"></span> Absent</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-50 border border-purple-200 rounded"></span> Weekend</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-amber-50 border border-amber-200 rounded"></span> Holiday</span>
+          <div className="px-4 py-2 flex gap-4 text-[9px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-50 bg-white">
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></span> Present</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-rose-500 rounded-sm"></span> Absent</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-violet-500 rounded-sm"></span> Weekend</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-amber-400 rounded-sm"></span> Holiday</span>
           </div>
           
           {pivotLoading ? (
-            <div className="text-center py-20"><Spinner /></div>
+            <div className="text-center py-20 bg-zinc-50/50"><Spinner /></div>
           ) : (
-            <div className="overflow-x-auto max-h-[calc(100vh-200px)] flex-1 overflow-y-auto bg-[#E8E8E8]">
-              <table id="monthly-pivot-table" className="w-full border-separate border-spacing-0 text-[11px] font-inter">
-                <thead className="sticky top-0 z-10">
+            <div className="overflow-x-auto max-h-[calc(100vh-220px)] flex-1 overflow-y-auto bg-zinc-100">
+              <table id="monthly-pivot-table" className="w-full border-separate border-spacing-0 text-[11px]">
+                <thead className="sticky top-0 z-30">
                   <tr>
-                    <th className="px-2 py-2 text-center font-bold text-gray-800 border border-gray-400 w-10 bg-gray-200" rowSpan={2}>
-                      <div className="text-[10px]">Date</div>
+                    <th className="px-3 py-2 text-center font-black text-zinc-800 border-r border-b border-zinc-200 w-[60px] bg-zinc-100 sticky left-0 z-40 uppercase tracking-tighter" rowSpan={2}>
+                      <div className="text-[10px] opacity-50 mb-0.5">Date</div>
+                      <div className="h-0.5 w-full bg-zinc-300 rounded-full"></div>
                     </th>
                     {monthlyViewData.employees?.map((emp, idx) => {
                       let colSpan = 0;
@@ -532,15 +536,16 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                       if (columnSettings.outTime) colSpan++;
                       if (columnSettings.ot) colSpan++;
                       if (columnSettings.remarks) colSpan++;
-                      if (colSpan === 0) colSpan = 1; // Fallback
+                      if (colSpan === 0) colSpan = 1;
 
                       return (
                         <th 
                           key={emp.id} 
-                          className={`px-1 py-2 text-center font-bold border border-gray-400 min-w-[70px] bg-gray-100 text-gray-800`}
+                          className={`px-3 py-2 text-center font-black border-r border-b border-zinc-200 min-w-[80px] bg-zinc-50 text-zinc-800 uppercase tracking-tight`}
                           colSpan={colSpan}
                         >
-                          <div className="text-[10px] font-inter font-semibold truncate max-w-[100px] mx-auto text-gray-900">{emp.name}</div>
+                          <div className="truncate max-w-[120px] mx-auto text-[10px]">{emp.name}</div>
+                          <div className="text-[8px] font-bold text-zinc-400 tracking-tighter">{emp.department || 'Operations'}</div>
                         </th>
                       )
                     })}
@@ -548,11 +553,11 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                   <tr>
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        {columnSettings.inTime && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>In</th>}
-                        {columnSettings.outTime && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>Out</th>}
-                        {columnSettings.ot && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>OT</th>}
-                        {columnSettings.remarks && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>{remarksLabel}</th>}
-                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className={`px-1 py-1 border border-gray-400 bg-gray-50`}>-</th>}
+                        {columnSettings.inTime && <th className={`px-1 py-1 text-[8px] font-black border-r border-b border-zinc-200 text-center bg-white text-zinc-400 uppercase tracking-widest`}>In</th>}
+                        {columnSettings.outTime && <th className={`px-1 py-1 text-[8px] font-black border-r border-b border-zinc-200 text-center bg-white text-zinc-400 uppercase tracking-widest`}>Out</th>}
+                        {columnSettings.ot && <th className={`px-1 py-1 text-[8px] font-black border-r border-b border-zinc-200 text-center bg-white text-zinc-400 uppercase tracking-widest`}>OT</th>}
+                        {columnSettings.remarks && <th className={`px-1 py-1 text-[8px] font-black border-r border-b border-zinc-200 text-center bg-white text-zinc-400 uppercase tracking-widest`}>{remarksLabel}</th>}
+                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className={`px-1 py-1 border-r border-b border-zinc-200 bg-white`}>-</th>}
                       </React.Fragment>
                     ))}
                   </tr>
@@ -566,17 +571,15 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                     const isSunday = dayOfWeek === 0
                     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                     const isHoliday = (monthlyViewData.holidays || []).some(h => h.date === dateStr)
-                    const isNonWorking = isSunday || isHoliday
                     const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' })
                     
-                    const rowClass = isSunday ? 'bg-red-25' : (isHoliday ? 'bg-amber-25' : (isWeekend ? 'bg-purple-25' : ''))
-                    const dateClass = isSunday ? 'bg-red-100 text-red-800 border border-gray-400' : (isHoliday ? 'bg-amber-100 text-amber-800 border border-gray-400' : (isWeekend ? 'bg-purple-100 text-purple-800 border border-gray-400' : 'bg-gray-100 text-gray-900 border border-gray-400'))
+                    const dateClass = isSunday ? 'bg-rose-50 text-rose-700 border-rose-200' : (isHoliday ? 'bg-amber-50 text-amber-700 border-amber-200' : (isWeekend ? 'bg-violet-50 text-violet-700 border-zinc-200' : 'bg-zinc-100 text-zinc-900 border-zinc-200'))
                     
                     return (
-                      <tr key={day} className={rowClass}>
-                        <td className={`px-2 py-1.5 text-center font-bold ${dateClass}`}>
-                          <span className="text-[10px] font-inter font-bold">{day}</span>
-                          <div className="text-[8px] font-semibold opacity-80">{dayName}</div>
+                      <tr key={day} className="group hover:bg-zinc-50/50 transition-colors">
+                        <td className={`px-2 py-1.5 text-center font-black sticky left-0 z-20 border-r border-b border-zinc-100 shadow-[2px_0_5px_rgba(0,0,0,0.02)] ${dateClass}`}>
+                          <div className="text-[11px] leading-none">{day}</div>
+                          <div className="text-[8px] font-bold opacity-60 uppercase mt-0.5 tracking-tighter">{dayName}</div>
                         </td>
                         {monthlyViewData.employees?.map(emp => {
                           const [empYear, empMonth] = selectedMonth.split('-').map(Number)
@@ -597,54 +600,54 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                           return (
                             <React.Fragment key={emp.id}>
                               {isAbsentOrNonWorking ? (
-                                <td colSpan={colSpan} className={`px-1 py-1.5 text-center border border-gray-400 ${isBeforeStart ? 'bg-gray-100' : status.bg}`}>
-                                  <span className={`text-[11px] font-inter font-bold ${isBeforeStart ? 'text-gray-400' : status.color}`}>
-                                    {isBeforeStart ? '-' : status.text}
+                                <td colSpan={colSpan} className={`px-1 py-1.5 text-center border-r border-b border-zinc-100 ${isBeforeStart ? 'bg-zinc-50' : status.bg} transition-colors`}>
+                                  <span className={`text-[10px] font-black uppercase tracking-widest ${isBeforeStart ? 'text-zinc-300' : status.color}`}>
+                                    {isBeforeStart ? '—' : status.text}
                                   </span>
                                 </td>
                               ) : (
                                 <>
                                   {columnSettings.inTime && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
-                                      {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-50 text-[10px] font-bold text-zinc-800 bg-white group-hover:bg-transparent">
+                                      {isBeforeStart ? '—' : formatTimeTo12Hour(att?.inTime) || '—'}
                                     </td>
                                   )}
                                   {columnSettings.outTime && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-50 text-[10px] font-bold text-zinc-800 bg-white group-hover:bg-transparent">
                                       {(() => {
-                                        if (isBeforeStart) return '-'
+                                        if (isBeforeStart) return '—'
                                         const time = formatTimeTo12Hour(att?.outTime)
-                                        if (!time) return '-'
+                                        if (!time) return '—'
                                         const isOvernight = att?.shiftType === 'Night' && att?.outDate && att?.inDate && att.outDate !== att.inDate
                                         if (isOvernight) {
                                           const outDate = new Date(att.outDate)
-                                          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                                          const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
                                           const shortDate = `${months[outDate.getMonth()]} ${outDate.getDate()}`
                                           return (
-                                            <div className="flex flex-col items-center leading-tight">
-                                              <span className="font-semibold">{time}</span>
-                                              <span className="text-[8px] text-gray-600 flex items-center gap-0.5 mt-0.5 font-medium">
-                                                <ArrowRight size={9} /> {shortDate}
+                                            <div className="flex flex-col items-center leading-none">
+                                              <span className="font-bold">{time}</span>
+                                              <span className="text-[7px] text-rose-500 font-black flex items-center gap-0.5 mt-0.5 uppercase tracking-tighter">
+                                                <ArrowRight size={7} /> {shortDate}
                                               </span>
                                             </div>
                                           )
                                         }
-                                        return <span className="font-semibold">{time}</span>
+                                        return <span className="font-bold">{time}</span>
                                       })()}
                                     </td>
                                   )}
                                   {columnSettings.ot && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
-                                      {isBeforeStart ? '-' : formatOTHours(att?.otHours)}
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-50 text-[10px] font-black text-indigo-600 bg-white group-hover:bg-transparent">
+                                      {isBeforeStart ? '—' : formatOTHours(att?.otHours)}
                                     </td>
                                   )}
                                   {columnSettings.remarks && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-500 bg-white italic">
-                                      {isBeforeStart ? '-' : (att?.remarks || '-')}
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-50 text-[9px] font-medium text-zinc-400 bg-white group-hover:bg-transparent italic">
+                                      {isBeforeStart ? '—' : (att?.remarks || '—')}
                                     </td>
                                   )}
                                   {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 bg-white">-</td>
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-100 bg-white group-hover:bg-transparent">—</td>
                                   )}
                                 </>
                               )}
