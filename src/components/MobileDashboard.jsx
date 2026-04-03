@@ -275,16 +275,6 @@ export default function MobileDashboard() {
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400', section: 'System' },
     ], [stats.pendingCorrections, unreadChatCount, pendingTaskCount])
 
-    const moduleSections = useMemo(() => {
-      const sections = {}
-      visibleModules.forEach(mod => {
-        const section = mod.section || 'Other'
-        if (!sections[section]) sections[section] = []
-        sections[section].push(mod)
-      })
-      return sections
-    }, [visibleModules])
-
   const visibleModules = useMemo(() => {
     const userPerms = user?.permissions || {}
     const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -306,6 +296,16 @@ export default function MobileDashboard() {
       return modulePerms.view === true
     })
   }, [allModules, user?.permissions, user?.role])
+
+  const moduleSections = useMemo(() => {
+    const sections = {}
+    visibleModules.forEach(mod => {
+      const section = mod.section || 'Other'
+      if (!sections[section]) sections[section] = []
+      sections[section].push(mod)
+    })
+    return sections
+  }, [visibleModules])
 
   useEffect(() => {
     if (!user?.orgId) return
