@@ -33,6 +33,7 @@ import {
   MessageSquare
 } from 'lucide-react'
 import ActivityLogSidebar from '../components/ui/ActivityLogSidebar'
+import OrganizationSwitcher from '../components/ui/OrganizationSwitcher'
 import AttendanceTab from '../components/tabs/AttendanceTab'
 import CorrectionTab from '../components/tabs/CorrectionTab'
 import ApprovalsTab from '../components/tabs/ApprovalsTab'
@@ -358,6 +359,10 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Organization Switcher - Only show if user has organizations */}
+          {user?.orgId && <OrganizationSwitcher />}
+          <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+          
           <button onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all group">
             <div className="flex flex-col items-end text-right">
               <span className="text-[13px] font-black text-gray-800 tracking-tight group-hover:text-indigo-600 transition-colors leading-none">{user?.name}</span>
