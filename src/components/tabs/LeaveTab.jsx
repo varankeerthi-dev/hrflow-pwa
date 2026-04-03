@@ -218,15 +218,6 @@ export default function LeaveTab() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {stats.map(stat => (
-              <div key={stat.label} className="rounded-lg border border-slate-200 bg-white text-slate-950 shadow-sm p-2.5 px-4 flex justify-between items-center">
-                <h3 className="tracking-tight text-[10px] font-bold text-slate-500 uppercase">{stat.label}</h3>
-                <div className="text-base font-bold text-slate-900">{stat.count}</div>
-              </div>
-            ))}
-          </div>
-
           {showInlineForm && (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden animate-in fade-in duration-300">
               <div className="p-4 md:p-6 border-b border-slate-200">
