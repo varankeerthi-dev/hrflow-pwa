@@ -20,14 +20,15 @@ import {
   AlertCircle,
   User as UserIcon,
   ChevronDown,
-  MoreHorizontal
+  MoreHorizontal,
+  PencilLine
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 
 export default function LeaveTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const { loading: leaveLoading, fetchLeaves, applyLeave, updateLeaveStatus, calculateDuration } = useLeaves(user?.orgId)
+  const { loading: leaveLoading, fetchLeaves, applyLeave, updateLeaveStatus, deleteLeave, cancelLeave, calculateDuration } = useLeaves(user?.orgId)
   
   const [activeSub, setActiveSub] = useState('dashboard')
   const [leaves, setLeaves] = useState([])
@@ -35,6 +36,7 @@ export default function LeaveTab() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('All')
   const [approvalSetting, setApprovalSetting] = useState(null)
+  const [openMenuId, setOpenMenuId] = useState(null)
   
   const [form, setForm] = useState({ 
     employeeId: '', 
@@ -74,6 +76,17 @@ export default function LeaveTab() {
   useEffect(() => { 
     if (user?.orgId) refreshLeaves() 
   }, [user?.orgId, refreshLeaves])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (openMenuId && !event.target.closest('.relative')) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openMenuId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -537,7 +550,97 @@ export default function LeaveTab() {
                                 <button onClick={() => handleAction(leave.id, 'Rejected')} className="inline-flex items-center justify-center rounded-md text-[10px] font-semibold bg-rose-600 text-white h-7 px-2.5 shadow hover:bg-rose-700 transition-colors">Reject</button>
                               </div>
                             ) : (
-                              <MoreHorizontal size={14} className="text-slate-400 ml-auto" />
+                              <div className="relative">
+                                <button 
+                                  onClick={() => setOpenMenuId(openMenuId === leave.id ? null : leave.id)}
+                                  className="p-1.5 hover:bg-slate-100 rounded-md transition-colors"
+                                >
+                                  <MoreHorizontal size={16} className="text-slate-500" />
+                                </button>
+                                
+                                {openMenuId === leave.id && (
+                                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50 py-1">
+                                    <button 
+                                      onClick={() => {
+                                        alert(`View Details:\nEmployee: ${leave.employeeName}\nType: ${leave.leaveType}\nFrom: ${leave.fromDate}\nTo: ${leave.toDate}\nStatus: ${leave.status}\nReason: ${leave.reason || 'N/A'}`)
+                                        setOpenMenuId(null)
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                    >
+                                      <FileText size={14} />
+                                      View Details
+                                    </button>
+                                    
+                                    {leave.status === 'Pending' && (
+                                      <button 
+                                        onClick={() => {
+                                          setForm({
+                                            employeeId: leave.employeeId,
+                                            leaveType: leave.leaveType,
+                                            fromDate: leave.fromDate,
+                                            toDate: leave.toDate,
+                                            reason: leave.reason || '',
+                                            deptHeadId: leave.deptHeadId || '',
+                                            approverIds: leave.approverIds || [],
+                                            physicalFormSubmitted: leave.physicalFormSubmitted || false,
+                                            deterrentLeave: leave.deterrentLeave || false
+                                          })
+                                          setShowInlineForm(true)
+                                          setOpenMenuId(null)
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                      >
+                                        <PencilLine size={14} />
+                                        Edit Request
+                                      </button>
+                                    )}
+                                    
+                                    <div className="border-t border-slate-100 my-1"></div>
+                                    
+                                    {leave.status !== 'Cancelled' && leave.status !== 'Rejected' && (
+                                      <button 
+                                        onClick={async () => {
+                                          if (confirm(`Are you sure you want to cancel this ${leave.leaveType} leave for ${leave.employeeName}?`)) {
+                                            try {
+                                              await cancelLeave(leave.id)
+                                              refreshLeaves()
+                                              alert('Leave cancelled successfully!')
+                                            } catch (err) {
+                                              alert('Failed to cancel leave: ' + err.message)
+                                            }
+                                          }
+                                          setOpenMenuId(null)
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-2"
+                                      >
+                                        <X size={14} />
+                                        Cancel/Revoke
+                                      </button>
+                                    )}
+                                    
+                                    {(user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'hr' || user.uid === leave.createdBy) && (
+                                      <button 
+                                        onClick={async () => {
+                                          if (confirm(`Are you sure you want to DELETE this ${leave.leaveType} leave for ${leave.employeeName}?\n\nThis action cannot be undone.`)) {
+                                            try {
+                                              await deleteLeave(leave.id)
+                                              refreshLeaves()
+                                              alert('Leave deleted successfully!')
+                                            } catch (err) {
+                                              alert('Failed to delete leave: ' + err.message)
+                                            }
+                                          }
+                                          setOpenMenuId(null)
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                      >
+                                        <Trash2 size={14} />
+                                        Delete Permanently
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>

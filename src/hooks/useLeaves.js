@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { db } from '../lib/firebase'
-import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, updateDoc, doc, getDoc } from 'firebase/firestore'
+import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore'
 import { useAuth } from './useAuth'
 
 export function useLeaves(orgId) {
@@ -150,5 +150,97 @@ export function useLeaves(orgId) {
     }
   }
 
-  return { loading, error, fetchLeaves, applyLeave, updateLeaveStatus, calculateDuration }
+  const deleteLeave = async (requestId) => {
+    if (!orgId || !user) return
+    setLoading(true)
+    try {
+      const requestRef = doc(db, 'organisations', orgId, 'requests', requestId)
+      const requestSnap = await getDoc(requestRef)
+      const requestData = requestSnap.data()
+      
+      // Check permissions - only creator, admin, or HR can delete
+      const canDelete = 
+        user.uid === requestData.createdBy || 
+        user.role?.toLowerCase() === 'admin' || 
+        user.role?.toLowerCase() === 'hr'
+      
+      if (!canDelete) {
+        throw new Error('You do not have permission to delete this leave request')
+      }
+
+      // If leave was approved, restore the leave balance
+      if (requestData.status === 'Approved' && requestData.employeeId && requestData.duration) {
+        const empRef = doc(db, 'organisations', orgId, 'employees', requestData.employeeId)
+        const empSnap = await getDoc(empRef)
+        const empData = empSnap.data()
+        
+        if (empData) {
+          const currentBalance = empData.leaveBalance || 0
+          const newBalance = currentBalance + requestData.duration
+          await updateDoc(empRef, { leaveBalance: newBalance })
+        }
+      }
+
+      await deleteDoc(requestRef)
+      return true
+    } catch (err) {
+      console.error('Error deleting leave:', err)
+      setError(err.message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const cancelLeave = async (requestId) => {
+    if (!orgId || !user) return
+    setLoading(true)
+    try {
+      const requestRef = doc(db, 'organisations', orgId, 'requests', requestId)
+      const requestSnap = await getDoc(requestRef)
+      const requestData = requestSnap.data()
+      
+      // Check permissions - only creator, admin, or HR can cancel
+      const canCancel = 
+        user.uid === requestData.createdBy || 
+        user.role?.toLowerCase() === 'admin' || 
+        user.role?.toLowerCase() === 'hr'
+      
+      if (!canCancel) {
+        throw new Error('You do not have permission to cancel this leave request')
+      }
+
+      const updateData = {
+        status: 'Cancelled',
+        cancelledAt: serverTimestamp(),
+        cancelledBy: user.uid,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+      }
+
+      // If leave was approved, restore the leave balance
+      if (requestData.status === 'Approved' && requestData.employeeId && requestData.duration) {
+        const empRef = doc(db, 'organisations', orgId, 'employees', requestData.employeeId)
+        const empSnap = await getDoc(empRef)
+        const empData = empSnap.data()
+        
+        if (empData) {
+          const currentBalance = empData.leaveBalance || 0
+          const newBalance = currentBalance + requestData.duration
+          await updateDoc(empRef, { leaveBalance: newBalance })
+        }
+      }
+
+      await updateDoc(requestRef, updateData)
+      return true
+    } catch (err) {
+      console.error('Error cancelling leave:', err)
+      setError(err.message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { loading, error, fetchLeaves, applyLeave, updateLeaveStatus, deleteLeave, cancelLeave, calculateDuration }
 }
