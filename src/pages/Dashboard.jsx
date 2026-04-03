@@ -390,13 +390,13 @@ export default function Dashboard() {
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
           </div>
-          <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto no-scrollbar">
             {sections.map(section => {
               const sectionTabs = allTabs.filter(t => section.tabs.includes(t.id))
               if (sectionTabs.length === 0) return null
               return (
-                <div key={section.id} className="flex flex-col mb-4 last:mb-0">
-                  {!isCollapsed && <div className="px-2 py-1 mb-1"><span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{section.title}</span></div>}
+                <div key={section.id} className="flex flex-col mb-2 last:mb-0">
+                  {!isCollapsed && <div className="px-2 py-0.5 mb-0.5"><span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{section.title}</span></div>}
                   <div className="flex flex-col gap-0.5">
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id

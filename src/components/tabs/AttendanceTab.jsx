@@ -422,10 +422,38 @@ export default function AttendanceTab() {
   }, [reportByEmployee.length, reportData, filterEndDate])
 
   const [rows, setRows] = useState([])
+  const [hasGenerated, setHasGenerated] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [orgData, setOrgData] = useState(null)
   const [existingRecords, setExistingRecords] = useState([])
+
+  // Initialize with 5 empty placeholder rows
+  useEffect(() => {
+    if (activeSubTab === 'daily' && rows.length === 0 && !hasGenerated) {
+      const emptyRows = Array(5).fill(null).map((_, idx) => ({
+        employeeId: '',
+        name: '',
+        date: selectedDate,
+        inDate: selectedDate,
+        inTime: '',
+        outDate: selectedDate,
+        outTime: '',
+        otHours: '00:00',
+        remarks: '',
+        isAbsent: false,
+        sundayWorked: false,
+        sundayHoliday: false,
+        shiftType: 'Day',
+        status: 'Present',
+        isPlaceholder: true,
+        isNew: true,
+        minDailyHours: 8,
+        id: `placeholder-${idx}`
+      }))
+      setRows(emptyRows)
+    }
+  }, [activeSubTab, selectedDate, hasGenerated])
 
   const [showWarning, setShowWarning] = useState(false)
   const [showResetWarning, setShowResetWarning] = useState(false)
@@ -567,6 +595,7 @@ export default function AttendanceTab() {
       minDailyHours: emp.minDailyHours || 8
     }))
     setRows(newRows)
+    setHasGenerated(true)
   }
 
   const handleAddRow = () => {
@@ -617,6 +646,7 @@ export default function AttendanceTab() {
         shiftType: 'Day',
         status: 'Present',
         isNew: false,
+        isPlaceholder: false,
         minDailyHours: emp.minDailyHours || 8
       }
     }))
@@ -853,6 +883,28 @@ export default function AttendanceTab() {
 
       {activeSubTab === 'daily' ? (
         <>
+          {/* Submit Records Button - Above Table */}
+          {hasGenerated && rows.length > 0 && (
+            <div className="flex justify-end items-center gap-4 mb-3 px-1">
+              <div className="flex gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday).length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Absent: {rows.filter(r => r.isAbsent).length}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                {saved && <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium" style={{ fontFamily: "'Inter', sans-serif" }}><Check size={14} /> Submitted successfully</div>}
+                <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-9 px-5 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  {saving ? 'Processing...' : 'Submit Records'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Main Table Card */}
           <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
             <div className="overflow-x-visible pb-[400px]">
@@ -876,7 +928,7 @@ export default function AttendanceTab() {
                     <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium text-lg">Ready to generate attendance</td></tr>
                   ) : (
                     rows.map((row, idx) => (
-                      <tr key={row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${row.shiftType === 'Night' && row.outTime ? 'h-[48px]' : 'h-[40px]'}`}>
+                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${row.shiftType === 'Night' && row.outTime ? 'h-[48px]' : 'h-[40px]'}`}>
                         <td className="px-4">
                           {row.employeeId ? (
                             <div className="flex items-center gap-2">
@@ -899,7 +951,7 @@ export default function AttendanceTab() {
                         <td className="px-3 text-center">
                           <button
                             onClick={() => updateRow(row.employeeId, 'shiftType', row.shiftType === 'Night' ? 'Day' : 'Night')}
-                            disabled={row.isAbsent || row.status === 'SunHoliday'}
+                            disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId}
                             className={`relative w-[58px] h-5 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${row.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-500'}`}
                           >
                             <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 ${row.shiftType === 'Night' ? 'left-[36px]' : 'left-0.5'}`}></span>
@@ -914,7 +966,7 @@ export default function AttendanceTab() {
                               value={row.inTime}
                               onChange={(time) => updateRow(row.employeeId, 'inTime', time)}
                               onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
-                              disabled={row.isAbsent || row.status === 'SunHoliday'}
+                              disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId}
                               backgroundColor="#e8f4f8"
                               rowIdx={idx}
                               field="inTime"
@@ -935,7 +987,7 @@ export default function AttendanceTab() {
                               value={row.outTime}
                               onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
                               onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
-                              disabled={row.isAbsent || row.status === 'SunHoliday'}
+                              disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId}
                               backgroundColor="#fff4e8"
                               rowIdx={idx}
                               field="outTime"
@@ -982,7 +1034,8 @@ export default function AttendanceTab() {
                               type="text"
                               value={row.remarks || ''}
                               onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
-                              className="border-none bg-transparent p-0 text-xs focus:ring-0 text-zinc-600 w-full placeholder-zinc-400"
+                              disabled={!row.employeeId}
+                              className="border-none bg-transparent p-0 text-xs focus:ring-0 text-zinc-600 w-full placeholder-zinc-400 disabled:opacity-50"
                               placeholder="..."
                               style={{ fontFamily: "'Inter', sans-serif" }}
                             />
@@ -990,7 +1043,7 @@ export default function AttendanceTab() {
                         </td>
                         <td className="px-4">
                           <div className="flex items-center gap-2 justify-end">
-                            {[
+                            {!row.isPlaceholder && [
                               { id: 'Present', label: 'Present', color: 'green' },
                               { id: 'Absent', label: 'Absent', color: 'red' },
                               ...(isSunday ? [
@@ -1016,12 +1069,16 @@ export default function AttendanceTab() {
                                 {st.label}
                               </button>
                             ))}
+                            {row.isPlaceholder && (
+                              <span className="text-xs text-gray-400 italic">Select employee</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-2 text-center">
                           <button
-                            onClick={() => handleClearRow(row.employeeId)}
-                            className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                            onClick={() => handleClearRow(row.id || row.employeeId)}
+                            disabled={!row.employeeId && !row.id}
+                            className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-30"
                             title="Clear row"
                           >
                             <X size={14} />
@@ -1035,23 +1092,24 @@ export default function AttendanceTab() {
             </div>
           </div>
 
-          {/* Bottom Footer Card */}
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center sticky bottom-0">
+          {/* Bottom Footer Card - Stats Only */}
+          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center sticky bottom-0">
             <div className="flex gap-6 px-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday).length}</span>
+                <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Absent: {rows.filter(r => r.isAbsent).length}</span>
+                <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Absent: {rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Total: {rows.filter(r => !r.isPlaceholder).length}</span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              {saved && <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium" style={{ fontFamily: "'Inter', sans-serif" }}><Check size={14} /> Submitted successfully</div>}
-              <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-10 px-6 bg-indigo-600 text-white font-medium rounded-lg text-sm shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50" style={{ fontFamily: "'Inter', sans-serif" }}>
-                {saving ? 'Processing...' : 'Submit Records'}
-              </button>
+            <div className="text-xs text-gray-400 italic">
+              {hasGenerated ? 'Records ready to submit' : 'Click "Generate Active" to populate'}
             </div>
           </div>
         </>
