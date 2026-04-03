@@ -1722,21 +1722,21 @@ export default function SettingsTab() {
         .group-header { color: #1e293b; font-weight: 800; font-size: 13px; margin-top: 24px; margin-bottom: 12px; }
       `}</style>
 
-      <div className="mb-6 overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.14),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] shadow-[0_28px_100px_rgba(15,23,42,0.10)] no-print">
-        <div className="px-5 py-6 md:px-7 md:py-7">
-          <div className="flex flex-col gap-6">
+      <div className="mb-3 overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.14),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] shadow-[0_28px_100px_rgba(15,23,42,0.10)] no-print">
+        <div className="px-4 py-3 md:px-6 md:py-4">
+          <div className="flex flex-col gap-3">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 shadow-sm">
                 <span className="h-2 w-2 rounded-full bg-indigo-500" />
                 {currentSettingsMeta.kicker}
               </div>
-              <h1 className="mt-4 text-[28px] font-black tracking-[-0.04em] text-slate-950 md:text-[34px]">
+              <h1 className="mt-2 text-[24px] font-black tracking-[-0.04em] text-slate-950 md:text-[28px]">
                 {currentSettingsMeta.title}
               </h1>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {visibleSubTabs.map(tab => {
               const meta = settingsSubTabMeta[tab.id] || {}
               const isActive = activeSubTab === tab.id
@@ -1746,7 +1746,7 @@ export default function SettingsTab() {
                   type="button"
                   onClick={() => setActiveSubTab(tab.id)}
                   aria-pressed={isActive}
-                  className={`rounded-[22px] border px-4 py-4 text-left transition-all ${
+                  className={`rounded-[22px] border px-3 py-2.5 text-left transition-all ${
                     isActive
                       ? 'border-indigo-500 bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
                       : 'border-slate-200 bg-white/88 text-slate-700 hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-lg'
