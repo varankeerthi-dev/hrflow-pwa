@@ -120,6 +120,7 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
         const filteredEmployees = empSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(emp => {
+            if (emp.hideInAttendance) return false
             if (isEmployeeActiveStatus(emp.status)) return true
             
             if (emp.joinedDate) {
@@ -390,16 +391,23 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
         <>
           {/* Stats Summary Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { label: 'Avg. Attendance', value: `${Math.round(summaryData.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (summaryData.length || 1) * 100)}%`, color: 'indigo' },
-              { label: 'Total OT Logged', value: `${summaryData.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'green' },
-              { label: 'Total Absences', value: summaryData.reduce((acc, curr) => acc + curr.absent, 0), color: 'red' }
-            ].map(stat => (
-              <div key={stat.label} className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100">
-                <p className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                <p className={`text-2xl font-black text-${stat.color}-600 tracking-tighter`}>{stat.value}</p>
-              </div>
-            ))}
+            {(() => {
+              const filteredSummaryData = summaryData.filter(row => {
+                const emp = employees.find(e => e.id === row.employeeId)
+                return emp && !emp.hideInAttendance
+              })
+              
+              return [
+                { label: 'Avg. Attendance', value: `${Math.round(filteredSummaryData.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (filteredSummaryData.length || 1) * 100)}%`, color: 'indigo' },
+                { label: 'Total OT Logged', value: `${filteredSummaryData.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'green' },
+                { label: 'Total Absences', value: filteredSummaryData.reduce((acc, curr) => acc + curr.absent, 0), color: 'red' }
+              ].map(stat => (
+                <div key={stat.label} className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100">
+                  <p className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                  <p className={`text-2xl font-black text-${stat.color}-600 tracking-tighter`}>{stat.value}</p>
+                </div>
+              ))
+            })()}
           </div>
 
           {/* Detailed Report Table Card */}
@@ -427,36 +435,41 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                   ) : summaryData.length === 0 ? (
                     <tr><td colSpan={5} className="text-center py-20 text-gray-300 font-medium uppercase tracking-tighter text-lg opacity-40 italic">No activity data for this period</td></tr>
                   ) : (
-                    summaryData.map(row => {
-                      const emp = employees.find(e => e.id === row.employeeId)
-                      const total = row.present + row.absent
-                      const pct = total > 0 ? Math.round((row.present / total) * 100) : 0
-                      return (
-                        <tr key={row.employeeId} className="h-[48px] hover:bg-[#f8fafc] transition-colors group">
-                          <td className="px-[16px]">
-                            <p className="text-[13px] font-bold text-gray-700 uppercase tracking-tight">{emp?.name || 'Deleted Account'}</p>
-                            <p className="text-[10px] font-inter text-gray-400 font-medium">{emp?.department || 'Operations'}</p>
-                          </td>
-                          <td className="px-[16px] text-center">
-                            <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-md text-[11px] font-inter font-bold">{row.present}d</span>
-                          </td>
-                          <td className="px-[16px] text-center">
-                            <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-md text-[11px] font-inter font-bold">{row.absent}d</span>
-                          </td>
-                          <td className="px-[16px] text-center">
-                            <span className="font-mono font-bold text-gray-600 text-[13px]">{row.otHours.toFixed(1)}h</span>
-                          </td>
-                          <td className="px-[16px] text-right">
-                            <div className="flex flex-col items-end gap-1">
-                              <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-indigo-500' : pct > 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div>
+                    summaryData
+                      .filter(row => {
+                        const emp = employees.find(e => e.id === row.employeeId)
+                        return emp && !emp.hideInAttendance
+                      })
+                      .map(row => {
+                        const emp = employees.find(e => e.id === row.employeeId)
+                        const total = row.present + row.absent
+                        const pct = total > 0 ? Math.round((row.present / total) * 100) : 0
+                        return (
+                          <tr key={row.employeeId} className="h-[48px] hover:bg-[#f8fafc] transition-colors group">
+                            <td className="px-[16px]">
+                              <p className="text-[13px] font-bold text-gray-700 uppercase tracking-tight">{emp?.name || 'Deleted Account'}</p>
+                              <p className="text-[10px] font-inter text-gray-400 font-medium">{emp?.department || 'Operations'}</p>
+                            </td>
+                            <td className="px-[16px] text-center">
+                              <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-md text-[11px] font-inter font-bold">{row.present}d</span>
+                            </td>
+                            <td className="px-[16px] text-center">
+                              <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-md text-[11px] font-inter font-bold">{row.absent}d</span>
+                            </td>
+                            <td className="px-[16px] text-center">
+                              <span className="font-mono font-bold text-gray-600 text-[13px]">{row.otHours.toFixed(1)}h</span>
+                            </td>
+                            <td className="px-[16px] text-right">
+                              <div className="flex flex-col items-end gap-1">
+                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-indigo-500' : pct > 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div>
+                                </div>
+                                <span className="text-[10px] font-inter font-black text-gray-400 uppercase tracking-widest">{pct}%</span>
                               </div>
-                              <span className="text-[10px] font-inter font-black text-gray-400 uppercase tracking-widest">{pct}%</span>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })
+                            </td>
+                          </tr>
+                        )
+                      })
                   )}
                 </tbody>
               </table>
