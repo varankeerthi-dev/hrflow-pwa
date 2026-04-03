@@ -686,53 +686,53 @@ export default function TasksTab() {
         )}
       </div>
 
-      {/* Minimal Task Modal */}
+      {/* Modern Task Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="New Directive" size="2xl">
         <form onSubmit={handleCreateTask} className="p-8 space-y-8">
           <div className="space-y-6">
             <div className="relative">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Primary Objective</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Primary Objective</label>
               <input
                 type="text"
                 required
-                className="w-full bg-slate-50/50 border-b-2 border-slate-100 focus:border-indigo-500 text-xl font-black text-slate-800 transition-all outline-none pb-2 placeholder:text-slate-200 uppercase tracking-tight"
+                className="w-full bg-slate-50/50 border-b-2 border-slate-100 focus:border-indigo-500 text-xl font-bold text-slate-800 transition-all outline-none pb-2 placeholder:text-slate-200"
                 placeholder="WHAT NEEDS TO BE DONE?"
                 value={newTask.title}
                 onChange={e => handleTextChange('title', e.target.value)}
               />
-              {mentionState.active && mentionState.targetField === 'title' && !mentionState.targetId && <div className="absolute top-full left-0 z-50 w-full"><MentionList /></div>}
+              {mentionState.active && mentionState.targetField === 'title' && !mentionState.targetId && <MentionList />}
             </div>
 
             <div className="relative">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Operational Details</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Operational Details</label>
               <textarea
-                className="w-full bg-slate-50 border border-slate-100 focus:border-indigo-500 rounded-2xl p-5 text-sm font-bold text-slate-600 transition-all outline-none min-h-[120px] resize-none placeholder:text-slate-300 uppercase tracking-tight"
+                className="w-full bg-slate-50/50 border border-slate-100 focus:border-indigo-500 rounded-xl p-4 text-sm font-medium text-slate-600 transition-all outline-none min-h-[100px] resize-none placeholder:text-slate-300"
                 placeholder="ADDITIONAL CONTEXT..."
                 value={newTask.description}
                 onChange={e => handleTextChange('description', e.target.value)}
               />
-              {mentionState.active && mentionState.targetField === 'description' && !mentionState.targetId && <div className="absolute top-full left-0 z-50 w-full"><MentionList /></div>}
+              {mentionState.active && mentionState.targetField === 'description' && !mentionState.targetId && <MentionList />}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Priority</label>
-              <select className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-indigo-500 transition-all" value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value})}>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Protocol</label>
+              <select className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none" value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value})}>
                 <option value="normal">NORMAL</option>
                 <option value="high">HIGH</option>
                 <option value="urgent">URGENT</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Temporal Key</label>
-              <DatePicker selected={newTask.dueDate} onChange={date => setNewTask({...newTask, dueDate: date})} className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-indigo-500 transition-all" placeholderText="SET DEADLINE" dateFormat="MMM d, yyyy" />
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Temporal Key</label>
+              <DatePicker selected={newTask.dueDate} onChange={date => setNewTask({...newTask, dueDate: date})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none" placeholderText="SET DEADLINE" dateFormat="MMM d, yyyy" />
             </div>
           </div>
 
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Personnel Assignment</label>
-            <div className="flex flex-wrap gap-2 p-5 bg-slate-50/50 border border-slate-100 rounded-3xl min-h-[80px]">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Personnel Assignment</label>
+            <div className="flex flex-wrap gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl min-h-[60px]">
               {taskEmployees.map(emp => {
                 const isSelected = newTask.assignedTo?.includes(emp.id)
                 return (
@@ -740,7 +740,7 @@ export default function TasksTab() {
                     const current = newTask.assignedTo || []
                     const updated = isSelected ? current.filter(id => id !== emp.id) : [...current, emp.id]
                     setNewTask({ ...newTask, assignedTo: updated })
-                  }} className={`px-5 py-2.5 rounded-xl text-[11px] font-black transition-all border uppercase tracking-tight ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-300'}`}>
+                  }} className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-300'}`}>
                     {emp.name}
                   </button>
                 )
@@ -748,9 +748,9 @@ export default function TasksTab() {
             </div>
           </div>
 
-          <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 h-14 bg-slate-100 text-slate-500 font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Abort</button>
-            <button type="submit" className="flex-[2] h-14 bg-indigo-600 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Initialize Directive</button>
+          <div className="flex gap-4 pt-6 border-t border-slate-100">
+            <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 h-14 bg-slate-100 text-slate-500 font-bold uppercase text-xs tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Abort</button>
+            <button type="submit" className="flex-[2] h-14 bg-slate-900 text-white font-bold uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200">Initialize Directive</button>
           </div>
         </form>
       </Modal>
