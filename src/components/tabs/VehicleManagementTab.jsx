@@ -3,6 +3,9 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, doc, updateDoc, setDoc } from 'firebase/firestore'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import { format } from 'date-fns'
 import { 
   Car, 
   Plus, 
@@ -20,7 +23,8 @@ import {
   Navigation,
   Fuel,
   Settings,
-  ExternalLink
+  ExternalLink,
+  CalendarIcon
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -222,78 +226,79 @@ export default function VehicleManagementTab() {
               </button>
             </div>
 
-            {/* Brutal Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[1000px]">
-                <thead>
-                  <tr className="border-b-4 border-zinc-900">
-                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900 w-[30%]">Asset Designation</th>
-                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900">Registration</th>
-                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900">Insurance Control</th>
-                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900">Unit Lead</th>
-                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900 text-right">Ops</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {loadingVehicles ? (
-                    <tr><td colSpan={5} className="py-32 text-center"><Spinner size="w-12 h-12" color="text-zinc-900" /></td></tr>
-                  ) : filteredVehicles.length === 0 ? (
-                    <tr><td colSpan={5} className="py-40 text-center text-zinc-200 font-black uppercase tracking-[0.3em] text-2xl italic">System Empty</td></tr>
-                  ) : filteredVehicles.map(v => (
-                    <tr key={v.id} className="group hover:bg-zinc-50/50 transition-colors">
-                      <td className="py-8">
-                        <div className="flex flex-col">
-                          <span className="text-xl font-black text-zinc-900 uppercase tracking-tighter leading-none group-hover:text-indigo-600 transition-colors">{v.name}</span>
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">Fleet Deployment Unit</span>
-                        </div>
-                      </td>
-                      <td className="py-8">
-                        <div className="flex flex-col">
-                          <span className="text-[14px] font-mono font-black text-zinc-900 tracking-tight leading-none uppercase">{v.vehicleNo}</span>
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase mt-2">RC: {v.rcNo || 'N/A'}</span>
-                        </div>
-                      </td>
-                      <td className="py-8">
-                        <div className="flex flex-col">
-                          <span className={`text-[11px] font-black uppercase tracking-widest mb-2 ${isExpired(v.insuranceExpiry) ? 'text-rose-600' : 'text-emerald-600'}`}>
-                            {isExpired(v.insuranceExpiry) ? 'Expired / Security Alert' : 'Operational / Active'}
-                          </span>
-                          <span className="text-sm font-black text-zinc-900 tabular-nums">
-                            {v.insuranceExpiry ? new Date(v.insuranceExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : '—'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-8">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-zinc-100 rounded flex items-center justify-center text-[10px] font-black text-zinc-900 border border-zinc-200 group-hover:bg-zinc-900 group-hover:text-white transition-all">
-                            {getInitials(employees.find(e => e.id === v.inchargeId)?.name || '??')}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[13px] font-black text-zinc-900 uppercase tracking-tight leading-none">{employees.find(e => e.id === v.inchargeId)?.name || 'Unassigned'}</span>
-                            <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter mt-1">Asset Custodian</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-8 text-right">
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button 
-                            onClick={() => setSelectedVehicleForHistory(v)}
-                            className="h-10 w-10 flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-white border border-transparent hover:border-zinc-100 transition-all"
-                          >
-                            <History size={18} strokeWidth={2.5} />
-                          </button>
-                          <button 
-                            onClick={() => setEditingVehicle(v)}
-                            className="h-10 w-10 flex items-center justify-center bg-zinc-900 text-white hover:bg-indigo-600 transition-all"
-                          >
-                            <Edit2 size={16} strokeWidth={3} />
-                          </button>
-                        </div>
-                      </td>
+            {/* Table */}
+            <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full caption-bottom text-sm border-collapse min-w-[1000px]">
+                  <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+                    <tr className="border-b border-zinc-200">
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 w-[30%]">Asset Designation</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Registration</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Insurance Control</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Unit Lead</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="[&_tr:last-child]:border-0">
+                    {loadingVehicles ? (
+                      <tr><td colSpan={5} className="py-20 text-center"><Spinner size="w-8 h-8" color="text-zinc-400" /></td></tr>
+                    ) : filteredVehicles.length === 0 ? (
+                      <tr><td colSpan={5} className="py-20 text-center text-zinc-400 font-medium italic">No vehicles found</td></tr>
+                    ) : filteredVehicles.map(v => (
+                      <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors">
+                        <td className="px-3 py-2 align-middle">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-zinc-900">{v.name}</span>
+                            <span className="text-[10px] text-zinc-400">Fleet Deployment Unit</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
+                          <div className="flex flex-col">
+                            <span>{v.vehicleNo}</span>
+                            <span className="text-[10px] text-zinc-400">RC: {v.rcNo || 'N/A'}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 align-middle">
+                          <div className="flex flex-col">
+                            <span className={`text-[11px] font-medium ${isExpired(v.insuranceExpiry) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {isExpired(v.insuranceExpiry) ? 'Expired' : 'Active'}
+                            </span>
+                            <span className="text-xs text-zinc-500">
+                              {v.insuranceExpiry ? new Date(v.insuranceExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 align-middle">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-600">
+                              {getInitials(employees.find(e => e.id === v.inchargeId)?.name || '??')}
+                            </div>
+                            <span className="text-[12px] font-medium text-zinc-700">
+                              {employees.find(e => e.id === v.inchargeId)?.name || 'Unassigned'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 align-middle text-right">
+                          <div className="flex justify-end gap-1">
+                            <button 
+                              onClick={() => setSelectedVehicleForHistory(v)}
+                              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded transition-all"
+                            >
+                              <History size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setEditingVehicle(v)}
+                              className="h-8 w-8 flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded transition-all"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -374,15 +379,15 @@ export default function VehicleManagementTab() {
 
       {/* Add/Edit Vehicle Modal */}
       {(showAddVehicle || editingVehicle) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 fade-in duration-200">
-            <div className="bg-zinc-900 p-6 flex justify-between items-center text-white">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-lg font-black uppercase tracking-tight">{editingVehicle ? 'Update Vehicle' : 'Register Vehicle'}</h2>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Fleet Asset Onboarding</p>
+                <h3 className="text-white font-semibold text-[13px]">{editingVehicle ? 'Edit Vehicle' : 'Add New Vehicle'}</h3>
+                <p className="text-[10px] text-indigo-200 mt-0.5">Fleet Asset Management</p>
               </div>
-              <button onClick={() => { setShowAddVehicle(false); setEditingVehicle(null); }} className="text-zinc-400 hover:text-white transition-colors">
-                <X size={20} />
+              <button onClick={() => { setShowAddVehicle(false); setEditingVehicle(null); }} className="text-white/80 hover:text-white">
+                <X size={18} />
               </button>
             </div>
             
@@ -391,7 +396,6 @@ export default function VehicleManagementTab() {
               const formData = new FormData(e.target)
               const data = Object.fromEntries(formData.entries())
               if (editingVehicle) {
-                // If insurance updated, log history
                 const historyEntry = data.insuranceExpiry !== editingVehicle.insuranceExpiry ? {
                   field: 'Insurance Expiry',
                   oldValue: editingVehicle.insuranceExpiry,
@@ -402,41 +406,103 @@ export default function VehicleManagementTab() {
               } else {
                 addVehicleMutation.mutate(data)
               }
-            }} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vehicle Name</label>
-                  <input name="name" defaultValue={editingVehicle?.name} required placeholder="e.g. Toyota Corolla" className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
+            }} className="p-6 space-y-6 overflow-y-auto">
+              
+              {/* Vehicle Information */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Vehicle Name</label>
+                  <input 
+                    name="name" 
+                    defaultValue={editingVehicle?.name} 
+                    required 
+                    placeholder="e.g. Toyota Corolla" 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                  />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vehicle Number</label>
-                  <input name="vehicleNo" defaultValue={editingVehicle?.vehicleNo} required placeholder="e.g. KA-01-AB-1234" className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all uppercase" />
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Vehicle Number</label>
+                  <input 
+                    name="vehicleNo" 
+                    defaultValue={editingVehicle?.vehicleNo} 
+                    required 
+                    placeholder="e.g. KA-01-AB-1234" 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400 uppercase" 
+                  />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Purchase Date</label>
-                  <input type="date" name="purchaseDate" defaultValue={editingVehicle?.purchaseDate} required className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Purchase Date</label>
+                  <input 
+                    type="date" 
+                    name="purchaseDate" 
+                    defaultValue={editingVehicle?.purchaseDate} 
+                    required 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all" 
+                  />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">RC Number</label>
-                  <input name="rcNo" defaultValue={editingVehicle?.rcNo} required placeholder="RCXXXXXX" className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all uppercase" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Insurance Valid Till</label>
-                  <input type="date" name="insuranceExpiry" defaultValue={editingVehicle?.insuranceExpiry} required className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Assign Incharge</label>
-                  <select name="inchargeId" defaultValue={editingVehicle?.inchargeId} required className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                    <option value="">Select Employee</option>
-                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                  </select>
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">RC Number</label>
+                  <input 
+                    name="rcNo" 
+                    defaultValue={editingVehicle?.rcNo} 
+                    required 
+                    placeholder="RCXXXXXX" 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400 uppercase" 
+                  />
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-4">
-                <button type="button" onClick={() => { setShowAddVehicle(false); setEditingVehicle(null); }} className="flex-1 h-12 bg-zinc-100 text-zinc-600 font-black rounded-xl uppercase text-[10px] tracking-widest hover:bg-zinc-200">Cancel</button>
-                <button type="submit" disabled={addVehicleMutation.isPending || updateVehicleMutation.isPending} className="flex-2 h-12 bg-zinc-900 text-white font-black rounded-xl uppercase text-[10px] tracking-widest shadow-xl hover:bg-black transition-all">
-                  {addVehicleMutation.isPending || updateVehicleMutation.isPending ? 'Processing...' : (editingVehicle ? 'Update Asset' : 'Save Vehicle')}
+              {/* Insurance & Assignment Section */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                  <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                    <CheckCircle2 size={12} className="text-gray-400" />
+                    Insurance & Assignment
+                  </h5>
+                  <span className="text-[10px] font-medium text-gray-400 italic">Required fields</span>
+                </div>
+                
+                <div className="p-4 grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">Insurance Valid Till</label>
+                    <input 
+                      type="date" 
+                      name="insuranceExpiry" 
+                      defaultValue={editingVehicle?.insuranceExpiry} 
+                      required 
+                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">Assign Incharge</label>
+                    <select 
+                      name="inchargeId" 
+                      defaultValue={editingVehicle?.inchargeId} 
+                      required 
+                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="">Select Employee</option>
+                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                <button 
+                  type="button" 
+                  onClick={() => { setShowAddVehicle(false); setEditingVehicle(null); }} 
+                  className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={addVehicleMutation.isPending || updateVehicleMutation.isPending} 
+                  className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addVehicleMutation.isPending || updateVehicleMutation.isPending ? 'Saving...' : (editingVehicle ? 'Update Vehicle' : 'Add Vehicle')}
                 </button>
               </div>
             </form>
@@ -446,15 +512,15 @@ export default function VehicleManagementTab() {
 
       {/* Service & Complaint Modal */}
       {showServiceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 fade-in duration-200">
-            <div className="bg-indigo-600 p-6 flex justify-between items-center text-white">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-lg font-black uppercase tracking-tight">New Maintenance Log</h2>
-                <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mt-1">Service & Fault Reporting</p>
+                <h3 className="text-white font-semibold text-[13px]">Log Maintenance</h3>
+                <p className="text-[10px] text-indigo-200 mt-0.5">Service & Fault Reporting</p>
               </div>
-              <button onClick={() => setShowServiceModal(false)} className="text-indigo-200 hover:text-white transition-colors">
-                <X size={20} />
+              <button onClick={() => setShowServiceModal(false)} className="text-white/80 hover:text-white">
+                <X size={18} />
               </button>
             </div>
             
@@ -462,58 +528,120 @@ export default function VehicleManagementTab() {
               e.preventDefault()
               const formData = new FormData(e.target)
               const data = Object.fromEntries(formData.entries())
-              const fileInput = e.target.querySelector('input[type=\"file\"]')
+              const fileInput = e.target.querySelector('input[type="file"]')
               let billURL = null
               if (fileInput.files[0]) {
                 billURL = await handleFileUpload(fileInput.files[0])
               }
               addServiceMutation.mutate({ ...data, billURL })
-            }} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Target Vehicle</label>
-                  <select name="vehicleId" required className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                    <option value="">Choose Fleet Asset</option>
+            }} className="p-6 space-y-6 overflow-y-auto">
+              
+              {/* Service Details */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="col-span-2">
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Vehicle</label>
+                  <select 
+                    name="vehicleId" 
+                    required 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="">Select Vehicle</option>
                     {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} ({v.vehicleNo})</option>)}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Entry Type</label>
-                  <select name="type" required className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Entry Type</label>
+                  <select 
+                    name="type" 
+                    required 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                  >
                     <option value="Regular Service">Regular Service</option>
                     <option value="Complaint">Complaint / Repair</option>
                     <option value="Oil Change">Oil Change</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Service Date</label>
-                  <input type="date" name="date" required className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Current Mileage (KM)</label>
-                  <input type="number" name="mileage" required placeholder="0" className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Next Service Due (Date)</label>
-                  <input type="date" name="nextDueDate" className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Service Done At (Station & Location)</label>
-                  <input name="location" required placeholder="e.g. Bosch Service Center, Downtown" className="w-full h-11 border border-zinc-200 rounded-xl px-4 text-xs font-bold bg-zinc-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Bill Copy (Upload PDF)</label>
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Service Date</label>
                   <div className="relative">
-                    <input type="file" accept="application/pdf" className="w-full text-[10px] font-bold text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
-                    {uploading && <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 text-[9px] font-bold text-indigo-600"><Spinner size="w-3 h-3" /> Uploading...</div>}
+                    <input 
+                      type="date" 
+                      name="date" 
+                      required 
+                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all" 
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Current Mileage (KM)</label>
+                  <input 
+                    type="number" 
+                    name="mileage" 
+                    required 
+                    placeholder="0" 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Next Service Due</label>
+                  <input 
+                    type="date" 
+                    name="nextDueDate" 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all" 
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Service Location</label>
+                  <input 
+                    name="location" 
+                    required 
+                    placeholder="e.g. Bosch Service Center, Downtown" 
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                  />
+                </div>
+              </div>
+
+              {/* Bill Upload Section - Shadcn-like Card */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                  <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                    <FileText size={12} className="text-gray-400" />
+                    Bill Copy
+                  </h5>
+                  <span className="text-[10px] font-medium text-gray-400 italic">PDF only, Optional</span>
+                </div>
+                
+                <div className="p-4">
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="application/pdf" 
+                      className="w-full text-[11px] text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[11px] file:font-medium file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer" 
+                    />
+                    {uploading && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-[11px] font-medium text-indigo-600">
+                        <Spinner size="w-3 h-3" /> Uploading...
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-4">
-                <button type="button" onClick={() => setShowServiceModal(false)} className="flex-1 h-12 bg-zinc-100 text-zinc-600 font-black rounded-xl uppercase text-[10px] tracking-widest hover:bg-zinc-200">Cancel</button>
-                <button type="submit" disabled={addServiceMutation.isPending || uploading} className="flex-2 h-12 bg-indigo-600 text-white font-black rounded-xl uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">
-                  {addServiceMutation.isPending || uploading ? 'Saving...' : 'Record maintenance'}
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                <button 
+                  type="button" 
+                  onClick={() => setShowServiceModal(false)} 
+                  className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={addServiceMutation.isPending || uploading} 
+                  className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addServiceMutation.isPending || uploading ? 'Saving...' : 'Record Maintenance'}
                 </button>
               </div>
             </form>
@@ -523,53 +651,58 @@ export default function VehicleManagementTab() {
 
       {/* History Log Modal */}
       {selectedVehicleForHistory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 fade-in duration-200">
-            <div className="bg-zinc-900 p-6 flex justify-between items-center text-white">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-lg font-black uppercase tracking-tight">Change History</h2>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">{selectedVehicleForHistory.name} - {selectedVehicleForHistory.vehicleNo}</p>
+                <h3 className="text-white font-semibold text-[13px]">Change History</h3>
+                <p className="text-[10px] text-indigo-200 mt-0.5">{selectedVehicleForHistory.name} - {selectedVehicleForHistory.vehicleNo}</p>
               </div>
-              <button onClick={() => setSelectedVehicleForHistory(null)} className="text-zinc-400 hover:text-white transition-colors">
-                <X size={20} />
+              <button onClick={() => setSelectedVehicleForHistory(null)} className="text-white/80 hover:text-white">
+                <X size={18} />
               </button>
             </div>
             
-            <div className="p-6 max-h-[60vh] overflow-y-auto">
-              <div className="space-y-4">
-                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Registration Record</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-zinc-700">Initialized in system</span>
-                    <span className="text-[10px] font-bold text-zinc-400">{selectedVehicleForHistory.createdAt?.toDate ? selectedVehicleForHistory.createdAt.toDate().toLocaleDateString() : '—'}</span>
-                  </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <p className="text-[11px] font-semibold text-gray-500 mb-1">Registration Record</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-medium text-gray-700">Initialized in system</span>
+                  <span className="text-[11px] text-gray-400">
+                    {selectedVehicleForHistory.createdAt?.toDate ? selectedVehicleForHistory.createdAt.toDate().toLocaleDateString() : '—'}
+                  </span>
                 </div>
-                
-                {loadingHistory ? (
-                  <div className="py-10 text-center"><Spinner /></div>
-                ) : historyLogs.length === 0 ? (
-                  <p className="text-[9px] font-bold text-zinc-300 uppercase tracking-widest text-center py-10 italic">No insurance or RC updates recorded yet.</p>
-                ) : (
-                  historyLogs.map(log => (
-                    <div key={log.id} className="p-4 bg-zinc-50 rounded-xl border border-zinc-100 flex flex-col gap-2">
-                      <div className="flex justify-between items-start">
-                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{log.field} Update</span>
-                        <span className="text-[9px] font-bold text-zinc-400 uppercase">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleDateString() : 'Just now'}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs">
-                        <span className="text-zinc-400 line-through">{log.oldValue}</span>
-                        <ChevronRight size={12} className="text-zinc-300" />
-                        <span className="font-bold text-zinc-800">{log.newValue}</span>
-                      </div>
-                      <p className="text-[8px] font-black text-zinc-400 uppercase tracking-tighter mt-1 italic">Updated by: {log.updatedBy}</p>
-                    </div>
-                  ))
-                )}
               </div>
+              
+              {loadingHistory ? (
+                <div className="py-10 text-center"><Spinner /></div>
+              ) : historyLogs.length === 0 ? (
+                <p className="text-[11px] text-gray-400 text-center py-10 italic">No insurance or RC updates recorded yet.</p>
+              ) : (
+                historyLogs.map(log => (
+                  <div key={log.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-1.5">
+                    <div className="flex justify-between items-start">
+                      <span className="text-[11px] font-semibold text-indigo-600">{log.field} Update</span>
+                      <span className="text-[10px] text-gray-400">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleDateString() : 'Just now'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-gray-400 line-through">{log.oldValue}</span>
+                      <span className="text-gray-300">→</span>
+                      <span className="font-medium text-gray-700">{log.newValue}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Updated by: {log.updatedBy}</p>
+                  </div>
+                ))
+              )}
             </div>
             
-            <div className="p-4 border-t border-zinc-100 bg-zinc-50 flex justify-end">
-              <button onClick={() => setSelectedVehicleForHistory(null)} className="px-6 h-10 bg-zinc-900 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg">Close Log</button>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button 
+                onClick={() => setSelectedVehicleForHistory(null)} 
+                className="px-6 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

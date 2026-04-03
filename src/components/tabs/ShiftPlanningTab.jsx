@@ -206,7 +206,10 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
-          <h3 className="text-white font-black text-[13px] uppercase tracking-wide">Create {type}</h3>
+          <div>
+            <h3 className="text-white font-semibold text-[13px]">Create {type}</h3>
+            <p className="text-[10px] text-indigo-200 mt-0.5">Shift Planning Management</p>
+          </div>
           <button onClick={onClose} className="text-white/80 hover:text-white">
             <X size={18} />
           </button>
@@ -214,79 +217,80 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Common Fields - Top */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Title *</label>
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Title <span className="text-rose-500">*</span></label>
               <input
                 type="text"
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder="Shift planning announcement title"
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Publish Date</label>
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Publish Date</label>
               <input
                 type="date"
                 value={form.publishDate}
                 onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all"
               />
             </div>
           </div>
 
-          {/* Employee Assignment - Right after title */}
-          <div className="border border-gray-200 rounded-xl p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-xs font-black text-gray-700 uppercase">Employee Shift Assignment</h4>
-              <div className="flex items-center gap-2">
-                <select
-                  onChange={e => {
-                    const emp = employees.find(emp => emp.id === e.target.value)
-                    if (emp) addEmployee(emp)
-                    e.target.value = ''
-                  }}
-                  className="h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-                >
-                  <option value="">Add Employee...</option>
-                  {filteredEmployees.filter(e => !shifts.find(s => s.employeeId === e.id)).map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.name}</option>
-                  ))}
-                </select>
-              </div>
+          {/* Employee Assignment Section - Shadcn-like Card */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h4 className="text-[12px] font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                <Users size={12} className="text-gray-400" />
+                Employee Shift Assignment
+              </h4>
+              <select
+                onChange={e => {
+                  const emp = employees.find(emp => emp.id === e.target.value)
+                  if (emp) addEmployee(emp)
+                  e.target.value = ''
+                }}
+                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer"
+              >
+                <option value="">Add Employee...</option>
+                {filteredEmployees.filter(e => !shifts.find(s => s.employeeId === e.id)).map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name}</option>
+                ))}
+              </select>
             </div>
 
             {/* Day Planning Quick Add Row */}
             {type === PLANNING_TYPES.DAY && (
-              <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 mb-4">
-                <div className="grid grid-cols-4 gap-3">
+              <div className="p-4 bg-indigo-50/50 border-b border-gray-100">
+                <div className="grid grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Date *</label>
+                    <label className="block text-[11px] font-medium text-gray-600 mb-1.5">Shift Date <span className="text-rose-500">*</span></label>
                     <input
                       type="date"
                       value={form.shiftDate}
                       onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))}
-                      className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift</label>
+                    <label className="block text-[11px] font-medium text-gray-600 mb-1.5">Shift</label>
                     <select
                       value={shiftTiming}
                       onChange={e => setShiftTiming(e.target.value)}
-                      className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer"
                     >
                       <option value="day">Day</option>
                       <option value="night">Night</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Starts</label>
+                    <label className="block text-[11px] font-medium text-gray-600 mb-1.5">Shift Starts</label>
                     <div className="relative">
                       <button
                         onClick={() => setShowDefaultInTimePicker(!showDefaultInTimePicker)}
-                        className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold text-left flex items-center justify-between"
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-left flex items-center justify-between hover:border-gray-300 transition-all"
                       >
                         <span>{defaultShiftTimes.inTime ? (() => {
                           const [h, m] = defaultShiftTimes.inTime.split(':').map(Number)
@@ -305,11 +309,11 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Shift Ends</label>
+                    <label className="block text-[11px] font-medium text-gray-600 mb-1.5">Shift Ends</label>
                     <div className="relative">
                       <button
                         onClick={() => setShowDefaultOutTimePicker(!showDefaultOutTimePicker)}
-                        className="w-full h-9 border border-indigo-200 rounded-lg px-2 text-xs font-semibold text-left flex items-center justify-between"
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-left flex items-center justify-between hover:border-gray-300 transition-all"
                       >
                         <span>{defaultShiftTimes.outTime ? (() => {
                           const [h, m] = defaultShiftTimes.outTime.split(':').map(Number)
@@ -332,39 +336,39 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
             )}
 
             {shifts.length === 0 ? (
-              <div className="text-center py-8 text-gray-300 italic text-xs">
+              <div className="text-center py-8 text-gray-400 italic text-sm">
                 No employees added yet. Use the dropdown above to add employees.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-[10px]">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Employee</th>
-                      {type === PLANNING_TYPES.WEEKLY && <th className="px-3 py-2 font-black text-gray-500 uppercase">Day</th>}
-                      {type === PLANNING_TYPES.NEXT_FEW && <th className="px-3 py-2 font-black text-gray-500 uppercase">Date</th>}
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift Start</th>
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift End</th>
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Site</th>
-                      <th className="px-3 py-2 font-black text-gray-500 uppercase">Notes</th>
-                      <th className="px-3 py-2"></th>
+                <table className="w-full text-left border-collapse">
+                  <thead className="border-b border-gray-200 bg-gray-50/80 [&_tr]:border-b">
+                    <tr className="border-b border-gray-200">
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-gray-500">Employee</th>
+                      {type === PLANNING_TYPES.WEEKLY && <th className="h-10 px-3 text-left align-middle text-xs font-medium text-gray-500">Day</th>}
+                      {type === PLANNING_TYPES.NEXT_FEW && <th className="h-10 px-3 text-left align-middle text-xs font-medium text-gray-500">Date</th>}
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-gray-500">Shift Start</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-gray-500">Shift End</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-gray-500">Site</th>
+                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-gray-500">Notes</th>
+                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-gray-500 min-w-[60px]">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="[&_tr:last-child]:border-0">
                     {shifts.map((shift, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-semibold text-gray-700">{shift.employeeName}</td>
+                      <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors">
+                        <td className="px-3 py-2 align-middle whitespace-nowrap text-[12px] font-medium text-gray-700">{shift.employeeName}</td>
                         {type === PLANNING_TYPES.WEEKLY && (
-                          <td className="px-3 py-2 font-medium text-gray-600">{shift.day}</td>
+                          <td className="px-3 py-2 align-middle whitespace-nowrap text-[12px] text-gray-500">{shift.day}</td>
                         )}
                         {type === PLANNING_TYPES.NEXT_FEW && (
-                          <td className="px-3 py-2 font-medium text-gray-600">{formatDateShort(shift.date)}</td>
+                          <td className="px-3 py-2 align-middle whitespace-nowrap text-[12px] text-gray-500">{formatDateShort(shift.date)}</td>
                         )}
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 align-middle">
                           <div className="relative">
                             <button
                               onClick={() => setShowShiftInTimePicker(showShiftInTimePicker === idx ? null : idx)}
-                              className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold text-left flex items-center justify-between min-w-[80px]"
+                              className="h-8 bg-white border border-gray-200 rounded-lg px-3 text-xs font-medium text-left flex items-center justify-between min-w-[90px] hover:border-gray-300 transition-all"
                             >
                               <span>{shift.inTime ? (() => {
                                 const [h, m] = shift.inTime.split(':').map(Number)
@@ -382,11 +386,11 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 align-middle">
                           <div className="relative">
                             <button
                               onClick={() => setShowShiftOutTimePicker(showShiftOutTimePicker === idx ? null : idx)}
-                              className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold text-left flex items-center justify-between min-w-[80px]"
+                              className="h-8 bg-white border border-gray-200 rounded-lg px-3 text-xs font-medium text-left flex items-center justify-between min-w-[90px] hover:border-gray-300 transition-all"
                             >
                               <span>{shift.outTime ? (() => {
                                 const [h, m] = shift.outTime.split(':').map(Number)
@@ -404,27 +408,27 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 align-middle">
                           <input
                             type="text"
                             value={shift.site}
                             onChange={e => updateShift(idx, 'site', e.target.value)}
                             placeholder="Office"
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold w-24"
+                            className="h-8 bg-white border border-gray-200 rounded-lg px-3 text-xs font-medium w-24 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                           />
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 align-middle">
                           <input
                             type="text"
                             value={shift.notes}
                             onChange={e => updateShift(idx, 'notes', e.target.value)}
                             placeholder="Notes"
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold w-24"
+                            className="h-8 bg-white border border-gray-200 rounded-lg px-3 text-xs font-medium w-24 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                           />
                         </td>
-                        <td className="px-3 py-2">
-                          <button onClick={() => removeShift(idx)} className="p-1 text-red-400 hover:text-red-600">
-                            <Trash2 size={12} />
+                        <td className="px-3 py-2 align-middle text-right">
+                          <button onClick={() => removeShift(idx)} className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
+                            <Trash2 size={14} />
                           </button>
                         </td>
                       </tr>
@@ -437,45 +441,45 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
 
           {/* Announcement Message */}
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Announcement Message</label>
+            <label className="block text-[12px] font-semibold text-gray-700 mb-2">Announcement Message</label>
             <textarea
               value={form.message}
               onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
               placeholder="Enter announcement details..."
               rows={3}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-semibold resize-none"
+              className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all resize-none placeholder:text-gray-400"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-6">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Branch / Location</label>
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Branch / Location</label>
               <select
                 value={form.branch}
                 onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
               >
                 <option value="">All Branches</option>
                 {branches.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Department</label>
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Department</label>
               <select
                 value={form.department}
                 onChange={e => setForm(f => ({ ...f, department: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
               >
                 <option value="">All Departments</option>
                 {departments.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Visibility</label>
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Visibility</label>
               <select
                 value={form.visibility}
                 onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
               >
                 <option value="all">All Employees</option>
                 <option value="branch">Specific Branch</option>
@@ -484,88 +488,87 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Attachment</label>
-              <label className="flex items-center gap-2 h-10 border border-gray-200 rounded-lg px-3 cursor-pointer hover:bg-gray-50">
-                <Upload size={14} className="text-gray-400" />
-                <span className="text-xs text-gray-500 truncate">{form.attachmentName || 'Upload file...'}</span>
-                <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-              </label>
-            </div>
-          </div>
-
-          {/* Type-specific date fields - Weekly and Next Few Days */}
+          {/* Type-specific date fields */}
           {type === PLANNING_TYPES.WEEKLY && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Week Start Date *</label>
+                <label className="block text-[12px] font-semibold text-gray-700 mb-2">Week Start Date <span className="text-rose-500">*</span></label>
                 <input
                   type="date"
                   value={form.weekStart}
                   onChange={e => setForm(f => ({ ...f, weekStart: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Week End Date</label>
+                <label className="block text-[12px] font-semibold text-gray-700 mb-2">Week End Date</label>
                 <input
                   type="text"
                   value={weekDates.length > 0 ? formatDateShort(weekDates[6]) : ''}
                   readOnly
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold bg-gray-50"
+                  className="w-full bg-gray-100 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-500 cursor-not-allowed"
                 />
               </div>
             </div>
           )}
 
           {type === PLANNING_TYPES.NEXT_FEW && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Start Date *</label>
+                <label className="block text-[12px] font-semibold text-gray-700 mb-2">Start Date <span className="text-rose-500">*</span></label>
                 <input
                   type="date"
                   value={form.startDate}
                   onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">End Date *</label>
+                <label className="block text-[12px] font-semibold text-gray-700 mb-2">End Date <span className="text-rose-500">*</span></label>
                 <input
                   type="date"
                   value={form.endDate}
                   onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all"
                 />
               </div>
             </div>
           )}
 
           {/* Attachment */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Attachment</label>
-              <label className="flex items-center gap-2 h-10 border border-gray-200 rounded-lg px-3 cursor-pointer hover:bg-gray-50">
-                <Upload size={14} className="text-gray-400" />
-                <span className="text-xs text-gray-500 truncate">{form.attachmentName || 'Upload file...'}</span>
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+            <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+              <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                <Upload size={12} className="text-gray-400" />
+                Attachment
+              </h5>
+              <span className="text-[10px] font-medium text-gray-400 italic">Optional</span>
+            </div>
+            <div className="p-4">
+              <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-all">
+                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <Upload size={16} className="text-gray-400" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-xs text-gray-500">{form.attachmentName || 'Upload file (PDF, images, documents)'}</span>
+                </div>
                 <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
               </label>
             </div>
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-white">
           <button
             onClick={onClose}
-            className="h-10 px-5 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase hover:bg-gray-50"
+            className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="h-10 px-6 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-indigo-700 disabled:opacity-50"
+            className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating...' : 'Create Planning'}
           </button>
