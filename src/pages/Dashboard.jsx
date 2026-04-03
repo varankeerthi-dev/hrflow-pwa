@@ -100,9 +100,6 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   const [error, setError] = useState('')
   const [createdCode, setCreatedCode] = useState(null)
 
-  const isAdmin = user?.role?.toLowerCase() === 'admin'
-  const hasOrg = !!user?.orgId
-
   const handleJoin = async (e) => {
     e.preventDefault()
     if (!orgCode.trim()) { setError('Please enter code.'); return }
@@ -116,14 +113,11 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
     if (!orgName.trim()) { setError('Please enter name.'); return }
     setLoading(true); setError('')
     try { 
-      console.log('OrgSetupModal: Calling onCreate...')
       const code = await onCreate(orgName.trim()); 
-      console.log('OrgSetupModal: onCreate success, code=', code)
       setCreatedCode(code); 
       setLoading(false) 
     }
     catch (err) { 
-      console.error('OrgSetupModal: onCreate error=', err)
       setError(err.message); 
       setLoading(false) 
     }
@@ -138,11 +132,11 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
           </div>
           <h2 className="text-xl font-bold text-gray-800 uppercase tracking-tight font-inter">Organization Setup</h2>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-2 font-inter">
-            {hasOrg && isAdmin ? 'Create New Division' : 'Join a Team or Create Your Own'}
+            {user?.orgId && user?.role?.toLowerCase() === 'admin' ? 'Create New Division' : 'Join a Team or Create Your Own'}
           </p>
         </div>
 
-        {!(hasOrg && isAdmin) && (
+        {!(user?.orgId && user?.role?.toLowerCase() === 'admin') && (
           <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
             <button onClick={() => { setModalTab('join'); setError('') }}
               className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all font-inter ${modalTab === 'join' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
@@ -179,127 +173,8 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
         )}
 
         <div className="mt-6 pt-4 border-t border-gray-100">
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 uppercase text-[10px] font-bold tracking-widest font-inter"
-          >
-            <LogOut size={14} />
-            <span>Back to login</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Onboarding View ────────
-function OnboardingView({ user, onJoin, onCreate, onComplete, onLogout }) {
-  const [view, setView] = useState(user?.orgId ? 'invite' : 'choice')
-  const [orgCode, setOrgCode] = useState('')
-  const [orgName, setOrgName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleJoin = async (e) => {
-    if (e) e.preventDefault()
-    const code = e ? orgCode.trim() : user.orgId
-    if (!code) { setError('Please enter code.'); return }
-    setLoading(true); setError('')
-    try { 
-      if (e) await onJoin(code.toLowerCase())
-      await onComplete() 
-    }
-    catch (err) { setError(err.message); setLoading(false) }
-  }
-
-  const handleCreate = async (e) => {
-    e.preventDefault()
-    if (!orgName.trim()) { setError('Please enter name.'); return }
-    setLoading(true); setError('')
-    try { 
-      await onCreate(orgName.trim())
-      await onComplete()
-    }
-    catch (err) { setError(err.message); setLoading(false) }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-xl">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-10 mx-4 border border-slate-100 ring-1 ring-slate-900/5">
-        <div className="flex flex-col items-center mb-10 text-center">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-2xl shadow-indigo-200 ring-4 ring-white">
-            <span className="text-white text-4xl">👋</span>
-          </div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">Welcome, {user?.name?.split(' ')[0]}!</h2>
-          <p className="text-slate-500 font-medium text-sm mt-3 leading-relaxed">Let's get your workspace ready.</p>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <p className="text-[11px] font-bold uppercase tracking-wider">{error}</p>
-          </div>
-        )}
-
-        {view === 'choice' && (
-          <div className="space-y-4">
-            <button onClick={() => setView('create')} className="w-full group relative overflow-hidden bg-indigo-600 p-5 rounded-2xl text-white transition-all hover:shadow-xl hover:shadow-indigo-200 active:scale-[0.98]">
-              <div className="relative z-10 flex flex-col items-center">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">Launch New</span>
-                <span className="text-lg font-black tracking-tight">Create Organization</span>
-              </div>
-            </button>
-            <button onClick={() => setView('join')} className="w-full group p-5 rounded-2xl border-2 border-slate-100 text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-200 active:scale-[0.98]">
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Existing Team</span>
-                <span className="text-lg font-black tracking-tight">Join with Code</span>
-              </div>
-            </button>
-          </div>
-        )}
-
-        {view === 'invite' && (
-          <div className="space-y-6">
-            <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100/50 text-center">
-              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2 block">Found an Invitation</span>
-              <p className="text-slate-800 font-bold text-lg leading-snug">You've been invited to join <span className="text-indigo-600">{user?.orgName || 'your organization'}</span>.</p>
-            </div>
-            <button onClick={() => handleJoin()} disabled={loading} className="w-full bg-indigo-600 p-5 rounded-2xl text-white font-black text-lg shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 disabled:opacity-50">
-              {loading ? 'Joining...' : 'Accept Invitation & Join'}
-            </button>
-            <button onClick={() => setView('choice')} className="w-full text-slate-400 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 transition-colors">
-              I want to create my own instead
-            </button>
-          </div>
-        )}
-
-        {(view === 'join' || view === 'create') && (
-          <form onSubmit={view === 'join' ? handleJoin : handleCreate} className="space-y-5">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
-                {view === 'join' ? 'Organization Invite Code' : 'Organization Name'}
-              </label>
-              <input
-                type="text"
-                value={view === 'join' ? orgCode : orgName}
-                onChange={(e) => view === 'join' ? setOrgCode(e.target.value) : setOrgName(e.target.value)}
-                placeholder={view === 'join' ? 'e.g. apple-001' : 'e.g. Acme Corp'}
-                className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-6 font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white focus:border-indigo-500 transition-all"
-                required
-              />
-            </div>
-            <button type="submit" disabled={loading} className="w-full h-14 bg-indigo-600 rounded-2xl text-white font-black text-lg shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 disabled:opacity-50">
-              {loading ? 'Processing...' : (view === 'join' ? 'Join Workspace' : 'Launch Workspace')}
-            </button>
-            <button type="button" onClick={() => setView('choice')} className="w-full text-slate-400 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 transition-colors">
-              Go Back
-            </button>
-          </form>
-        )}
-
-        <div className="mt-10 pt-8 border-t border-slate-100 flex justify-center">
-          <button onClick={onLogout} className="text-slate-400 hover:text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
-            <LogOut size={12} /> Sign out of account
+          <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 uppercase text-[10px] font-bold tracking-widest font-inter">
+            <LogOut size={14} /> <span>Back to login</span>
           </button>
         </div>
       </div>
@@ -312,44 +187,18 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
   
-  // Requirement: Delay employee lookup until auth user and orgId are available
   const canFetchEmployees = user && !!user.orgId
   const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
 
-  const handleCompleteOnboarding = async () => {
-    if (!user?.uid) return
-    try {
-      const { updateDoc, doc, serverTimestamp } = await import('firebase/firestore')
-      await updateDoc(doc(db, 'users', user.uid), {
-        onboardingComplete: true,
-        updatedAt: serverTimestamp()
-      })
-      window.location.reload()
-    } catch (err) {
-      console.error('Onboarding complete error:', err)
-      alert('Failed to complete setup.')
-    }
-  }
-
   const [activeTab, setActiveTab] = useState('attendance')
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  useEffect(() => {
-    const tabParam = searchParams.get('tab')
-    if (tabParam && allTabs.find(t => t.id === tabParam)) {
-      setActiveTab(tabParam)
-    }
-  }, [searchParams, allTabs])
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [summarySubTab, setSummarySubTab] = useState('summary')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [rolePermissions, setRolePermissions] = useState(null)
-  const [expandedGroups, setExpandedGroups] = useState({ main: true, hr: true, payroll: true, workforce: true, account: true }) // Default expand all groups
+  const [expandedGroups, setExpandedGroups] = useState({ main: true, hr: true, payroll: true, workforce: true, account: true })
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
 
-  // Load Inter and Roboto fonts
   useEffect(() => {
     if (document.getElementById('google-fonts')) return
     const link = document.createElement('link')
@@ -367,26 +216,18 @@ export default function Dashboard() {
       return (normalizedUserEmail && empEmail === normalizedUserEmail) || e.id === user.uid
     }) || employees[0]
   }, [employees, user])
-useEffect(() => {
-  if (user?.orgId) {
-    getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
-      if (snap.exists()) setOrgSettings(snap.data())
-    })
-  }
-  // Debug globals
-  window.user = user
-  window.db = db
-}, [user])
-
 
   useEffect(() => {
-    setRolePermissions(null)
-  }, [user?.orgId, user?.role, user?.permissions])
+    if (user?.orgId) {
+      getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
+        if (snap.exists()) setOrgSettings(snap.data())
+      })
+    }
+  }, [user?.orgId])
 
   const allTabs = useMemo(() => [
     { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
     { id: 'attendance', label: 'Attendance Records', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
-    
     { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
@@ -395,28 +236,25 @@ useEffect(() => {
     { id: 'vehicles', label: 'Vehicles', icon: <Car size={18} strokeWidth={1.75} />, module: 'Workforce' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
     { id: 'summary', label: 'Summary', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Summary' },
-
     { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'SalarySlip' },
     { id: 'advance', label: 'Advances', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
     { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
-
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
     { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, module: 'Tasks' },
-    
     { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
   ], [])
 
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [tabSearchParams, setTabSearchParams] = useSearchParams()
 
   useEffect(() => {
-    const tabParam = searchParams.get('tab')
+    const tabParam = tabSearchParams.get('tab')
     if (tabParam && allTabs.find(t => t.id === tabParam)) {
       setActiveTab(tabParam)
     }
-  }, [searchParams, allTabs])
+  }, [tabSearchParams, allTabs])
 
   const sections = useMemo(() => [
     { id: 'main', title: 'MAIN', tabs: ['home'] },
@@ -426,12 +264,9 @@ useEffect(() => {
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
-  // Everyone is admin now
-  const tabs = allTabs
-
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'home': return <HomeTab />
+      case 'home': return <HomeTab onTabChange={(t) => { setActiveTab(t); setTabSearchParams({ tab: t }); }} />
       case 'attendance':
       case 'attendance-list': return <AttendanceTab />
       case 'correction': return <CorrectionTab />
@@ -467,11 +302,7 @@ useEffect(() => {
     )
   }
 
-  // Requirement: Force org creation modal and block navigation if user has no org and no role
-  const isMissingOrg = user && !user.orgId && !user.role;
-  const showOrgModal = isMissingOrg || (user && !user.orgId);
-
-  if (showOrgModal) {
+  if (user && !user.orgId) {
     return (
       <div className="min-h-screen bg-white">
         <OrgSetupModal user={user} onJoin={joinOrganisation} onCreate={createOrganisation} onLogout={logout} />
@@ -483,115 +314,40 @@ useEffect(() => {
     <div className="min-h-screen bg-white flex flex-col font-inter">
       {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-none h-14 shrink-0">
-        <div className="max-w-full mx-auto px-4 h-full flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 hidden md:block transition-all" title="Toggle Sidebar"><PanelLeft size={18} /></button>
-            <button onClick={() => setIsMobileMenuOpen(true)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 md:hidden transition-all" title="Open Menu"><Menu size={18} /></button>
-            <div className="flex items-center gap-2">
-              {orgSettings?.logoURL ? (
-                <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
-              ) : (
-                <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center shadow-sm text-white"><Building2 size={16} /></div>
-              )}
-              <span className="text-md font-black text-gray-900 tracking-tight">{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 h-14 shrink-0 px-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 hidden md:block transition-all"><PanelLeft size={18} /></button>
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 md:hidden transition-all"><Menu size={18} /></button>
+          <div className="flex items-center gap-2">
+            {orgSettings?.logoURL ? (
+              <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center shadow-sm text-white"><Building2 size={16} /></div>
+            )}
+            <span className="text-md font-black text-gray-900 tracking-tight">{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all hover:text-indigo-600">
+            <div className="flex flex-col items-end text-right">
+              <span className="text-[13px] font-bold text-gray-800 tracking-tight">{user?.name}</span>
+              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.email || user?.role || 'Staff'}</span>
             </div>
-            
-            {/* Quick Access Bar - moved to header */}
-            {(() => {
-              const userPerms = user?.permissions || {}
-              const isAdmin = user?.role?.toLowerCase() === 'admin'
-
-              const quickActions = [
-                { label: 'Create Attendance', tab: 'attendance', icon: <Calendar size={15} />, module: 'Attendance', right: 'create' },
-                { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
-                { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
-                { label: 'Make Correction', tab: 'correction', icon: <PencilLine size={15} />, module: 'Correction', right: 'create' },
-                { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
-              ].filter(action => {
-                if (isAdmin) return true
-                
-                // Special case for Add Employee which might be under Employees or Settings
-                if (action.module === 'Employees') {
-                   return userPerms['Employees']?.create === true || userPerms['Settings']?.create === true
-                }
-
-                const modulePerms = userPerms[action.module] || {}
-                return modulePerms[action.right] === true
-              })
-
-              if (quickActions.length === 0) return null
-
-              return (
-                <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200">
-                  {quickActions.map(item => (
-                    <button
-                      key={item.tab}
-                      onClick={() => {
-                        setActiveTab(item.tab)
-                        if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab)
-                      }}
-                      className={`flex items-center gap-1.5 px-3 h-8 rounded-lg border text-[11px] font-medium whitespace-nowrap transition-all header-button ${activeTab === item.tab
-                        ? 'header-button-active'
-                        : ''
-                        }`}
-                    >
-                      <span>{item.icon}</span>
-                      <span>{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )
-            })()}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md text-left transition-all hover:text-indigo-600"
-            >
-              <div className="flex flex-col items-end text-right">
-                <span className="text-[13px] font-bold text-gray-800 tracking-tight">{user?.name}</span>
-                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.email || user?.role || 'Staff'}</span>
-              </div>
-              {currentEmployee?.photoURL ? (
-                <img 
-                  src={currentEmployee.photoURL} 
-                  alt="Profile" 
-                  className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
-              )}
-            </button>
-            
-            <div className="h-6 w-px bg-gray-200"></div>
-            
-            <button
-              onClick={() => setShowLog(s => !s)}
-              title="Activity Log"
-              className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
-            >
-              <History size={16} />
-            </button>
-            <button onClick={logout} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all" title="Logout"><LogOut size={16} /></button>
-          </div>
+            {currentEmployee?.photoURL ? (
+              <img src={currentEmployee.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100" />
+            ) : (
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
+            )}
+          </button>
+          <button onClick={() => setShowLog(s => !s)} className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}><History size={16} /></button>
+          <button onClick={logout} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"><LogOut size={16} /></button>
         </div>
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
-        {/* Mobile Sidebar Overlay */}
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
-          </div>
-        )}
-
-        {/* Modern Indigo-themed Sidebar */}
-        <aside 
-          className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[56px]' : 'md:w-[210px] w-64 shadow-2xl md:shadow-none'}`}
-        >
-          {/* Mobile Sidebar Header */}
+        {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
+        <aside className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[56px]' : 'md:w-[210px] w-64 shadow-2xl md:shadow-none'}`}>
           <div className="p-4 border-b border-gray-200 flex items-center justify-between md:hidden">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white shadow-sm"><Building2 size={16} /></div>
@@ -599,91 +355,38 @@ useEffect(() => {
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
           </div>
-
           <nav className="flex-1 px-3 py-2 space-y-2 overflow-y-auto no-scrollbar">
             {sections.map(section => {
-              // Filter section tabs by user permissions
-              const sectionTabs = tabs.filter(t => section.tabs.includes(t.id));
-              
-              if (sectionTabs.length === 0) return null;
-              
-              const isGroupActive = expandedGroups[section.id];
-              
+              const sectionTabs = allTabs.filter(t => section.tabs.includes(t.id))
+              if (sectionTabs.length === 0) return null
               return (
                 <div key={section.id} className="flex flex-col">
-                  {!isCollapsed && (
-                    <div className="left-panel-title flex items-center justify-between">
-                      <span>{section.title}</span>
-                      <button
-                        onClick={() => setExpandedGroups(prev => ({ ...prev, [section.id]: !prev[section.id] }))}
-                        className="hover:text-indigo-600 transition-colors"
-                      >
-                        <ChevronRight 
-                          size={10} 
-                          className={`transition-transform duration-200 ${isGroupActive ? 'rotate-90' : ''}`} 
-                        />
-                      </button>
-                    </div>
-                  )}
-                  
-                  <div className={`flex flex-col gap-0.5 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
+                  {!isCollapsed && <div className="left-panel-title"><span>{section.title}</span></div>}
+                  <div className="flex flex-col gap-0.5">
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id
                       return (
-                        <button
-                          key={tab.id}
-                          onClick={() => {
-                            setActiveTab(tab.id)
-                            if (tab.id === 'summary') setSummarySubTab('summary')
-                            setIsMobileMenuOpen(false)
-                          }}
-                          title={isCollapsed ? tab.label : ''}
-                          className={`${isCollapsed ? 'justify-center px-0 py-1.5' : 'left-panel-btn'} ${
-                            isActive ? 'active' : ''
-                          } transition-all duration-150`}
-                        >
-                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
-                            {React.cloneElement(tab.icon, { size: 16 })}
-                          </span>
-                          
-                          {!isCollapsed && (
-                            <span className="text-[11px] font-semibold truncate">
-                              {tab.label}
-                            </span>
-                          )}
-
-                          {tab.id === 'approvals' && (
-                            <span className={`ml-auto shrink-0 flex items-center justify-center bg-red-500 text-white text-[8px] font-bold w-3.5 h-3.5 rounded-full ${isCollapsed ? 'absolute top-1 right-1' : ''}`}>
-                              {tab.badge}
-                            </span>
-                          )}
+                        <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} className={`${isCollapsed ? 'justify-center px-0 py-1.5' : 'left-panel-btn'} ${isActive ? 'active' : ''} transition-all duration-150`}>
+                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>{React.cloneElement(tab.icon, { size: 16 })}</span>
+                          {!isCollapsed && <span className="text-[11px] font-semibold truncate">{tab.label}</span>}
                         </button>
                       )
                     })}
                   </div>
                 </div>
-              );
+              )
             })}
           </nav>
-
           <div className="p-1.5 border-t border-gray-200">
-            <button 
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className={`w-full flex items-center rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-2.5 py-2 gap-2.5'}`}
-            >
+            <button onClick={() => setIsCollapsed(!isCollapsed)} className={`w-full flex items-center rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-2.5 py-2 gap-2.5'}`}>
               <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform`} />
               {!isCollapsed && <span className="text-[13px] leading-5 font-medium">Collapse</span>}
             </button>
           </div>
         </aside>
-
-        <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <main className="flex-1 overflow-auto bg-gray-50">
-            <div className="w-full h-full flex flex-col">
-              {renderTabContent()}
-            </div>
-          </main>
-        </div>
+        <main className="flex-1 overflow-auto bg-gray-50">
+          <div className="w-full h-full flex flex-col">{renderTabContent()}</div>
+        </main>
       </div>
     </div>
   )
