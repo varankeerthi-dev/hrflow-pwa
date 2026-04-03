@@ -326,20 +326,70 @@ export default function Dashboard() {
             )}
             <span className="text-md font-black text-gray-900 tracking-tight">{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
           </div>
+
+          {/* RESTORED QUICK ACCESS BAR */}
+          {(() => {
+            const userPerms = user?.permissions || {}
+            const isAdmin = user?.role?.toLowerCase() === 'admin'
+
+            const quickActions = [
+              { label: 'Attendance', tab: 'attendance', icon: <Calendar size={15} />, module: 'Attendance', right: 'create' },
+              { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
+              { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
+              { label: 'Correction', tab: 'correction', icon: <PencilLine size={15} />, module: 'Correction', right: 'create' },
+              { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
+            ].filter(action => {
+              if (isAdmin) return true
+              if (action.module === 'Employees') return userPerms['Employees']?.create === true || userPerms['Settings']?.create === true
+              const modulePerms = userPerms[action.module] || {}
+              return modulePerms[action.right] === true
+            })
+
+            if (quickActions.length === 0) return null
+
+            return (
+              <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200">
+                {quickActions.map(item => (
+                  <button
+                    key={item.tab}
+                    onClick={() => {
+                      setActiveTab(item.tab)
+                      setTabSearchParams({ tab: item.tab })
+                      if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab)
+                    }}
+                    className={`flex items-center gap-1.5 px-3 h-8 rounded-lg border text-[11px] font-bold whitespace-nowrap transition-all ${activeTab === item.tab
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                      }`}
+                  >
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
         </div>
 
         <div className="flex items-center gap-4">
-          <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all hover:text-indigo-600">
+          {/* RESTORED PROFILE SECTION */}
+          <button 
+            onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} 
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all group"
+          >
             <div className="flex flex-col items-end text-right">
-              <span className="text-[13px] font-bold text-gray-800 tracking-tight">{user?.name}</span>
-              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{user?.email || user?.role || 'Staff'}</span>
+              <span className="text-[13px] font-black text-gray-800 tracking-tight group-hover:text-indigo-600 transition-colors leading-none">{user?.name}</span>
+              <span className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.1em] mt-1">{user?.email || user?.role || 'Staff'}</span>
             </div>
             {currentEmployee?.photoURL ? (
               <img src={currentEmployee.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100" />
             ) : (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
             )}
           </button>
+          
+          <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+
           <button onClick={() => setShowLog(s => !s)} className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}><History size={16} /></button>
           <button onClick={logout} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"><LogOut size={16} /></button>
         </div>
@@ -347,28 +397,32 @@ export default function Dashboard() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
+        
         <aside className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[56px]' : 'md:w-[210px] w-64 shadow-2xl md:shadow-none'}`}>
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between md:hidden">
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between md:hidden leading-none h-14">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white shadow-sm"><Building2 size={16} /></div>
               <span className="text-md font-black text-gray-900 tracking-tight">HRFlow</span>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
           </div>
-          <nav className="flex-1 px-3 py-2 space-y-2 overflow-y-auto no-scrollbar">
+          
+          <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto no-scrollbar">
             {sections.map(section => {
               const sectionTabs = allTabs.filter(t => section.tabs.includes(t.id))
               if (sectionTabs.length === 0) return null
               return (
                 <div key={section.id} className="flex flex-col">
-                  {!isCollapsed && <div className="left-panel-title"><span>{section.title}</span></div>}
+                  {!isCollapsed && <div className="left-panel-title flex items-center px-2 py-1 mb-1">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{section.title}</span>
+                  </div>}
                   <div className="flex flex-col gap-0.5">
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id
                       return (
-                        <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} className={`${isCollapsed ? 'justify-center px-0 py-1.5' : 'left-panel-btn'} ${isActive ? 'active' : ''} transition-all duration-150`}>
-                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>{React.cloneElement(tab.icon, { size: 16 })}</span>
-                          {!isCollapsed && <span className="text-[11px] font-semibold truncate">{tab.label}</span>}
+                        <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} className={`${isCollapsed ? 'justify-center px-0 py-2' : 'left-panel-btn px-3 py-2'} ${isActive ? 'active' : ''} transition-all duration-150`}>
+                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>{React.cloneElement(tab.icon, { size: 16, strokeWidth: 2 })}</span>
+                          {!isCollapsed && <span className="text-[11px] font-bold truncate leading-none">{tab.label}</span>}
                         </button>
                       )
                     })}
@@ -377,15 +431,21 @@ export default function Dashboard() {
               )
             })}
           </nav>
-          <div className="p-1.5 border-t border-gray-200">
-            <button onClick={() => setIsCollapsed(!isCollapsed)} className={`w-full flex items-center rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-2.5 py-2 gap-2.5'}`}>
+          
+          <div className="p-2 border-t border-gray-100">
+            <button onClick={() => setIsCollapsed(!isCollapsed)} className={`w-full flex items-center rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-3 py-2 gap-3'}`}>
               <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform`} />
-              {!isCollapsed && <span className="text-[13px] leading-5 font-medium">Collapse</span>}
+              {!isCollapsed && <span className="text-[11px] font-bold">Collapse Sidebar</span>}
             </button>
           </div>
         </aside>
-        <main className="flex-1 overflow-auto bg-gray-50">
-          <div className="w-full h-full flex flex-col">{renderTabContent()}</div>
+
+        <main className="flex-1 min-w-0 bg-gray-50 relative overflow-hidden flex flex-col">
+          <ErrorBoundary>
+            <div className="flex-1 overflow-auto w-full">
+              {renderTabContent()}
+            </div>
+          </ErrorBoundary>
         </main>
       </div>
     </div>
