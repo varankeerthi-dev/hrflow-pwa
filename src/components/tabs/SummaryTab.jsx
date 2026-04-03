@@ -374,40 +374,38 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
         </button>
       </div>
 
-      {/* Month Navigator */}
-      <div className="bg-white p-4 rounded-[12px] shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-3">
-          <BarChart3 size={20} className="text-indigo-600" />
-          <h3 className="text-sm font-inter font-bold text-gray-800 uppercase tracking-tight">
-            {activeSubTab === 'summary' ? 'Monthly Performance' : 'Monthly Attendance Pivot'}
-          </h3>
-        </div>
-        
-        {/* Month Navigator */}
+      {/* Month Navigator - Compact */}
+      <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
         <div className="flex items-center gap-2">
           <button 
             onClick={() => navigateMonth(-1)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
           >
-            <ChevronLeft size={18} className="text-gray-600" />
+            <ChevronLeft size={16} className="text-gray-600" />
           </button>
           
-          <div className="flex items-center bg-gray-50 rounded-lg px-4 py-2 border border-gray-200 min-w-[180px] justify-center gap-2">
-            <Calendar size={16} className="text-gray-400" />
-            <span className="text-[14px] font-inter font-bold text-gray-700">{formatMonth(selectedMonth)}</span>
+          <div className="flex items-center bg-gray-50 rounded-md px-3 py-1.5 border border-gray-200 min-w-[140px] justify-center gap-2">
+            <Calendar size={14} className="text-gray-400" />
+            <span className="text-[13px] font-inter font-semibold text-gray-700">{formatMonth(selectedMonth)}</span>
           </div>
           
           <button 
             onClick={() => navigateMonth(1)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
           >
-            <ChevronRight size={18} className="text-gray-600" />
+            <ChevronRight size={16} className="text-gray-600" />
           </button>
         </div>
 
+        <div className="h-6 w-px bg-gray-200"></div>
+
+        <h3 className="text-sm font-inter font-semibold text-gray-800">
+          {activeSubTab === 'summary' ? 'Monthly Performance' : 'Attendance Summary'}
+        </h3>
+
         {activeSubTab === 'summary' && (
-          <button onClick={exportCSV} className="h-[40px] px-4 bg-indigo-600 text-white rounded-lg text-[12px] font-inter font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-md">
-            <Download size={14} /> Export CSV
+          <button onClick={exportCSV} className="ml-auto h-[32px] px-3 bg-indigo-600 text-white rounded-md text-[11px] font-inter font-medium flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm">
+            <Download size={12} /> Export CSV
           </button>
         )}
       </div>
@@ -416,51 +414,46 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
       {activeSubTab === 'summary' && (
         <>
           {/* Stats Summary Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(() => {
               const filteredSummaryData = summaryData.filter(row => {
                 const emp = employees.find(e => e.id === row.employeeId)
                 return emp && !emp.hideInAttendance
               })
-              
               return [
-                { label: 'Avg. Attendance', value: `${Math.round(filteredSummaryData.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (filteredSummaryData.length || 1) * 100)}%`, color: 'indigo', icon: BarChart3 },
-                { label: 'Total OT Logged', value: `${filteredSummaryData.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'emerald', icon: Calendar },
-                { label: 'Total Absences', value: filteredSummaryData.reduce((acc, curr) => acc + curr.absent, 0), color: 'rose', icon: X }
+                { label: 'Avg. Attendance', value: `${Math.round(filteredSummaryData.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (filteredSummaryData.length || 1) * 100)}%`, color: 'blue', icon: BarChart3 },
+                { label: 'Total OT Logged', value: `${filteredSummaryData.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'green', icon: Calendar },
+                { label: 'Total Absences', value: filteredSummaryData.reduce((acc, curr) => acc + curr.absent, 0), color: 'red', icon: X }
               ].map(stat => (
-                <div key={stat.label} className={`relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 group transition-all hover:shadow-md`}>
-                  <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full bg-${stat.color}-50/50 group-hover:scale-110 transition-transform`}></div>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1 relative z-10">{stat.label}</p>
-                  <p className={`text-3xl font-black text-${stat.color}-600 tracking-tighter relative z-10`}>{stat.value}</p>
+                <div key={stat.label} className="bg-white p-4 border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <stat.icon size={16} className={`text-${stat.color}-600`} />
+                    <p className="text-[11px] font-medium text-gray-500">{stat.label}</p>
+                  </div>
+                  <p className={`text-2xl font-semibold text-${stat.color}-600`}>{stat.value}</p>
                 </div>
               ))
             })()}
           </div>
 
           {/* Detailed Report Table Card */}
-          <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-zinc-100 bg-zinc-50/30 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileSpreadsheet size={16} className="text-zinc-400" />
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Granular Resource Analytics</span>
-              </div>
-            </div>
+          <div className="bg-white border border-gray-300 shadow-sm overflow-hidden font-inter">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="h-10 bg-zinc-50/50 border-b border-zinc-100">
-                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Employee</th>
-                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">Present</th>
-                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">Absent</th>
-                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">OT Hours</th>
-                    <th className="px-6 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right">Performance</th>
+                  <tr className="bg-gray-100 border-b border-gray-300">
+                    <th className="px-4 py-2 text-[11px] font-semibold text-gray-700 uppercase border-r border-gray-300">Employee</th>
+                    <th className="px-4 py-2 text-[11px] font-semibold text-gray-700 uppercase text-center border-r border-gray-300">Present</th>
+                    <th className="px-4 py-2 text-[11px] font-semibold text-gray-700 uppercase text-center border-r border-gray-300">Absent</th>
+                    <th className="px-4 py-2 text-[11px] font-semibold text-gray-700 uppercase text-center border-r border-gray-300">OT Hours</th>
+                    <th className="px-4 py-2 text-[11px] font-semibold text-gray-700 uppercase text-right">Performance</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-50">
+                <tbody className="divide-y divide-gray-200">
                   {summaryLoading ? (
-                    <tr><td colSpan={5} className="text-center py-12"><Spinner /></td></tr>
+                    <tr><td colSpan={5} className="text-center py-12 bg-gray-50"><Spinner /></td></tr>
                   ) : summaryData.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center py-20 text-zinc-300 font-black uppercase tracking-widest text-lg opacity-20 italic">No activity data</td></tr>
+                    <tr><td colSpan={5} className="text-center py-20 text-gray-400 text-sm italic">No activity data</td></tr>
                   ) : (
                     summaryData
                       .filter(row => {
@@ -472,28 +465,28 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                         const total = row.present + row.absent
                         const pct = total > 0 ? Math.round((row.present / total) * 100) : 0
                         return (
-                          <tr key={row.employeeId} className="h-14 hover:bg-zinc-50/50 transition-colors group">
-                            <td className="px-6">
+                          <tr key={row.employeeId} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 border-r border-gray-200">
                               <div className="flex flex-col">
-                                <span className="text-[13px] font-black text-zinc-800 uppercase tracking-tight">{emp?.name || 'Deleted Account'}</span>
-                                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">{emp?.department || 'Operations'}</span>
+                                <span className="text-[13px] font-medium text-gray-800">{emp?.name || 'Deleted Account'}</span>
+                                <span className="text-[10px] text-gray-500">{emp?.department || 'Operations'}</span>
                               </div>
                             </td>
-                            <td className="px-6 text-center">
-                              <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-100">{row.present}D</span>
+                            <td className="px-4 py-3 text-center border-r border-gray-200">
+                              <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[11px] font-medium">{row.present}D</span>
                             </td>
-                            <td className="px-6 text-center">
-                              <span className="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-rose-100">{row.absent}D</span>
+                            <td className="px-4 py-3 text-center border-r border-gray-200">
+                              <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-[11px] font-medium">{row.absent}D</span>
                             </td>
-                            <td className="px-6 text-center">
-                              <span className="font-mono font-black text-zinc-600 text-[12px] tracking-tight">{row.otHours.toFixed(1)}h</span>
+                            <td className="px-4 py-3 text-center border-r border-gray-200">
+                              <span className="font-mono font-medium text-gray-700 text-[12px]">{row.otHours.toFixed(1)}h</span>
                             </td>
-                            <td className="px-6 text-right">
+                            <td className="px-4 py-3 text-right">
                               <div className="flex flex-col items-end gap-1">
-                                <div className="w-24 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-emerald-500' : pct > 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }}></div>
+                                <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-green-500' : pct > 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div>
                                 </div>
-                                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{pct}% Reliability</span>
+                                <span className="text-[10px] text-gray-500">{pct}%</span>
                               </div>
                             </td>
                           </tr>
@@ -507,54 +500,43 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
         </>
       )}
 
-      {/* Monthly Pivot View */}
+      {/* Monthly View */}
       {activeSubTab === 'monthlyView' && (
-        <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/30">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-zinc-400" />
-              <span className="text-[11px] font-black text-zinc-400 uppercase tracking-widest leading-none">
-                Resource Attendance Grid ({monthlyViewData.employees?.length || 0} Employees)
-              </span>
-            </div>
+        <div className="bg-white border border-gray-300 overflow-hidden flex flex-col font-inter shadow-sm">
+          <div className="p-2 border-b border-gray-300 flex justify-between items-center bg-gray-50">
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setShowColumnSettings(true)}
-                className="h-[32px] px-3 flex items-center gap-2 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-lg text-[10px] font-black text-zinc-600 transition-all uppercase tracking-widest shadow-sm"
+                className="h-[28px] px-2 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[11px] font-medium text-gray-700 transition-colors"
               >
                 <Filter size={12} /> Columns
               </button>
               <button 
                 onClick={() => setShowOrderModal(true)}
-                className="h-[32px] px-3 flex items-center gap-2 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-lg text-[10px] font-black text-zinc-600 transition-all uppercase tracking-widest shadow-sm"
+                className="h-[28px] px-2 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[11px] font-medium text-gray-700 transition-colors"
               >
                 <GripVertical size={12} /> Order
               </button>
+            </div>
+            <div className="flex items-center gap-2">
               <button 
                 onClick={exportPDF}
-                className="h-[32px] px-4 bg-zinc-900 text-white rounded-lg text-[10px] font-black flex items-center gap-2 hover:bg-black transition-all uppercase tracking-widest shadow-md"
+                className="h-[28px] px-3 bg-gray-800 text-white rounded text-[11px] font-medium flex items-center gap-1.5 hover:bg-gray-900 transition-colors"
               >
                 <Download size={12} /> Export PDF
               </button>
             </div>
           </div>
-          <div className="px-4 py-2 flex gap-4 text-[9px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-50 bg-white">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></span> Present</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-rose-500 rounded-sm"></span> Absent</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-violet-500 rounded-sm"></span> Weekend</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-amber-400 rounded-sm"></span> Holiday</span>
-          </div>
           
           {pivotLoading ? (
-            <div className="text-center py-20 bg-zinc-50/50"><Spinner /></div>
+            <div className="text-center py-20 bg-gray-50"><Spinner /></div>
           ) : (
-            <div className="overflow-x-auto max-h-[calc(100vh-220px)] flex-1 overflow-y-auto bg-zinc-100">
-              <table id="monthly-pivot-table" className="w-full border-separate border-spacing-0 text-[11px]">
+            <div className="overflow-x-auto max-h-[calc(100vh-180px)] flex-1 overflow-y-auto bg-white">
+              <table id="monthly-pivot-table" className="w-full border-collapse text-[11px] font-inter">
                 <thead className="sticky top-0 z-30">
-                  <tr>
-                    <th className="px-3 py-2 text-center font-black text-zinc-800 border-r border-b border-zinc-200 w-[60px] bg-zinc-100 sticky left-0 z-40 uppercase tracking-tighter" rowSpan={2}>
-                      <div className="text-[10px] opacity-50 mb-0.5">Date</div>
-                      <div className="h-0.5 w-full bg-zinc-300 rounded-full"></div>
+                  <tr className="bg-gray-100">
+                    <th className="px-2 py-2 text-center font-semibold text-gray-800 border-r border-b border-gray-300 w-[50px] bg-gray-100 sticky left-0 z-40" rowSpan={2}>
+                      <div className="text-[10px] text-gray-500 mb-0.5">Date</div>
                     </th>
                     {monthlyViewData.employees?.map((emp, idx) => {
                       let colSpan = 0;
@@ -567,23 +549,23 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                       return (
                         <th 
                           key={emp.id} 
-                          className={`px-3 py-2 text-center font-black border-r border-b border-zinc-200 min-w-[80px] bg-zinc-50 text-zinc-800 uppercase tracking-tight`}
+                          className="px-2 py-2 text-center font-semibold border-r border-b border-gray-300 min-w-[70px] bg-gray-100 text-gray-800"
                           colSpan={colSpan}
                         >
-                          <div className="truncate max-w-[120px] mx-auto text-[10px]">{emp.name}</div>
-                          <div className="text-[8px] font-bold text-zinc-400 tracking-tighter">{emp.department || 'Operations'}</div>
+                          <div className="truncate max-w-[100px] mx-auto text-[10px] font-medium">{emp.name}</div>
+                          <div className="text-[9px] font-normal text-gray-500">{emp.department || 'Operations'}</div>
                         </th>
                       )
                     })}
                   </tr>
-                  <tr>
+                  <tr className="bg-white">
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        {columnSettings.inTime && <th className={`px-1 py-1 text-[8px] font-black border-r border-b border-zinc-200 text-center bg-white text-zinc-400 uppercase tracking-widest`}>In</th>}
-                        {columnSettings.outTime && <th className={`px-1 py-1 text-[8px] font-black border-r border-b border-zinc-200 text-center bg-white text-zinc-400 uppercase tracking-widest`}>Out</th>}
-                        {columnSettings.ot && <th className={`px-1 py-1 text-[8px] font-black border-r border-b border-zinc-200 text-center bg-white text-zinc-400 uppercase tracking-widest`}>OT</th>}
-                        {columnSettings.remarks && <th className={`px-1 py-1 text-[8px] font-black border-r border-b border-zinc-200 text-center bg-white text-zinc-400 uppercase tracking-widest`}>{remarksLabel}</th>}
-                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className={`px-1 py-1 border-r border-b border-zinc-200 bg-white`}>-</th>}
+                        {columnSettings.inTime && <th className="px-1 py-1 text-[9px] font-medium border-r border-b border-gray-300 text-center bg-white text-gray-600">In</th>}
+                        {columnSettings.outTime && <th className="px-1 py-1 text-[9px] font-medium border-r border-b border-gray-300 text-center bg-white text-gray-600">Out</th>}
+                        {columnSettings.ot && <th className="px-1 py-1 text-[9px] font-medium border-r border-b border-gray-300 text-center bg-white text-gray-600">OT</th>}
+                        {columnSettings.remarks && <th className="px-1 py-1 text-[9px] font-medium border-r border-b border-gray-300 text-center bg-white text-gray-600">{remarksLabel}</th>}
+                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-1 py-1 border-r border-b border-gray-300 bg-white">-</th>}
                       </React.Fragment>
                     ))}
                   </tr>
@@ -599,13 +581,13 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                     const isHoliday = (monthlyViewData.holidays || []).some(h => h.date === dateStr)
                     const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' })
                     
-                    const dateClass = isSunday ? 'bg-rose-50 text-rose-700 border-rose-200' : (isHoliday ? 'bg-amber-50 text-amber-700 border-amber-200' : (isWeekend ? 'bg-violet-50 text-violet-700 border-zinc-200' : 'bg-zinc-100 text-zinc-900 border-zinc-200'))
+                    const dateClass = isSunday ? 'bg-red-50 text-red-700' : (isHoliday ? 'bg-amber-50 text-amber-700' : (isWeekend ? 'bg-violet-50 text-violet-700' : 'bg-gray-50 text-gray-900'))
                     
                     return (
-                      <tr key={day} className="group hover:bg-zinc-50/50 transition-colors">
-                        <td className={`px-2 py-1.5 text-center font-black sticky left-0 z-20 border-r border-b border-zinc-100 shadow-[2px_0_5px_rgba(0,0,0,0.02)] ${dateClass}`}>
+                      <tr key={day} className="hover:bg-gray-50 transition-colors">
+                        <td className={`px-2 py-1.5 text-center font-medium sticky left-0 z-20 border-r border-b border-gray-200 ${dateClass}`}>
                           <div className="text-[11px] leading-none">{day}</div>
-                          <div className="text-[8px] font-bold opacity-60 uppercase mt-0.5 tracking-tighter">{dayName}</div>
+                          <div className="text-[9px] text-gray-500 mt-0.5">{dayName}</div>
                         </td>
                         {monthlyViewData.employees?.map(emp => {
                           const [empYear, empMonth] = selectedMonth.split('-').map(Number)
@@ -626,20 +608,20 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                           return (
                             <React.Fragment key={emp.id}>
                               {isAbsentOrNonWorking ? (
-                                <td colSpan={colSpan} className={`px-1 py-1.5 text-center border-r border-b border-zinc-100 ${isBeforeStart ? 'bg-zinc-50' : status.bg} transition-colors`}>
-                                  <span className={`text-[10px] font-black uppercase tracking-widest ${isBeforeStart ? 'text-zinc-300' : status.color}`}>
+                                <td colSpan={colSpan} className={`px-1 py-1.5 text-center border-r border-b border-gray-200 ${isBeforeStart ? 'bg-gray-50' : status.bg} transition-colors`}>
+                                  <span className={`text-[10px] font-medium ${isBeforeStart ? 'text-gray-400' : status.color}`}>
                                     {isBeforeStart ? '—' : status.text}
                                   </span>
                                 </td>
                               ) : (
                                 <>
                                   {columnSettings.inTime && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-50 text-[10px] font-bold text-zinc-800 bg-white group-hover:bg-transparent">
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 text-[10px] text-gray-800 bg-white">
                                       {isBeforeStart ? '—' : formatTimeTo12Hour(att?.inTime) || '—'}
                                     </td>
                                   )}
                                   {columnSettings.outTime && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-50 text-[10px] font-bold text-zinc-800 bg-white group-hover:bg-transparent">
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 text-[10px] text-gray-800 bg-white">
                                       {(() => {
                                         if (isBeforeStart) return '—'
                                         const time = formatTimeTo12Hour(att?.outTime)
@@ -651,29 +633,29 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                                           const shortDate = `${months[outDate.getMonth()]} ${outDate.getDate()}`
                                           return (
                                             <div className="flex flex-col items-center leading-none">
-                                              <span className="font-bold">{time}</span>
-                                              <span className="text-[7px] text-rose-500 font-black flex items-center gap-0.5 mt-0.5 uppercase tracking-tighter">
-                                                <ArrowRight size={7} /> {shortDate}
+                                              <span>{time}</span>
+                                              <span className="text-[8px] text-red-500 font-medium mt-0.5">
+                                                → {shortDate}
                                               </span>
                                             </div>
                                           )
                                         }
-                                        return <span className="font-bold">{time}</span>
+                                        return <span>{time}</span>
                                       })()}
                                     </td>
                                   )}
                                   {columnSettings.ot && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-50 text-[10px] font-black text-indigo-600 bg-white group-hover:bg-transparent">
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 text-[10px] font-medium text-indigo-600 bg-white">
                                       {isBeforeStart ? '—' : formatOTHours(att?.otHours)}
                                     </td>
                                   )}
                                   {columnSettings.remarks && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-50 text-[9px] font-medium text-zinc-400 bg-white group-hover:bg-transparent italic">
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 text-[9px] font-normal text-gray-500 bg-white italic">
                                       {isBeforeStart ? '—' : (att?.remarks || '—')}
                                     </td>
                                   )}
                                   {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-zinc-100 bg-white group-hover:bg-transparent">—</td>
+                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 bg-white">—</td>
                                   )}
                                 </>
                               )}
