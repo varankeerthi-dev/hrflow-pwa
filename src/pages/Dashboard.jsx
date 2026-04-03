@@ -290,10 +290,10 @@ export default function Dashboard() {
   }, [tabSearchParams, visibleTabs])
 
   const sections = useMemo(() => [
-    { id: 'main', title: 'MAIN', tabs: ['home'] },
+    { id: 'main', title: 'MAIN', tabs: ['home', 'tasks'] },
     { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'documents', 'summary'] },
     { id: 'payroll', title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
-    { id: 'workforce', title: 'WORKFORCE', tabs: ['vehicles', 'engage', 'chat', 'shift-planning', 'tasks'] },
+    { id: 'workforce', title: 'WORKFORCE', tabs: ['vehicles', 'engage', 'chat', 'shift-planning'] },
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 

@@ -71,6 +71,8 @@ export default function TasksTab() {
   const [activeTab, setActiveTab] = useState('team')
   const [viewMode, setViewMode] = useState('board')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [selectedReminder, setSelectedReminder] = useState(null)
   const [inlineInputs, setInlineInputs] = useState({})
@@ -78,6 +80,14 @@ export default function TasksTab() {
   const [draggedTaskId, setDraggedTaskId] = useState(null)
   const [statusMenuOpen, setStatusMenuOpen] = useState(null)
   const [animatingTaskId, setAnimatingTaskId] = useState(null)
+  
+  // Quick edit popups
+  const [quickDatePicker, setQuickDatePicker] = useState(null) // taskId
+  const [quickAssigneePicker, setQuickAssigneePicker] = useState(null) // taskId
+  
+  // Inline editing
+  const [editingInlineTask, setEditingInlineTask] = useState(null)
+  const [inlineEditValue, setInlineEditValue] = useState('')
   
   // Idea tab states
   const [ideaSearchTerm, setIdeaSearchTerm] = useState('')
@@ -268,6 +278,111 @@ export default function TasksTab() {
       setTimeout(() => setAnimatingTaskId(null), 500)
     } catch (err) {
       console.error("Failed to update status:", err)
+    }
+  }
+
+  // Task editing functions
+  const openEditModal = (task) => {
+    setEditingTask({
+      ...task,
+      assignedTo: Array.isArray(task.assignedTo) ? task.assignedTo : task.assignedTo ? [task.assignedTo] : [],
+      dueDate: task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : null
+    })
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault()
+    if (!editingTask?.title?.trim()) return
+    
+    try {
+      await updateTask(editingTask.id, {
+        title: editingTask.title,
+        description: editingTask.description || '',
+        status: editingTask.status,
+        assignedTo: editingTask.assignedTo || [],
+        dueDate: editingTask.dueDate,
+        priority: editingTask.priority || 'normal',
+        notes: editingTask.notes || '',
+        clientName: editingTask.clientName || '',
+        clientType: editingTask.clientType || null,
+        isPersonal: editingTask.isPersonal,
+        category: editingTask.category
+      })
+      setShowEditModal(false)
+      setEditingTask(null)
+    } catch (err) {
+      console.error('Failed to update task:', err)
+      alert('Failed to update task')
+    }
+  }
+
+  // Quick edit functions
+  const handleQuickDateChange = async (taskId, newDate) => {
+    try {
+      await updateTask(taskId, { dueDate: newDate })
+      setQuickDatePicker(null)
+    } catch (err) {
+      console.error('Failed to update date:', err)
+    }
+  }
+
+  const handleQuickAssigneeChange = async (taskId, assigneeId) => {
+    try {
+      const task = tasks.find(t => t.id === taskId)
+      const currentAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : task.assignedTo ? [task.assignedTo] : []
+      const isAlreadyAssigned = currentAssignees.includes(assigneeId)
+      
+      let newAssignees
+      if (isAlreadyAssigned) {
+        newAssignees = currentAssignees.filter(id => id !== assigneeId)
+      } else {
+        newAssignees = [...currentAssignees, assigneeId]
+      }
+      
+      await updateTask(taskId, { assignedTo: newAssignees })
+      setQuickAssigneePicker(null)
+    } catch (err) {
+      console.error('Failed to update assignees:', err)
+    }
+  }
+
+  // Inline task editing
+  const startInlineEdit = (task) => {
+    setEditingInlineTask(task.id)
+    setInlineEditValue(task.title)
+  }
+
+  const handleInlineEdit = async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (inlineEditValue.trim() && editingInlineTask) {
+        // Extract mentions from edited text
+        const words = inlineEditValue.split(' ')
+        const mentionedNames = words.filter(w => w.startsWith('@')).map(w => w.slice(1))
+        const autoAssignIds = taskEmployees
+          .filter(emp => mentionedNames.some(name => emp.name.toLowerCase() === name.toLowerCase()))
+          .map(emp => emp.id)
+        
+        // Get current task to merge assignees
+        const task = tasks.find(t => t.id === editingInlineTask)
+        const currentAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : task.assignedTo ? [task.assignedTo] : []
+        const mergedAssignees = [...new Set([...currentAssignees, ...autoAssignIds])]
+        
+        try {
+          await updateTask(editingInlineTask, { 
+            title: inlineEditValue.trim(),
+            assignedTo: mergedAssignees
+          })
+          setEditingInlineTask(null)
+          setInlineEditValue('')
+        } catch (err) {
+          console.error('Failed to update task:', err)
+        }
+      }
+    } else if (e.key === 'Escape') {
+      setEditingInlineTask(null)
+      setInlineEditValue('')
     }
   }
 
@@ -467,18 +582,58 @@ export default function TasksTab() {
                     key={task.id}
                     draggable
                     onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                    className={`bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing group ${isAnimating ? 'animate-pulse scale-95' : ''}`}
+                    onClick={(e) => {
+                      // Don't open edit modal if clicking on interactive elements
+                      if (e.target.closest('.status-menu-container') || 
+                          e.target.closest('.quick-edit-trigger') ||
+                          e.target.closest('.inline-edit-input') ||
+                          editingInlineTask === task.id) return
+                      openEditModal(task)
+                    }}
+                    className={`bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all cursor-pointer group ${isAnimating ? 'animate-pulse scale-95' : ''}`}
                     style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
                   >
-                      <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2">
+                      {/* Row 1: Task Title with inline editing */}
                       <div className="flex justify-between items-start gap-2">
-                        <h4 className={`text-[13px] font-medium text-slate-800 leading-tight ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}>
-                          {task.title}
-                        </h4>
-                        <div className="status-menu-container relative">
+                        {editingInlineTask === task.id ? (
+                          <div className="flex-1 relative inline-edit-input">
+                            <input
+                              type="text"
+                              value={inlineEditValue}
+                              onChange={(e) => {
+                                setInlineEditValue(e.target.value)
+                                handleTextChange('inline-edit', e.target.value, task.id)
+                              }}
+                              onKeyDown={handleInlineEdit}
+                              onBlur={() => {
+                                setEditingInlineTask(null)
+                                setInlineEditValue('')
+                              }}
+                              autoFocus
+                              className="w-full bg-white border border-indigo-300 rounded px-2 py-1 text-[13px] font-medium text-slate-800 outline-none"
+                            />
+                            {mentionState.active && mentionState.targetId === task.id && (
+                              <div className="absolute top-full left-0 mt-1 z-50">
+                                <MentionList />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <h4 
+                            onDoubleClick={() => startInlineEdit(task)}
+                            className={`text-[13px] font-medium text-slate-800 leading-tight flex-1 ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}
+                          >
+                            {task.title}
+                          </h4>
+                        )}
+                        <div className="status-menu-container relative shrink-0 z-20">
                           <button 
-                            onClick={() => setStatusMenuOpen(statusMenuOpen === task.id ? null : task.id)} 
-                            className={`shrink-0 transition-all duration-300 ${task.status === 'Completed' ? 'text-emerald-500 scale-110' : 'text-slate-200 hover:text-slate-400'} ${isAnimating ? 'animate-bounce' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setStatusMenuOpen(statusMenuOpen === task.id ? null : task.id)
+                            }} 
+                            className={`shrink-0 transition-all duration-300 ${task.status === 'Completed' ? 'text-emerald-500 scale-110' : 'text-slate-300 hover:text-slate-500'} ${isAnimating ? 'animate-bounce' : ''}`}
                             title="Change status"
                             style={{ transition: 'all 0.3s ease' }}
                           >
@@ -503,36 +658,106 @@ export default function TasksTab() {
                         </div>
                       </div>
                       
-                      <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-slate-100">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {task.dueDate && (
-                            <div className={`px-2 py-1 rounded-md text-[10px] font-bold flex items-center gap-1.5 ${dueDateColor}`}>
-                              <CalendarIcon size={12} />
-                              {dueDateText}
-                            </div>
-                          )}
-                          {task.priority === 'urgent' && (
-                            <div className="px-2 py-1 rounded-md text-[10px] font-bold bg-rose-100 text-rose-600 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                              URGENT
-                            </div>
-                          )}
-                          {task.priority === 'high' && (
-                            <div className="px-2 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-600 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                              HIGH
+                      {/* Row 2: Due Date - clickable to quick edit */}
+                      {task.dueDate && (
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setQuickDatePicker(quickDatePicker === task.id ? null : task.id)
+                            }}
+                            className={`quick-edit-trigger text-[11px] font-medium flex items-center gap-1 hover:opacity-70 transition-opacity ${dueDateColor}`}
+                          >
+                            <CalendarIcon size={12} />
+                            {dueDateText}
+                          </button>
+                          
+                          {/* Quick Date Picker Popup */}
+                          {quickDatePicker === task.id && (
+                            <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2">
+                              <DatePicker
+                                selected={task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : new Date()}
+                                onChange={(date) => handleQuickDateChange(task.id, date)}
+                                onClickOutside={() => setQuickDatePicker(null)}
+                                inline
+                              />
                             </div>
                           )}
                         </div>
-                        
-                        {assignees.length > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <User size={12} className="text-slate-400" />
-                            <span className="text-[10px] text-slate-600 font-medium">
-                              {assignees.map(e => e.name).join(', ')}
+                      )}
+                      
+                      {/* Row 3: Priority & Assignees on same line */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {task.priority === 'urgent' && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-600">
+                              URGENT
                             </span>
-                          </div>
-                        )}
+                          )}
+                          {task.priority === 'high' && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-600">
+                              HIGH
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Assignees - clickable to quick edit */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setQuickAssigneePicker(quickAssigneePicker === task.id ? null : task.id)
+                            }}
+                            className="quick-edit-trigger flex items-center gap-1 hover:opacity-70 transition-opacity"
+                          >
+                            {assignees.length > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <div className="flex -space-x-1">
+                                  {assignees.slice(0, 3).map(emp => (
+                                    <div key={emp.id} className="w-5 h-5 rounded-full bg-slate-100 border border-white flex items-center justify-center text-[8px] font-bold text-slate-600">
+                                      {getInitials(emp.name)}
+                                    </div>
+                                  ))}
+                                </div>
+                                <span className="text-[10px] text-slate-500">
+                                  {assignees.length === 1 ? assignees[0].name : `${assignees.length} assignees`}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                <User size={10} />
+                                Unassigned
+                              </span>
+                            )}
+                          </button>
+                          
+                          {/* Quick Assignee Picker Popup */}
+                          {quickAssigneePicker === task.id && (
+                            <div className="absolute top-full right-0 mt-1 z-50 w-56 bg-white border border-slate-200 rounded-lg shadow-xl p-2">
+                              <div className="text-[10px] font-semibold text-slate-500 mb-2 px-2">Assign to:</div>
+                              <div className="max-h-48 overflow-y-auto space-y-1">
+                                {taskEmployees.map(emp => {
+                                  const isAssigned = assignees.some(a => a.id === emp.id)
+                                  return (
+                                    <button
+                                      key={emp.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleQuickAssigneeChange(task.id, emp.id)
+                                      }}
+                                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ${isAssigned ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
+                                    >
+                                      <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                        {isAssigned ? '✓' : getInitials(emp.name)}
+                                      </div>
+                                      {emp.name}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1242,6 +1467,207 @@ export default function TasksTab() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Edit Task Modal */}
+      <Modal 
+        isOpen={showEditModal} 
+        onClose={() => { setShowEditModal(false); setEditingTask(null); }}
+        title="Edit Task"
+        size="2xl"
+      >
+        {editingTask && (
+          <form onSubmit={handleSaveEdit} className="p-6 space-y-6">
+            {/* Title Section */}
+            <div className="space-y-4">
+              <div className="relative">
+                <label className="block text-[12px] font-semibold text-gray-700 mb-2">Task Title</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
+                  placeholder="What needs to be done?"
+                  value={editingTask.title}
+                  onChange={e => setEditingTask({ ...editingTask, title: e.target.value })}
+                />
+              </div>
+
+              <div className="relative">
+                <label className="block text-[12px] font-semibold text-gray-700 mb-2">Description</label>
+                <textarea
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[80px] resize-none placeholder:text-gray-400"
+                  placeholder="Add some details..."
+                  value={editingTask.description || ''}
+                  onChange={e => setEditingTask({ ...editingTask, description: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Priority Selector */}
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Priority</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['normal', 'high', 'urgent'].map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setEditingTask({ ...editingTask, priority: p })}
+                        className={`py-2 rounded-lg text-[10px] font-medium uppercase tracking-wider transition-all border ${
+                          editingTask.priority === p 
+                            ? p === 'urgent' ? 'bg-red-50 border-red-200 text-red-600 shadow-sm shadow-red-100' :
+                              p === 'high' ? 'bg-amber-50 border-amber-200 text-amber-600 shadow-sm shadow-amber-100' :
+                              'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm shadow-indigo-100'
+                            : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Status</label>
+                  <select
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                    value={editingTask.status}
+                    onChange={e => setEditingTask({ ...editingTask, status: e.target.value })}
+                  >
+                    {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-6">
+                {/* Due Date */}
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Due Date</label>
+                  <div className="relative">
+                    <DatePicker
+                      selected={editingTask.dueDate}
+                      onChange={(date) => setEditingTask({ ...editingTask, dueDate: date })}
+                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
+                      placeholderText="Optional"
+                      dateFormat="MMM d, yyyy"
+                    />
+                    <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+                  </div>
+                </div>
+
+                {/* Internal Notes */}
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">Internal Notes</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
+                    placeholder="Quick notes (internal only)"
+                    value={editingTask.notes || ''}
+                    onChange={e => setEditingTask({ ...editingTask, notes: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Multi-Assignee Selector */}
+            <div>
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Assign To</label>
+              <div className="flex flex-wrap gap-1.5 p-3 bg-gray-50/50 border border-gray-200 rounded-lg min-h-[45px]">
+                {taskEmployees.map(emp => {
+                  const isSelected = editingTask.assignedTo?.includes(emp.id)
+                  return (
+                    <button
+                      key={emp.id}
+                      type="button"
+                      onClick={() => {
+                        const current = editingTask.assignedTo || []
+                        const updated = isSelected 
+                          ? current.filter(id => id !== emp.id)
+                          : [...current, emp.id]
+                        setEditingTask({ ...editingTask, assignedTo: updated })
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-all flex items-center gap-1.5 border ${
+                        isSelected 
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-100' 
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-gray-300'}`} />
+                      {emp.name}
+                    </button>
+                  )
+                })}
+                {taskEmployees.length === 0 && (
+                  <p className="text-[10px] text-gray-400 italic py-1">No employees found</p>
+                )}
+              </div>
+            </div>
+
+            {/* Client Tracking - Shadcn-like Card */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                  <User size={12} className="text-gray-400" />
+                  Client Tracking
+                </h5>
+                <span className="text-[10px] font-medium text-gray-400 italic">Optional</span>
+              </div>
+              
+              <div className="p-4 grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">Client Name</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-50/30 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                    placeholder="e.g. John Doe"
+                    value={editingTask.clientName || ''}
+                    onChange={e => setEditingTask({ ...editingTask, clientName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">Client Type</label>
+                  <div className="flex gap-2">
+                    {CLIENT_TYPES.map(type => (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => setEditingTask({ ...editingTask, clientType: editingTask.clientType === type.id ? null : type.id })}
+                        className={`flex-1 py-2 rounded-lg text-xs transition-all border ${
+                          editingTask.clientType === type.id 
+                            ? `${type.bgColor} ${type.borderColor} ${type.color} shadow-sm`
+                            : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
+                        }`}
+                        title={type.label}
+                      >
+                        {type.icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => { setShowEditModal(false); setEditingTask(null); }}
+                className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 active:scale-[0.98]"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       <Modal isOpen={!!selectedReminder} onClose={() => setSelectedReminder(null)} title="Directive Summary">
