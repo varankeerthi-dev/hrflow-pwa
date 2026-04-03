@@ -45,7 +45,6 @@ import CorrectionTab from '../components/tabs/CorrectionTab'
 import LeaveTab from '../components/tabs/LeaveTab'
 import ApprovalsTab from '../components/tabs/ApprovalsTab'
 import HRLettersTab from '../components/tabs/HRLettersTab'
-import RecruitmentTab from '../components/tabs/RecruitmentTab'
 import DocumentsTab from '../components/tabs/DocumentsTab'
 import SummaryTab from '../components/tabs/SummaryTab'
 import SalarySlipTab from '../components/tabs/SalarySlipTab'
@@ -55,8 +54,8 @@ import EngagementTab from '../components/tabs/EngagementTab'
 import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SettingsTab from '../components/tabs/SettingsTab'
-import TasksTab from '../components/tabs/TasksTab'
 import ChatTab from '../components/tabs/ChatTab'
+import MobileTasksView from './MobileTasksView'
 import Badge from '../components/ui/Badge'
 
 // ─── Org Setup Modal ────────
@@ -467,7 +466,7 @@ export default function MobileDashboard() {
       case 'letters':
         return <HRLettersTab />
       case 'tasks':
-        return <TasksTab />
+        return <MobileTasksView />
       case 'recruitment':
         return <RecruitmentTab />
       case 'documents':
