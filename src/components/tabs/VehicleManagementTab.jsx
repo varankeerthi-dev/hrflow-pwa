@@ -163,66 +163,60 @@ export default function VehicleManagementTab() {
 
   return (
     <div className="flex flex-col h-full bg-white font-inter selection:bg-indigo-100 selection:text-indigo-900">
-      {/* Brutal Header */}
-      <div className="border-b border-zinc-100 px-8 py-10 flex flex-col lg:flex-row lg:items-end justify-between gap-8 shrink-0">
-        <div>
-          <h1 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter leading-none">
-            Fleet<span className="text-indigo-600">.</span>Manifest
-          </h1>
-          <div className="flex items-center gap-4 mt-4">
-            <div className="flex items-center bg-zinc-900 p-1 rounded-lg">
-              <button 
-                onClick={() => setActiveSubTab('all-vehicles')}
-                className={`px-5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'all-vehicles' ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
-              >
-                Inventory
-              </button>
-              <button 
-                onClick={() => setActiveSubTab('service-complaints')}
-                className={`px-5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'service-complaints' ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
-              >
-                Maintenance
-              </button>
-            </div>
-            <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.2em] hidden sm:block">Logistics Command</span>
+      {/* Header with Tabs at Top */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-6">
+          <h1 className="text-xl font-semibold text-gray-900">Vehicle Management</h1>
+          
+          {/* Tabs moved to top */}
+          <div className="flex items-center bg-gray-100 p-1 rounded-lg">
+            <button 
+              onClick={() => setActiveSubTab('all-vehicles')}
+              className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${activeSubTab === 'all-vehicles' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Inventory
+            </button>
+            <button 
+              onClick={() => setActiveSubTab('service-complaints')}
+              className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${activeSubTab === 'service-complaints' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Maintenance
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Global Fleet Status</p>
+        <div className="flex items-center gap-3">
           <div className="flex gap-2">
-            <div className="px-3 py-1 bg-zinc-50 border border-zinc-100 rounded-md">
-              <span className="text-[10px] font-black text-zinc-900 tabular-nums">{vehicles.length} <span className="text-zinc-400 uppercase ml-1">Assets</span></span>
+            <div className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md">
+              <span className="text-xs text-gray-600">{vehicles.length} Assets</span>
             </div>
-            <div className="px-3 py-1 bg-zinc-50 border border-zinc-100 rounded-md">
-              <span className="text-[10px] font-black text-rose-600 tabular-nums">
-                {vehicles.filter(v => isExpired(v.insuranceExpiry)).length} <span className="text-zinc-400 uppercase ml-1">Expired</span>
-              </span>
+            <div className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-md">
+              <span className="text-xs text-rose-600">{vehicles.filter(v => isExpired(v.insuranceExpiry)).length} Expired</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-8 py-12 lg:px-12">
+      <div className="flex-1 overflow-auto px-6 py-6">
         {activeSubTab === 'all-vehicles' && (
-          <div className="max-w-screen-2xl mx-auto space-y-12">
-            {/* Minimal Toolbar */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-zinc-100 pb-8">
-              <div className="relative w-full md:w-[480px]">
-                <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-zinc-900" size={20} strokeWidth={3} />
+          <div className="max-w-screen-2xl mx-auto space-y-6">
+            {/* Toolbar */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="relative w-full md:w-[400px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                 <input 
                   type="text" 
-                  placeholder="FILTER BY REGISTRATION OR NAME..."
+                  placeholder="Search by name or registration..."
                   value={searchTerm}
                   onChange={e => setSearchName(e.target.value)}
-                  className="w-full pl-8 pr-4 h-12 bg-transparent text-[13px] font-black text-zinc-900 placeholder:text-zinc-200 focus:outline-none uppercase tracking-tight"
+                  className="w-full pl-10 pr-4 h-10 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
               <button 
                 onClick={() => setShowAddVehicle(true)}
-                className="w-full md:w-fit h-12 px-10 bg-indigo-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-zinc-900 transition-all active:scale-95"
+                className="w-full md:w-fit h-10 px-6 bg-indigo-600 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
               >
-                Add Asset <Plus size={16} strokeWidth={4} />
+                <Plus size={16} /> Add Asset
               </button>
             </div>
 
@@ -304,69 +298,64 @@ export default function VehicleManagementTab() {
         )}
 
         {activeSubTab === 'service-complaints' && (
-          <div className="max-w-5xl mx-auto space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            {/* Maintenance Command */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-8 border-b-2 border-zinc-100 pb-12">
-              <div>
-                <h2 className="text-3xl font-black text-zinc-900 uppercase tracking-tighter leading-none">Diagnostic Logs</h2>
-                <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.3em] mt-4">Continuous Fleet Health Monitoring</p>
-              </div>
+          <div className="max-w-5xl mx-auto space-y-6">
+            {/* Maintenance Toolbar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-gray-900">Maintenance Logs</h2>
               <button 
                 onClick={() => setShowServiceModal(true)}
-                className="h-14 px-12 bg-zinc-900 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all"
+                className="h-10 px-6 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
               >
                 Log Maintenance
               </button>
             </div>
 
-            {/* List Layout - No Cards, Just High Contrast Rows */}
-            <div className="space-y-1">
+            {/* List Layout */}
+            <div className="space-y-2">
               {loadingServices ? (
-                <div className="py-32 text-center"><Spinner size="w-12 h-12" color="text-zinc-900" /></div>
+                <div className="py-20 text-center"><Spinner size="w-8 h-8" color="text-gray-400" /></div>
               ) : services.length === 0 ? (
-                <div className="py-40 text-center border-2 border-dashed border-zinc-100 rounded-xl opacity-20 italic">
-                  <p className="font-black uppercase tracking-widest">No Active Faults</p>
+                <div className="py-20 text-center border border-dashed border-gray-200 rounded-lg">
+                  <p className="text-gray-400 text-sm">No maintenance records found</p>
                 </div>
               ) : services.map(s => (
-                <div key={s.id} className="group grid grid-cols-1 lg:grid-cols-12 gap-6 py-8 border-b border-zinc-100 hover:bg-zinc-50 transition-all px-4 -mx-4 rounded-lg">
+                <div key={s.id} className="group grid grid-cols-1 lg:grid-cols-12 gap-4 py-4 px-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-all">
                   <div className="lg:col-span-3 flex flex-col justify-center">
-                    <span className="text-lg font-black text-zinc-900 uppercase tracking-tighter leading-none group-hover:text-indigo-600 transition-colors">
-                      {vehicles.find(v => v.id === s.vehicleId)?.name || 'UNKNOWN'}
+                    <span className="text-sm font-medium text-gray-900">
+                      {vehicles.find(v => v.id === s.vehicleId)?.name || 'Unknown'}
                     </span>
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">
-                      {s.date ? new Date(s.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : 'NO DATE'}
+                    <span className="text-xs text-gray-400 mt-1">
+                      {s.date ? new Date(s.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No date'}
                     </span>
                   </div>
 
                   <div className="lg:col-span-2 flex items-center">
-                    <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest border-2 ${
-                      s.type === 'Complaint' 
-                        ? 'border-rose-600 text-rose-600 bg-white' 
-                        : s.type === 'Oil Change'
-                        ? 'border-amber-500 text-amber-600 bg-white'
-                        : 'border-emerald-500 text-emerald-600 bg-white'
+                    <span className={`px-2 py-1 text-xs font-medium rounded-md ${
+                      s.type === 'Complaint' ? 'bg-rose-50 text-rose-600' :
+                      s.type === 'Oil Change' ? 'bg-amber-50 text-amber-600' :
+                      'bg-emerald-50 text-emerald-600'
                     }`}>
                       {s.type}
                     </span>
                   </div>
 
                   <div className="lg:col-span-2 flex flex-col justify-center">
-                    <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-1">Odometer</span>
-                    <span className="text-sm font-black text-zinc-900 tabular-nums">{s.mileage} KM</span>
+                    <span className="text-[11px] font-medium text-gray-400 mb-0.5">Odometer</span>
+                    <span className="text-sm font-medium text-gray-900">{s.mileage} KM</span>
                   </div>
 
                   <div className="lg:col-span-2 flex flex-col justify-center">
-                    <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-1">Next Cycle</span>
-                    <span className="text-sm font-black text-indigo-600 tabular-nums uppercase">{s.nextDueDate || 'UNSET'}</span>
+                    <span className="text-[11px] font-medium text-gray-400 mb-0.5">Next Due</span>
+                    <span className="text-sm font-medium text-indigo-600">{s.nextDueDate || '—'}</span>
                   </div>
 
-                  <div className="lg:col-span-3 flex items-center justify-end gap-4">
+                  <div className="lg:col-span-3 flex items-center justify-end gap-2">
                     {s.billURL && (
                       <button 
                         onClick={() => window.open(s.billURL, '_blank')}
-                        className="h-10 px-6 bg-zinc-100 text-zinc-900 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all"
+                        className="h-9 px-4 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
                       >
-                        Bill Copy
+                        View Bill
                       </button>
                     )}
                   </div>
