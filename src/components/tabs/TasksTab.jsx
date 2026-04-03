@@ -197,11 +197,14 @@ export default function TasksTab() {
     setMentionState({ active: false, query: '', cursorPos: 0, targetField: null, targetId: null })
   }
 
-  const handleInlineCreate = async (status, e) => {
+  const handleInlineCreate = async (statusKey, e) => {
     if (e && e.key && e.key !== 'Enter') return;
-    if (inlineInputs[status]?.trim()) {
-      const title = inlineInputs[status].trim()
-      const dueDate = inlineDates[status] || null
+    if (inlineInputs[statusKey]?.trim()) {
+      const title = inlineInputs[statusKey].trim()
+      const dueDate = inlineDates[statusKey] || null
+      
+      // Extract actual status (remove -bottom suffix if present)
+      const actualStatus = statusKey.replace('-bottom', '')
       
       const words = title.split(' ')
       const mentionedNames = words.filter(w => w.startsWith('@')).map(w => w.slice(1))
@@ -212,14 +215,14 @@ export default function TasksTab() {
       try {
         await addTask({
           title,
-          status: status === 'Inbox' ? 'To Do' : status,
+          status: actualStatus === 'Inbox' ? 'To Do' : actualStatus,
           isPersonal: activeTab === 'personal',
           category: activeTab === 'idea' ? 'idea' : 'task',
           assignedTo: activeTab === 'personal' ? [user.uid] : autoAssignIds,
           dueDate
         })
-        setInlineInputs({ ...inlineInputs, [status]: '' })
-        setInlineDates({ ...inlineDates, [status]: null })
+        setInlineInputs({ ...inlineInputs, [statusKey]: '' })
+        setInlineDates({ ...inlineDates, [statusKey]: null })
       } catch (err) {
         alert('Failed to create task')
       }
@@ -447,15 +450,18 @@ export default function TasksTab() {
                   </div>
                 )
               })}
-              
-              {/* Add Task Button at Bottom */}
-              <button 
-                onClick={() => { setNewTask({ ...newTask, status: status.id }); setShowAddModal(true); }}
-                className="w-full py-2 px-3 border border-dashed border-slate-300 rounded-lg text-[11px] font-medium text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-1.5 mt-2"
-              >
-                <Plus size={14} />
-                Add a Task
-              </button>
+              {/* Inline Add Task at Bottom */}
+              <div className="relative group mt-3">
+                <input
+                  type="text"
+                  placeholder="+ Add a task..."
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-[12px] font-medium text-slate-700 outline-none transition-all placeholder:text-slate-400"
+                  value={inlineInputs[`${status.id}-bottom`] || ''}
+                  onChange={(e) => handleTextChange('inline', e.target.value, `${status.id}-bottom`)}
+                  onKeyDown={(e) => handleInlineCreate(`${status.id}-bottom`, e)}
+                />
+                {mentionState.active && mentionState.targetId === `${status.id}-bottom` && <div className="absolute top-full left-0 z-50"><MentionList /></div>}
+              </div>
           </div>
         </div>
       ))}
