@@ -423,6 +423,35 @@ export default function TasksTab() {
                 onKeyDown={(e) => handleInlineCreate(status.id, e)}
               />
               {mentionState.active && mentionState.targetId === status.id && <div className="absolute top-full left-0 z-50"><MentionList /></div>}
+              
+              {/* Date picker for inline input */}
+              {inlineInputs[status.id]?.trim() && (
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setInlineDates({ ...inlineDates, [status.id]: inlineDates[status.id] ? null : new Date() })}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      inlineDates[status.id] 
+                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' 
+                        : 'bg-slate-50 text-slate-500 border border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <CalendarIcon size={12} />
+                    {inlineDates[status.id] ? formatDueDate(inlineDates[status.id]) : 'Set due date'}
+                  </button>
+                  
+                  {inlineDates[status.id] && (
+                    <DatePicker
+                      selected={inlineDates[status.id]}
+                      onChange={(date) => setInlineDates({ ...inlineDates, [status.id]: date })}
+                      className="!w-[100px] !bg-white !border-slate-200 !rounded-md !px-2 !py-1 !text-[11px]"
+                      dateFormat="MMM d"
+                      placeholderText="Pick date"
+                      popperPlacement="bottom-start"
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             {filteredTasks
@@ -504,6 +533,15 @@ export default function TasksTab() {
                             </span>
                           </div>
                         )}
+                        
+                        {task.dueDate && (
+                          <div className="flex items-center gap-1.5">
+                            <CalendarIcon size={12} className="text-slate-400" />
+                            <span className="text-[10px] text-slate-600 font-medium">
+                              {formatDueDate(task.dueDate)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -519,6 +557,35 @@ export default function TasksTab() {
                   onKeyDown={(e) => handleInlineCreate(`${status.id}-bottom`, e)}
                 />
                 {mentionState.active && mentionState.targetId === `${status.id}-bottom` && <div className="absolute top-full left-0 z-50"><MentionList /></div>}
+                
+                {/* Date picker for bottom inline input */}
+                {inlineInputs[`${status.id}-bottom`]?.trim() && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setInlineDates({ ...inlineDates, [`${status.id}-bottom`]: inlineDates[`${status.id}-bottom`] ? null : new Date() })}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-all ${
+                        inlineDates[`${status.id}-bottom`] 
+                          ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' 
+                          : 'bg-slate-50 text-slate-500 border border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <CalendarIcon size={12} />
+                      {inlineDates[`${status.id}-bottom`] ? formatDueDate(inlineDates[`${status.id}-bottom`]) : 'Set due date'}
+                    </button>
+                    
+                    {inlineDates[`${status.id}-bottom`] && (
+                      <DatePicker
+                        selected={inlineDates[`${status.id}-bottom`]}
+                        onChange={(date) => setInlineDates({ ...inlineDates, [`${status.id}-bottom`]: date })}
+                        className="!w-[100px] !bg-white !border-slate-200 !rounded-md !px-2 !py-1 !text-[11px]"
+                        dateFormat="MMM d"
+                        placeholderText="Pick date"
+                        popperPlacement="bottom-start"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
           </div>
         </div>
