@@ -20,7 +20,7 @@ service cloud.firestore {
       allow write: if isAdmin();
 
       match /employees/{employeeId} {
-        allow read, write: if true; // Keeping existing open rules for employees subcollection
+        allow read, write: if true;
       }
       
       match /shifts/{shiftId} {
@@ -39,6 +39,14 @@ service cloud.firestore {
         allow read, write: if true;
       }
       
+      match /requests/{requestId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /advances_expenses/{requestId} {
+        allow read, write: if isSignedIn();
+      }
+      
       match /logs/{logId} {
         allow read, write: if true;
       }
@@ -46,19 +54,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if true;
-      allow write: if isSignedIn() && (
-        // Allow if user is admin OR updating their own document
-        (isAdmin() || request.auth.uid == userId) &&
-        
-        // Rule: Organisation creator cannot change role from admin unless another admin exists
-        (
-          let org = get(/databases/$(database)/documents/organisations/$(request.resource.data.orgId)).data;
-          let isCreator = org.creatorId == userId;
-          let changingFromAdmin = resource.data.role.lower() == 'admin' && request.resource.data.role.lower() != 'admin';
-          
-          isCreator && changingFromAdmin ? org.adminUids.size() > 1 : true
-        )
-      );
+      allow write: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
     }
 
     match /{document=**} {

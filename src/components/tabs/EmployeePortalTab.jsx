@@ -4,7 +4,7 @@ import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance, calcOT } from '../../hooks/useAttendance'
 import { attendanceCol } from '../../lib/firestore'
 import { db } from '../../lib/firebase'
-import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy } from 'firebase/firestore'
+import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, deleteDoc, doc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
@@ -38,13 +38,17 @@ import {
   Eye,
   Lock,
   Smartphone,
-  Info
+  Info,
+  Play,
+  Square,
+  MessageSquare
 } from 'lucide-react'
 
 export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashboard' }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
   const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
+  const { applyLeave } = useLeaves(user?.orgId)
 
   const employee = useMemo(() => {
     if (!user || !employees.length) {
@@ -200,6 +204,20 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
       setRequests(merged)
     } catch (err) {
       console.error('Portal fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleWithdraw = async (reqId, source) => {
+    if (!window.confirm('Are you sure you want to withdraw this request?')) return
+    setLoading(true)
+    try {
+      const collectionName = source === 'advances_expenses' ? 'advances_expenses' : 'requests'
+      await deleteDoc(doc(db, 'organisations', user.orgId, collectionName, reqId))
+      await fetchRequests()
+    } catch (err) {
+      alert('Withdrawal failed: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -382,25 +400,25 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   return (
     <div className="h-full flex flex-col font-inter gap-8 pb-10">
       {/* SaaS Sub-Navigation */}
-      <div className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100 flex justify-between items-center">
-        <div className="flex bg-gray-100 p-1 rounded-lg">
+      <div className="bg-white p-4 md:p-6 rounded-[12px] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="grid grid-cols-3 md:flex bg-gray-100 p-1 rounded-lg w-full md:w-auto gap-1">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-            { id: 'attendance', label: 'My Attendance', icon: <Calendar size={16} /> },
-            { id: 'requests', label: 'My Requests', icon: <FileText size={16} /> },
+            { id: 'attendance', label: 'Attendance', icon: <Calendar size={16} /> },
+            { id: 'requests', label: 'Requests', icon: <FileText size={16} /> },
             { id: 'salary', label: 'Salary Slip', icon: <Hash size={16} /> },
             { id: 'profile', label: 'Profile', icon: <User size={16} /> }
           ].map(t => (
             <button
               key={t.id}
               onClick={() => setActivePortalTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-md text-[13px] font-bold transition-all ${activePortalTab === t.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-2 md:px-5 py-2.5 md:py-2 rounded-md text-[10px] md:text-[13px] font-bold transition-all ${activePortalTab === t.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              {t.icon} {t.label}
+              {t.icon} <span className="truncate w-full text-center md:w-auto">{t.label}</span>
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-3">
           <div className="flex flex-col items-end mr-3">
             <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest">{user?.orgName}</span>
             <span className="text-[9px] font-bold text-gray-400 uppercase">Authenticated Session</span>
@@ -414,7 +432,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
       <div className="flex-1 overflow-auto">
         {activePortalTab === 'dashboard' && (
           <div className="max-w-5xl mx-auto space-y-6">
-            <div className="bg-white rounded-[12px] p-8 border border-gray-100 shadow-sm flex items-center justify-between">
+            <div className="bg-white rounded-[12px] p-8 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Welcome</p>
                 <h2 className="text-2xl font-black text-gray-900 tracking-tight">
@@ -424,12 +442,31 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                   Quick access to your workday: attendance, requests and salary slips.
                 </p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                {!todayRecord?.inTime ? (
+                  <button
+                    onClick={handleCheckIn}
+                    className="h-[46px] px-8 rounded-xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/10 hover:bg-emerald-700 transition-all active:scale-95"
+                  >
+                    <Play size={18} fill="currentColor" /> Check-In
+                  </button>
+                ) : !todayRecord?.outTime ? (
+                  <button
+                    onClick={handleCheckOut}
+                    className="h-[46px] px-8 rounded-xl bg-rose-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl shadow-rose-900/10 hover:bg-rose-700 transition-all active:scale-95"
+                  >
+                    <Square size={16} fill="currentColor" /> Check-Out
+                  </button>
+                ) : (
+                  <div className="h-[46px] px-8 rounded-xl bg-gray-100 text-gray-400 text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 border border-gray-200">
+                    Shift Completed
+                  </div>
+                )}
                 <button
                   onClick={() => setShowRequestModal(true)}
-                  className="h-[40px] px-4 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-[0.16em]"
+                  className="h-[46px] px-8 rounded-xl bg-white border border-gray-200 text-gray-900 text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-sm hover:bg-gray-50 transition-all active:scale-95"
                 >
-                  Apply Leave
+                  <Plus size={18} strokeWidth={3} /> Apply Leave
                 </button>
               </div>
             </div>
@@ -992,7 +1029,12 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                   <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center opacity-40 group-hover:opacity-100 transition-opacity">
                     <span className="text-[8px] font-black text-gray-300 uppercase">Ref: {req.id.slice(-8).toUpperCase()}</span>
                     {req.status === 'Pending' && (
-                      <button className="text-[9px] font-black text-red-400 uppercase hover:text-red-600">Withdraw</button>
+                      <button 
+                        onClick={() => handleWithdraw(req.id, req.source)}
+                        className="text-[9px] font-black text-red-400 uppercase hover:text-red-600"
+                      >
+                        Withdraw
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1008,15 +1050,8 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         )}
 
         {activePortalTab === 'salary' && (
-          <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-white rounded-[12px] p-12 border border-gray-100 shadow-sm text-center">
-              <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-6 text-gray-200">
-                <Hash size={40} />
-              </div>
-              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Salary Slip</h3>
-              <p className="text-[13px] text-gray-400 font-medium uppercase tracking-widest">Not Generated</p>
-              <p className="text-[12px] text-gray-500 mt-4">Your salary slip will be available here once generated by HR.</p>
-            </div>
+          <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <EmployeeSalarySlipTab employeeId={employeeId} employee={employee} />
           </div>
         )}
       </div>

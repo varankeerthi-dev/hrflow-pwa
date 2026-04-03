@@ -433,6 +433,7 @@ export default function AttendanceTab() {
   const [showCopyModal, setShowCopyModal] = useState(false)
   const [activeCopyEmpId, setActiveCopyEmpId] = useState(null);
   const [rowOrder, setRowOrder] = useState([])
+  const [remarksLabel, setRemarksLabel] = useState('Remarks')
 
   const [copyConfig, setCopyConfig] = useState({ inTime: false, outTime: true })
   const [selectedEmps, setSelectedEmps] = useState([])
@@ -480,9 +481,13 @@ export default function AttendanceTab() {
     if (!user?.orgId || !selectedDate) return
     getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
       if (snap.exists()) {
-        setOrgData(snap.data())
-        if (snap.data().employeeRowOrder) {
-          setRowOrder(snap.data().employeeRowOrder)
+        const data = snap.data()
+        setOrgData(data)
+        if (data.employeeRowOrder) {
+          setRowOrder(data.employeeRowOrder)
+        }
+        if (data.remarksLabel) {
+          setRemarksLabel(data.remarksLabel)
         }
       }
     })
@@ -859,7 +864,7 @@ export default function AttendanceTab() {
                     <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[100px]">In Time</th>
                     <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[100px]">Out Time</th>
                     <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[60px]">OT</th>
-                    <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[15%]">Remarks</th>
+                    <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[15%]">{remarksLabel}</th>
                     <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right w-[120px]">Status</th>
                     <th className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[40px]"></th>
                   </tr>

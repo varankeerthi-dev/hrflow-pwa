@@ -17,6 +17,7 @@ import {
   LogOut,
   ChevronRight,
   Menu,
+  X,
   PanelLeft,
   LayoutDashboard,
   Building2,
@@ -332,6 +333,7 @@ export default function Dashboard() {
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [summarySubTab, setSummarySubTab] = useState('summary')
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
   const [expandedGroups, setExpandedGroups] = useState({ main: true, hr: true, payroll: true, workforce: true, account: true }) // Default expand all groups
   const [showLog, setShowLog] = useState(false)
@@ -465,6 +467,7 @@ useEffect(() => {
         <div className="max-w-full mx-auto px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 hidden md:block transition-all" title="Toggle Sidebar"><PanelLeft size={18} /></button>
+            <button onClick={() => setIsMobileMenuOpen(true)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 md:hidden transition-all" title="Open Menu"><Menu size={18} /></button>
             <div className="flex items-center gap-2">
               {orgSettings?.logoURL ? (
                 <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
@@ -556,12 +559,28 @@ useEffect(() => {
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        {/* Mobile Sidebar Overlay */}
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
+          </div>
+        )}
+
         {/* Modern Indigo-themed Sidebar */}
         <aside 
-          className={`bg-white border-r border-gray-200 hidden md:flex flex-col shrink-0 transition-all duration-200 ${isCollapsed ? 'w-[56px]' : 'w-[210px]'}`}
+          className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[56px]' : 'md:w-[210px] w-64 shadow-2xl md:shadow-none'}`}
         >
-          <nav className="flex-1 px-1.5 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
+          {/* Mobile Sidebar Header */}
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between md:hidden">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white shadow-sm"><Building2 size={16} /></div>
+              <span className="text-md font-black text-gray-900 tracking-tight">HRFlow</span>
+            </div>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
+          </div>
+
+          <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto no-scrollbar">
             {sections.map(section => {
               // Filter section tabs by user permissions
               const sectionTabs = tabs.filter(t => section.tabs.includes(t.id));
@@ -571,21 +590,23 @@ useEffect(() => {
               const isGroupActive = expandedGroups[section.id];
               
               return (
-                <div key={section.id} className="mb-1">
+                <div key={section.id} className="flex flex-col gap-1">
                   {!isCollapsed && (
-                    <button
-                      onClick={() => setExpandedGroups(prev => ({ ...prev, [section.id]: !prev[section.id] }))}
-                      className="w-full flex items-center justify-between px-2.5 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider hover:text-indigo-600 transition-colors section-header"
-                    >
+                    <div className="left-panel-title flex items-center justify-between">
                       <span>{section.title}</span>
-                      <ChevronRight 
-                        size={14} 
-                        className={`transition-transform duration-200 ${isGroupActive ? 'rotate-90' : ''}`} 
-                      />
-                    </button>
+                      <button
+                        onClick={() => setExpandedGroups(prev => ({ ...prev, [section.id]: !prev[section.id] }))}
+                        className="hover:text-indigo-600 transition-colors"
+                      >
+                        <ChevronRight 
+                          size={12} 
+                          className={`transition-transform duration-200 ${isGroupActive ? 'rotate-90' : ''}`} 
+                        />
+                      </button>
+                    </div>
                   )}
                   
-                  <div className={`space-y-0.5 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
+                  <div className={`flex flex-col gap-1 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id
                       return (
@@ -594,26 +615,25 @@ useEffect(() => {
                           onClick={() => {
                             setActiveTab(tab.id)
                             if (tab.id === 'summary') setSummarySubTab('summary')
+                            setIsMobileMenuOpen(false)
                           }}
                           title={isCollapsed ? tab.label : ''}
-                          className={`w-full group flex items-center rounded-lg transition-all duration-150 ${isCollapsed ? 'justify-center px-0 py-2' : 'px-2.5 py-2 gap-2.5'} ${
-                            isActive 
-                              ? 'sidebar-active shadow-sm' 
-                              : 'text-gray-600 hover:sidebar-hover'
-                          }`}
+                          className={`${isCollapsed ? 'justify-center px-0 py-2' : 'left-panel-btn'} ${
+                            isActive ? 'active' : ''
+                          } transition-all duration-150`}
                         >
-                          <span className={`shrink-0 ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-600'}`}>
+                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
                             {React.cloneElement(tab.icon, { size: 18 })}
                           </span>
                           
                           {!isCollapsed && (
-                            <span className="text-[13px] leading-5 font-medium truncate">
+                            <span className="text-[12px] font-semibold truncate">
                               {tab.label}
                             </span>
                           )}
 
                           {tab.id === 'approvals' && (
-                            <span className={`ml-auto shrink-0 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full ${isCollapsed ? 'absolute -top-1 -right-1' : ''}`}>
+                            <span className={`ml-auto shrink-0 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full ${isCollapsed ? 'absolute top-1 right-1' : ''}`}>
                               {tab.badge}
                             </span>
                           )}
@@ -638,16 +658,6 @@ useEffect(() => {
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <nav className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-200 overflow-x-auto flex items-center shrink-0 no-scrollbar">
-            <div className="flex px-1.5 h-12 gap-0.5">
-              {tabs.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-3 h-full flex items-center text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}>
-                  <span className={`mr-1.5 transition-colors ${activeTab === tab.id ? 'text-indigo-600' : 'text-gray-400'}`}>{tab.icon}</span> {tab.label}
-                </button>
-              ))}
-            </div>
-          </nav>
-
           <main className="flex-1 overflow-auto bg-gray-50">
             <div className="w-full h-full flex flex-col">
               {renderTabContent()}

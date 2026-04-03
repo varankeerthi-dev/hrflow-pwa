@@ -34,6 +34,43 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [displayOrder, setDisplayOrder] = useState([])
   const [draggedItem, setDraggedItem] = useState(null)
+  const [showColumnSettings, setShowColumnSettings] = useState(false)
+  const [columnSettings, setColumnSettings] = useState({
+    date: true,
+    inTime: true,
+    outTime: true,
+    ot: true,
+    remarks: false
+  })
+  const [remarksLabel, setRemarksLabel] = useState('Remarks')
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const fetchOrgSettings = async () => {
+      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+      if (orgSnap.exists()) {
+        const data = orgSnap.data()
+        if (data.columnSettings) setColumnSettings(data.columnSettings)
+        if (data.remarksLabel) setRemarksLabel(data.remarksLabel)
+      }
+    }
+    fetchOrgSettings()
+  }, [user?.orgId])
+
+  const saveColumnSettings = async () => {
+    if (!user?.orgId) return
+    try {
+      await setDoc(doc(db, 'organisations', user.orgId), { 
+        columnSettings,
+        remarksLabel 
+      }, { merge: true })
+      alert('Settings saved as default for the organisation!')
+      setShowColumnSettings(false)
+    } catch (err) {
+      console.error('Save settings error:', err)
+      alert('Failed to save settings')
+    }
+  }
 
   useEffect(() => {
     if (!user?.orgId || !selectedMonth) return
@@ -440,6 +477,12 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
             </div>
             <div className="flex items-center gap-2">
               <button 
+                onClick={() => setShowColumnSettings(true)}
+                className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-inter font-medium text-gray-600 transition-all"
+              >
+                <Filter size={14} /> Column Settings
+              </button>
+              <button 
                 onClick={() => setShowOrderModal(true)}
                 className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-inter font-medium text-gray-600 transition-all"
               >
@@ -470,22 +513,33 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                     <th className="px-2 py-2 text-center font-bold text-gray-800 border border-gray-400 w-10 bg-gray-200" rowSpan={2}>
                       <div className="text-[10px]">Date</div>
                     </th>
-                    {monthlyViewData.employees?.map((emp, idx) => (
-                      <th 
-                        key={emp.id} 
-                        className={`px-1 py-2 text-center font-bold border border-gray-400 min-w-[70px] bg-gray-100 text-gray-800`}
-                        colSpan={3}
-                      >
-                        <div className="text-[10px] font-inter font-semibold truncate max-w-[100px] mx-auto text-gray-900">{emp.name}</div>
-                      </th>
-                    ))}
+                    {monthlyViewData.employees?.map((emp, idx) => {
+                      let colSpan = 0;
+                      if (columnSettings.inTime) colSpan++;
+                      if (columnSettings.outTime) colSpan++;
+                      if (columnSettings.ot) colSpan++;
+                      if (columnSettings.remarks) colSpan++;
+                      if (colSpan === 0) colSpan = 1; // Fallback
+
+                      return (
+                        <th 
+                          key={emp.id} 
+                          className={`px-1 py-2 text-center font-bold border border-gray-400 min-w-[70px] bg-gray-100 text-gray-800`}
+                          colSpan={colSpan}
+                        >
+                          <div className="text-[10px] font-inter font-semibold truncate max-w-[100px] mx-auto text-gray-900">{emp.name}</div>
+                        </th>
+                      )
+                    })}
                   </tr>
                   <tr>
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>In</th>
-                        <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>Out</th>
-                        <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>OT</th>
+                        {columnSettings.inTime && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>In</th>}
+                        {columnSettings.outTime && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>Out</th>}
+                        {columnSettings.ot && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>OT</th>}
+                        {columnSettings.remarks && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>{remarksLabel}</th>}
+                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className={`px-1 py-1 border border-gray-400 bg-gray-50`}>-</th>}
                       </React.Fragment>
                     ))}
                   </tr>
@@ -519,46 +573,66 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                           const att = monthlyViewData.attendanceMap?.[emp.id]?.[day]
                           const status = isBeforeStart ? null : getStatusBadge(att, day, emp, monthlyViewData.holidays || [])
                           const isAbsentOrNonWorking = status?.type === 'absent' || status?.type === 'sunday' || status?.type === 'holiday'
-                          const shift = att?.shiftId ? monthlyViewData.shiftMap?.[att.shiftId] : null
                           
+                          let colSpan = 0;
+                          if (columnSettings.inTime) colSpan++;
+                          if (columnSettings.outTime) colSpan++;
+                          if (columnSettings.ot) colSpan++;
+                          if (columnSettings.remarks) colSpan++;
+                          if (colSpan === 0) colSpan = 1;
+
                           return (
                             <React.Fragment key={emp.id}>
                               {isAbsentOrNonWorking ? (
-                                <td colSpan={3} className={`px-1 py-1.5 text-center border border-gray-400 ${isBeforeStart ? 'bg-gray-100' : status.bg}`}>
+                                <td colSpan={colSpan} className={`px-1 py-1.5 text-center border border-gray-400 ${isBeforeStart ? 'bg-gray-100' : status.bg}`}>
                                   <span className={`text-[11px] font-inter font-bold ${isBeforeStart ? 'text-gray-400' : status.color}`}>
                                     {isBeforeStart ? '-' : status.text}
                                   </span>
                                 </td>
                               ) : (
                                 <>
-                                  <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
-                                    {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
-                                  </td>
-                                  <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
-                                    {(() => {
-                                      if (isBeforeStart) return '-'
-                                      const time = formatTimeTo12Hour(att?.outTime)
-                                      if (!time) return '-'
-                                      const isOvernight = att?.shiftType === 'Night' && att?.outDate && att?.inDate && att.outDate !== att.inDate
-                                      if (isOvernight) {
-                                        const outDate = new Date(att.outDate)
-                                        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-                                        const shortDate = `${months[outDate.getMonth()]} ${outDate.getDate()}`
-                                        return (
-                                          <div className="flex flex-col items-center leading-tight">
-                                            <span className="font-semibold">{time}</span>
-                                            <span className="text-[8px] text-gray-600 flex items-center gap-0.5 mt-0.5 font-medium">
-                                              <ArrowRight size={9} /> {shortDate}
-                                            </span>
-                                          </div>
-                                        )
-                                      }
-                                      return <span className="font-semibold">{time}</span>
-                                    })()}
-                                  </td>
-                                  <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
-                                    {isBeforeStart ? '-' : formatOTHours(att?.otHours)}
-                                  </td>
+                                  {columnSettings.inTime && (
+                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
+                                      {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
+                                    </td>
+                                  )}
+                                  {columnSettings.outTime && (
+                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
+                                      {(() => {
+                                        if (isBeforeStart) return '-'
+                                        const time = formatTimeTo12Hour(att?.outTime)
+                                        if (!time) return '-'
+                                        const isOvernight = att?.shiftType === 'Night' && att?.outDate && att?.inDate && att.outDate !== att.inDate
+                                        if (isOvernight) {
+                                          const outDate = new Date(att.outDate)
+                                          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                                          const shortDate = `${months[outDate.getMonth()]} ${outDate.getDate()}`
+                                          return (
+                                            <div className="flex flex-col items-center leading-tight">
+                                              <span className="font-semibold">{time}</span>
+                                              <span className="text-[8px] text-gray-600 flex items-center gap-0.5 mt-0.5 font-medium">
+                                                <ArrowRight size={9} /> {shortDate}
+                                              </span>
+                                            </div>
+                                          )
+                                        }
+                                        return <span className="font-semibold">{time}</span>
+                                      })()}
+                                    </td>
+                                  )}
+                                  {columnSettings.ot && (
+                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
+                                      {isBeforeStart ? '-' : formatOTHours(att?.otHours)}
+                                    </td>
+                                  )}
+                                  {columnSettings.remarks && (
+                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-500 bg-white italic">
+                                      {isBeforeStart ? '-' : (att?.remarks || '-')}
+                                    </td>
+                                  )}
+                                  {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && (
+                                    <td className="px-1 py-1.5 text-center border border-gray-400 bg-white">-</td>
+                                  )}
                                 </>
                               )}
                             </React.Fragment>
@@ -571,6 +645,71 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Column Settings Modal */}
+      {showColumnSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="text-sm font-inter font-bold text-gray-800">Column Settings</h3>
+              <button onClick={() => setShowColumnSettings(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="space-y-3">
+                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Visible Columns</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { id: 'inTime', label: 'In Time' },
+                    { id: 'outTime', label: 'Out Time' },
+                    { id: 'ot', label: 'OT Hours' },
+                    { id: 'remarks', label: 'Remarks / Extra Info' }
+                  ].map(col => (
+                    <label key={col.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={columnSettings[col.id]} 
+                        onChange={e => setColumnSettings(prev => ({ ...prev, [col.id]: e.target.checked }))}
+                        className="w-4 h-4 text-indigo-600 rounded"
+                      />
+                      <span className="text-[13px] font-medium text-gray-700">{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Custom Label for Remarks</p>
+                <div className="space-y-1">
+                  <input 
+                    type="text"
+                    value={remarksLabel}
+                    onChange={e => setRemarksLabel(e.target.value)}
+                    placeholder="e.g. Site Name, Comments..."
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                  <p className="text-[10px] text-gray-400">This will be shown in both entry and summary views</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 flex gap-2">
+              <button 
+                onClick={() => setShowColumnSettings(false)}
+                className="flex-1 h-10 bg-gray-100 text-gray-600 rounded-lg text-[12px] font-inter font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveColumnSettings}
+                className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-[12px] font-inter font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors shadow-md"
+              >
+                <Save size={14} /> Save Default
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
