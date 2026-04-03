@@ -467,32 +467,22 @@ export default function TasksTab() {
                     key={task.id}
                     draggable
                     onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                    className={`bg-white border border-slate-200 rounded-xl p-2.5 hover:border-indigo-200 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing group ${isAnimating ? 'animate-pulse scale-95' : ''}`}
+                    className={`bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing group ${isAnimating ? 'animate-pulse scale-95' : ''}`}
                     style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
                   >
-                    <div className="flex flex-col gap-2">
-                      {/* Title with status-based line clamp */}
+                      <div className="flex flex-col gap-3">
                       <div className="flex justify-between items-start gap-2">
-                        <h4 
-                          className={`text-[13px] font-medium text-slate-800 leading-snug overflow-hidden display-webkit-box ${
-                            task.status === 'To Do' || task.status === 'Inbox' 
-                              ? 'line-clamp-1' 
-                              : task.status === 'In Progress' 
-                                ? 'line-clamp-3' 
-                                : 'line-clamp-2'
-                          } ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}
-                          style={{ WebkitLineClamp: task.status === 'To Do' || task.status === 'Inbox' ? 1 : task.status === 'In Progress' ? 3 : 2, WebkitBoxOrient: 'vertical' }}
-                        >
+                        <h4 className={`text-[13px] font-medium text-slate-800 leading-tight ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}>
                           {task.title}
                         </h4>
-                        <div className="status-menu-container relative shrink-0">
+                        <div className="status-menu-container relative">
                           <button 
                             onClick={() => setStatusMenuOpen(statusMenuOpen === task.id ? null : task.id)} 
-                            className={`transition-all duration-300 ${task.status === 'Completed' ? 'text-emerald-500 scale-110' : 'text-slate-200 hover:text-slate-400'} ${isAnimating ? 'animate-bounce' : ''}`}
+                            className={`shrink-0 transition-all duration-300 ${task.status === 'Completed' ? 'text-emerald-500 scale-110' : 'text-slate-200 hover:text-slate-400'} ${isAnimating ? 'animate-bounce' : ''}`}
                             title="Change status"
                             style={{ transition: 'all 0.3s ease' }}
                           >
-                            {task.status === 'Completed' ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                            {task.status === 'Completed' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                           </button>
                           
                           {statusMenuOpen === task.id && (
@@ -513,31 +503,35 @@ export default function TasksTab() {
                         </div>
                       </div>
                       
-                      {/* Compact metadata row */}
-                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                        {task.priority === 'urgent' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-600">
-                            URGENT
-                          </span>
-                        )}
-                        {task.priority === 'high' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-600">
-                            HIGH
-                          </span>
-                        )}
-                        
-                        {task.dueDate && (
-                          <span className={`text-[10px] font-medium flex items-center gap-1 ${dueDateColor}`}>
-                            <CalendarIcon size={10} />
-                            {dueDateText}
-                          </span>
-                        )}
+                      <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {task.dueDate && (
+                            <div className={`px-2 py-1 rounded-md text-[10px] font-bold flex items-center gap-1.5 ${dueDateColor}`}>
+                              <CalendarIcon size={12} />
+                              {dueDateText}
+                            </div>
+                          )}
+                          {task.priority === 'urgent' && (
+                            <div className="px-2 py-1 rounded-md text-[10px] font-bold bg-rose-100 text-rose-600 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                              URGENT
+                            </div>
+                          )}
+                          {task.priority === 'high' && (
+                            <div className="px-2 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-600 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                              HIGH
+                            </div>
+                          )}
+                        </div>
                         
                         {assignees.length > 0 && (
-                          <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                            <User size={10} className="text-slate-400" />
-                            {assignees.map(e => e.name).join(', ')}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <User size={12} className="text-slate-400" />
+                            <span className="text-[10px] text-slate-600 font-medium">
+                              {assignees.map(e => e.name).join(', ')}
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
