@@ -154,247 +154,210 @@ export default function VehicleManagementTab() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#FAFAFA] font-inter">
-      {/* Precision Header */}
-      <div className="bg-white border-b border-zinc-200 px-8 py-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shrink-0">
+    <div className="flex flex-col h-full bg-white font-inter selection:bg-indigo-100 selection:text-indigo-900">
+      {/* Brutal Header */}
+      <div className="border-b border-zinc-100 px-8 py-10 flex flex-col lg:flex-row lg:items-end justify-between gap-8 shrink-0">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-zinc-200">
-              <Car size={24} strokeWidth={2.5} />
+          <h1 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter leading-none">
+            Fleet<span className="text-indigo-600">.</span>Manifest
+          </h1>
+          <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center bg-zinc-900 p-1 rounded-lg">
+              <button 
+                onClick={() => setActiveSubTab('all-vehicles')}
+                className={`px-5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'all-vehicles' ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
+              >
+                Inventory
+              </button>
+              <button 
+                onClick={() => setActiveSubTab('service-complaints')}
+                className={`px-5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'service-complaints' ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
+              >
+                Maintenance
+              </button>
             </div>
-            <div>
-              <h1 className="text-2xl font-black text-zinc-900 uppercase tracking-tighter leading-none">Fleet Control</h1>
-              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
-                <span className="w-4 h-0.5 bg-indigo-600"></span>
-                Asset Intelligence
-              </p>
+            <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.2em] hidden sm:block">Logistics Command</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-2">
+          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Global Fleet Status</p>
+          <div className="flex gap-2">
+            <div className="px-3 py-1 bg-zinc-50 border border-zinc-100 rounded-md">
+              <span className="text-[10px] font-black text-zinc-900 tabular-nums">{vehicles.length} <span className="text-zinc-400 uppercase ml-1">Assets</span></span>
+            </div>
+            <div className="px-3 py-1 bg-zinc-50 border border-zinc-100 rounded-md">
+              <span className="text-[10px] font-black text-rose-600 tabular-nums">
+                {vehicles.filter(v => isExpired(v.insuranceExpiry)).length} <span className="text-zinc-400 uppercase ml-1">Expired</span>
+              </span>
             </div>
           </div>
         </div>
-        
-        <div className="flex items-center bg-zinc-100 p-1.5 rounded-2xl w-fit shadow-inner border border-zinc-200/50">
-          <button 
-            onClick={() => setActiveSubTab('all-vehicles')}
-            className={`px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${activeSubTab === 'all-vehicles' ? 'bg-white text-zinc-900 shadow-md translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600'}`}
-          >
-            Inventory
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('service-complaints')}
-            className={`px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${activeSubTab === 'service-complaints' ? 'bg-white text-zinc-900 shadow-md translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600'}`}
-          >
-            Maintenance
-          </button>
-        </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-8 lg:p-10">
+      <div className="flex-1 overflow-auto px-8 py-12 lg:px-12">
         {activeSubTab === 'all-vehicles' && (
-          <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Action Bar */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="relative w-full md:w-96 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+          <div className="max-w-screen-2xl mx-auto space-y-12">
+            {/* Minimal Toolbar */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-zinc-100 pb-8">
+              <div className="relative w-full md:w-[480px]">
+                <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-zinc-900" size={20} strokeWidth={3} />
                 <input 
                   type="text" 
-                  placeholder="Filter by Name or Registration No..."
+                  placeholder="FILTER BY REGISTRATION OR NAME..."
                   value={searchTerm}
                   onChange={e => setSearchName(e.target.value)}
-                  className="w-full pl-12 pr-6 h-14 bg-white border-2 border-zinc-100 rounded-2xl text-[13px] font-bold text-zinc-800 placeholder:text-zinc-300 focus:border-indigo-500/30 focus:ring-4 focus:ring-indigo-500/5 outline-none transition-all shadow-sm group-hover:border-zinc-200"
+                  className="w-full pl-8 pr-4 h-12 bg-transparent text-[13px] font-black text-zinc-900 placeholder:text-zinc-200 focus:outline-none uppercase tracking-tight"
                 />
               </div>
               <button 
                 onClick={() => setShowAddVehicle(true)}
-                className="w-full md:w-fit h-14 px-8 bg-zinc-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] flex items-center justify-center gap-3 hover:bg-black transition-all shadow-2xl shadow-zinc-900/20 active:scale-[0.98]"
+                className="w-full md:w-fit h-12 px-10 bg-indigo-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-zinc-900 transition-all active:scale-95"
               >
-                <Plus size={18} strokeWidth={3} /> Register Asset
+                Add Asset <Plus size={16} strokeWidth={4} />
               </button>
             </div>
 
-            {/* Manifest Table */}
-            <div className="bg-white rounded-[32px] border border-zinc-200 shadow-2xl shadow-zinc-200/50 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1000px]">
-                  <thead>
-                    <tr className="bg-zinc-950 text-white h-16">
-                      <th className="px-8 text-[10px] font-black uppercase tracking-[0.2em] opacity-50 border-r border-zinc-800">Fleet ID & Vehicle</th>
-                      <th className="px-8 text-[10px] font-black uppercase tracking-[0.2em] opacity-50 border-r border-zinc-800">Registration & Date</th>
-                      <th className="px-8 text-[10px] font-black uppercase tracking-[0.2em] opacity-50 border-r border-zinc-800">Insurance Status</th>
-                      <th className="px-8 text-[10px] font-black uppercase tracking-[0.2em] opacity-50 border-r border-zinc-800">Operational Lead</th>
-                      <th className="px-8 text-[10px] font-black uppercase tracking-[0.2em] opacity-50 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 bg-white">
-                    {loadingVehicles ? (
-                      <tr><td colSpan={5} className="py-32 text-center"><Spinner size="w-10 h-10" color="text-indigo-600" /></td></tr>
-                    ) : filteredVehicles.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-40 text-center">
-                          <div className="flex flex-col items-center opacity-20">
-                            <Car size={64} strokeWidth={1} />
-                            <p className="text-sm font-black uppercase tracking-widest mt-4">Zero Assets Detected</p>
+            {/* Brutal Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
+                <thead>
+                  <tr className="border-b-4 border-zinc-900">
+                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900 w-[30%]">Asset Designation</th>
+                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900">Registration</th>
+                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900">Insurance Control</th>
+                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900">Unit Lead</th>
+                    <th className="py-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-900 text-right">Ops</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {loadingVehicles ? (
+                    <tr><td colSpan={5} className="py-32 text-center"><Spinner size="w-12 h-12" color="text-zinc-900" /></td></tr>
+                  ) : filteredVehicles.length === 0 ? (
+                    <tr><td colSpan={5} className="py-40 text-center text-zinc-200 font-black uppercase tracking-[0.3em] text-2xl italic">System Empty</td></tr>
+                  ) : filteredVehicles.map(v => (
+                    <tr key={v.id} className="group hover:bg-zinc-50/50 transition-colors">
+                      <td className="py-8">
+                        <div className="flex flex-col">
+                          <span className="text-xl font-black text-zinc-900 uppercase tracking-tighter leading-none group-hover:text-indigo-600 transition-colors">{v.name}</span>
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">Fleet Deployment Unit</span>
+                        </div>
+                      </td>
+                      <td className="py-8">
+                        <div className="flex flex-col">
+                          <span className="text-[14px] font-mono font-black text-zinc-900 tracking-tight leading-none uppercase">{v.vehicleNo}</span>
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase mt-2">RC: {v.rcNo || 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td className="py-8">
+                        <div className="flex flex-col">
+                          <span className={`text-[11px] font-black uppercase tracking-widest mb-2 ${isExpired(v.insuranceExpiry) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {isExpired(v.insuranceExpiry) ? 'Expired / Security Alert' : 'Operational / Active'}
+                          </span>
+                          <span className="text-sm font-black text-zinc-900 tabular-nums">
+                            {v.insuranceExpiry ? new Date(v.insuranceExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : '—'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-8">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-zinc-100 rounded flex items-center justify-center text-[10px] font-black text-zinc-900 border border-zinc-200 group-hover:bg-zinc-900 group-hover:text-white transition-all">
+                            {getInitials(employees.find(e => e.id === v.inchargeId)?.name || '??')}
                           </div>
-                        </td>
-                      </tr>
-                    ) : filteredVehicles.map(v => (
-                      <tr key={v.id} className="hover:bg-zinc-50/80 transition-all duration-300 group">
-                        <td className="px-8 py-6 border-r border-zinc-50">
-                          <div className="flex items-center gap-5">
-                            <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center text-zinc-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all duration-500">
-                              <Car size={28} strokeWidth={1.5} />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[15px] font-black text-zinc-900 uppercase tracking-tight leading-none mb-1.5">{v.name}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-mono font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100/50 uppercase">{v.vehicleNo}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 border-r border-zinc-50">
                           <div className="flex flex-col">
-                            <div className="flex items-center gap-2 text-[13px] font-bold text-zinc-700 tabular-nums leading-none mb-1.5">
-                              <Calendar size={14} className="text-zinc-300" />
-                              {v.purchaseDate || '—'}
-                            </div>
-                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest bg-zinc-100 px-2 py-0.5 rounded-md w-fit">RC: {v.rcNo || '—'}</span>
+                            <span className="text-[13px] font-black text-zinc-900 uppercase tracking-tight leading-none">{employees.find(e => e.id === v.inchargeId)?.name || 'Unassigned'}</span>
+                            <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter mt-1">Asset Custodian</span>
                           </div>
-                        </td>
-                        <td className="px-8 py-6 border-r border-zinc-50">
-                          <div className="flex flex-col gap-2">
-                            <div className={`flex items-center gap-2 px-3 py-1 rounded-full border w-fit ${isExpired(v.insuranceExpiry) ? 'bg-rose-50 text-rose-600 border-rose-100 ring-4 ring-rose-500/5' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
-                              <div className={`w-1.5 h-1.5 rounded-full ${isExpired(v.insuranceExpiry) ? 'bg-rose-600 animate-pulse' : 'bg-emerald-600'}`}></div>
-                              <span className="text-[10px] font-black uppercase tracking-widest">{isExpired(v.insuranceExpiry) ? 'Security Breach / Expired' : 'Protected / Active'}</span>
-                            </div>
-                            <span className="text-[10px] font-bold text-zinc-400 tabular-nums ml-1">Expires: {v.insuranceExpiry || '—'}</span>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 border-r border-zinc-50">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-zinc-900 flex items-center justify-center text-[11px] font-black text-white shadow-lg shadow-zinc-200">
-                              {employees.find(e => e.id === v.inchargeId)?.name?.charAt(0) || '?'}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[13px] font-black text-zinc-800 uppercase tracking-tight leading-none mb-1">{employees.find(e => e.id === v.inchargeId)?.name || 'Ground Zero'}</span>
-                              <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">Command Unit</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 text-right">
-                          <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                            <button 
-                              onClick={() => setSelectedVehicleForHistory(v)}
-                              className="p-3 text-zinc-400 hover:text-zinc-900 transition-colors bg-white border border-zinc-100 rounded-xl hover:shadow-lg shadow-zinc-200"
-                              title="Audit Trail"
-                            >
-                              <History size={18} />
-                            </button>
-                            <button 
-                              onClick={() => setEditingVehicle(v)}
-                              className="p-3 bg-zinc-100 text-zinc-600 rounded-xl hover:bg-zinc-900 hover:text-white transition-all shadow-sm hover:shadow-xl hover:shadow-zinc-900/20"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      </td>
+                      <td className="py-8 text-right">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button 
+                            onClick={() => setSelectedVehicleForHistory(v)}
+                            className="h-10 w-10 flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-white border border-transparent hover:border-zinc-100 transition-all"
+                          >
+                            <History size={18} strokeWidth={2.5} />
+                          </button>
+                          <button 
+                            onClick={() => setEditingVehicle(v)}
+                            className="h-10 w-10 flex items-center justify-center bg-zinc-900 text-white hover:bg-indigo-600 transition-all"
+                          >
+                            <Edit2 size={16} strokeWidth={3} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
         {activeSubTab === 'service-complaints' && (
-          <div className="max-w-7xl mx-auto space-y-10 animate-in fade-in zoom-in-95 duration-700">
-            {/* Maintenance Header Card */}
-            <div className="bg-zinc-900 rounded-[32px] p-8 lg:p-12 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-3xl">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -mr-48 -mt-48 blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full -ml-32 -mb-32 blur-3xl"></div>
-              
-              <div className="relative z-10 text-center md:text-left">
-                <div className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-zinc-800 border border-zinc-700/50 mb-6">
-                  <Wrench size={18} className="text-amber-400" />
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Engineering Oversight</span>
-                </div>
-                <h2 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-4">Maintenance Center</h2>
-                <p className="text-zinc-400 text-sm font-medium max-w-md uppercase tracking-wide leading-relaxed">Continuous health monitoring and diagnostic logging for the entire active fleet.</p>
+          <div className="max-w-5xl mx-auto space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {/* Maintenance Command */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-8 border-b-2 border-zinc-100 pb-12">
+              <div>
+                <h2 className="text-3xl font-black text-zinc-900 uppercase tracking-tighter leading-none">Diagnostic Logs</h2>
+                <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.3em] mt-4">Continuous Fleet Health Monitoring</p>
               </div>
-              
               <button 
                 onClick={() => setShowServiceModal(true)}
-                className="relative z-10 h-16 px-10 bg-white text-zinc-900 rounded-[20px] text-[12px] font-black uppercase tracking-[0.2em] flex items-center gap-4 hover:bg-indigo-50 transition-all shadow-2xl hover:shadow-indigo-500/20 active:scale-95"
+                className="h-14 px-12 bg-zinc-900 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all"
               >
-                <Plus size={20} strokeWidth={3} /> Log Protocol
+                Log Maintenance
               </button>
             </div>
 
-            {/* Timeline Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* List Layout - No Cards, Just High Contrast Rows */}
+            <div className="space-y-1">
               {loadingServices ? (
-                <div className="col-span-full py-32 text-center"><Spinner size="w-12 h-12" color="text-zinc-900" /></div>
+                <div className="py-32 text-center"><Spinner size="w-12 h-12" color="text-zinc-900" /></div>
               ) : services.length === 0 ? (
-                <div className="col-span-full py-40 text-center border-2 border-dashed border-zinc-200 rounded-[40px] opacity-30 italic">
-                  <div className="flex flex-col items-center">
-                    <Wrench size={48} />
-                    <p className="mt-4 font-black uppercase tracking-widest text-lg">Clean Bill of Health</p>
-                  </div>
+                <div className="py-40 text-center border-2 border-dashed border-zinc-100 rounded-xl opacity-20 italic">
+                  <p className="font-black uppercase tracking-widest">No Active Faults</p>
                 </div>
               ) : services.map(s => (
-                <div key={s.id} className="bg-white rounded-[32px] border border-zinc-200 shadow-xl shadow-zinc-200/30 overflow-hidden hover:translate-y-[-8px] transition-all duration-500 group">
-                  <div className="p-6 border-b border-zinc-100 flex justify-between items-start bg-zinc-50/50">
-                    <div className="flex flex-col">
-                      <span className="text-[14px] font-black text-zinc-900 uppercase tracking-tight leading-none mb-1.5">
-                        {vehicles.find(v => v.id === s.vehicleId)?.name || 'Phantom Asset'}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Calendar size={12} className="text-zinc-400" />
-                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest tabular-nums">{s.date}</span>
-                      </div>
-                    </div>
-                    <div className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border ${
+                <div key={s.id} className="group grid grid-cols-1 lg:grid-cols-12 gap-6 py-8 border-b border-zinc-100 hover:bg-zinc-50 transition-all px-4 -mx-4 rounded-lg">
+                  <div className="lg:col-span-3 flex flex-col justify-center">
+                    <span className="text-lg font-black text-zinc-900 uppercase tracking-tighter leading-none group-hover:text-indigo-600 transition-colors">
+                      {vehicles.find(v => v.id === s.vehicleId)?.name || 'UNKNOWN'}
+                    </span>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">
+                      {s.date ? new Date(s.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : 'NO DATE'}
+                    </span>
+                  </div>
+
+                  <div className="lg:col-span-2 flex items-center">
+                    <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest border-2 ${
                       s.type === 'Complaint' 
-                        ? 'bg-rose-50 text-rose-600 border-rose-100 ring-4 ring-rose-500/5' 
+                        ? 'border-rose-600 text-rose-600 bg-white' 
                         : s.type === 'Oil Change'
-                        ? 'bg-amber-50 text-amber-600 border-amber-100'
-                        : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                        ? 'border-amber-500 text-amber-600 bg-white'
+                        : 'border-emerald-500 text-emerald-600 bg-white'
                     }`}>
                       {s.type}
-                    </div>
+                    </span>
                   </div>
-                  <div className="p-8 space-y-8">
-                    <div className="grid grid-cols-2 gap-8 relative">
-                      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-zinc-100"></div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                          <Navigation size={10} className="text-indigo-500" /> Odometer
-                        </span>
-                        <span className="text-2xl font-black text-zinc-900 tabular-nums tracking-tighter">{s.mileage} <span className="text-[10px] font-black text-zinc-300">KM</span></span>
-                      </div>
-                      <div className="flex flex-col pl-4">
-                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                          <AlertTriangle size={10} className="text-amber-500" /> Cycle Due
-                        </span>
-                        <span className="text-lg font-black text-zinc-800 tabular-nums tracking-tighter">{s.nextDueDate || 'UNSET'}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <Fuel size={10} className="text-emerald-500" /> Service Station
-                      </span>
-                      <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors duration-500">
-                        <p className="text-[11px] font-black text-zinc-700 uppercase tracking-tight leading-tight">{s.location || 'Tactical Operation'}</p>
-                      </div>
-                    </div>
 
+                  <div className="lg:col-span-2 flex flex-col justify-center">
+                    <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-1">Odometer</span>
+                    <span className="text-sm font-black text-zinc-900 tabular-nums">{s.mileage} KM</span>
+                  </div>
+
+                  <div className="lg:col-span-2 flex flex-col justify-center">
+                    <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-1">Next Cycle</span>
+                    <span className="text-sm font-black text-indigo-600 tabular-nums uppercase">{s.nextDueDate || 'UNSET'}</span>
+                  </div>
+
+                  <div className="lg:col-span-3 flex items-center justify-end gap-4">
                     {s.billURL && (
                       <button 
                         onClick={() => window.open(s.billURL, '_blank')}
-                        className="w-full h-14 bg-zinc-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-black transition-all shadow-xl hover:shadow-indigo-500/20 active:scale-95 group-hover:bg-indigo-600 group-hover:text-white"
+                        className="h-10 px-6 bg-zinc-100 text-zinc-900 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all"
                       >
-                        <ExternalLink size={16} /> Authenticate Bill
+                        Bill Copy
                       </button>
                     )}
                   </div>
