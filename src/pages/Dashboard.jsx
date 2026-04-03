@@ -5,6 +5,7 @@ import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
 import {
+  Car,
   Calendar,
   Briefcase,
   Folder,
@@ -47,6 +48,7 @@ import LeaveTab from '../components/tabs/LeaveTab'
 import HRLettersTab from '../components/tabs/HRLettersTab'
 import RecruitmentTab from '../components/tabs/RecruitmentTab'
 import DocumentsTab from '../components/tabs/DocumentsTab'
+import VehicleManagementTab from '../components/tabs/VehicleManagementTab'
 import TasksTab from '../components/tabs/TasksTab'
 import ChatTab from '../components/tabs/ChatTab'
 import HomeTab from '../components/tabs/HomeTab'
@@ -382,7 +384,7 @@ useEffect(() => {
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
-    { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={18} strokeWidth={1.75} />, module: 'Recruitment' },
+    { id: 'vehicles', label: 'Vehicles', icon: <Car size={18} strokeWidth={1.75} />, module: 'Workforce' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
     { id: 'summary', label: 'Summary', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Summary' },
 
@@ -401,9 +403,9 @@ useEffect(() => {
 
   const sections = useMemo(() => [
     { id: 'main', title: 'MAIN', tabs: ['home'] },
-    { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'recruitment', 'documents', 'summary'] },
+    { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'documents', 'summary'] },
     { id: 'payroll', title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
-    { id: 'workforce', title: 'WORKFORCE', tabs: ['engage', 'chat', 'shift-planning', 'tasks'] },
+    { id: 'workforce', title: 'WORKFORCE', tabs: ['vehicles', 'engage', 'chat', 'shift-planning', 'tasks'] },
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
@@ -419,6 +421,7 @@ useEffect(() => {
       case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />
       case 'letters': return <HRLettersTab />
+      case 'vehicles': return <VehicleManagementTab />
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />
       case 'summary': return <SummaryTab defaultSubTab={summarySubTab} />

@@ -23,7 +23,7 @@ export function useAuthContext() {
 }
 
 // ── Helper: read Firestore user doc ──────────────────────────────────────────
-async function readUserDoc(uid) {
+async function readUserDoc(uid, targetOrgId = null) {
   try {
     const userRef = doc(db, 'users', uid)
     const snap = await getDoc(userRef)
@@ -32,17 +32,32 @@ async function readUserDoc(uid) {
       return null
     }
     const userData = snap.data()
-    console.log('readUserDoc: Found user data:', userData)
     
-    if (userData.orgId) {
+    // Resolve which organization is currently active
+    // Order of priority: 1. Passed targetOrgId, 2. currentOrgId in doc, 3. First item in memberships, 4. Legacy orgId field
+    let activeOrgId = targetOrgId || userData.currentOrgId || (userData.memberships?.length > 0 ? userData.memberships[0].orgId : userData.orgId)
+    
+    // Ensure activeOrgId is valid and user is actually a member
+    const memberships = userData.memberships || []
+    // If we have a legacy orgId but no memberships, migrate it
+    if (userData.orgId && memberships.length === 0) {
+      memberships.push({ orgId: userData.orgId, role: userData.role || 'admin', orgName: userData.orgName || 'My Organisation' })
+    }
+
+    if (activeOrgId) {
       try {
-        const orgSnap = await getDoc(doc(db, 'organisations', userData.orgId))
+        const orgSnap = await getDoc(doc(db, 'organisations', activeOrgId))
         if (orgSnap.exists()) {
           userData.orgName = orgSnap.data().name
+          userData.orgId = activeOrgId
         }
         
-        // Default to 'admin' permissions (all modules/actions true) as requested
-        // This will be used unless a specific role with permissions is assigned
+        // Find current role for this specific org
+        const currentMembership = memberships.find(m => m.orgId === activeOrgId)
+        const currentRole = currentMembership?.role || userData.role || 'employee'
+        userData.role = currentRole
+
+        // Default permissions (admin fallback)
         const defaultPermissions = {}
         const modules = [
           'Attendance', 'Correction', 'Leave', 'Approvals', 'Summary', 'HRLetters',
@@ -51,43 +66,34 @@ async function readUserDoc(uid) {
           'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
           'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
         ]
-        
         modules.forEach(m => {
           defaultPermissions[m] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
         })
 
-        if (userData.role) {
-          const rolesQuery = collection(db, 'organisations', userData.orgId, 'roles')
-          const rolesSnap = await getDocs(rolesQuery)
-          const roleDoc = rolesSnap.docs.find(d => d.data().name.toLowerCase() === userData.role.toLowerCase())
-          if (roleDoc) {
-            userData.permissions = roleDoc.data().permissions || defaultPermissions
-            console.log('readUserDoc: Cached permissions for role:', userData.role)
-          } else {
-            userData.permissions = defaultPermissions
-            console.log('readUserDoc: Role not found, using minimal permissions')
-          }
-        } else {
+        // Fetch role-based permissions from the specific organization's collection
+        const rolesQuery = collection(db, 'organisations', activeOrgId, 'roles')
+        const rolesSnap = await getDocs(rolesQuery)
+        const roleDoc = rolesSnap.docs.find(d => d.data().name.toLowerCase() === currentRole.toLowerCase())
+        
+        if (roleDoc) {
+          userData.permissions = roleDoc.data().permissions || defaultPermissions
+        } else if (currentRole.toLowerCase() === 'admin') {
           userData.permissions = defaultPermissions
-          console.log('readUserDoc: No role, using minimal permissions')
+        } else {
+          // Minimal fallback for non-admin unknown roles
+          userData.permissions = {}
         }
 
-        // Sync to Firestore user doc for rules - wrap in try-catch to avoid blocking auth
-        try {
-          if (JSON.stringify(snap.data().permissions) !== JSON.stringify(userData.permissions)) {
-            await setDoc(userRef, { permissions: userData.permissions }, { merge: true })
-            console.log('readUserDoc: Synced permissions to Firestore user doc')
-          }
-        } catch (syncErr) {
-          console.warn('readUserDoc: Could not sync permissions (probably rules restriction):', syncErr)
+        // Sync currentOrgId back to Firestore if it changed or wasn't set
+        if (userData.currentOrgId !== activeOrgId) {
+          await setDoc(userRef, { currentOrgId: activeOrgId, memberships }, { merge: true })
         }
       } catch (err) {
-        console.warn('readUserDoc: Could not read org or roles:', err)
-        // Fallback to admin permissions if org fetch fails
-        userData.permissions = defaultPermissions
+        console.warn('readUserDoc: Error fetching org-specific data:', err)
       }
     }
-    return { uid, ...userData }
+
+    return { uid, ...userData, memberships }
   } catch (err) {
     console.error('readUserDoc: Error reading user doc:', err)
     return null
@@ -266,19 +272,28 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const switchOrganisation = async (orgId) => {
+    if (!user?.uid) return
+    setLoading(true)
+    try {
+      const updatedUser = await readUserDoc(user.uid, orgId)
+      if (updatedUser) setUser(updatedUser)
+    } catch (err) {
+      console.error('switchOrganisation error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const createOrganisation = async (orgName) => {
     const firebaseUser = auth.currentUser
     if (!firebaseUser) throw new Error('Not authenticated.')
 
     const currentUser = await readUserDoc(firebaseUser.uid)
-    console.log('createOrganisation: currentUser=', currentUser)
-    if (currentUser?.orgId && currentUser?.role !== 'admin') {
-      throw new Error('You are already part of an organisation.')
-    }
+    const memberships = currentUser?.memberships || []
 
     const slug = orgName.trim().toLowerCase().replace(/\s+/g, '-')
     const code = `${slug}-${Date.now().toString(36)}`
-    console.log('createOrganisation: generated code=', code)
 
     const orgData = {
       name: orgName.trim(),
@@ -288,33 +303,23 @@ export function AuthProvider({ children }) {
       createdAt: new Date().toISOString(),
     }
 
-    const updatedFields = {
-      orgId: code,
-      role: 'admin',
-    }
+    const newMembership = { orgId: code, role: 'admin', orgName: orgName.trim() }
+    const updatedMemberships = [...memberships, newMembership]
 
     try {
-      console.log('createOrganisation: Attempting to create org document for code:', code)
-      // Check for current user auth state explicitly
       if (!auth.currentUser) throw new Error('Session expired. Please log in again.')
       
       await setDoc(doc(db, 'organisations', code), orgData)
-      console.log('createOrganisation: Org document created successfully')
+      await setDoc(doc(db, 'users', firebaseUser.uid), { 
+        currentOrgId: code,
+        memberships: updatedMemberships 
+      }, { merge: true })
       
-      console.log('createOrganisation: Attempting to update user doc for uid:', firebaseUser.uid)
-      await setDoc(doc(db, 'users', firebaseUser.uid), updatedFields, { merge: true })
-      console.log('createOrganisation: User document updated successfully')
-      
-      // Update local state to reflect new org and role 'admin'
-      setUser(prev => ({ ...prev, ...updatedFields }))
-      
-      // We return the code first; the modal should trigger a refresh or user can click 'Get Started'
+      const updatedUser = await readUserDoc(firebaseUser.uid, code)
+      setUser(updatedUser)
       return code
     } catch (err) {
-      console.error('createOrganisation: Permission or system error during creation process:', err)
-      if (err.code === 'permission-denied') {
-        throw new Error('Permission denied. Please ensure you are logged in correctly and have rights to create an organisation.')
-      }
+      console.error('createOrganisation error:', err)
       throw err
     }
   }
@@ -324,26 +329,30 @@ export function AuthProvider({ children }) {
     if (!firebaseUser) throw new Error('Not authenticated.')
 
     const currentUser = await readUserDoc(firebaseUser.uid)
-    if (currentUser?.orgId) {
-      throw new Error('You are already part of an organisation. Please logout to join a different one.')
-    }
+    const memberships = currentUser?.memberships || []
 
     try {
-      console.log('joinOrganisation: Attempting to find organisation...')
       const orgSnap = await getDoc(doc(db, 'organisations', code.trim()))
       if (!orgSnap.exists()) throw new Error('Organisation not found.')
+      const orgData = orgSnap.data()
 
-      const updates = { orgId: code.trim(), role: 'employee' }
-      console.log('joinOrganisation: Attempting to update user document...')
-      await setDoc(doc(db, 'users', firebaseUser.uid), updates, { merge: true })
-      console.log('joinOrganisation: User document updated successfully')
+      // Check if already a member
+      if (memberships.some(m => m.orgId === code.trim())) {
+        throw new Error('You are already a member of this organisation.')
+      }
+
+      const newMembership = { orgId: code.trim(), role: 'employee', orgName: orgData.name }
+      const updatedMemberships = [...memberships, newMembership]
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), { 
+        currentOrgId: code.trim(),
+        memberships: updatedMemberships 
+      }, { merge: true })
       
-      // Similarly to createOrganisation, return success instead of updating setUser immediately
-      // if we want to show success UI first. If not, setUser is fine. 
-      // Most of the time joinOrganisation doesn't have its own success screen.
-      setUser((prev) => ({ ...prev, ...updates }))
+      const updatedUser = await readUserDoc(firebaseUser.uid, code.trim())
+      setUser(updatedUser)
     } catch (err) {
-      console.error('joinOrganisation: Error joining organisation:', err)
+      console.error('joinOrganisation error:', err)
       throw err
     }
   }
@@ -364,6 +373,7 @@ export function AuthProvider({ children }) {
     createOrganisation,
     resetPassword,
     joinOrganisation,
+    switchOrganisation,
     logout
   }
 
