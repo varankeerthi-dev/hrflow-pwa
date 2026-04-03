@@ -35,7 +35,8 @@ import {
   XOctagon,
   ArrowLeft,
   Menu,
-  MessageSquare
+  MessageSquare,
+  Car
 } from 'lucide-react'
 
 import HomeTab from '../components/tabs/HomeTab'
@@ -255,24 +256,33 @@ export default function MobileDashboard() {
   }, [employees, user])
 
     const allModules = useMemo(() => [
-      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-blue-400', section: 'Core' },
-      { id: 'attendance', label: 'Attendance', icon: <Calendar className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400', section: 'HRMS' },
-      { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', color: 'text-orange-400', section: 'HRMS' },
-      { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', color: 'text-purple-400', section: 'HRMS' },
-      { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', color: 'text-cyan-400', section: 'HRMS', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
-      { id: 'letters', label: 'HR Letters', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400', section: 'HRMS' },
-      { id: 'tasks', label: 'Tasks', icon: <CheckCircle className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', section: 'Productivity', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
-      { id: 'recruitment', label: 'Recruitment', icon: <Briefcase className="h-4 w-4" />, module: 'Recruitment', color: 'text-blue-400', section: 'Operations' },
-      { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', color: 'text-amber-400', section: 'Operations' },
-      { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400', section: 'Core' },
-      { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400', section: 'Payroll' },
-      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400', section: 'Payroll' },
-      { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400', section: 'Payroll' },
-      { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400', section: 'Core' },
-      { id: 'chat', label: 'Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', section: 'Core', badge: unreadChatCount > 0 ? unreadChatCount : null },
-      { id: 'shift-planning', label: 'Shift Plan', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400', section: 'Operations' },
-      { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400', section: 'Core' },
-      { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400', section: 'System' },
+      // MAIN
+      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-blue-400', section: 'MAIN' },
+      { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', section: 'MAIN', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
+      
+      // HR
+      { id: 'attendance-list', label: 'Attendance', icon: <Calendar className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400', section: 'HR' },
+      { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', color: 'text-orange-400', section: 'HR' },
+      { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', color: 'text-purple-400', section: 'HR' },
+      { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', color: 'text-cyan-400', section: 'HR', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
+      { id: 'letters', label: 'HR Letters', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400', section: 'HR' },
+      { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', color: 'text-amber-400', section: 'HR' },
+      { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400', section: 'HR' },
+      
+      // PAYROLL
+      { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400', section: 'PAYROLL' },
+      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400', section: 'PAYROLL' },
+      { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400', section: 'PAYROLL' },
+      
+      // WORKFORCE
+      { id: 'vehicles', label: 'Vehicles', icon: <Car className="h-4 w-4" />, module: 'Workforce', color: 'text-blue-400', section: 'WORKFORCE' },
+      { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400', section: 'WORKFORCE' },
+      { id: 'chat', label: 'Team Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', section: 'WORKFORCE', badge: unreadChatCount > 0 ? unreadChatCount : null },
+      { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400', section: 'WORKFORCE' },
+      
+      // ACCOUNT
+      { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400', section: 'ACCOUNT' },
+      { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400', section: 'ACCOUNT' },
     ], [stats.pendingCorrections, unreadChatCount, pendingTaskCount])
 
   const visibleModules = useMemo(() => {
