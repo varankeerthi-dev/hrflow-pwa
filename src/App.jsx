@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import MobileDashboard from './components/MobileDashboard'
 import Spinner from './components/ui/Spinner'
 import React, { useEffect } from 'react'
 
@@ -41,6 +42,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/mobile" 
+          element={
+            <ProtectedRoute>
+              <MobileDashboard />
             </ProtectedRoute>
           } 
         />
