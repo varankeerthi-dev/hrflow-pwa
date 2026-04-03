@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useEmployees } from '../hooks/useEmployees'
-import { useTasks } from '../../hooks/useTasks'
+import { useTasks } from '../hooks/useTasks'
 import { 
   Plus, 
   Circle, 
@@ -24,7 +24,7 @@ import {
 import { format, isToday, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay } from 'date-fns'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
-import Modal from '../ui/Modal'
+import Modal from './ui/Modal'
 
 const STATUSES = [
   { id: 'To Do', label: 'To Do', icon: Circle, color: 'text-gray-400', bg: 'bg-gray-50' },
