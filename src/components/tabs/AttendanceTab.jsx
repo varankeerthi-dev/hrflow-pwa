@@ -855,7 +855,7 @@ export default function AttendanceTab() {
         <>
           {/* Main Table Card */}
           <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
-            <div className="overflow-x-visible">
+            <div className="overflow-x-visible min-h-[500px]">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-[73px] z-10 bg-gray-50">
                   <tr className="h-10 border-b border-gray-200">
@@ -1048,7 +1048,7 @@ export default function AttendanceTab() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              {saved && <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium" style={{ fontFamily: "'Inter', sans-serif" }}><Check size={14} /> Changes Synced</div>}
+              {saved && <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium" style={{ fontFamily: "'Inter', sans-serif" }}><Check size={14} /> Submitted successfully</div>}
               <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-10 px-6 bg-indigo-600 text-white font-medium rounded-lg text-sm shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50" style={{ fontFamily: "'Inter', sans-serif" }}>
                 {saving ? 'Processing...' : 'Submit Records'}
               </button>
