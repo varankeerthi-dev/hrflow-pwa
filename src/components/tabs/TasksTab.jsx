@@ -71,6 +71,18 @@ export default function TasksTab() {
   const [inlineInputs, setInlineInputs] = useState({})
   const [inlineDates, setInlineDates] = useState({})
   const [draggedTaskId, setDraggedTaskId] = useState(null)
+  const [statusMenuOpen, setStatusMenuOpen] = useState(null)
+  
+  // Close status menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusMenuOpen && !event.target.closest('.status-menu-container')) {
+        setStatusMenuOpen(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [statusMenuOpen])
   
   // Mention State
   const [mentionState, setMentionState] = useState({
@@ -248,6 +260,15 @@ export default function TasksTab() {
     }
   }
 
+  const handleStatusChange = async (taskId, newStatus) => {
+    try {
+      await updateTask(taskId, { status: newStatus })
+      setStatusMenuOpen(null)
+    } catch (err) {
+      console.error("Failed to update status:", err)
+    }
+  }
+
   const getAssigneeInfo = (assignedTo) => {
     const ids = Array.isArray(assignedTo) ? assignedTo : assignedTo ? [assignedTo] : []
     return ids.map(id => employees.find(e => e.id === id)).filter(Boolean)
@@ -356,39 +377,85 @@ export default function TasksTab() {
                     onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
                     className="bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing group"
                   >
-                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-3">
                       <div className="flex justify-between items-start gap-2">
                         <h4 className={`text-[13px] font-medium text-slate-800 leading-tight ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}>
                           {task.title}
                         </h4>
-                        <button onClick={() => toggleStatus(task)} className={`shrink-0 transition-colors ${task.status === 'Completed' ? 'text-emerald-500' : 'text-slate-200 hover:text-slate-400'}`}>
-                          {task.status === 'Completed' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                        </button>
+                        <div className="status-menu-container relative">
+                          <button 
+                            onClick={() => setStatusMenuOpen(statusMenuOpen === task.id ? null : task.id)} 
+                            className={`shrink-0 transition-colors ${task.status === 'Completed' ? 'text-emerald-500' : 'text-slate-200 hover:text-slate-400'}`}
+                            title="Change status"
+                          >
+                            {task.status === 'Completed' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                          </button>
+                          
+                          {statusMenuOpen === task.id && (
+                            <div className="absolute top-full right-0 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1">
+                              {STATUSES.map(s => (
+                                <button
+                                  key={s.id}
+                                  onClick={() => handleStatusChange(task.id, s.id)}
+                                  className={`w-full text-left px-3 py-2 text-[11px] font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors ${task.status === s.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600'}`}
+                                >
+                                  {s.icon}
+                                  {s.label}
+                                  {task.status === s.id && <CheckCircle2 size={12} className="ml-auto text-indigo-600" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
-                      <div className="flex items-center justify-between mt-1">
-                        <div className="flex items-center gap-2">
+                      {/* Task Details - Due Date, Priority, Assigned To */}
+                      <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-slate-100">
+                        {/* Due Date & Priority */}
+                        <div className="flex items-center gap-2 flex-wrap">
                           {task.dueDate && (
-                            <div className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold flex items-center gap-1 ${dueDateColor}`}>
-                              <CalendarIcon size={10} />
+                            <div className={`px-2 py-1 rounded-md text-[10px] font-bold flex items-center gap-1.5 ${dueDateColor}`}>
+                              <CalendarIcon size={12} />
                               {dueDateText}
                             </div>
                           )}
-                          {task.priority === 'urgent' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-sm shadow-rose-100" title="Urgent" />}
-                        </div>
-
-                        <div className="flex -space-x-1.5">
-                          {assignees.slice(0, 3).map(emp => (
-                            <div key={emp.id} className="w-5 h-5 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-slate-600 shadow-sm" title={emp.name}>
-                              {getInitials(emp.name)}
+                          {task.priority === 'urgent' && (
+                            <div className="px-2 py-1 rounded-md text-[10px] font-bold bg-rose-100 text-rose-600 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                              URGENT
                             </div>
-                          ))}
+                          )}
+                          {task.priority === 'high' && (
+                            <div className="px-2 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-600 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                              HIGH
+                            </div>
+                          )}
                         </div>
+                        
+                        {/* Assigned To Names */}
+                        {assignees.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <User size={12} className="text-slate-400" />
+                            <span className="text-[10px] text-slate-600 font-medium">
+                              {assignees.map(e => e.name).join(', ')}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 )
               })}
+              
+              {/* Add Task Button at Bottom */}
+              <button 
+                onClick={() => { setNewTask({ ...newTask, status: status.id }); setShowAddModal(true); }}
+                className="w-full py-2 px-3 border border-dashed border-slate-300 rounded-lg text-[11px] font-medium text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-1.5 mt-2"
+              >
+                <Plus size={14} />
+                Add a Task
+              </button>
           </div>
         </div>
       ))}
