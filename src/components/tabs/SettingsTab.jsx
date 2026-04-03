@@ -1733,9 +1733,6 @@ export default function SettingsTab() {
               <h1 className="mt-4 text-[28px] font-black tracking-[-0.04em] text-slate-950 md:text-[34px]">
                 {currentSettingsMeta.title}
               </h1>
-              <p className="mt-3 max-w-xl text-[13px] leading-6 text-slate-600 md:text-[14px]">
-                {currentSettingsMeta.description}
-              </p>
             </div>
           </div>
 
@@ -1765,9 +1762,6 @@ export default function SettingsTab() {
                       {meta.pill || 'Settings'}
                     </span>
                   </div>
-                  <p className={`mt-2 text-[11px] leading-5 ${isActive ? 'text-slate-200' : 'text-slate-500'}`}>
-                    {meta.description}
-                  </p>
                 </button>
               )
             })}
