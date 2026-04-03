@@ -690,27 +690,30 @@ export default function TasksTab() {
     )
   }
 
-  const renderIdeaTabView = () => {
-    const filteredIdeas = useMemo(() => {
-      let ideas = filteredTasks.filter(t => t.category === 'idea')
-      
-      if (ideaSearchTerm) {
-        const search = ideaSearchTerm.toLowerCase()
-        ideas = ideas.filter(i => 
-          i.title?.toLowerCase().includes(search) || 
-          i.description?.toLowerCase().includes(search)
-        )
-      }
-      
-      if (ideaFilter === 'recent') {
-        ideas = ideas.sort((a, b) => new Date(b.createdAt?.toDate()) - new Date(a.createdAt?.toDate()))
-      } else if (ideaFilter === 'oldest') {
-        ideas = ideas.sort((a, b) => new Date(a.createdAt?.toDate()) - new Date(b.createdAt?.toDate()))
-      }
-      
-      return ideas
-    }, [filteredTasks, ideaSearchTerm, ideaFilter])
+  // Idea tab filtered ideas - computed at top level to avoid hook violation
+  const filteredIdeas = useMemo(() => {
+    if (activeTab !== 'idea') return []
+    
+    let ideas = filteredTasks.filter(t => t.category === 'idea')
+    
+    if (ideaSearchTerm) {
+      const search = ideaSearchTerm.toLowerCase()
+      ideas = ideas.filter(i => 
+        i.title?.toLowerCase().includes(search) || 
+        i.description?.toLowerCase().includes(search)
+      )
+    }
+    
+    if (ideaFilter === 'recent') {
+      ideas = ideas.sort((a, b) => new Date(b.createdAt?.toDate()) - new Date(a.createdAt?.toDate()))
+    } else if (ideaFilter === 'oldest') {
+      ideas = ideas.sort((a, b) => new Date(a.createdAt?.toDate()) - new Date(b.createdAt?.toDate()))
+    }
+    
+    return ideas
+  }, [filteredTasks, ideaSearchTerm, ideaFilter, activeTab])
 
+  const renderIdeaTabView = () => {
     return (
     <div className="h-full flex flex-col">
       <div className="bg-white border-b border-zinc-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 rounded-lg shadow-sm">
@@ -931,8 +934,8 @@ export default function TasksTab() {
         </form>
       </Modal>
     </div>
-    )
-  }
+  )
+}
 
   if (loading) return <div className="h-64 flex items-center justify-center"><Spinner /></div>
 
