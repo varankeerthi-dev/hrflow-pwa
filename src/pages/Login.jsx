@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, formatAuthError } from '../hooks/useAuth'
+import LoginOrgSelector from '../components/ui/LoginOrgSelector'
 import { db } from '../lib/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 
@@ -184,7 +185,7 @@ function LinkAccountModal({ email, googleCredential, onLink, onCancel }) {
 
 // ─── Main Login Page ──────────────────────────────────────────────────────────
 export default function Login() {
-  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation, resetPassword, logout, loginAsAdmin } = useAuth()
+  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation, resetPassword, logout, loginAsAdmin, switchOrganisation } = useAuth()
   const navigate = useNavigate()
 
   const [tab, setTab] = useState('signin')   // 'signin' | 'signup'
@@ -230,6 +231,23 @@ export default function Login() {
         onJoin={joinOrganisation}
         onCreate={createOrganisation}
         onNavigate={() => navigate('/')}
+      />
+    )
+  }
+
+  // If user is logged in and has MULTIPLE organizations → show selector
+  if (user && user.orgId && user.memberships?.length > 1) {
+    return (
+      <LoginOrgSelector
+        user={user}
+        memberships={user.memberships}
+        onSelect={async (orgId) => {
+          await switchOrganisation(orgId)
+          navigate('/')
+        }}
+        onJoin={joinOrganisation}
+        onCreate={createOrganisation}
+        onLogout={logout}
       />
     )
   }
