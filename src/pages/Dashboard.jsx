@@ -30,7 +30,8 @@ import {
   Mail,
   MoreHorizontal,
   History,
-  MessageSquare
+  MessageSquare,
+  Lock
 } from 'lucide-react'
 import ActivityLogSidebar from '../components/ui/ActivityLogSidebar'
 import OrganizationSwitcher from '../components/ui/OrganizationSwitcher'
@@ -249,14 +250,44 @@ export default function Dashboard() {
     { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
   ], [])
 
+  // RBAC: Filter tabs based on user permissions
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
+  const userPermissions = user?.permissions || {}
+  
+  const visibleTabs = useMemo(() => {
+    if (isAdmin) return allTabs
+    
+    return allTabs.filter(tab => {
+      // Always show home and portal
+      if (tab.id === 'home' || tab.id === 'portal') return true
+      
+      // Check module permissions
+      const modulePerms = userPermissions[tab.module]
+      if (!modulePerms) return false
+      
+      // User needs at least 'view' permission for the module
+      return modulePerms.view === true || 
+             modulePerms.create === true || 
+             modulePerms.edit === true || 
+             modulePerms.delete === true ||
+             modulePerms.approve === true
+    })
+  }, [allTabs, isAdmin, userPermissions])
+
+  const visibleTabIds = useMemo(() => visibleTabs.map(t => t.id), [visibleTabs])
+
   const [tabSearchParams, setTabSearchParams] = useSearchParams()
 
   useEffect(() => {
     const tabParam = tabSearchParams.get('tab')
-    if (tabParam && allTabs.find(t => t.id === tabParam)) {
+    if (tabParam && visibleTabs.find(t => t.id === tabParam)) {
       setActiveTab(tabParam)
+    } else if (tabParam && !visibleTabs.find(t => t.id === tabParam)) {
+      // User tried to access a tab they don't have permission for
+      setActiveTab('home')
+      setTabSearchParams({ tab: 'home' })
     }
-  }, [tabSearchParams, allTabs])
+  }, [tabSearchParams, visibleTabs])
 
   const sections = useMemo(() => [
     { id: 'main', title: 'MAIN', tabs: ['home'] },
@@ -266,7 +297,40 @@ export default function Dashboard() {
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
 
+  // Filter sections to only show tabs user has permission for
+  const visibleSections = useMemo(() => {
+    return sections.map(section => ({
+      ...section,
+      tabs: section.tabs.filter(tabId => visibleTabIds.includes(tabId))
+    })).filter(section => section.tabs.length > 0)
+  }, [sections, visibleTabIds])
+
   const renderTabContent = () => {
+    // RBAC: Check if user has permission to view this tab
+    if (!isAdmin && activeTab !== 'home' && activeTab !== 'portal') {
+      const currentTab = visibleTabs.find(t => t.id === activeTab)
+      if (!currentTab) {
+        // User doesn't have permission for this tab
+        return (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Lock size={24} className="text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Access Denied</h3>
+              <p className="text-sm text-gray-500 mb-4">You don't have permission to access this module. Please contact your administrator.</p>
+              <button 
+                onClick={() => { setActiveTab('home'); setTabSearchParams({ tab: 'home' }); }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          </div>
+        )
+      }
+    }
+    
     switch (activeTab) {
       case 'home': return <HomeTab onTabChange={(t) => { setActiveTab(t); setTabSearchParams({ tab: t }); }} />
       case 'attendance':
@@ -391,8 +455,8 @@ export default function Dashboard() {
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
           </div>
           <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto no-scrollbar">
-            {sections.map(section => {
-              const sectionTabs = allTabs.filter(t => section.tabs.includes(t.id))
+            {visibleSections.map(section => {
+              const sectionTabs = visibleTabs.filter(t => section.tabs.includes(t.id))
               if (sectionTabs.length === 0) return null
               return (
                 <div key={section.id} className="flex flex-col mb-2 last:mb-0">
