@@ -580,7 +580,7 @@ useEffect(() => {
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
           </div>
 
-          <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 px-3 py-2 space-y-2 overflow-y-auto no-scrollbar">
             {sections.map(section => {
               // Filter section tabs by user permissions
               const sectionTabs = tabs.filter(t => section.tabs.includes(t.id));
@@ -590,7 +590,7 @@ useEffect(() => {
               const isGroupActive = expandedGroups[section.id];
               
               return (
-                <div key={section.id} className="flex flex-col gap-1">
+                <div key={section.id} className="flex flex-col">
                   {!isCollapsed && (
                     <div className="left-panel-title flex items-center justify-between">
                       <span>{section.title}</span>
@@ -599,14 +599,14 @@ useEffect(() => {
                         className="hover:text-indigo-600 transition-colors"
                       >
                         <ChevronRight 
-                          size={12} 
+                          size={10} 
                           className={`transition-transform duration-200 ${isGroupActive ? 'rotate-90' : ''}`} 
                         />
                       </button>
                     </div>
                   )}
                   
-                  <div className={`flex flex-col gap-1 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
+                  <div className={`flex flex-col gap-0.5 ${!isGroupActive && !isCollapsed ? 'hidden' : ''}`}>
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id
                       return (
@@ -618,22 +618,22 @@ useEffect(() => {
                             setIsMobileMenuOpen(false)
                           }}
                           title={isCollapsed ? tab.label : ''}
-                          className={`${isCollapsed ? 'justify-center px-0 py-2' : 'left-panel-btn'} ${
+                          className={`${isCollapsed ? 'justify-center px-0 py-1.5' : 'left-panel-btn'} ${
                             isActive ? 'active' : ''
                           } transition-all duration-150`}
                         >
                           <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
-                            {React.cloneElement(tab.icon, { size: 18 })}
+                            {React.cloneElement(tab.icon, { size: 16 })}
                           </span>
                           
                           {!isCollapsed && (
-                            <span className="text-[12px] font-semibold truncate">
+                            <span className="text-[11px] font-semibold truncate">
                               {tab.label}
                             </span>
                           )}
 
                           {tab.id === 'approvals' && (
-                            <span className={`ml-auto shrink-0 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full ${isCollapsed ? 'absolute top-1 right-1' : ''}`}>
+                            <span className={`ml-auto shrink-0 flex items-center justify-center bg-red-500 text-white text-[8px] font-bold w-3.5 h-3.5 rounded-full ${isCollapsed ? 'absolute top-1 right-1' : ''}`}>
                               {tab.badge}
                             </span>
                           )}
