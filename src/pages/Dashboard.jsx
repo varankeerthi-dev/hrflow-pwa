@@ -332,6 +332,14 @@ export default function Dashboard() {
   }
 
   const [activeTab, setActiveTab] = useState('attendance')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam && allTabs.find(t => t.id === tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [searchParams, allTabs])
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [summarySubTab, setSummarySubTab] = useState('summary')
   const [isCollapsed, setIsCollapsed] = useState(false)
