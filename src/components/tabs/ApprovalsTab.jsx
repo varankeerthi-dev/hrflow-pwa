@@ -659,25 +659,25 @@ export default function ApprovalsTab() {
           </p>
         </div>
         
-        <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+        <div className="flex bg-zinc-100 p-1.5 rounded-2xl border border-zinc-200 shadow-inner">
           <button 
             onClick={() => setActiveSubTab('advance-expense')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'advance-expense' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${activeSubTab === 'advance-expense' ? 'bg-zinc-900 text-white shadow-xl shadow-zinc-200 translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600 hover:bg-white/50'}`}
           >
             Advance / Expense
             {advExpenses.length > 0 && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${activeSubTab === 'advance-expense' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${activeSubTab === 'advance-expense' ? 'bg-white text-zinc-900' : 'bg-zinc-200 text-zinc-500'}`}>
                 {advExpenses.length}
               </span>
             )}
           </button>
           <button 
             onClick={() => setActiveSubTab('leave-permission')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'leave-permission' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${activeSubTab === 'leave-permission' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600 hover:bg-white/50'}`}
           >
             Leave / Permission
             {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length > 0 && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${activeSubTab === 'leave-permission' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${activeSubTab === 'leave-permission' ? 'bg-white text-indigo-600' : 'bg-zinc-200 text-zinc-500'}`}>
                 {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length}
               </span>
             )}
@@ -685,11 +685,11 @@ export default function ApprovalsTab() {
           {isAccountant && (
             <button 
               onClick={() => setActiveSubTab('payment-queue')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'payment-queue' ? 'bg-white shadow-sm text-indigo-600 border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${activeSubTab === 'payment-queue' ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-100 translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600 hover:bg-white/50'}`}
             >
               Payment Queue
               {paymentQueue.length > 0 && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${activeSubTab === 'payment-queue' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${activeSubTab === 'payment-queue' ? 'bg-white text-emerald-600' : 'bg-zinc-200 text-zinc-500'}`}>
                   {paymentQueue.length}
                 </span>
               )}
