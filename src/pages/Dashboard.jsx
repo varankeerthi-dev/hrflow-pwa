@@ -409,6 +409,15 @@ useEffect(() => {
     { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
   ], [])
 
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam && allTabs.find(t => t.id === tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [searchParams, allTabs])
+
   const sections = useMemo(() => [
     { id: 'main', title: 'MAIN', tabs: ['home'] },
     { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'documents', 'summary'] },
