@@ -977,12 +977,12 @@ export default function AttendanceTab() {
                           })()}
                         </td>
                         <td className="px-3">
-                          <div className="bg-gray-50 border border-gray-100 rounded-md px-2 py-1">
+                          <div className="bg-zinc-100 border border-zinc-200 rounded-md px-2 py-1">
                             <input
                               type="text"
                               value={row.remarks || ''}
                               onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
-                              className="border-none bg-transparent p-0 text-xs focus:ring-0 text-gray-600 w-full placeholder-gray-300"
+                              className="border-none bg-transparent p-0 text-xs focus:ring-0 text-zinc-600 w-full placeholder-zinc-400"
                               placeholder="..."
                               style={{ fontFamily: "'Inter', sans-serif" }}
                             />

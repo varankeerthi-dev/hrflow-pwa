@@ -43,6 +43,7 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
     remarks: false
   })
   const [remarksLabel, setRemarksLabel] = useState('Remarks')
+  const [selectedDetail, setSelectedDayDetail] = useState(null) // { empId, day, att, dateStr, status }
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -480,184 +481,214 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
 
       {/* Monthly Pivot View */}
       {activeSubTab === 'monthlyView' && (
-        <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+        <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-zinc-50/50">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-gray-400" />
-              <span className="text-[11px] font-inter font-bold text-gray-400 uppercase tracking-widest">
-                Daily Attendance Grid ({monthlyViewData.employees?.length || 0} Employees)
+              <FileSpreadsheet size={16} className="text-zinc-400" />
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
+                Resource Attendance Heatmap ({monthlyViewData.employees?.length || 0} Employees)
               </span>
             </div>
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setShowColumnSettings(true)}
-                className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-inter font-medium text-gray-600 transition-all"
+                className="h-[32px] px-3 flex items-center gap-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] font-bold text-zinc-600 transition-all uppercase tracking-tight"
               >
-                <Filter size={14} /> Column Settings
+                <Filter size={12} /> Columns
               </button>
               <button 
                 onClick={() => setShowOrderModal(true)}
-                className="h-[36px] px-3 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-inter font-medium text-gray-600 transition-all"
+                className="h-[32px] px-3 flex items-center gap-2 bg-white hover:bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] font-bold text-zinc-600 transition-all uppercase tracking-tight"
               >
-                <Filter size={14} /> Display Order
+                <GripVertical size={12} /> Sort
               </button>
               <button 
                 onClick={exportPDF}
-                className="h-[36px] px-4 bg-indigo-600 text-white rounded-lg text-[11px] font-inter font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all"
+                className="h-[32px] px-4 bg-zinc-900 text-white rounded-lg text-[10px] font-bold flex items-center gap-2 hover:bg-black transition-all uppercase tracking-widest"
               >
-                <Download size={14} /> Export PDF
+                <Download size={12} /> Export
               </button>
             </div>
           </div>
-          <div className="px-4 pb-2 flex gap-4 text-[10px] font-inter border-b border-gray-100">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-50 border border-green-200 rounded"></span> Present</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-50 border border-red-200 rounded"></span> Absent</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-purple-50 border border-purple-200 rounded"></span> Weekend</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-amber-50 border border-amber-200 rounded"></span> Holiday</span>
+
+          <div className="px-4 py-2 flex items-center justify-between border-b border-zinc-100 bg-white">
+            <div className="flex gap-4 text-[9px] font-black uppercase tracking-tighter text-zinc-400">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></span> Present</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-rose-500 rounded-sm"></span> Absent</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-violet-500 rounded-sm"></span> Weekend</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-amber-400 rounded-sm"></span> Holiday</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-zinc-100 border border-zinc-200 rounded-sm"></span> No Data</span>
+            </div>
+            <p className="text-[9px] font-medium text-zinc-400 italic">* Click any square for full day details</p>
           </div>
           
           {pivotLoading ? (
             <div className="text-center py-20"><Spinner /></div>
           ) : (
-            <div className="overflow-x-auto max-h-[calc(100vh-200px)] flex-1 overflow-y-auto bg-[#E8E8E8]">
-              <table id="monthly-pivot-table" className="w-full border-separate border-spacing-0 text-[11px] font-inter">
-                <thead className="sticky top-0 z-10">
+            <div className="overflow-x-auto overflow-y-auto bg-white p-4">
+              <table id="monthly-pivot-table" className="w-full border-separate border-spacing-[3px] text-[11px]">
+                <thead>
                   <tr>
-                    <th className="px-2 py-2 text-center font-bold text-gray-800 border border-gray-400 w-10 bg-gray-200" rowSpan={2}>
-                      <div className="text-[10px]">Date</div>
+                    <th className="sticky left-0 z-20 bg-white px-2 py-2 text-left font-black text-zinc-400 uppercase tracking-widest text-[9px] min-w-[140px] border-b border-zinc-100">
+                      Resource
                     </th>
-                    {monthlyViewData.employees?.map((emp, idx) => {
-                      let colSpan = 0;
-                      if (columnSettings.inTime) colSpan++;
-                      if (columnSettings.outTime) colSpan++;
-                      if (columnSettings.ot) colSpan++;
-                      if (columnSettings.remarks) colSpan++;
-                      if (colSpan === 0) colSpan = 1; // Fallback
-
-                      return (
-                        <th 
-                          key={emp.id} 
-                          className={`px-1 py-2 text-center font-bold border border-gray-400 min-w-[70px] bg-gray-100 text-gray-800`}
-                          colSpan={colSpan}
-                        >
-                          <div className="text-[10px] font-inter font-semibold truncate max-w-[100px] mx-auto text-gray-900">{emp.name}</div>
+                    {Array.from({ length: monthlyViewData.daysInMonth || 31 }, (_, i) => i + 1).map(day => {
+                       const [year, month] = selectedMonth.split('-').map(Number)
+                       const d = new Date(year, month - 1, day)
+                       const isSun = d.getDay() === 0
+                       return (
+                        <th key={day} className={`text-center py-2 border-b border-zinc-100 min-w-[28px]`}>
+                          <div className={`text-[9px] font-black ${isSun ? 'text-rose-500' : 'text-zinc-400'}`}>{day}</div>
+                          <div className="text-[7px] font-bold text-zinc-300 uppercase">
+                            {['S','M','T','W','T','F','S'][d.getDay()]}
+                          </div>
                         </th>
-                      )
+                       )
                     })}
                   </tr>
-                  <tr>
-                    {monthlyViewData.employees?.map((emp, idx) => (
-                      <React.Fragment key={emp.id}>
-                        {columnSettings.inTime && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>In</th>}
-                        {columnSettings.outTime && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>Out</th>}
-                        {columnSettings.ot && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>OT</th>}
-                        {columnSettings.remarks && <th className={`px-1 py-1 text-[9px] font-inter font-bold border border-gray-400 text-center bg-gray-50 text-gray-700`}>{remarksLabel}</th>}
-                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className={`px-1 py-1 border border-gray-400 bg-gray-50`}>-</th>}
-                      </React.Fragment>
-                    ))}
-                  </tr>
                 </thead>
-                <tbody className="bg-white">
-                  {Array.from({ length: monthlyViewData.daysInMonth || 31 }, (_, i) => i + 1).map(day => {
-                    const [year, month] = selectedMonth.split('-').map(Number)
-                    const currentDate = new Date(year, month - 1, day)
-                    const dayOfWeek = currentDate.getDay()
-                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-                    const isSunday = dayOfWeek === 0
-                    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                    const isHoliday = (monthlyViewData.holidays || []).some(h => h.date === dateStr)
-                    const isNonWorking = isSunday || isHoliday
-                    const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' })
-                    
-                    const rowClass = isSunday ? 'bg-red-25' : (isHoliday ? 'bg-amber-25' : (isWeekend ? 'bg-purple-25' : ''))
-                    const dateClass = isSunday ? 'bg-red-100 text-red-800 border border-gray-400' : (isHoliday ? 'bg-amber-100 text-amber-800 border border-gray-400' : (isWeekend ? 'bg-purple-100 text-purple-800 border border-gray-400' : 'bg-gray-100 text-gray-900 border border-gray-400'))
-                    
-                    return (
-                      <tr key={day} className={rowClass}>
-                        <td className={`px-2 py-1.5 text-center font-bold ${dateClass}`}>
-                          <span className="text-[10px] font-inter font-bold">{day}</span>
-                          <div className="text-[8px] font-semibold opacity-80">{dayName}</div>
-                        </td>
-                        {monthlyViewData.employees?.map(emp => {
-                          const [empYear, empMonth] = selectedMonth.split('-').map(Number)
-                          const empStartDate = emp.joinedDate ? new Date(emp.joinedDate) : null
-                          const isBeforeStart = empStartDate && new Date(empYear, empMonth - 1, day) < empStartDate
-                          
-                          const att = monthlyViewData.attendanceMap?.[emp.id]?.[day]
-                          const status = isBeforeStart ? null : getStatusBadge(att, day, emp, monthlyViewData.holidays || [])
-                          const isAbsentOrNonWorking = status?.type === 'absent' || status?.type === 'sunday' || status?.type === 'holiday'
-                          
-                          let colSpan = 0;
-                          if (columnSettings.inTime) colSpan++;
-                          if (columnSettings.outTime) colSpan++;
-                          if (columnSettings.ot) colSpan++;
-                          if (columnSettings.remarks) colSpan++;
-                          if (colSpan === 0) colSpan = 1;
+                <tbody>
+                  {monthlyViewData.employees?.map((emp, idx) => (
+                    <tr key={emp.id} className="group hover:bg-zinc-50/50 transition-colors">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-zinc-50/50 px-2 py-1.5 border-b border-zinc-50 transition-colors">
+                        <div className="flex flex-col leading-tight">
+                          <span className="text-[11px] font-black text-zinc-800 uppercase tracking-tight truncate max-w-[130px]" title={emp.name}>
+                            {emp.name}
+                          </span>
+                          <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-tighter">
+                            {emp.department || 'Staff'}
+                          </span>
+                        </div>
+                      </td>
+                      {Array.from({ length: monthlyViewData.daysInMonth || 31 }, (_, i) => i + 1).map(day => {
+                        const att = monthlyViewData.attendanceMap?.[emp.id]?.[day]
+                        const statusInfo = getStatusBadge(att, day, emp, monthlyViewData.holidays || [])
+                        
+                        // Map status to heatmap colors
+                        let squareColor = 'bg-zinc-100 border border-zinc-200'
+                        if (statusInfo.type === 'present') squareColor = 'bg-emerald-500'
+                        if (statusInfo.type === 'absent') squareColor = 'bg-rose-500'
+                        if (statusInfo.type === 'weekend') squareColor = 'bg-violet-500'
+                        if (statusInfo.type === 'holiday') squareColor = 'bg-amber-400'
+                        if (statusInfo.type === 'sunday' && statusInfo.text === 'Sunday') squareColor = 'bg-rose-100 border border-rose-200'
+                        if (statusInfo.type === 'sunday' && statusInfo.text === 'Absent') squareColor = 'bg-rose-500'
 
-                          return (
-                            <React.Fragment key={emp.id}>
-                              {isAbsentOrNonWorking ? (
-                                <td colSpan={colSpan} className={`px-1 py-1.5 text-center border border-gray-400 ${isBeforeStart ? 'bg-gray-100' : status.bg}`}>
-                                  <span className={`text-[11px] font-inter font-bold ${isBeforeStart ? 'text-gray-400' : status.color}`}>
-                                    {isBeforeStart ? '-' : status.text}
-                                  </span>
-                                </td>
-                              ) : (
-                                <>
-                                  {columnSettings.inTime && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
-                                      {isBeforeStart ? '-' : formatTimeTo12Hour(att?.inTime) || '-'}
-                                    </td>
-                                  )}
-                                  {columnSettings.outTime && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
-                                      {(() => {
-                                        if (isBeforeStart) return '-'
-                                        const time = formatTimeTo12Hour(att?.outTime)
-                                        if (!time) return '-'
-                                        const isOvernight = att?.shiftType === 'Night' && att?.outDate && att?.inDate && att.outDate !== att.inDate
-                                        if (isOvernight) {
-                                          const outDate = new Date(att.outDate)
-                                          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-                                          const shortDate = `${months[outDate.getMonth()]} ${outDate.getDate()}`
-                                          return (
-                                            <div className="flex flex-col items-center leading-tight">
-                                              <span className="font-semibold">{time}</span>
-                                              <span className="text-[8px] text-gray-600 flex items-center gap-0.5 mt-0.5 font-medium">
-                                                <ArrowRight size={9} /> {shortDate}
-                                              </span>
-                                            </div>
-                                          )
-                                        }
-                                        return <span className="font-semibold">{time}</span>
-                                      })()}
-                                    </td>
-                                  )}
-                                  {columnSettings.ot && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-900 bg-white">
-                                      {isBeforeStart ? '-' : formatOTHours(att?.otHours)}
-                                    </td>
-                                  )}
-                                  {columnSettings.remarks && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 text-[10px] font-inter font-semibold text-gray-500 bg-white italic">
-                                      {isBeforeStart ? '-' : (att?.remarks || '-')}
-                                    </td>
-                                  )}
-                                  {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && (
-                                    <td className="px-1 py-1.5 text-center border border-gray-400 bg-white">-</td>
-                                  )}
-                                </>
-                              )}
-                            </React.Fragment>
-                          )
-                        })}
-                      </tr>
-                    )
-                  })}
+                        const [year, month] = selectedMonth.split('-').map(Number)
+                        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+                        return (
+                          <td key={day} className="p-0 text-center align-middle">
+                            <button
+                              onClick={() => setSelectedDayDetail({
+                                emp,
+                                day,
+                                att,
+                                dateStr,
+                                status: statusInfo
+                              })}
+                              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-[4px] mx-auto transition-all transform hover:scale-110 hover:shadow-md cursor-pointer ${squareColor}`}
+                              title={`${emp.name} - ${day}: ${statusInfo.text}`}
+                            />
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Day Detail Popover Modal */}
+      {selectedDetail && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-zinc-900/40 backdrop-blur-md px-4" onClick={() => setSelectedDayDetail(null)}>
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 fade-in duration-200 border border-zinc-100"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="relative h-24 bg-zinc-900 flex items-end px-6 pb-4">
+              <button 
+                onClick={() => setSelectedDayDetail(null)}
+                className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+              <div className="flex flex-col">
+                <h4 className="text-white font-black text-lg uppercase tracking-tight leading-none">{selectedDetail.emp.name}</h4>
+                <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                  {new Date(selectedDetail.dateStr).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Primary Status */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-50 border border-zinc-100">
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Attendance Status</span>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                  selectedDetail.status.type === 'present' || selectedDetail.status.type === 'weekend' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                  selectedDetail.status.type === 'absent' || selectedDetail.status.type === 'sunday' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                  'bg-zinc-100 text-zinc-600 border-zinc-200'
+                }`}>
+                  {selectedDetail.status.text}
+                </span>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl border border-zinc-100 flex flex-col items-center justify-center gap-1">
+                  <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Punch In</span>
+                  <span className="text-sm font-black text-zinc-800">
+                    {formatTimeTo12Hour(selectedDetail.att?.inTime) || '—'}
+                  </span>
+                </div>
+                <div className="p-4 rounded-xl border border-zinc-100 flex flex-col items-center justify-center gap-1">
+                  <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Punch Out</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-sm font-black text-zinc-800">
+                      {formatTimeTo12Hour(selectedDetail.att?.outTime) || '—'}
+                    </span>
+                    {selectedDetail.att?.shiftType === 'Night' && selectedDetail.att?.outDate && selectedDetail.att?.outDate !== selectedDetail.att?.inDate && (
+                      <span className="text-[8px] font-bold text-rose-500 uppercase">Next Day</span>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl border border-zinc-100 flex flex-col items-center justify-center gap-1">
+                  <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">OT Hours</span>
+                  <span className="text-sm font-black text-indigo-600">
+                    {formatOTHours(selectedDetail.att?.otHours)}
+                  </span>
+                </div>
+                <div className="p-4 rounded-xl border border-zinc-100 flex flex-col items-center justify-center gap-1">
+                  <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Shift</span>
+                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                    selectedDetail.att?.shiftType === 'Night' ? 'bg-zinc-800 text-white' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {selectedDetail.att?.shiftType || 'Day'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Remarks Section */}
+              <div className="space-y-2">
+                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest pl-1">{remarksLabel}</span>
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100 min-h-[60px] text-xs font-medium text-zinc-600 italic">
+                  {selectedDetail.att?.remarks || 'No remarks recorded for this session.'}
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setSelectedDayDetail(null)}
+                className="w-full h-12 bg-zinc-900 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 mt-4"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
