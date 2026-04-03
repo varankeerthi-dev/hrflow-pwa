@@ -320,7 +320,11 @@ export default function ApprovalsTab() {
           initialActionState[item.id] = { 
             status: item.status || 'Pending', 
             remarks: item.remarks || '', 
-            showToggle: false
+            showToggle: false,
+            deptPick: storedApprovalToPick(item.deptHeadApproval),
+            mdPick: storedApprovalToPick(item.mdApproval),
+            deptRemarks: item.deptHeadRemarks || '',
+            mdRemarks: item.mdRemarks || ''
           }
         })
         setActionState(prev => ({ ...prev, ...initialActionState }))
@@ -441,6 +445,102 @@ export default function ApprovalsTab() {
       }
 
       await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
+      setAdvMenuOpen(null)
+      showFeedback(id, 'Updated!')
+      fetchData()
+    } catch (err) {
+      showFeedback(id, 'Failed', true)
+    }
+  }
+
+  const handleLeaveDeptSubmit = async (id) => {
+    if (!isHR && user.uid !== requests.find(r => r.id === id)?.deptHeadId) return showFeedback(id, 'No permission', true)
+    const state = actionState[id]
+    if (!state) return
+
+    const pick = state.deptPick || 'Approve'
+    const req = requests.find((x) => x.id === id)
+
+    if (['Partial', 'Rejected', 'Hold'].includes(pick) && !state.deptRemarks?.trim()) {
+      return showFeedback(id, 'Remarks required', true)
+    }
+
+    try {
+      const deptApproval = pickToStoredApproval(pick)
+      const updateData = {
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid,
+        deptHeadApproval: deptApproval,
+        deptHeadApprovedBy: user.uid,
+        deptHeadApprovedAt: serverTimestamp(),
+        deptHeadRemarks: state.deptRemarks || ''
+      }
+
+      if (pick === 'Rejected') {
+        updateData.status = 'Rejected'
+      } else if (pick === 'Hold') {
+        updateData.status = 'Hold'
+      } else if (pick === 'Approve' || pick === 'Partial') {
+        updateData.currentStage = (req?.currentStage || 0) + 1
+        if (req?.totalStages === 1 || (req?.currentStage || 0) >= (req?.totalStages || 1) - 1) {
+          updateData.status = 'Approved'
+        }
+      }
+
+      await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), updateData)
+      setAdvMenuOpen(null)
+      showFeedback(id, 'Updated!')
+      fetchData()
+    } catch (err) {
+      showFeedback(id, 'Failed', true)
+    }
+  }
+
+  const handleLeaveMdSubmit = async (id) => {
+    if (!isMD) return showFeedback(id, 'No permission', true)
+    const state = actionState[id]
+    if (!state) return
+
+    const req = requests.find((x) => x.id === id)
+    const deptOk = ['Approved', 'Partial'].includes(req?.deptHeadApproval || '')
+    if (!deptOk && !isAdmin) {
+      return showFeedback(id, 'Dept Head approval req.', true)
+    }
+
+    const pick = state.mdPick || 'Approve'
+
+    if (['Partial', 'Rejected', 'Hold'].includes(pick) && !state.mdRemarks?.trim()) {
+      return showFeedback(id, 'Remarks required', true)
+    }
+
+    try {
+      const updateData = {
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid,
+        mdApprovedBy: user.uid,
+        mdApprovedAt: serverTimestamp(),
+        mdRemarks: state.mdRemarks || ''
+      }
+
+      if (pick === 'Approve') {
+        updateData.status = 'Approved'
+        updateData.mdApproval = 'Approved'
+        updateData.approved_by = user.uid
+        updateData.approved_at = serverTimestamp()
+      } else if (pick === 'Partial') {
+        updateData.status = 'Partial'
+        updateData.mdApproval = 'Partial'
+        updateData.approved_by = user.uid
+        updateData.approved_at = serverTimestamp()
+      } else if (pick === 'Rejected') {
+        updateData.status = 'Rejected'
+        updateData.mdApproval = 'Rejected'
+      } else if (pick === 'Hold') {
+        updateData.status = 'Hold'
+        updateData.mdApproval = 'Hold'
+      }
+
+      await updateDoc(doc(db, 'organisations', user.orgId, 'requests', id), updateData)
       setAdvMenuOpen(null)
       showFeedback(id, 'Updated!')
       fetchData()
@@ -1451,26 +1551,215 @@ export default function ApprovalsTab() {
                               {leaveApprovalSetting?.type === 'multi' ? (
                                 <>
                                   <td className="px-4 border-r border-zinc-50">
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[11px] font-bold text-zinc-600">{req.deptHeadName || 'Not Assigned'}</span>
-                                      <div className="flex items-center gap-2">
-                                        {getStatusIcon(req.deptHeadApproval || 'Pending')}
-                                        {isTargetDeptHead && (req.deptHeadApproval === 'Pending' || req.deptHeadApproval === 'Hold') && (
-                                          <div className="flex gap-1">
-                                            <button onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} className="p-1 hover:bg-emerald-50 rounded text-emerald-600"><CheckCircle2 size={14} /></button>
-                                            <button onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')} className="p-1 hover:bg-rose-50 rounded text-rose-600"><XCircle size={14} /></button>
-                                          </div>
-                                        )}
-                                      </div>
+                                    <div
+                                      className="relative mx-auto flex w-full max-w-[140px] flex-col items-center gap-1"
+                                      data-adv-dropdown-root
+                                    >
+                                      {isTargetDeptHead ? (
+                                        <>
+                                          {(!req.deptHeadApproval || req.deptHeadApproval === 'Pending') ? (
+                                            <div className="flex flex-col items-center gap-1 w-full">
+                                              <div className="flex items-center gap-1 w-full">
+                                                <button
+                                                  type="button"
+                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                  onClick={() => setAdvMenuOpen((o) => (o === `${req.id}-dept` ? null : `${req.id}-dept`))}
+                                                  className="h-7 flex-1 rounded-md border border-sky-300 bg-sky-50/40 px-1 text-center text-[10px] font-bold text-sky-950 shadow-sm hover:bg-sky-50"
+                                                >
+                                                  {(actionState[req.id]?.deptPick || 'Approve').slice(0, 8)}
+                                                </button>
+                                                <button 
+                                                  onClick={() => handleLeaveDeptSubmit(req.id)}
+                                                  className="h-7 w-7 flex items-center justify-center rounded-md bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 transition-all"
+                                                  title="Submit Dept Head Action"
+                                                >
+                                                  <Check size={14} strokeWidth={3} />
+                                                </button>
+                                                {['Partial', 'Hold', 'Rejected'].includes(actionState[req.id]?.deptPick) && (
+                                                  <div className="relative">
+                                                    <button 
+                                                      type="button"
+                                                      className={`p-1 rounded-md ${actionState[req.id]?.deptRemarks ? 'text-sky-600 bg-sky-100' : 'text-zinc-400 bg-zinc-100'}`}
+                                                      onClick={() => setAdvMenuOpen(o => o === `${req.id}-dept-rem` ? null : `${req.id}-dept-rem`)}
+                                                    >
+                                                      <MessageSquare size={12} />
+                                                    </button>
+                                                    {advMenuOpen === `${req.id}-dept-rem` && (
+                                                      <div className="absolute right-0 bottom-full z-40 mb-2 w-48 rounded-lg border border-zinc-200 bg-white p-2 shadow-xl">
+                                                        <p className="mb-1 text-[9px] font-black uppercase text-zinc-400">Dept Head Remarks</p>
+                                                        <textarea
+                                                          autoFocus
+                                                          className="w-full rounded border border-zinc-100 p-1.5 text-[11px] outline-none focus:border-sky-400"
+                                                          rows={2}
+                                                          placeholder="Reason required..."
+                                                          value={actionState[req.id]?.deptRemarks || ''}
+                                                          onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], deptRemarks: e.target.value } }))}
+                                                        />
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              {successStatus[req.id] && <span className="text-[9px] font-bold text-emerald-600">Updated!</span>}
+                                              {errorStatus[req.id] && <span className="text-[9px] font-bold text-rose-600">{errorStatus[req.id]}</span>}
+                                            </div>
+                                          ) : (
+                                            <div className="flex flex-col items-center gap-0.5">
+                                              <div className="flex items-center gap-1.5">
+                                                {getStatusIcon(req.deptHeadApproval)}
+                                                <span className={`text-center text-[10px] font-black uppercase ${approvalStatusTextClass(req.deptHeadApproval, 'hr')}`}>
+                                                  {getPastTenseStatus(req.deptHeadApproval)}
+                                                </span>
+                                              </div>
+                                              <button 
+                                                onClick={() => {
+                                                  const pick = storedApprovalToPick(req.deptHeadApproval)
+                                                  setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], deptPick: pick, deptRemarks: req.deptHeadRemarks || '' } }))
+                                                  updateDoc(doc(db, 'organisations', user.orgId, 'requests', req.id), { deptHeadApproval: 'Pending', updatedAt: serverTimestamp() })
+                                                }}
+                                                className="p-1 text-zinc-300 hover:text-sky-600 transition-colors"
+                                                title="Edit Dept Head action"
+                                              >
+                                                <Pencil size={10} />
+                                              </button>
+                                            </div>
+                                          )}
+                                          {advMenuOpen === `${req.id}-dept` && (
+                                            <div
+                                              className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                              data-adv-dropdown-root
+                                              onMouseDown={(e) => e.stopPropagation()}
+                                            >
+                                              {ADV_PICK_OPTIONS.map((opt) => (
+                                                <button
+                                                  key={opt}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setActionState((prev) => ({
+                                                      ...prev,
+                                                      [req.id]: { ...prev[req.id], deptPick: opt }
+                                                    }))
+                                                    setAdvMenuOpen(null)
+                                                  }}
+                                                  className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
+                                                >
+                                                  {opt}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <div className="flex items-center gap-1.5">
+                                          {getStatusIcon(req.deptHeadApproval)}
+                                          <span className={`text-center text-[10px] font-black uppercase ${approvalStatusTextClass(req.deptHeadApproval, 'hr')}`}>{req.deptHeadApproval || 'Pending'}</span>
+                                        </div>
+                                      )}
                                     </div>
                                   </td>
                                   <td className="px-4 text-center border-r border-zinc-50">
-                                    <div className="flex items-center justify-center gap-2">
-                                      {getStatusIcon(req.mdApproval || 'Pending')}
-                                      {isTargetMD && (req.mdApproval === 'Pending' || req.mdApproval === 'Hold') && (
-                                        <div className="flex gap-1">
-                                          <button onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} className="p-1 hover:bg-emerald-50 rounded text-emerald-600"><CheckCircle2 size={14} /></button>
-                                          <button onClick={() => handleUpdateRequestStatus(req.id, 'Rejected')} className="p-1 hover:bg-rose-50 rounded text-rose-600"><XCircle size={14} /></button>
+                                    <div
+                                      className="relative mx-auto flex w-full max-w-[140px] flex-col items-center gap-1"
+                                      data-adv-dropdown-root
+                                    >
+                                      {isTargetMD ? (
+                                        <>
+                                          {(!req.mdApproval || req.mdApproval === 'Pending') ? (
+                                            <div className="flex flex-col items-center gap-1 w-full">
+                                              <div className="flex items-center gap-1 w-full">
+                                                <button
+                                                  type="button"
+                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                  onClick={() => setAdvMenuOpen((o) => (o === `${req.id}-md` ? null : `${req.id}-md`))}
+                                                  className="h-7 flex-1 rounded-md border border-violet-300 bg-violet-50/50 px-1 text-center text-[10px] font-bold text-violet-950 shadow-sm hover:bg-violet-50"
+                                                >
+                                                  {(actionState[req.id]?.mdPick || 'Approve').slice(0, 8)}
+                                                </button>
+                                                <button 
+                                                  onClick={() => handleLeaveMdSubmit(req.id)}
+                                                  className="h-7 w-7 flex items-center justify-center rounded-md bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 transition-all"
+                                                  title="Submit MD Action"
+                                                >
+                                                  <Check size={14} strokeWidth={3} />
+                                                </button>
+                                                {['Partial', 'Hold', 'Rejected'].includes(actionState[req.id]?.mdPick) && (
+                                                  <div className="relative">
+                                                    <button 
+                                                      type="button"
+                                                      className={`p-1 rounded-md ${actionState[req.id]?.mdRemarks ? 'text-violet-600 bg-violet-100' : 'text-zinc-400 bg-zinc-100'}`}
+                                                      onClick={() => setAdvMenuOpen(o => o === `${req.id}-md-rem` ? null : `${req.id}-md-rem`)}
+                                                    >
+                                                      <MessageSquare size={12} />
+                                                    </button>
+                                                    {advMenuOpen === `${req.id}-md-rem` && (
+                                                      <div className="absolute right-0 bottom-full z-40 mb-2 w-48 rounded-lg border border-zinc-200 bg-white p-2 shadow-xl">
+                                                        <p className="mb-1 text-[9px] font-black uppercase text-zinc-400">MD Remarks</p>
+                                                        <textarea
+                                                          autoFocus
+                                                          className="w-full rounded border border-zinc-100 p-1.5 text-[11px] outline-none focus:border-violet-400"
+                                                          rows={2}
+                                                          placeholder="Reason required..."
+                                                          value={actionState[req.id]?.mdRemarks || ''}
+                                                          onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], mdRemarks: e.target.value } }))}
+                                                        />
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              {successStatus[req.id] && <span className="text-[9px] font-bold text-emerald-600">Updated!</span>}
+                                              {errorStatus[req.id] && <span className="text-[9px] font-bold text-rose-600">{errorStatus[req.id]}</span>}
+                                            </div>
+                                          ) : (
+                                            <div className="flex flex-col items-center gap-0.5">
+                                              <div className="flex items-center gap-1.5">
+                                                {getStatusIcon(req.mdApproval)}
+                                                <span className={`text-center text-[10px] font-black uppercase ${approvalStatusTextClass(req.mdApproval, 'md')}`}>
+                                                  {getPastTenseStatus(req.mdApproval)}
+                                                </span>
+                                              </div>
+                                              <button 
+                                                onClick={() => {
+                                                  const pick = storedApprovalToPick(req.mdApproval)
+                                                  setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], mdPick: pick, mdRemarks: req.mdRemarks || '' } }))
+                                                  updateDoc(doc(db, 'organisations', user.orgId, 'requests', req.id), { mdApproval: 'Pending', updatedAt: serverTimestamp() })
+                                                }}
+                                                className="p-1 text-zinc-300 hover:text-violet-600 transition-colors"
+                                                title="Edit MD action"
+                                              >
+                                                <Pencil size={10} />
+                                              </button>
+                                            </div>
+                                          )}
+                                          {advMenuOpen === `${req.id}-md` && (
+                                            <div
+                                              className="absolute left-1/2 top-full z-30 mt-1 w-[100px] -translate-x-1/2 rounded-md border border-zinc-200 bg-white py-0.5 shadow-md"
+                                              data-adv-dropdown-root
+                                              onMouseDown={(e) => e.stopPropagation()}
+                                            >
+                                              {ADV_PICK_OPTIONS.map((opt) => (
+                                                <button
+                                                  key={opt}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setActionState((prev) => ({
+                                                      ...prev,
+                                                      [req.id]: { ...prev[req.id], mdPick: opt }
+                                                    }))
+                                                    setAdvMenuOpen(null)
+                                                  }}
+                                                  className="w-full px-2.5 py-1.5 text-left text-[10px] font-bold text-zinc-700 hover:bg-zinc-100"
+                                                >
+                                                  {opt}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <div className="flex items-center gap-1.5">
+                                          {getStatusIcon(req.mdApproval)}
+                                          <span className={`text-center text-[10px] font-black uppercase ${approvalStatusTextClass(req.mdApproval, 'md')}`}>{req.mdApproval || 'Pending'}</span>
                                         </div>
                                       )}
                                     </div>
