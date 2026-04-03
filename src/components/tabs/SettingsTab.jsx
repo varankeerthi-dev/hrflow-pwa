@@ -5,7 +5,7 @@ import { db, storage, auth, secondaryAuth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check, Search } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check, Search, AtSign } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -96,6 +96,7 @@ function createEmployeeFormState() {
     minDailyHours: 8,
     hideInAttendance: false,
     includeInSalary: true,
+    includeInTask: true,
   }
 }
 
@@ -3396,6 +3397,25 @@ export default function SettingsTab() {
                 </button>
               </div>
 
+              {/* Include in Task Toggle */}
+              <div className="col-span-2 flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <AtSign size={16} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Include in Task</label>
+                    <p className="text-[10px] text-indigo-600">Allow mentions and assignments in Tasks</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditForm(s => ({ ...s, includeInTask: !s.includeInTask }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.includeInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.includeInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
               {/* Password Field - Only shown when login is enabled */}
               {editForm.loginEnabled && (
                 <div className="col-span-2">
@@ -3748,6 +3768,25 @@ export default function SettingsTab() {
               </button>
             </div>
 
+            {/* Include in Task Toggle */}
+            <div className="flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                  <AtSign size={16} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Include in Task</label>
+                  <p className="text-[10px] text-indigo-600">Allow mentions and assignments in Tasks</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNewEmployee(s => ({ ...s, includeInTask: !s.includeInTask }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.includeInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.includeInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
             {/* Password Field - Only shown when login is enabled */}
             {newEmployee.loginEnabled && (
               <div>
