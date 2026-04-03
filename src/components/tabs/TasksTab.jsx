@@ -279,7 +279,7 @@ export default function TasksTab() {
     return (
       <div className="absolute z-[100] mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="bg-slate-50 px-3 py-2 border-b border-slate-100">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mention Personnel</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assign Personnel</span>
         </div>
         <div className="max-h-60 overflow-y-auto">
           {filteredMentions.map(emp => (
@@ -334,7 +334,7 @@ export default function TasksTab() {
               <input
                 type="text"
                 placeholder="Quick add..."
-                className="w-full bg-slate-50/50 border border-slate-100 focus:border-indigo-500/30 focus:bg-white rounded-lg px-3 py-2 text-[12px] font-medium text-slate-700 outline-none transition-all placeholder:text-slate-300"
+                className="w-full bg-slate-50 border border-slate-100 focus:border-indigo-500/30 focus:bg-white rounded-lg px-3 py-2 text-[12px] font-medium text-slate-700 outline-none transition-all placeholder:text-slate-300"
                 value={inlineInputs[status.id] || ''}
                 onChange={(e) => handleTextChange('inline', e.target.value, status.id)}
                 onKeyDown={(e) => handleInlineCreate(status.id, e)}
@@ -498,14 +498,14 @@ export default function TasksTab() {
   const renderIdeaTabView = () => (
     <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
       <div className="lg:col-span-4">
-        <div className="bg-slate-800 rounded-3xl p-8 text-white shadow-xl shadow-slate-200">
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Lightbulb className="text-amber-400" /> Neural Link</h3>
+        <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800"><Lightbulb className="text-amber-400" /> Neural Link</h3>
           <form onSubmit={handleCreateTask} className="space-y-5">
             <div className="relative">
               <input
                 type="text"
                 required
-                className="w-full bg-slate-700 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-500"
+                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 text-slate-700 font-medium"
                 placeholder="CORE VISION..."
                 value={newTask.title}
                 onChange={(e) => handleTextChange('title', e.target.value)}
@@ -515,14 +515,14 @@ export default function TasksTab() {
             <div className="relative">
               <textarea
                 rows="4"
-                className="w-full bg-slate-700 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-500 resize-none"
+                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 text-slate-700 font-medium resize-none"
                 placeholder="TECHNICAL DETAILS..."
                 value={newTask.description}
                 onChange={(e) => handleTextChange('description', e.target.value)}
               />
               {mentionState.active && mentionState.targetField === 'description' && !mentionState.targetId && <div className="absolute top-full left-0 z-50 w-full"><MentionList /></div>}
             </div>
-            <button type="submit" className="w-full h-12 bg-white text-slate-900 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-lg active:scale-95">Transmit Idea</button>
+            <button type="submit" className="w-full h-12 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md active:scale-95">Transmit Idea</button>
           </form>
         </div>
       </div>
@@ -534,7 +534,7 @@ export default function TasksTab() {
                 <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">ACTIVE NODE</span>
                 <span className="text-[10px] text-slate-300 font-bold uppercase tracking-tighter">{idea.createdAt ? formatDistanceToNow(idea.createdAt.toDate(), { addSuffix: true }).toUpperCase() : 'JUST NOW'}</span>
               </div>
-              <h5 className="text-lg font-bold text-slate-800">{idea.title}</h5>
+              <h5 className="text-lg font-bold text-slate-800 uppercase tracking-tight">{idea.title}</h5>
               {idea.description && <p className="text-slate-400 text-sm mt-2 line-clamp-2">{idea.description}</p>}
             </div>
             <button onClick={() => deleteTask(idea.id)} className="p-3 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
@@ -552,8 +552,8 @@ export default function TasksTab() {
     <div className="flex flex-col h-full bg-slate-50/50 font-inter selection:bg-indigo-100">
       <div className="bg-white border-b border-slate-200 px-8 py-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3 leading-none">
-            Tasks <span className="text-slate-300 font-medium">/</span> <span className="text-indigo-600 uppercase tracking-tighter">{TABS.find(t => t.id === activeTab)?.label}</span>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3 leading-none uppercase">
+            Tasks <span className="text-slate-200 font-thin">/</span> <span className="text-indigo-600 tracking-tighter">{TABS.find(t => t.id === activeTab)?.label}</span>
           </h1>
           <div className="flex items-center gap-1 mt-4">
             {TABS.map(tab => (
@@ -561,7 +561,7 @@ export default function TasksTab() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold transition-all ${
-                  activeTab === tab.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'text-slate-400 hover:bg-slate-100'
+                  activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-400 hover:bg-slate-50'
                 }`}
               >
                 {tab.icon} {tab.label}
@@ -571,7 +571,7 @@ export default function TasksTab() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
             {[
               { id: 'board', icon: <Layout size={14} />, label: 'Board' },
               { id: 'table', icon: <Table size={14} />, label: 'Table' },
@@ -581,30 +581,30 @@ export default function TasksTab() {
                 key={m.id}
                 onClick={() => setViewMode(m.id)}
                 className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
-                  viewMode === m.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  viewMode === m.id ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
                 {m.icon} {m.label}
               </button>
             ))}
           </div>
-          <button onClick={() => setShowAddModal(true)} className="h-10 px-6 bg-slate-800 text-white rounded-xl text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-lg active:scale-95">
+          <button onClick={() => setShowAddModal(true)} className="h-10 px-6 bg-indigo-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg active:scale-95">
             <Plus size={16} /> New Task
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-8">
+      <div className="flex-1 overflow-auto p-8 lg:p-10">
         {activeTab === 'reminders' ? (
           <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {reminders.map(r => (
-              <div key={r.id} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-indigo-300 transition-all cursor-pointer" onClick={() => setSelectedReminder(r)}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase">{r.type}</span>
-                  <span className="text-[10px] text-slate-300 font-bold">{r.createdAt ? formatDistanceToNow(r.createdAt.toDate(), { addSuffix: true }).toUpperCase() : ''}</span>
+              <div key={r.id} className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm hover:border-indigo-300 transition-all cursor-pointer group" onClick={() => setSelectedReminder(r)}>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest">{r.type}</span>
+                  <span className="text-[10px] text-slate-300 font-bold tracking-widest">{r.createdAt ? formatDistanceToNow(r.createdAt.toDate(), { addSuffix: true }).toUpperCase() : ''}</span>
                 </div>
-                <h4 className="text-lg font-bold text-slate-800">{r.title}</h4>
-                <p className="text-slate-500 text-sm mt-2 line-clamp-2">{r.content}</p>
+                <h4 className="text-xl font-bold text-slate-800 uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{r.title}</h4>
+                <p className="text-slate-500 text-sm mt-3 leading-relaxed line-clamp-3 uppercase tracking-tight">{r.content}</p>
               </div>
             ))}
           </div>
@@ -624,11 +624,11 @@ export default function TasksTab() {
         <form onSubmit={handleCreateTask} className="p-8 space-y-8">
           <div className="space-y-6">
             <div className="relative">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Primary Objective</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Primary Objective</label>
               <input
                 type="text"
                 required
-                className="w-full bg-slate-50/50 border-b-2 border-slate-100 focus:border-indigo-500 text-xl font-bold text-slate-800 transition-all outline-none pb-2 placeholder:text-slate-200 uppercase tracking-tight"
+                className="w-full bg-slate-50/50 border-b-2 border-slate-100 focus:border-indigo-500 text-xl font-black text-slate-800 transition-all outline-none pb-2 placeholder:text-slate-200 uppercase tracking-tight"
                 placeholder="WHAT NEEDS TO BE DONE?"
                 value={newTask.title}
                 onChange={e => handleTextChange('title', e.target.value)}
@@ -637,9 +637,9 @@ export default function TasksTab() {
             </div>
 
             <div className="relative">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Operational Details</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Operational Details</label>
               <textarea
-                className="w-full bg-slate-50/50 border border-slate-100 focus:border-indigo-500 rounded-xl p-4 text-sm font-medium text-slate-600 transition-all outline-none min-h-[100px] resize-none placeholder:text-slate-300"
+                className="w-full bg-slate-50 border border-slate-100 focus:border-indigo-500 rounded-2xl p-5 text-sm font-bold text-slate-600 transition-all outline-none min-h-[120px] resize-none placeholder:text-slate-300 uppercase tracking-tight"
                 placeholder="ADDITIONAL CONTEXT..."
                 value={newTask.description}
                 onChange={e => handleTextChange('description', e.target.value)}
@@ -650,22 +650,22 @@ export default function TasksTab() {
 
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Priority</label>
-              <select className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none" value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value})}>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Priority</label>
+              <select className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-indigo-500 transition-all" value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value})}>
                 <option value="normal">NORMAL</option>
                 <option value="high">HIGH</option>
                 <option value="urgent">URGENT</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Temporal Key</label>
-              <DatePicker selected={newTask.dueDate} onChange={date => setNewTask({...newTask, dueDate: date})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none" placeholderText="SET DEADLINE" dateFormat="MMM d, yyyy" />
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Temporal Key</label>
+              <DatePicker selected={newTask.dueDate} onChange={date => setNewTask({...newTask, dueDate: date})} className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-indigo-500 transition-all" placeholderText="SET DEADLINE" dateFormat="MMM d, yyyy" />
             </div>
           </div>
 
           <div className="space-y-3">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Personnel Assignment</label>
-            <div className="flex flex-wrap gap-2 p-4 bg-slate-50/50 border border-slate-100 rounded-2xl min-h-[60px]">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Personnel Assignment</label>
+            <div className="flex flex-wrap gap-2 p-5 bg-slate-50/50 border border-slate-100 rounded-3xl min-h-[80px]">
               {taskEmployees.map(emp => {
                 const isSelected = newTask.assignedTo?.includes(emp.id)
                 return (
@@ -673,7 +673,7 @@ export default function TasksTab() {
                     const current = newTask.assignedTo || []
                     const updated = isSelected ? current.filter(id => id !== emp.id) : [...current, emp.id]
                     setNewTask({ ...newTask, assignedTo: updated })
-                  }} className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-300'}`}>
+                  }} className={`px-5 py-2.5 rounded-xl text-[11px] font-black transition-all border uppercase tracking-tight ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-300'}`}>
                     {emp.name}
                   </button>
                 )
@@ -681,31 +681,31 @@ export default function TasksTab() {
             </div>
           </div>
 
-          <div className="flex gap-4 pt-6 border-t border-slate-100">
-            <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 h-14 bg-slate-100 text-slate-500 font-bold uppercase text-xs tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Abort</button>
-            <button type="submit" className="flex-[2] h-14 bg-slate-800 text-white font-bold uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200">Initialize Directive</button>
+          <div className="flex gap-4 pt-8 border-t border-slate-100">
+            <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 h-14 bg-slate-100 text-slate-500 font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-slate-200 transition-all">Abort</button>
+            <button type="submit" className="flex-[2] h-14 bg-indigo-600 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Initialize Directive</button>
           </div>
         </form>
       </Modal>
 
-      {/* Reminder Summary Modal */}
+      {/* Directive Summary Modal */}
       <Modal isOpen={!!selectedReminder} onClose={() => setSelectedReminder(null)} title="Directive Summary">
         {selectedReminder && (
           <div className="space-y-6 p-8">
             <div className="flex items-center justify-between border-b border-slate-50 pb-4">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase">{selectedReminder.type}</span>
-                <span className="text-xs text-slate-400">Posted {selectedReminder.createdAt ? formatDistanceToNow(selectedReminder.createdAt.toDate(), { addSuffix: true }) : 'just now'}</span>
+                <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest">{selectedReminder.type}</span>
+                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Posted {selectedReminder.createdAt ? formatDistanceToNow(selectedReminder.createdAt.toDate(), { addSuffix: true }) : 'just now'}</span>
               </div>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">{selectedReminder.title}</h2>
-              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 min-h-[150px]">
-                <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed uppercase tracking-tight">{selectedReminder.content}</p>
+              <h2 className="text-2xl font-black text-slate-900 mb-4 uppercase tracking-tight">{selectedReminder.title}</h2>
+              <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 min-h-[180px]">
+                <p className="text-slate-700 text-sm font-medium whitespace-pre-wrap leading-relaxed uppercase tracking-tight">{selectedReminder.content}</p>
               </div>
             </div>
-            <div className="flex justify-end pt-6 border-t border-slate-100">
-              <button onClick={() => setSelectedReminder(null)} className="px-8 h-12 bg-slate-800 text-white font-bold rounded-xl text-xs uppercase tracking-widest">Close Command</button>
+            <div className="flex justify-end pt-8 border-t border-slate-100">
+              <button onClick={() => setSelectedReminder(null)} className="px-10 h-12 bg-zinc-900 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-black transition-all">Close Command</button>
             </div>
           </div>
         )}
