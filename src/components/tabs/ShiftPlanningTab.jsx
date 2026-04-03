@@ -1039,129 +1039,197 @@ function CreateDayModal({ onClose, onSave, loading, employees, branches, departm
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-zinc-800 px-6 py-4 flex justify-between items-center shrink-0">
-          <h3 className="text-white font-black text-[13px] uppercase tracking-wide">Create Day Planning</h3>
+        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+          <div>
+            <h3 className="text-white font-semibold text-[13px]">Create Day Planning</h3>
+            <p className="text-[10px] text-indigo-200 mt-0.5">Schedule day and night shifts</p>
+          </div>
           <button onClick={onClose} className="text-white/80 hover:text-white">
             <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Title" className="col-span-2 h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold" />
-            <input type="date" value={form.publishDate} onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))} className="h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold" />
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Title and Date */}
+          <div className="grid grid-cols-3 gap-6">
+            <div className="col-span-2">
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Title</label>
+              <input 
+                type="text" 
+                value={form.title} 
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))} 
+                placeholder="Enter planning title" 
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+              />
+            </div>
+            <div>
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Publish Date</label>
+              <input 
+                type="date" 
+                value={form.publishDate} 
+                onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))} 
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all" 
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'day')}>
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-black uppercase tracking-tight text-gray-700">Day Shift</h4>
-                <div className="flex items-center gap-2">
-                   <input type="date" value={form.shiftDate} onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} className="h-9 border border-gray-200 rounded-lg px-3 text-xs font-bold" />
-                </div>
-              </div>
+          {/* Day Shift Section */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'day')}>
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h4 className="text-[12px] font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                <Clock size={12} className="text-gray-400" />
+                Day Shift
+              </h4>
+              <input 
+                type="date" 
+                value={form.shiftDate} 
+                onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} 
+                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
+              />
+            </div>
 
-              <div className="space-y-2 mb-4">
-                {dayShifts.map((s, idx) => (
-                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'day', idx)} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 shadow-sm hover:border-indigo-300 transition-colors">
-                    <div className="font-black text-xs uppercase text-gray-800 flex-1">{s.employeeName}</div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative">
-                        <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'inTime' })} className="h-8 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black uppercase shadow-sm">{s.inTime || 'Start'}</button>
-                        {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
-                          <TimePicker value={s.inTime || '09:00'} onChange={(t) => updateShift('day', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
-                        )}
-                      </div>
-                      <div className="relative">
-                        <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'outTime' })} className="h-8 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black uppercase shadow-sm">{s.outTime || 'End'}</button>
-                        {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
-                          <TimePicker value={s.outTime || '18:00'} onChange={(t) => updateShift('day', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
-                        )}
-                      </div>
-                      <input value={s.notes} onChange={e => updateShift('day', idx, 'notes', e.target.value)} placeholder="Notes" className="h-8 border border-gray-200 bg-white rounded-md px-2 text-[10px] font-bold w-32 shadow-sm" />
-                      <button onClick={() => removeFrom('day', idx)} className="text-red-400 p-1.5 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={14} /></button>
+            <div className="p-4 space-y-3">
+              {dayShifts.map((s, idx) => (
+                <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'day', idx)} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 hover:border-indigo-300 transition-colors cursor-move">
+                  <div className="font-medium text-sm text-gray-800 flex-1">{s.employeeName}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'inTime' })} className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium hover:border-gray-300 transition-all">{s.inTime || 'Start'}</button>
+                      {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
+                        <TimePicker value={s.inTime || '09:00'} onChange={(t) => updateShift('day', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                      )}
                     </div>
+                    <div className="relative">
+                      <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'outTime' })} className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium hover:border-gray-300 transition-all">{s.outTime || 'End'}</button>
+                      {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
+                        <TimePicker value={s.outTime || '18:00'} onChange={(t) => updateShift('day', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                      )}
+                    </div>
+                    <input 
+                      value={s.notes} 
+                      onChange={e => updateShift('day', idx, 'notes', e.target.value)} 
+                      placeholder="Notes" 
+                      className="h-9 bg-white border border-gray-200 rounded-lg px-3 text-xs w-32 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
+                    />
+                    <button onClick={() => removeFrom('day', idx)} className="text-rose-400 p-2 hover:bg-rose-50 rounded-lg transition-colors">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
               
-              <div className="flex justify-center border-t border-gray-100 pt-3 mt-3">
-                <div className="relative inline-block">
-                  <select 
-                    onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'day'); e.target.value = '' } }} 
-                    className="appearance-none h-9 pl-4 pr-10 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 rounded-full text-[10px] font-black uppercase hover:bg-indigo-100 transition-all cursor-pointer shadow-sm"
-                  >
-                    <option value="">+ Add Employee to Day Shift</option>
-                    {employees.filter(emp => !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
-                      <option key={emp.id} value={emp.id}>{emp.name}</option>
-                    ))}
-                  </select>
-                  <Plus size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-500 pointer-events-none" />
+              {dayShifts.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-sm italic">
+                  Drag employees here or use the dropdown below
                 </div>
-              </div>
+              )}
             </div>
-
-            <div className="border border-gray-200 rounded-xl p-4" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'night')}>
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-black uppercase tracking-tight text-gray-700">Night Shift</h4>
-                <div className="flex items-center gap-2">
-                   <input type="date" value={form.shiftDate} onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} className="h-9 border border-gray-200 rounded-lg px-3 text-xs font-bold" />
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                {nightShifts.map((s, idx) => (
-                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'night', idx)} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 shadow-sm hover:border-indigo-300 transition-colors">
-                    <div className="font-black text-xs uppercase text-gray-800 flex-1">{s.employeeName}</div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative">
-                        <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'inTime' })} className="h-8 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black uppercase shadow-sm">{s.inTime || 'Start'}</button>
-                        {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
-                          <TimePicker value={s.inTime || '21:00'} onChange={(t) => updateShift('night', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
-                        )}
-                      </div>
-                      <div className="relative">
-                        <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'outTime' })} className="h-8 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black uppercase shadow-sm">{s.outTime || 'End'}</button>
-                        {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
-                          <TimePicker value={s.outTime || '05:00'} onChange={(t) => updateShift('night', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
-                        )}
-                      </div>
-                      <input value={s.notes} onChange={e => updateShift('night', idx, 'notes', e.target.value)} placeholder="Notes" className="h-8 border border-gray-200 bg-white rounded-md px-2 text-[10px] font-bold w-32 shadow-sm" />
-                      <button onClick={() => removeFrom('night', idx)} className="text-red-400 p-1.5 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
+            
+            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+              <select 
+                onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'day'); e.target.value = '' } }} 
+                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer"
+              >
+                <option value="">+ Add Employee to Day Shift</option>
+                {employees.filter(emp => !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name}</option>
                 ))}
-              </div>
-
-              <div className="flex justify-center border-t border-gray-100 pt-3 mt-3">
-                <div className="relative inline-block">
-                  <select 
-                    onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'night'); e.target.value = '' } }} 
-                    className="appearance-none h-9 pl-4 pr-10 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 rounded-full text-[10px] font-black uppercase hover:bg-indigo-100 transition-all cursor-pointer shadow-sm"
-                  >
-                    <option value="">+ Add Employee to Night Shift</option>
-                    {employees.filter(emp => !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
-                      <option key={emp.id} value={emp.id}>{emp.name}</option>
-                    ))}
-                  </select>
-                  <Plus size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-500 pointer-events-none" />
-                </div>
-              </div>
+              </select>
             </div>
           </div>
 
-          {/* Visibility - placeholder for future rules */}
+          {/* Night Shift Section */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'night')}>
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h4 className="text-[12px] font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                <Clock size={12} className="text-gray-400" />
+                Night Shift
+              </h4>
+              <input 
+                type="date" 
+                value={form.shiftDate} 
+                onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} 
+                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
+              />
+            </div>
+
+            <div className="p-4 space-y-3">
+              {nightShifts.map((s, idx) => (
+                <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'night', idx)} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 hover:border-indigo-300 transition-colors cursor-move">
+                  <div className="font-medium text-sm text-gray-800 flex-1">{s.employeeName}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'inTime' })} className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium hover:border-gray-300 transition-all">{s.inTime || 'Start'}</button>
+                      {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
+                        <TimePicker value={s.inTime || '21:00'} onChange={(t) => updateShift('night', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                      )}
+                    </div>
+                    <div className="relative">
+                      <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'outTime' })} className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium hover:border-gray-300 transition-all">{s.outTime || 'End'}</button>
+                      {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
+                        <TimePicker value={s.outTime || '05:00'} onChange={(t) => updateShift('night', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                      )}
+                    </div>
+                    <input 
+                      value={s.notes} 
+                      onChange={e => updateShift('night', idx, 'notes', e.target.value)} 
+                      placeholder="Notes" 
+                      className="h-9 bg-white border border-gray-200 rounded-lg px-3 text-xs w-32 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
+                    />
+                    <button onClick={() => removeFrom('night', idx)} className="text-rose-400 p-2 hover:bg-rose-50 rounded-lg transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              
+              {nightShifts.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-sm italic">
+                  Drag employees here or use the dropdown below
+                </div>
+              )}
+            </div>
+            
+            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+              <select 
+                onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'night'); e.target.value = '' } }} 
+                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer"
+              >
+                <option value="">+ Add Employee to Night Shift</option>
+                {employees.filter(emp => !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Visibility */}
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Visibility</label>
-            <select value={form.visibility} onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))} className="w-40 h-10 border border-gray-200 rounded-lg px-3 text-xs">
+            <label className="block text-[12px] font-semibold text-gray-700 mb-2">Visibility</label>
+            <select 
+              value={form.visibility} 
+              onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))} 
+              className="w-48 bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
+            >
               <option value="all">All employees</option>
             </select>
           </div>
         </div>
 
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} className="h-10 px-5 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase hover:bg-gray-50">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="h-10 px-6 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-indigo-700 disabled:opacity-50">{loading ? 'Creating...' : 'Create planning'}</button>
+          <button 
+            onClick={onClose} 
+            className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleSubmit} 
+            disabled={loading} 
+            className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Creating...' : 'Create Planning'}
+          </button>
         </div>
       </div>
     </div>
