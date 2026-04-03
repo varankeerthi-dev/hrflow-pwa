@@ -1,17 +1,62 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import MobileDashboard from './components/MobileDashboard'
 import Spinner from './components/ui/Spinner'
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
+
+// Hook to detect mobile devices
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  
+  useEffect(() => {
+    // Check user agent for mobile devices
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i
+      
+      // Check screen width (tablets and phones typically < 1024px)
+      const isSmallScreen = window.innerWidth < 1024
+      
+      // Check if user agent indicates mobile
+      const isMobileAgent = mobileRegex.test(userAgent)
+      
+      // Consider mobile if either condition is true
+      return isMobileAgent || isSmallScreen
+    }
+    
+    setIsMobile(checkMobile())
+    
+    // Update on resize
+    const handleResize = () => {
+      setIsMobile(checkMobile())
+    }
+    
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+  
+  return isMobile
+}
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
+  const isMobile = useIsMobile()
+  const location = useLocation()
+  const navigate = useNavigate()
   
   useEffect(() => {
     console.log('ProtectedRoute: user=', user, 'loading=', loading)
   }, [user, loading])
+
+  // Auto-redirect to mobile view if on mobile device and not already on /mobile
+  useEffect(() => {
+    if (user && isMobile && location.pathname !== '/mobile') {
+      console.log('Mobile detected, redirecting to /mobile')
+      navigate('/mobile', { replace: true })
+    }
+  }, [user, isMobile, location.pathname, navigate])
 
   if (loading) {
     return (
