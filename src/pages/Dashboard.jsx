@@ -124,19 +124,19 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-sm p-8 mx-4 border border-gray-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md font-inter">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
         <div className="flex flex-col items-center mb-6">
           <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mb-4 shadow-xl">
             <span className="text-white text-3xl">🏢</span>
           </div>
           <h2 className="text-xl font-bold text-gray-800 uppercase tracking-tight font-inter">Organization Setup</h2>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-2 font-inter">
-            {user?.orgId && user?.role?.toLowerCase() === 'admin' ? 'Create New Division' : 'Join a Team or Create Your Own'}
+            {user?.orgId ? 'Create New Division' : 'Join a Team or Create Your Own'}
           </p>
         </div>
 
-        {!(user?.orgId && user?.role?.toLowerCase() === 'admin') && (
+        {!user?.orgId && (
           <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
             <button onClick={() => { setModalTab('join'); setError('') }}
               className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all font-inter ${modalTab === 'join' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
@@ -152,8 +152,8 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
         {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-lg text-[10px] font-bold mb-4 uppercase text-center font-inter">{error}</div>}
 
         {createdCode ? (
-          <div className="space-y-4 font-inter">
-            <div className="bg-green-50 border border-green-100 rounded-xl p-5 text-center">
+          <div className="space-y-4 font-inter text-center">
+            <div className="bg-green-50 border border-green-100 rounded-xl p-5">
               <p className="text-[10px] text-green-700 font-bold uppercase tracking-widest mb-3">Organization Online! 🎉</p>
               <div className="bg-white border border-green-200 rounded-lg px-4 py-3 font-mono font-bold tracking-widest text-lg select-all shadow-inner">{createdCode}</div>
               <p className="text-[9px] text-gray-400 font-bold uppercase mt-3 tracking-tighter italic">Share this code with your employees</p>
@@ -182,7 +182,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   )
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
+// ─── Dashboard Component ───────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
@@ -199,6 +199,7 @@ export default function Dashboard() {
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
 
+  // Load Inter and Roboto fonts
   useEffect(() => {
     if (document.getElementById('google-fonts')) return
     const link = document.createElement('link')
@@ -327,11 +328,10 @@ export default function Dashboard() {
             <span className="text-md font-black text-gray-900 tracking-tight">{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
           </div>
 
-          {/* RESTORED QUICK ACCESS BAR */}
+          {/* Quick Access Bar */}
           {(() => {
             const userPerms = user?.permissions || {}
             const isAdmin = user?.role?.toLowerCase() === 'admin'
-
             const quickActions = [
               { label: 'Attendance', tab: 'attendance', icon: <Calendar size={15} />, module: 'Attendance', right: 'create' },
               { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
@@ -344,26 +344,12 @@ export default function Dashboard() {
               const modulePerms = userPerms[action.module] || {}
               return modulePerms[action.right] === true
             })
-
             if (quickActions.length === 0) return null
-
             return (
               <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200">
                 {quickActions.map(item => (
-                  <button
-                    key={item.tab}
-                    onClick={() => {
-                      setActiveTab(item.tab)
-                      setTabSearchParams({ tab: item.tab })
-                      if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab)
-                    }}
-                    className={`flex items-center gap-1.5 px-3 h-8 rounded-lg border text-[11px] font-bold whitespace-nowrap transition-all ${activeTab === item.tab
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
-                      }`}
-                  >
-                    <span>{item.icon}</span>
-                    <span>{item.label}</span>
+                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab) }} className={`flex items-center gap-1.5 px-3 h-8 rounded-lg border text-[11px] font-bold whitespace-nowrap transition-all ${activeTab === item.tab ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'}`}>
+                    <span>{item.icon}</span> <span>{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -372,11 +358,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* RESTORED PROFILE SECTION */}
-          <button 
-            onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} 
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all group"
-          >
+          <button onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all group">
             <div className="flex flex-col items-end text-right">
               <span className="text-[13px] font-black text-gray-800 tracking-tight group-hover:text-indigo-600 transition-colors leading-none">{user?.name}</span>
               <span className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.1em] mt-1">{user?.email || user?.role || 'Staff'}</span>
@@ -387,9 +369,7 @@ export default function Dashboard() {
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
             )}
           </button>
-          
           <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
-
           <button onClick={() => setShowLog(s => !s)} className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}><History size={16} /></button>
           <button onClick={logout} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"><LogOut size={16} /></button>
         </div>
@@ -397,25 +377,21 @@ export default function Dashboard() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
-        
         <aside className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[56px]' : 'md:w-[210px] w-64 shadow-2xl md:shadow-none'}`}>
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between md:hidden leading-none h-14">
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between md:hidden h-14 shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white shadow-sm"><Building2 size={16} /></div>
               <span className="text-md font-black text-gray-900 tracking-tight">HRFlow</span>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
           </div>
-          
           <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto no-scrollbar">
             {sections.map(section => {
               const sectionTabs = allTabs.filter(t => section.tabs.includes(t.id))
               if (sectionTabs.length === 0) return null
               return (
-                <div key={section.id} className="flex flex-col">
-                  {!isCollapsed && <div className="left-panel-title flex items-center px-2 py-1 mb-1">
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{section.title}</span>
-                  </div>}
+                <div key={section.id} className="flex flex-col mb-4 last:mb-0">
+                  {!isCollapsed && <div className="px-2 py-1 mb-1"><span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{section.title}</span></div>}
                   <div className="flex flex-col gap-0.5">
                     {sectionTabs.map(tab => {
                       const isActive = activeTab === tab.id
@@ -431,22 +407,22 @@ export default function Dashboard() {
               )
             })}
           </nav>
-          
-          <div className="p-2 border-t border-gray-100">
+          <div className="p-2 border-t border-gray-100 shrink-0">
             <button onClick={() => setIsCollapsed(!isCollapsed)} className={`w-full flex items-center rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-3 py-2 gap-3'}`}>
               <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform`} />
               {!isCollapsed && <span className="text-[11px] font-bold">Collapse Sidebar</span>}
             </button>
           </div>
         </aside>
-
-        <main className="flex-1 min-w-0 bg-gray-50 relative overflow-hidden flex flex-col">
-          <ErrorBoundary>
-            <div className="flex-1 overflow-auto w-full">
-              {renderTabContent()}
-            </div>
-          </ErrorBoundary>
-        </main>
+        <div className="flex-1 flex flex-col min-w-0 bg-white">
+          <main className="flex-1 overflow-auto bg-gray-50 relative flex flex-col">
+            <ErrorBoundary>
+              <div className="w-full flex-1">
+                {renderTabContent()}
+              </div>
+            </ErrorBoundary>
+          </main>
+        </div>
       </div>
     </div>
   )
