@@ -965,7 +965,19 @@ export default function ApprovalsTab() {
                               <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-600 whitespace-nowrap">{item.createdBy || 'Self'}</td>
                               <td className="px-3 py-1.5 align-middle text-right text-[13px] font-black tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
                               <td className="px-3 py-1.5 align-middle text-[11px] text-zinc-500 max-w-[150px] truncate" title={item.reason || item.category}>
-                                {item.reason || item.category || '—'}
+                                {(() => {
+                                  const text = item.reason || item.category || '—'
+                                  const match = text.match(/(.*?) \[(.*?)\]/)
+                                  if (match) {
+                                    return (
+                                      <div className="flex flex-col">
+                                        <span className="truncate">{match[1]}</span>
+                                        <span className="text-red-500 font-black uppercase tracking-tighter italic">[{match[2]}]</span>
+                                      </div>
+                                    )
+                                  }
+                                  return text
+                                })()}
                               </td>
                               <td className="px-3 py-1.5 align-middle">
                                 <div

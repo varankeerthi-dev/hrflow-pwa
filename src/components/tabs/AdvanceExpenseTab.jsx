@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { formatINR } from '../../lib/salaryUtils'
 import jsPDF from 'jspdf'
@@ -27,6 +27,9 @@ export default function AdvanceExpenseTab() {
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
   
+  // Transferred To Modal State
+  const [transferModalRowId, setTransferModalRowId] = useState(null)
+
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
 
@@ -98,12 +101,16 @@ export default function AdvanceExpenseTab() {
         const txnNo = `${type.slice(0, 3).toUpperCase()}-${datePart}-${randPart}`
         generatedIds.push(txnNo)
 
+        const finalCategory = row.transferredToName 
+          ? `${row.category} [${row.transferredToName}]`
+          : row.category
+
         await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
           transactionNo: txnNo,
           employeeId: row.employeeId,
           employeeName: emp?.name || 'Unknown',
           type: type,
-          category: row.category,
+          category: finalCategory,
           requestType: row.requestType || 'Reimbursement',
           payoutMethod: row.payoutMethod || 'Immediate',
           amount: Number(row.amount),
@@ -123,7 +130,7 @@ export default function AdvanceExpenseTab() {
     },
     onSuccess: (txnNos) => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
-      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate' }])
+      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '' }])
       const typeLabel = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
       const msg = `${typeLabel} submitted for approval.\n\nRef Nos: ${txnNos.join(', ')}`
       alert(msg)
@@ -197,7 +204,7 @@ export default function AdvanceExpenseTab() {
   }
 
   const [addRows, setAddRows] = useState([
-    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate' }
+    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '' }
   ])
 
   useEffect(() => {
@@ -237,7 +244,7 @@ export default function AdvanceExpenseTab() {
 
   const handleAddRow = () => {
     const myId = !canSelectAll ? getMyEmpId() : ''
-    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate' }])
+    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '' }])
   }
 
   const handleSelfExpense = () => {
@@ -247,7 +254,15 @@ export default function AdvanceExpenseTab() {
   }
 
   const handleRowChange = (id, field, value) => {
-    setAddRows(addRows.map(row => row.id === id ? { ...row, [field]: value } : row))
+    setAddRows(addRows.map(row => {
+      if (row.id === id) {
+        if (field === 'category' && value === 'Others') {
+          setTransferModalRowId(id)
+        }
+        return { ...row, [field]: value }
+      }
+      return row
+    }))
   }
 
   const handleEdit = (entry) => {
@@ -601,6 +616,35 @@ export default function AdvanceExpenseTab() {
         {categories.map(c => <option key={c} value={c} />)}
       </datalist>
 
+      {/* Transferred To Micro-Modal */}
+      {transferModalRowId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-[1px]" onClick={() => setTransferModalRowId(null)}>
+          <div 
+            className="bg-white rounded-xl shadow-2xl w-full max-w-xs p-4 border border-zinc-200 animate-in fade-in zoom-in duration-200" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Transfer To?</h3>
+              <button onClick={() => setTransferModalRowId(null)} className="text-zinc-300 hover:text-zinc-500"><X size={14}/></button>
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+              {employees.map(emp => (
+                <button
+                  key={emp.id}
+                  onClick={() => {
+                    handleRowChange(transferModalRowId, 'transferredToName', emp.name)
+                    setTransferModalRowId(null)
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg text-[12px] font-bold text-zinc-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors border border-transparent hover:border-indigo-100"
+                >
+                  {emp.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Submit Bill Modal */}
       {finalizingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -881,7 +925,7 @@ export default function AdvanceExpenseTab() {
                 className={`h-10 px-6 text-white font-medium rounded-lg text-sm flex items-center gap-2 shadow-elevated transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                   activeModule === 'Add Advance'
                     ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800'
-                    : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'
+                    : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
                 }`}
               >
                 {submitting ? <Spinner size="w-4 h-4" color="text-white" /> : 'Submit'}
@@ -900,7 +944,7 @@ export default function AdvanceExpenseTab() {
                     <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[220px]">
                       Employee
                     </th>
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[160px]">
                       Category
                     </th>
                     {activeModule === 'Add Expense' && (
@@ -946,13 +990,20 @@ export default function AdvanceExpenseTab() {
                         </select>
                       </td>
                       <td className="px-2 py-1.5 border-r border-zinc-100">
-                        <input 
-                          list="categories-list" 
-                          value={row.category} 
-                          onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
-                          className="no-arrow w-full h-9 border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
-                          placeholder="Type..." 
-                        />
+                        <div className="flex flex-col gap-1">
+                          <input 
+                            list="categories-list" 
+                            value={row.category} 
+                            onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
+                            className="no-arrow w-full h-9 border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
+                            placeholder="Type..." 
+                          />
+                          {row.transferredToName && (
+                            <span className="text-red-500 text-[9px] font-black uppercase tracking-tight italic">
+                              [{row.transferredToName}]
+                            </span>
+                          )}
+                        </div>
                       </td>
                       {activeModule === 'Add Expense' && (
                         <td className="px-2 py-1.5 border-r border-zinc-100">
@@ -1163,7 +1214,19 @@ export default function AdvanceExpenseTab() {
                         </td>
                         <td className="p-3 border-r border-zinc-50">
                           <div className="flex flex-col gap-1">
-                            <span className="text-[13px] font-bold text-zinc-800 leading-tight">{a.type}</span>
+                            {(() => {
+                              const cat = a.category || a.type || '—'
+                              const match = cat.match(/(.*?) \[(.*?)\]/)
+                              if (match) {
+                                return (
+                                  <>
+                                    <span className="text-[13px] font-bold text-zinc-800 leading-tight">{match[1]}</span>
+                                    <span className="text-[11px] font-black uppercase tracking-tight text-red-500 italic">[{match[2]}]</span>
+                                  </>
+                                )
+                              }
+                              return <span className="text-[13px] font-bold text-zinc-800 leading-tight">{cat}</span>
+                            })()}
                             <div className="flex flex-col gap-0.5">
                               <span className={`w-fit px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${a.requestType === 'Pre-Approval' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
                                 {a.requestType || 'Reimbursement'}
@@ -1254,7 +1317,19 @@ export default function AdvanceExpenseTab() {
                         </td>
                         <td className="p-3 border-r border-zinc-50">
                           <div className="flex flex-col gap-1">
-                            <span className="text-[13px] font-bold text-zinc-800 leading-tight">{e.type}</span>
+                            {(() => {
+                              const cat = e.category || e.type || '—'
+                              const match = cat.match(/(.*?) \[(.*?)\]/)
+                              if (match) {
+                                return (
+                                  <>
+                                    <span className="text-[13px] font-bold text-zinc-800 leading-tight">{match[1]}</span>
+                                    <span className="text-[11px] font-black uppercase tracking-tight text-red-500 italic">[{match[2]}]</span>
+                                  </>
+                                )
+                              }
+                              return <span className="text-[13px] font-bold text-zinc-800 leading-tight">{cat}</span>
+                            })()}
                             <div className="flex flex-col gap-0.5">
                               <span className={`w-fit px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${e.requestType === 'Pre-Approval' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
                                 {e.requestType || 'Reimbursement'}
@@ -1491,15 +1566,29 @@ export default function AdvanceExpenseTab() {
                             <tr key={row.id} className="h-12 hover:bg-zinc-50/50 transition-colors">
                               <td className="px-4 text-[12px] font-bold text-zinc-600 border-r border-zinc-50">{row.date || '—'}</td>
                               <td className="px-4 border-r border-zinc-50">
-                                <span
-                                  className={`text-[9px] font-black uppercase tracking-tight px-2 py-0.5 rounded-md ${
-                                    row.type === 'Advance' 
-                                      ? 'bg-amber-100 text-amber-800' 
-                                      : 'bg-indigo-100 text-indigo-800'
-                                  }`}
-                                >
-                                  {row.type || '—'}
-                                </span>
+                                {(() => {
+                                  const cat = row.category || row.type || '—'
+                                  const match = cat.match(/(.*?) \[(.*?)\]/)
+                                  if (match) {
+                                    return (
+                                      <div className="flex flex-col">
+                                        <span className={`text-[11px] font-bold ${row.type === 'Advance' ? 'text-amber-700' : 'text-indigo-700'}`}>{match[1]}</span>
+                                        <span className="text-red-500 text-[9px] font-black uppercase tracking-tighter italic">[{match[2]}]</span>
+                                      </div>
+                                    )
+                                  }
+                                  return (
+                                    <span
+                                      className={`text-[9px] font-black uppercase tracking-tight px-2 py-0.5 rounded-md ${
+                                        row.type === 'Advance' 
+                                          ? 'bg-amber-100 text-amber-800' 
+                                          : 'bg-indigo-100 text-indigo-800'
+                                      }`}
+                                    >
+                                      {cat}
+                                    </span>
+                                  )
+                                })()}
                               </td>
                               <td className="px-4 text-[13px] font-bold text-zinc-800 border-r border-zinc-50">{row.employeeName || '—'}</td>
                               <td className="px-4 text-right text-[13px] font-black text-zinc-900 border-r border-zinc-50 tabular-nums">{formatINR(effectiveAmount(row))}</td>
