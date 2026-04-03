@@ -33,7 +33,7 @@ var nativeBridge = (function (exports) {
     }
 
     // For removing exports for iOS/Android, keep let for reassignment
-    // eslint-disable-next-line
+     
     let dummy = {};
     const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
         const reader = new FileReader();
