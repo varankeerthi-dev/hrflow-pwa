@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 import { 
   CheckCircle2, 
   Circle, 
@@ -23,7 +23,12 @@ import {
   BarChart2,
   AtSign,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Search,
+  FileText,
+  Edit3,
+  Download,
+  List
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
@@ -72,6 +77,13 @@ export default function TasksTab() {
   const [inlineDates, setInlineDates] = useState({})
   const [draggedTaskId, setDraggedTaskId] = useState(null)
   const [statusMenuOpen, setStatusMenuOpen] = useState(null)
+  const [animatingTaskId, setAnimatingTaskId] = useState(null)
+  
+  // Idea tab states
+  const [ideaSearchTerm, setIdeaSearchTerm] = useState('')
+  const [ideaFilter, setIdeaFilter] = useState('all')
+  const [showAddIdeaModal, setShowAddIdeaModal] = useState(false)
+  const [newIdea, setNewIdea] = useState({ title: '', bullets: [''] })
   
   // Close status menu when clicking outside
   useEffect(() => {
@@ -89,7 +101,7 @@ export default function TasksTab() {
     active: false,
     query: '',
     cursorPos: 0,
-    targetField: null, // 'title' | 'description' | 'inline'
+    targetField: null,
     targetId: null
   })
 
@@ -136,7 +148,6 @@ export default function TasksTab() {
     return tasksToFilter
   }, [tasks, activeTab, clientFilter])
 
-  // Employees available for task mentions (filtered by includeInTask)
   const taskEmployees = useMemo(() => {
     return employees.filter(emp => emp.includeInTask !== false)
   }, [employees])
@@ -202,8 +213,6 @@ export default function TasksTab() {
     if (inlineInputs[statusKey]?.trim()) {
       const title = inlineInputs[statusKey].trim()
       const dueDate = inlineDates[statusKey] || null
-      
-      // Extract actual status (remove -bottom suffix if present)
       const actualStatus = statusKey.replace('-bottom', '')
       
       const words = title.split(' ')
@@ -251,25 +260,75 @@ export default function TasksTab() {
     }
   }
 
-  const toggleStatus = async (task) => {
-    const statusFlow = {
-      'To Do': 'In Progress', 'In Progress': 'Review',
-      'On Hold': 'In Progress', 'Review': 'Completed', 'Completed': 'To Do'
-    }
+  const handleStatusChange = async (taskId, newStatus) => {
     try {
-      await updateTask(task.id, { status: statusFlow[task.status] || 'To Do' })
+      setAnimatingTaskId(taskId)
+      await updateTask(taskId, { status: newStatus })
+      setStatusMenuOpen(null)
+      setTimeout(() => setAnimatingTaskId(null), 500)
     } catch (err) {
       console.error("Failed to update status:", err)
     }
   }
 
-  const handleStatusChange = async (taskId, newStatus) => {
+  // Idea tab functions
+  const handleAddBullet = () => {
+    setNewIdea(prev => ({ ...prev, bullets: [...prev.bullets, ''] }))
+  }
+
+  const handleRemoveBullet = (index) => {
+    setNewIdea(prev => ({ 
+      ...prev, 
+      bullets: prev.bullets.filter((_, i) => i !== index) 
+    }))
+  }
+
+  const handleBulletChange = (index, value) => {
+    setNewIdea(prev => ({
+      ...prev,
+      bullets: prev.bullets.map((b, i) => i === index ? value : b)
+    }))
+  }
+
+  const handleCreateIdea = async (e) => {
+    e.preventDefault()
+    if (!newIdea.title.trim()) return
+    
+    const description = newIdea.bullets.filter(b => b.trim()).join('\n• ')
+    
     try {
-      await updateTask(taskId, { status: newStatus })
-      setStatusMenuOpen(null)
+      await addTask({
+        title: newIdea.title,
+        description: description ? '• ' + description : '',
+        status: 'To Do',
+        isPersonal: activeTab === 'personal',
+        category: 'idea',
+        assignedTo: [],
+        dueDate: null,
+        priority: 'normal'
+      })
+      setShowAddIdeaModal(false)
+      setNewIdea({ title: '', bullets: [''] })
     } catch (err) {
-      console.error("Failed to update status:", err)
+      alert('Failed to create idea')
     }
+  }
+
+  const exportIdeaToPDF = (idea) => {
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(`
+      <html>
+        <head><title>Idea: ${idea.title}</title></head>
+        <body style="font-family: Arial; padding: 40px;">
+          <h1>${idea.title}</h1>
+          <p style="color: #666; font-size: 12px;">Created: ${idea.createdAt ? format(idea.createdAt.toDate(), 'MMM d, yyyy') : 'N/A'}</p>
+          <hr style="margin: 20px 0;">
+          <div style="line-height: 1.6;">${idea.description?.replace(/\n/g, '<br>') || ''}</div>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+    printWindow.print()
   }
 
   const getAssigneeInfo = (assignedTo) => {
@@ -372,13 +431,15 @@ export default function TasksTab() {
                 const assignees = getAssigneeInfo(task.assignedTo)
                 const dueDateText = formatDueDate(task.dueDate)
                 const dueDateColor = getDueDateColor(task.dueDate)
+                const isAnimating = animatingTaskId === task.id
                 
                 return (
                   <div
                     key={task.id}
                     draggable
                     onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                    className="bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing group"
+                    className={`bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing group ${isAnimating ? 'animate-pulse scale-95' : ''}`}
+                    style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
                   >
                       <div className="flex flex-col gap-3">
                       <div className="flex justify-between items-start gap-2">
@@ -388,21 +449,22 @@ export default function TasksTab() {
                         <div className="status-menu-container relative">
                           <button 
                             onClick={() => setStatusMenuOpen(statusMenuOpen === task.id ? null : task.id)} 
-                            className={`shrink-0 transition-colors ${task.status === 'Completed' ? 'text-emerald-500' : 'text-slate-200 hover:text-slate-400'}`}
+                            className={`shrink-0 transition-all duration-300 ${task.status === 'Completed' ? 'text-emerald-500 scale-110' : 'text-slate-200 hover:text-slate-400'} ${isAnimating ? 'animate-bounce' : ''}`}
                             title="Change status"
+                            style={{ transition: 'all 0.3s ease' }}
                           >
                             {task.status === 'Completed' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                           </button>
                           
                           {statusMenuOpen === task.id && (
-                            <div className="absolute top-full right-0 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1">
+                            <div className="absolute top-full right-0 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-200">
                               {STATUSES.map(s => (
                                 <button
                                   key={s.id}
                                   onClick={() => handleStatusChange(task.id, s.id)}
                                   className={`w-full text-left px-3 py-2 text-[11px] font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors ${task.status === s.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600'}`}
                                 >
-                                  {s.icon}
+                                  <span className="transition-transform duration-200">{s.icon}</span>
                                   {s.label}
                                   {task.status === s.id && <CheckCircle2 size={12} className="ml-auto text-indigo-600" />}
                                 </button>
@@ -412,9 +474,7 @@ export default function TasksTab() {
                         </div>
                       </div>
                       
-                      {/* Task Details - Due Date, Priority, Assigned To */}
                       <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-slate-100">
-                        {/* Due Date & Priority */}
                         <div className="flex items-center gap-2 flex-wrap">
                           {task.dueDate && (
                             <div className={`px-2 py-1 rounded-md text-[10px] font-bold flex items-center gap-1.5 ${dueDateColor}`}>
@@ -436,7 +496,6 @@ export default function TasksTab() {
                           )}
                         </div>
                         
-                        {/* Assigned To Names */}
                         {assignees.length > 0 && (
                           <div className="flex items-center gap-1.5">
                             <User size={12} className="text-slate-400" />
@@ -450,7 +509,6 @@ export default function TasksTab() {
                   </div>
                 )
               })}
-              {/* Inline Add Task at Bottom */}
               <div className="relative group mt-3">
                 <input
                   type="text"
@@ -490,7 +548,7 @@ export default function TasksTab() {
                 <tr key={task.id} className="hover:bg-slate-50 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <button onClick={() => toggleStatus(task)} className={`transition-colors ${task.status === 'Completed' ? 'text-emerald-500' : 'text-slate-200 hover:text-slate-400'}`}>
+                      <button onClick={() => handleStatusChange(task.id, task.status === 'Completed' ? 'To Do' : 'Completed')} className={`transition-all duration-300 ${task.status === 'Completed' ? 'text-emerald-500 scale-110' : 'text-slate-200 hover:text-slate-400'}`}>
                         {task.status === 'Completed' ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                       </button>
                       <span className={`text-[13px] font-medium text-slate-700 ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}>{task.title}</span>
@@ -568,61 +626,265 @@ export default function TasksTab() {
     )
   }
 
-  const renderIdeaTabView = () => (
-    <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
-      <div className="lg:col-span-4">
-        <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800"><Lightbulb className="text-amber-400" /> Neural Link</h3>
-          <form onSubmit={handleCreateTask} className="space-y-5">
-            <div className="relative">
-              <input
-                type="text"
-                required
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 text-slate-700 font-medium"
-                placeholder="CORE VISION..."
-                value={newTask.title}
-                onChange={(e) => handleTextChange('title', e.target.value)}
-              />
-              {mentionState.active && mentionState.targetField === 'title' && !mentionState.targetId && <div className="absolute top-full left-0 z-50 w-full"><MentionList /></div>}
-            </div>
-            <div className="relative">
-              <textarea
-                rows="4"
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 text-slate-700 font-medium resize-none"
-                placeholder="TECHNICAL DETAILS..."
-                value={newTask.description}
-                onChange={(e) => handleTextChange('description', e.target.value)}
-              />
-              {mentionState.active && mentionState.targetField === 'description' && !mentionState.targetId && <div className="absolute top-full left-0 z-50 w-full"><MentionList /></div>}
-            </div>
-            <button type="submit" className="w-full h-12 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md active:scale-95">Transmit Idea</button>
-          </form>
+  const renderIdeaTabView = () => {
+    const filteredIdeas = useMemo(() => {
+      let ideas = filteredTasks.filter(t => t.category === 'idea')
+      
+      if (ideaSearchTerm) {
+        const search = ideaSearchTerm.toLowerCase()
+        ideas = ideas.filter(i => 
+          i.title?.toLowerCase().includes(search) || 
+          i.description?.toLowerCase().includes(search)
+        )
+      }
+      
+      if (ideaFilter === 'recent') {
+        ideas = ideas.sort((a, b) => new Date(b.createdAt?.toDate()) - new Date(a.createdAt?.toDate()))
+      } else if (ideaFilter === 'oldest') {
+        ideas = ideas.sort((a, b) => new Date(a.createdAt?.toDate()) - new Date(b.createdAt?.toDate()))
+      }
+      
+      return ideas
+    }, [filteredTasks, ideaSearchTerm, ideaFilter])
+
+    return (
+    <div className="h-full flex flex-col">
+      <div className="bg-white border-b border-zinc-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 rounded-lg shadow-sm">
+        <div className="flex items-center gap-2">
+          <Lightbulb size={20} className="text-amber-500" />
+          <h2 className="text-lg font-bold text-zinc-900">Ideas Dashboard</h2>
+          <span className="text-sm text-zinc-500">({filteredIdeas.length} ideas)</span>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search ideas..."
+              value={ideaSearchTerm}
+              onChange={(e) => setIdeaSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-64"
+            />
+          </div>
+          
+          <select
+            value={ideaFilter}
+            onChange={(e) => setIdeaFilter(e.target.value)}
+            className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+          >
+            <option value="all">All Ideas</option>
+            <option value="recent">Most Recent</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+          
+          <button
+            onClick={() => setShowAddIdeaModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+          >
+            <Plus size={16} />
+            Add Idea
+          </button>
         </div>
       </div>
-      <div className="lg:col-span-8 space-y-4">
-        {filteredTasks.map(idea => (
-          <div key={idea.id} className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-indigo-300 transition-all flex justify-between items-center gap-6 group shadow-sm">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">ACTIVE NODE</span>
-                <span className="text-[10px] text-slate-300 font-bold uppercase tracking-tighter">{idea.createdAt ? formatDistanceToNow(idea.createdAt.toDate(), { addSuffix: true }).toUpperCase() : 'JUST NOW'}</span>
-              </div>
-              <h5 className="text-lg font-bold text-slate-800 uppercase tracking-tight">{idea.title}</h5>
-              {idea.description && <p className="text-slate-400 text-sm mt-2 line-clamp-2">{idea.description}</p>}
+
+      <div className="flex-1 overflow-auto">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full caption-bottom text-sm border-collapse">
+              <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+                <tr className="border-b border-zinc-200">
+                  <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 w-[120px]">
+                    Date
+                  </th>
+                  <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+                    Idea
+                  </th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 w-[80px]">
+                    View
+                  </th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 w-[80px]">
+                    Edit
+                  </th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 w-[80px]">
+                    PDF
+                  </th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 w-[80px]">
+                    Delete
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="[&_tr:last-child]:border-0">
+                {filteredIdeas.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-16 text-center text-zinc-400">
+                      <Lightbulb size={48} className="mx-auto mb-3 text-zinc-300" />
+                      <p className="text-sm font-medium">No ideas found</p>
+                      <p className="text-xs mt-1">Click "Add Idea" to create your first idea</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredIdeas.map((idea) => (
+                    <tr 
+                      key={idea.id} 
+                      className="border-b border-zinc-100 transition-colors hover:bg-zinc-50/80"
+                    >
+                      <td className="px-3 py-3 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
+                        {idea.createdAt ? format(idea.createdAt.toDate(), 'MMM d, yyyy') : 'N/A'}
+                      </td>
+                      <td className="px-3 py-3 align-middle">
+                        <div className="font-medium text-zinc-900 text-[13px]">{idea.title}</div>
+                        {idea.description && (
+                          <div className="text-zinc-500 text-[11px] mt-1 line-clamp-2">
+                            {idea.description.substring(0, 100)}{idea.description.length > 100 ? '...' : ''}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 align-middle text-center">
+                        <button
+                          onClick={() => setSelectedReminder(idea)}
+                          className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="View details"
+                        >
+                          <FileText size={16} />
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 align-middle text-center">
+                        <button
+                          onClick={() => {
+                            setNewIdea({
+                              title: idea.title,
+                              bullets: idea.description ? idea.description.split('\n').filter(b => b.trim()) : ['']
+                            })
+                            setShowAddIdeaModal(true)
+                          }}
+                          className="p-2 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="Edit idea"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 align-middle text-center">
+                        <button
+                          onClick={() => exportIdeaToPDF(idea)}
+                          className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Export to PDF"
+                        >
+                          <Download size={16} />
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 align-middle text-center">
+                        <button
+                          onClick={() => deleteTask(idea.id)}
+                          className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Delete idea"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <Modal 
+        isOpen={showAddIdeaModal} 
+        onClose={() => { setShowAddIdeaModal(false); setNewIdea({ title: '', bullets: [''] }) }}
+        title="Add New Idea"
+        size="2xl"
+      >
+        <form onSubmit={handleCreateIdea} className="p-6 space-y-6">
+          <div>
+            <label className="block text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
+              Idea Title
+            </label>
+            <input
+              type="text"
+              required
+              value={newIdea.title}
+              onChange={(e) => setNewIdea(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Enter your idea title..."
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
+              Key Points
+            </label>
+            <div className="space-y-2">
+              {newIdea.bullets.map((bullet, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="text-zinc-400 font-bold">•</span>
+                  <input
+                    type="text"
+                    value={bullet}
+                    onChange={(e) => handleBulletChange(index, e.target.value)}
+                    placeholder={`Point ${index + 1}`}
+                    className="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                  {newIdea.bullets.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBullet(index)}
+                      className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
-            <button onClick={() => deleteTask(idea.id)} className="p-3 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
-              <Trash2 size={18} />
+            <button
+              type="button"
+              onClick={handleAddBullet}
+              className="mt-3 flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              <Plus size={16} />
+              Add another point
             </button>
           </div>
-        ))}
-      </div>
+
+          <div className="flex gap-3 pt-4 border-t border-zinc-100">
+            <button
+              type="button"
+              onClick={() => { setShowAddIdeaModal(false); setNewIdea({ title: '', bullets: [''] }) }}
+              className="px-6 py-2.5 border border-zinc-200 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+            >
+              Save Idea
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
-  )
+    )
+  }
 
   if (loading) return <div className="h-64 flex items-center justify-center"><Spinner /></div>
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 font-inter selection:bg-indigo-100">
+      <style>{`
+        @keyframes statusPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
+        .status-animate {
+          animation: statusPulse 0.3s ease-in-out;
+        }
+      `}</style>
+
       <div className="bg-white border-b border-slate-200 px-8 py-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shrink-0">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3 leading-none uppercase">
@@ -692,7 +954,6 @@ export default function TasksTab() {
         )}
       </div>
 
-      {/* Modern Task Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="New Directive" size="2xl">
         <form onSubmit={handleCreateTask} className="p-8 space-y-8">
           <div className="space-y-6">
@@ -761,7 +1022,6 @@ export default function TasksTab() {
         </form>
       </Modal>
 
-      {/* Directive Summary Modal */}
       <Modal isOpen={!!selectedReminder} onClose={() => setSelectedReminder(null)} title="Directive Summary">
         {selectedReminder && (
           <div className="space-y-6 p-8">
