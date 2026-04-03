@@ -27,6 +27,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
 
+function getInitials(name) {
+  return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
+}
+
 export default function VehicleManagementTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
