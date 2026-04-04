@@ -16,6 +16,7 @@ import {
   Lightbulb,
   X,
   ArrowRight,
+  ArrowUpRight,
   Calendar as CalendarIcon,
   Bell,
   Layout,
@@ -598,7 +599,9 @@ export default function TasksTab() {
                           e.target.closest('.quick-edit-trigger') ||
                           e.target.closest('.inline-edit-input') ||
                           editingInlineTask === task.id) return
-                      openEditModal(task)
+                      // Clicking task text now triggers inline edit, not modal
+                      // Only open modal if explicitly clicking outside interactive areas
+                      // The arrow button now handles full modal opening
                     }}
                     className={`bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all cursor-pointer group ${isAnimating ? 'animate-pulse scale-95' : ''}`}
                     style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
@@ -631,12 +634,25 @@ export default function TasksTab() {
                           </div>
                         ) : (
                           <h4 
-                            onDoubleClick={() => startInlineEdit(task)}
-                            className={`text-[13px] font-medium text-slate-800 leading-tight flex-1 ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}
+                            onClick={() => startInlineEdit(task)}
+                            className={`text-[13px] font-medium text-slate-800 leading-tight flex-1 cursor-text hover:bg-slate-50 rounded px-1 -mx-1 transition-colors ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}
                           >
                             {task.title}
                           </h4>
                         )}
+                        
+                        {/* Arrow to open full edit modal */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openEditModal(task)
+                          }}
+                          className="shrink-0 text-slate-300 hover:text-indigo-600 transition-colors"
+                          title="Open full edit"
+                        >
+                          <ArrowUpRight size={16} />
+                        </button>
+                        
                         <div className="status-menu-container relative shrink-0 z-20">
                           <button 
                             onClick={(e) => {
