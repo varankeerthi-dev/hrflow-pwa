@@ -1393,10 +1393,10 @@ export default function TasksTab() {
 
       <div className="bg-white border-b border-slate-200 px-8 py-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3 leading-none uppercase">
+          <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3 leading-none uppercase">
             Tasks <span className="text-slate-200 font-thin">/</span> <span className="text-indigo-600 tracking-tighter">{TABS.find(t => t.id === activeTab)?.label}</span>
           </h1>
-          <div className="flex items-center gap-1 mt-4">
+          <div className="flex items-center gap-1 mt-2.5">
             {TABS.map(tab => (
               <button
                 key={tab.id}
@@ -1436,7 +1436,7 @@ export default function TasksTab() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-8 lg:p-10">
+      <div className="flex-1 overflow-auto p-5">
         {activeTab === 'reminders' ? (
           <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {reminders.map(r => (
