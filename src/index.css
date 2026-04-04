@@ -47,12 +47,13 @@ body {
 }
 
 .sidebar-hover {
-  background-color: #f8fafc;
+  background-color: #ffffff;
   color: var(--color-primary);
   transition: all 0.2s ease;
 }
 
 .sidebar-inactive {
+  background-color: #ffffff;
   color: var(--color-text-secondary);
   transition: all 0.2s ease;
 }

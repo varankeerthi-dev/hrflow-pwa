@@ -1092,7 +1092,7 @@ export default function AttendanceTab() {
             </div>
           </div>
 
-          {/* Bottom Footer Card - Stats Only */}
+          {/* Bottom Footer Card - Stats and Submit Button */}
           <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center sticky bottom-0">
             <div className="flex gap-6 px-4">
               <div className="flex items-center gap-2">
@@ -1108,8 +1108,27 @@ export default function AttendanceTab() {
                 <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Total: {rows.filter(r => !r.isPlaceholder).length}</span>
               </div>
             </div>
-            <div className="text-xs text-gray-400 italic">
-              {hasGenerated ? 'Records ready to submit' : 'Click "Generate Active" to populate'}
+            <div className="flex items-center gap-4">
+              <div className="text-xs text-gray-400 italic">
+                {hasGenerated ? 'Records ready to submit' : 'Click "Generate Active" to populate'}
+              </div>
+              {rows.length > 0 && (
+                <div className="flex items-center gap-3">
+                  {saved && (
+                    <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium" style={{ fontFamily: "'Inter', sans-serif" }}>
+                      <Check size={14} /> Successfully submitted
+                    </div>
+                  )}
+                  <button 
+                    onClick={handleSubmit} 
+                    disabled={saving || rows.length === 0} 
+                    className="h-9 px-5 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50" 
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    {saving ? 'Processing...' : 'Submit Records'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </>

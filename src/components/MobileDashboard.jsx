@@ -256,33 +256,33 @@ export default function MobileDashboard() {
   }, [employees, user])
 
     const allModules = useMemo(() => [
-      // MAIN
-      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-blue-400', section: 'MAIN' },
-      { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', section: 'MAIN', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
+      // Core modules in order
+      { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-blue-400' },
+      { id: 'attendance-list', label: 'Attendance', icon: <Calendar className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400' },
+      { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
+      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400' },
       
-      // HR
-      { id: 'attendance-list', label: 'Attendance', icon: <Calendar className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400', section: 'HR' },
-      { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', color: 'text-orange-400', section: 'HR' },
-      { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', color: 'text-purple-400', section: 'HR' },
-      { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', color: 'text-cyan-400', section: 'HR', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
-      { id: 'letters', label: 'HR Letters', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400', section: 'HR' },
-      { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', color: 'text-amber-400', section: 'HR' },
-      { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400', section: 'HR' },
+      // HR modules
+      { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', color: 'text-orange-400' },
+      { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', color: 'text-purple-400' },
+      { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', color: 'text-cyan-400', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
+      { id: 'letters', label: 'HR Letters', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400' },
+      { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', color: 'text-amber-400' },
+      { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400' },
       
-      // PAYROLL
-      { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400', section: 'PAYROLL' },
-      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400', section: 'PAYROLL' },
-      { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400', section: 'PAYROLL' },
+      // Payroll modules
+      { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400' },
+      { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400' },
       
-      // WORKFORCE
-      { id: 'vehicles', label: 'Vehicles', icon: <Car className="h-4 w-4" />, module: 'Workforce', color: 'text-blue-400', section: 'WORKFORCE' },
-      { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400', section: 'WORKFORCE' },
-      { id: 'chat', label: 'Team Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', section: 'WORKFORCE', badge: unreadChatCount > 0 ? unreadChatCount : null },
-      { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400', section: 'WORKFORCE' },
+      // Workforce modules
+      { id: 'vehicles', label: 'Vehicles', icon: <Car className="h-4 w-4" />, module: 'Workforce', color: 'text-blue-400' },
+      { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400' },
+      { id: 'chat', label: 'Team Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', badge: unreadChatCount > 0 ? unreadChatCount : null },
+      { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400' },
       
-      // ACCOUNT
-      { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400', section: 'ACCOUNT' },
-      { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400', section: 'ACCOUNT' },
+      // Account modules
+      { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400' },
+      { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400' },
     ], [stats.pendingCorrections, unreadChatCount, pendingTaskCount])
 
   const visibleModules = useMemo(() => {
@@ -306,16 +306,6 @@ export default function MobileDashboard() {
       return modulePerms.view === true
     })
   }, [allModules, user?.permissions, user?.role])
-
-  const moduleSections = useMemo(() => {
-    const sections = {}
-    visibleModules.forEach(mod => {
-      const section = mod.section || 'Other'
-      if (!sections[section]) sections[section] = []
-      sections[section].push(mod)
-    })
-    return sections
-  }, [visibleModules])
 
   useEffect(() => {
     if (!user?.orgId) return
@@ -505,7 +495,7 @@ export default function MobileDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
       {/* ─── Desktop Sidebar (Hidden on Mobile) ─── */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white text-gray-900 border-r border-gray-200 transition-all shrink-0">
+      <aside className="hidden lg:flex flex-col w-64 bg-white text-gray-900 border-r border-gray-200 shrink-0">
         <div className="p-6 flex items-center gap-3 border-b border-gray-200">
           {orgSettings?.logoURL ? (
             <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
@@ -519,38 +509,29 @@ export default function MobileDashboard() {
           </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-6 custom-scrollbar">
-          {Object.entries(moduleSections).map(([section, modules]) => (
-            <div key={section} className="space-y-2">
-              <h3 className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider section-header">
-                {section}
-              </h3>
-              <div className="space-y-1">
-                {modules.map((mod) => (
-                  <button
-                    key={mod.id}
-                    onClick={() => setActiveTab(mod.id)}
-                    className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-lg text-[13px] leading-5 transition-all duration-200 ${
-                      activeTab === mod.id
-                        ? 'sidebar-active shadow-sm'
-                        : 'text-gray-600 hover:sidebar-hover'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`${activeTab === mod.id ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-600'}`}>
-                        {mod.icon}
-                      </div>
-                      <span className="font-medium leading-5 tracking-tight">{mod.label}</span>
-                    </div>
-                    {mod.badge && (
-                      <Badge variant="destructive" className="px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center text-[10px]">
-                        {mod.badge}
-                      </Badge>
-                    )}
-                  </button>
-                ))}
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 custom-scrollbar">
+          {visibleModules.map((mod) => (
+            <button
+              key={mod.id}
+              onClick={() => setActiveTab(mod.id)}
+              className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-lg text-[13px] leading-5 transition-all duration-200 ${
+                activeTab === mod.id
+                  ? 'sidebar-active shadow-sm'
+                  : 'text-gray-600 hover:sidebar-hover'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`${activeTab === mod.id ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-600'}`}>
+                  {mod.icon}
+                </div>
+                <span className="font-medium leading-5 tracking-tight">{mod.label}</span>
               </div>
-            </div>
+              {mod.badge && (
+                <Badge variant="destructive" className="px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center text-[10px]">
+                  {mod.badge}
+                </Badge>
+              )}
+            </button>
           ))}
         </nav>
 
@@ -672,28 +653,21 @@ export default function MobileDashboard() {
               </button>
             </div>
             
-            <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-              {Object.entries(moduleSections).map(([section, modules]) => (
-                <div key={section} className="space-y-2">
-                  <h3 className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider section-header">{section}</h3>
-                  <div className="space-y-1">
-                    {modules.map(mod => (
-                      <button
-                        key={mod.id}
-                        onClick={() => { setActiveTab(mod.id); setShowMenu(false) }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] leading-5 transition-all ${
-                          activeTab === mod.id ? 'sidebar-active shadow-lg' : 'text-gray-600 hover:sidebar-hover'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={activeTab === mod.id ? 'text-indigo-600' : 'text-gray-400'}>{mod.icon}</div>
-                          <span className="font-medium leading-5">{mod.label}</span>
-                        </div>
-                        {mod.badge && <Badge variant="destructive">{mod.badge}</Badge>}
-                      </button>
-                    ))}
+            <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+              {visibleModules.map(mod => (
+                <button
+                  key={mod.id}
+                  onClick={() => { setActiveTab(mod.id); setShowMenu(false) }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] leading-5 transition-all ${
+                    activeTab === mod.id ? 'sidebar-active shadow-lg' : 'text-gray-600 hover:sidebar-hover'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={activeTab === mod.id ? 'text-indigo-600' : 'text-gray-400'}>{mod.icon}</div>
+                    <span className="font-medium leading-5">{mod.label}</span>
                   </div>
-                </div>
+                  {mod.badge && <Badge variant="destructive">{mod.badge}</Badge>}
+                </button>
               ))}
             </nav>
 
