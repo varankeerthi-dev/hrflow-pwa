@@ -464,7 +464,7 @@ export default function TasksTab() {
   const formatDueDate = (date) => {
     if (!date) return null
     const d = date.toDate ? date.toDate() : new Date(date)
-    return formatDistanceToNow(d, { addSuffix: true })
+    return format(d, 'MMM d, yyyy')
   }
 
   const getDueDateColor = (date) => {
@@ -668,51 +668,50 @@ export default function TasksTab() {
                         </div>
                       </div>
                       
-                      {/* Row 2: Due Date - clickable to quick edit */}
-                      {task.dueDate && (
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setQuickDatePicker(quickDatePicker === task.id ? null : task.id)
-                            }}
-                            className={`quick-edit-trigger text-[11px] font-medium flex items-center gap-1 hover:opacity-70 transition-opacity ${dueDateColor}`}
-                          >
-                            <CalendarIcon size={12} />
-                            {dueDateText}
-                          </button>
-                          
-                          {/* Quick Date Picker Popup */}
-                          {quickDatePicker === task.id && (
-                            <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2">
-                              <DatePicker
-                                selected={task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : new Date()}
-                                onChange={(date) => handleQuickDateChange(task.id, date)}
-                                onClickOutside={() => setQuickDatePicker(null)}
-                                inline
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Row 3: Priority & Assignees on same line */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {task.priority === 'urgent' && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-600">
-                              URGENT
-                            </span>
-                          )}
-                          {task.priority === 'high' && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-600">
-                              HIGH
-                            </span>
-                          )}
-                        </div>
+                      {/* Row 2: Due Date + Priority + Assignees - all on same line */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Due Date - always red color */}
+                        {task.dueDate && (
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setQuickDatePicker(quickDatePicker === task.id ? null : task.id)
+                              }}
+                              className="quick-edit-trigger text-[11px] font-medium flex items-center gap-1 hover:opacity-70 transition-opacity text-rose-600"
+                            >
+                              <CalendarIcon size={12} />
+                              {dueDateText}
+                            </button>
+                            
+                            {/* Quick Date Picker Popup */}
+                            {quickDatePicker === task.id && (
+                              <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2">
+                                <DatePicker
+                                  selected={task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : new Date()}
+                                  onChange={(date) => handleQuickDateChange(task.id, date)}
+                                  onClickOutside={() => setQuickDatePicker(null)}
+                                  inline
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
                         
-                        {/* Assignees - clickable to quick edit */}
-                        <div className="relative">
+                        {/* Priority badges */}
+                        {task.priority === 'urgent' && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-600">
+                            URGENT
+                          </span>
+                        )}
+                        {task.priority === 'high' && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-600">
+                            HIGH
+                          </span>
+                        )}
+                        
+                        {/* Assignees - immediately next to priority */}
+                        <div className="relative ml-auto">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
