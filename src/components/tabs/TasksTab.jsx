@@ -1716,6 +1716,40 @@ export default function TasksTab() {
       >
         {editingTask && (
           <form onSubmit={handleSaveEdit} className="p-6 space-y-6">
+            {/* Action Buttons - Top Right */}
+            <div className="flex justify-end items-center gap-2 pb-4 border-b border-gray-100">
+              <button
+                type="button"
+                onClick={() => { setShowEditModal(false); setEditingTask(null); }}
+                className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-md text-xs font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+                    try {
+                      await deleteTask(editingTask.id)
+                      setShowEditModal(false)
+                      setEditingTask(null)
+                    } catch (err) {
+                      console.error('Failed to delete task:', err)
+                      alert('Failed to delete task')
+                    }
+                  }
+                }}
+                className="px-3 py-1.5 border border-red-300 text-red-600 rounded-md text-xs font-medium hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={14} className="inline mr-1" /> Delete
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-1.5 bg-indigo-600 text-white rounded-md text-xs font-medium hover:bg-indigo-700 transition-all shadow-sm active:scale-[0.98]"
+              >
+                Save Changes
+              </button>
+            </div>
             {/* Title Section */}
             <div className="space-y-4">
               <div className="relative">
@@ -1887,40 +1921,6 @@ export default function TasksTab() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex gap-3 pt-4 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => { setShowEditModal(false); setEditingTask(null); }}
-                className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
-                    try {
-                      await deleteTask(editingTask.id)
-                      setShowEditModal(false)
-                      setEditingTask(null)
-                    } catch (err) {
-                      console.error('Failed to delete task:', err)
-                      alert('Failed to delete task')
-                    }
-                  }
-                }}
-                className="px-6 py-2.5 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-              >
-                <Trash2 size={16} className="inline mr-1" /> Delete
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 active:scale-[0.98]"
-              >
-                Save Changes
-              </button>
             </div>
           </form>
         )}
