@@ -854,38 +854,76 @@ export default function AdvanceExpenseTab() {
         </div>
       )}
 
-      {/* Sub-modules Navigation */}
-      <div className="flex border-b border-gray-200 overflow-x-auto relative">
-        {modules.map(mod => {
-          const isActive = activeModule === mod
-          let colorClass = 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-          
-          if (isActive) {
-            if (mod === 'Add Advance') colorClass = 'border-b-2 border-amber-500 text-amber-700 bg-amber-50'
-            else if (mod === 'Add Expense') colorClass = 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
-            else colorClass = 'border-b-2 border-primary-500 text-primary-700'
-          }
+      {/* Mobile-Optimized Sticky Navigation */}
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-200/80 shadow-sm">
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex border-b border-gray-200 overflow-x-auto relative">
+          {modules.map(mod => {
+            const isActive = activeModule === mod
+            let colorClass = 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+            
+            if (isActive) {
+              if (mod === 'Add Advance') colorClass = 'border-b-2 border-amber-500 text-amber-700 bg-amber-50'
+              else if (mod === 'Add Expense') colorClass = 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
+              else colorClass = 'border-b-2 border-primary-500 text-primary-700'
+            }
 
-          return (
-            <button
-              key={mod}
-              onClick={() => setActiveModule(mod)}
-              className={`whitespace-nowrap px-6 py-3 text-sm font-semibold transition-all ${colorClass}`}
+            return (
+              <button
+                key={mod}
+                onClick={() => setActiveModule(mod)}
+                className={`whitespace-nowrap px-6 py-3 text-sm font-semibold transition-all ${colorClass}`}
+              >
+                {mod}
+              </button>
+            )
+          })}
+
+          {/* Recently Deleted Button - Positioned absolute right */}
+          {activeModule === 'Reports' && (
+            <button 
+              onClick={() => setShowDeletedModal(true)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 h-8 px-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center gap-2 mr-2"
             >
-              {mod}
+              <History size={14} /> Recently Deleted
             </button>
-          )
-        })}
+          )}
+        </div>
 
-        {/* Recently Deleted Button - Positioned absolute right */}
-        {activeModule === 'Reports' && (
-          <button 
-            onClick={() => setShowDeletedModal(true)}
-            className="absolute right-0 top-1/2 -translate-y-1/2 h-8 px-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center gap-2 mr-2"
-          >
-            <History size={14} /> Recently Deleted
-          </button>
-        )}
+        {/* Mobile Navigation - 5 Toggle Buttons in Single Row */}
+        <div className="md:hidden">
+          <div className="flex items-center justify-between px-2 py-2 gap-1 overflow-x-auto scrollbar-hide">
+            {modules.map(mod => {
+              const isActive = activeModule === mod
+              const getMobileColors = () => {
+                if (!isActive) return 'bg-white/60 text-gray-600 border-gray-200/60 hover:bg-gray-50/80'
+                if (mod === 'Add Advance') return 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
+                if (mod === 'Add Expense') return 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/25'
+                if (mod === 'Escalation') return 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/25'
+                if (mod === 'Summary') return 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/25'
+                return 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/25'
+              }
+
+              const getShortLabel = () => {
+                if (mod === 'Add Advance') return 'Adv'
+                if (mod === 'Add Expense') return 'Exp'
+                if (mod === 'Escalation') return 'Esc'
+                if (mod === 'Summary') return 'Sum'
+                return 'Rep'
+              }
+
+              return (
+                <button
+                  key={mod}
+                  onClick={() => setActiveModule(mod)}
+                  className={`flex-shrink-0 px-3 py-2.5 rounded-xl text-xs font-bold border backdrop-blur-sm transition-all duration-200 ${getMobileColors()}`}
+                >
+                  {getShortLabel()}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Add Expense / Add Advance Module */}
@@ -895,34 +933,35 @@ export default function AdvanceExpenseTab() {
             ? 'bg-amber-50/50 border-amber-200' 
             : 'bg-blue-50/50 border-blue-200'
         }`}>
-          <div className={`flex justify-between items-center p-5 border-b transition-colors ${
+          {/* Header */}
+          <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-5 border-b gap-3 transition-colors ${
             activeModule === 'Add Advance' 
               ? 'border-amber-100 bg-amber-100/50' 
               : 'border-blue-100 bg-blue-100/50'
           }`}>
-            <h2 className="text-xl font-bold text-gray-800">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800">
               {activeModule === 'Add Advance' ? 'Add Advance' : 'Add Expenses'}
             </h2>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button 
                 onClick={handleSelfExpense} 
-                className="h-10 px-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg text-sm shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all"
+                className="flex-1 sm:flex-none h-10 px-3 sm:px-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg text-sm shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all whitespace-nowrap"
               >
-                Self Expense
+                Self
               </button>
               
               <button 
                 onClick={handleAddRow} 
-                className="h-10 px-4 bg-white border border-teal-200 text-teal-600 font-medium rounded-lg text-sm hover:bg-teal-50 active:bg-teal-100 transition-all"
+                className="flex-1 sm:flex-none h-10 px-3 sm:px-4 bg-white border border-teal-200 text-teal-600 font-medium rounded-lg text-sm hover:bg-teal-50 active:bg-teal-100 transition-all whitespace-nowrap"
               >
-                + Add Row
+                + Add
               </button>
               
               <button 
                 onClick={handleSubmitAll} 
                 disabled={submitting} 
-                className={`h-10 px-6 text-white font-medium rounded-lg text-sm flex items-center gap-2 shadow-elevated transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`flex-1 sm:flex-none h-10 px-4 sm:px-6 text-white font-medium rounded-lg text-sm flex items-center justify-center gap-2 shadow-elevated transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                   activeModule === 'Add Advance'
                     ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800'
                     : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
@@ -933,7 +972,8 @@ export default function AdvanceExpenseTab() {
             </div>
           </div>
 
-          <div className="overflow-x-auto p-5">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto p-5">
             <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
               <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
@@ -1067,6 +1107,197 @@ export default function AdvanceExpenseTab() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden p-4 space-y-4">
+            <datalist id="categories-list-mobile">
+              {categories.map(cat => <option key={cat} value={cat} />)}
+            </datalist>
+            
+            {addRows.map((row, idx) => (
+              <div 
+                key={row.id} 
+                className={`bg-white rounded-xl border overflow-hidden shadow-sm ${
+                  activeModule === 'Add Advance' ? 'border-amber-200' : 'border-blue-200'
+                }`}
+              >
+                {/* Card Header */}
+                <div className={`px-4 py-3 flex items-center justify-between ${
+                  activeModule === 'Add Advance' 
+                    ? 'bg-gradient-to-r from-amber-50 to-white border-b border-amber-100' 
+                    : 'bg-gradient-to-r from-blue-50 to-white border-b border-blue-100'
+                }`}>
+                  <span className="text-sm font-bold text-gray-700">Entry #{idx + 1}</span>
+                  <button 
+                    onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))}
+                    className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+                
+                {/* Card Body */}
+                <div className="p-4 space-y-4">
+                  {/* Date & Employee Row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                        Date
+                      </label>
+                      <input 
+                        type="date" 
+                        value={row.date} 
+                        onChange={e => handleRowChange(row.id, 'date', e.target.value)} 
+                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                        Employee
+                      </label>
+                      <select 
+                        value={row.employeeId} 
+                        onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
+                        disabled={!canSelectAll}
+                        className={`w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      >
+                        <option value="">Select...</option>
+                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Category */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Category
+                    </label>
+                    <input 
+                      list="categories-list-mobile" 
+                      value={row.category} 
+                      onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
+                      className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white" 
+                      placeholder="Select or type category..."
+                    />
+                    {row.transferredToName && (
+                      <p className="text-red-500 text-xs mt-1 font-medium">
+                        → {row.transferredToName}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Type & Payout Row - Only for Expense */}
+                  {activeModule === 'Add Expense' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                          Type
+                        </label>
+                        <select 
+                          value={row.requestType} 
+                          onChange={e => handleRowChange(row.id, 'requestType', e.target.value)} 
+                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-xs font-bold uppercase bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="Reimbursement">Spent</option>
+                          <option value="Pre-Approval">Request</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                          Payout
+                        </label>
+                        <select 
+                          value={row.payoutMethod} 
+                          onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
+                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-xs font-bold uppercase bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="Immediate">Immediate</option>
+                          <option value="With Salary">Monthly</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Payout Only for Advance */}
+                  {activeModule === 'Add Advance' && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                        Payout Method
+                      </label>
+                      <select 
+                        value={row.payoutMethod} 
+                        onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
+                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-bold uppercase bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="Immediate">Immediate</option>
+                        <option value="With Salary">With Salary</option>
+                      </select>
+                    </div>
+                  )}
+                  
+                  {/* Amount with Quick Toggle */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Amount (₹)
+                    </label>
+                    <input 
+                      type="number" 
+                      value={row.amount} 
+                      onChange={e => handleRowChange(row.id, 'amount', e.target.value)} 
+                      className="w-full h-11 border border-gray-200 rounded-lg px-3 text-base font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500 bg-white mb-2" 
+                      placeholder="0.00"
+                    />
+                    {/* Quick Amount Toggles */}
+                    <div className="flex gap-2 flex-wrap">
+                      {[500, 1000, 2000, 3000].map(amt => (
+                        <button
+                          key={amt}
+                          onClick={() => handleRowChange(row.id, 'amount', amt.toString())}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            row.amount === amt.toString()
+                              ? activeModule === 'Add Advance'
+                                ? 'bg-amber-500 text-white shadow-md'
+                                : 'bg-blue-500 text-white shadow-md'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          ₹{amt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Remarks */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Remarks
+                    </label>
+                    <input 
+                      type="text" 
+                      value={row.reason} 
+                      onChange={e => handleRowChange(row.id, 'reason', e.target.value)} 
+                      className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white" 
+                      placeholder="Enter reason..."
+                    />
+                  </div>
+                  
+                  {/* Project */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Project
+                    </label>
+                    <input 
+                      type="text" 
+                      value={row.project} 
+                      onChange={e => handleRowChange(row.id, 'project', e.target.value)} 
+                      className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white" 
+                      placeholder="Enter project name..."
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

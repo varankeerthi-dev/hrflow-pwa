@@ -55,7 +55,9 @@ import ShiftPlanningTab from '../components/tabs/ShiftPlanningTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 import ChatTab from '../components/tabs/ChatTab'
+import VehicleManagementTab from '../components/tabs/VehicleManagementTab'
 import MobileTasksView from './MobileTasksView'
+import MobileEmployeePortal from './MobileEmployeePortal'
 import Badge from '../components/ui/Badge'
 
 // ─── Org Setup Modal ────────
@@ -208,7 +210,6 @@ export default function MobileDashboard() {
     pendingCorrections: 0
   })
   const [activeTab, setActiveTab] = useState('attendance')
-  const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [showMenu, setShowMenu] = useState(false)
   const [loading, setLoading] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
@@ -485,8 +486,10 @@ export default function MobileDashboard() {
         return <ChatTab />
       case 'shift-planning':
         return <ShiftPlanningTab />
+      case 'vehicles':
+        return <VehicleManagementTab />
       case 'portal':
-        return <EmployeePortalTab portalSubTab={portalSubTab} />
+        return <MobileEmployeePortal />
       case 'settings':
         return <SettingsTab />
       default:

@@ -14,6 +14,7 @@ import {
   Calendar, 
   User, 
   FileText, 
+  Hash,
   Wrench, 
   AlertTriangle, 
   CheckCircle2, 
@@ -220,8 +221,8 @@ export default function VehicleManagementTab() {
               </button>
             </div>
 
-            {/* Table */}
-            <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
+            {/* Desktop Table - Hidden on Mobile */}
+            <div className="hidden md:block rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full caption-bottom text-sm border-collapse min-w-[1000px]">
                   <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
@@ -293,6 +294,105 @@ export default function VehicleManagementTab() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Mobile Cards - Shown only on Mobile */}
+            <div className="md:hidden space-y-3">
+              {loadingVehicles ? (
+                <div className="py-12 text-center">
+                  <Spinner size="w-10 h-10" color="text-zinc-400" />
+                  <p className="text-zinc-400 text-sm mt-3">Loading vehicles...</p>
+                </div>
+              ) : filteredVehicles.length === 0 ? (
+                <div className="py-16 text-center border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
+                  <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Car size={28} className="text-zinc-300" />
+                  </div>
+                  <p className="text-zinc-400 text-sm font-medium">No vehicles found</p>
+                  <p className="text-zinc-300 text-xs mt-1">Add a vehicle to get started</p>
+                </div>
+              ) : filteredVehicles.map(v => (
+                <div key={v.id} className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden active:scale-[0.98] transition-transform">
+                  {/* Card Header */}
+                  <div className="px-4 py-3 bg-gradient-to-r from-zinc-50 to-white border-b border-zinc-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <Car size={20} className="text-indigo-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-zinc-900">{v.name}</h3>
+                        <p className="text-xs text-zinc-400">Fleet Unit</p>
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${isExpired(v.insuranceExpiry) ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {isExpired(v.insuranceExpiry) ? 'Expired' : 'Active'}
+                    </span>
+                  </div>
+                  
+                  {/* Card Body */}
+                  <div className="p-4 space-y-3">
+                    {/* Registration Info */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Hash size={14} className="text-zinc-400" />
+                        <span className="text-xs text-zinc-500">Registration</span>
+                      </div>
+                      <span className="text-sm font-semibold text-zinc-700">{v.vehicleNo}</span>
+                    </div>
+                    
+                    {/* RC Info */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText size={14} className="text-zinc-400" />
+                        <span className="text-xs text-zinc-500">RC Number</span>
+                      </div>
+                      <span className="text-sm font-medium text-zinc-600">{v.rcNo || 'N/A'}</span>
+                    </div>
+                    
+                    {/* Insurance Expiry */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={14} className="text-zinc-400" />
+                        <span className="text-xs text-zinc-500">Insurance Until</span>
+                      </div>
+                      <span className={`text-sm font-medium ${isExpired(v.insuranceExpiry) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {v.insuranceExpiry ? new Date(v.insuranceExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                      </span>
+                    </div>
+                    
+                    {/* Unit Lead */}
+                    <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-600">
+                          {getInitials(employees.find(e => e.id === v.inchargeId)?.name || '??')}
+                        </div>
+                        <span className="text-xs text-zinc-500">Unit Lead</span>
+                      </div>
+                      <span className="text-sm font-medium text-zinc-700">
+                        {employees.find(e => e.id === v.inchargeId)?.name || 'Unassigned'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Card Actions */}
+                  <div className="px-4 py-3 bg-zinc-50 border-t border-zinc-100 flex gap-2">
+                    <button 
+                      onClick={() => setSelectedVehicleForHistory(v)}
+                      className="flex-1 flex items-center justify-center gap-2 h-11 text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 active:bg-zinc-100 transition-colors"
+                    >
+                      <History size={16} />
+                      History
+                    </button>
+                    <button 
+                      onClick={() => setEditingVehicle(v)}
+                      className="flex-1 flex items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+                    >
+                      <Edit2 size={16} />
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -398,7 +498,7 @@ export default function VehicleManagementTab() {
             }} className="p-6 space-y-6 overflow-y-auto">
               
               {/* Vehicle Information */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label className="block text-[12px] font-semibold text-gray-700 mb-2">Vehicle Name</label>
                   <input 
@@ -451,7 +551,7 @@ export default function VehicleManagementTab() {
                   <span className="text-[10px] font-medium text-gray-400 italic">Required fields</span>
                 </div>
                 
-                <div className="p-4 grid grid-cols-2 gap-6">
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   <div>
                     <label className="block text-[12px] font-semibold text-gray-700 mb-2">Insurance Valid Till</label>
                     <input 
