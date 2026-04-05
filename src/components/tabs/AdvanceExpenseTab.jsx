@@ -1401,98 +1401,83 @@ export default function AdvanceExpenseTab() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Advances Panel */}
-            <div className="bg-amber-50/50 rounded-xl border border-amber-200 overflow-hidden shadow-card">
-              <div className="p-4 bg-amber-100/50 border-b border-amber-200 flex items-center justify-between">
+            <div className="bg-white border border-gray-300 overflow-hidden shadow-sm" style={{ fontFamily: 'Roboto, sans-serif' }}>
+              <div className="px-3 py-2 bg-gray-100 border-b border-gray-300 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-amber-900 text-sm">Advances</h3>
+                  <h3 className="font-medium text-gray-800 text-[11px]">Advances</h3>
                   {reportApplied && (
-                    <span className="text-xs font-medium text-amber-600 bg-white px-2 py-1 rounded border border-amber-100">
+                    <span className="text-[9px] font-medium text-gray-600 bg-white px-1.5 py-0.5 border border-gray-300">
                       Filtered
                     </span>
                   )}
                 </div>
-                <span className="bg-white px-3 py-1 rounded-full text-xs font-semibold text-amber-700 shadow-sm border border-amber-100">
-                  {reportApplied ? advForReport.length : advances.length} Records
+                <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
+                  {(reportApplied ? advForReport : advances).length} Records
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-zinc-50/80 border-b border-zinc-200 h-10">
-                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Transaction Info</th>
-                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Category</th>
-                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Amount</th>
-                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 w-[80px]">Actions</th>
+                    <tr className="bg-gray-50 border-b border-gray-300">
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Date</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Remarks</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Received from</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Amount</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-50">
+                  <tbody>
                     {(reportApplied ? advForReport : advances).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center py-12 text-zinc-400 text-sm italic font-medium">
+                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[9px] italic">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? advForReport : advances).map(a => (
-                      <tr key={a.id} className="h-12 border-b border-zinc-100 hover:bg-zinc-50 transition-colors group">
-                        <td className="p-3 border-r border-zinc-50">
+                      <tr key={a.id} className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">
+                          {new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </td>
+                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">
                           <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-amber-600 uppercase tracking-tighter mb-0.5">{a.transactionNo || '—'}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-bold text-zinc-500">{a.date}</span>
-                              <span className="text-[12px] font-black text-zinc-800">{a.employeeName}</span>
-                            </div>
+                            <span>{a.category || a.type || '—'}</span>
+                            {a.requestType && (
+                              <span className="text-[8px] text-gray-500">{a.requestType}</span>
+                            )}
                           </div>
                         </td>
-                        <td className="p-3 border-r border-zinc-50">
-                          <div className="flex flex-col gap-1">
-                            {(() => {
-                              const cat = a.category || a.type || '—'
-                              const match = cat.match(/(.*?) \[(.*?)\]/)
-                              if (match) {
-                                return (
-                                  <>
-                                    <span className="text-[13px] font-bold text-zinc-800 leading-tight">{match[1]}</span>
-                                    <span className="text-[11px] font-black uppercase tracking-tight text-red-500 italic">[{match[2]}]</span>
-                                  </>
-                                )
-                              }
-                              return <span className="text-[13px] font-bold text-zinc-800 leading-tight">{cat}</span>
-                            })()}
-                            <div className="flex flex-col gap-0.5">
-                              <span className={`w-fit px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${a.requestType === 'Pre-Approval' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
-                                {a.requestType || 'Reimbursement'}
-                              </span>
-                              <span className="text-[9px] font-medium text-gray-400 ml-0.5 lowercase italic">
-                                ({a.payoutMethod === 'With Salary' ? 'with salary' : (a.paymentStatus === 'Paid' ? 'reimbursed completed' : 'immediate')})
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3 border-r border-zinc-50 text-sm font-black text-zinc-900 tabular-nums">{formatINR(a.amount)}</td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">{a.remarks || '—'}</td>
+                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">{a.employeeName}</td>
+                        <td className="px-2 py-1.5 text-[9px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">{formatINR(a.amount)}</td>
+                        <td className="px-2 py-1.5">
+                          <div className="flex items-center gap-1">
                             {a.requestType === 'Pre-Approval' && a.mdApproval === 'Approved' && (
                               <button 
                                 onClick={() => { setFinalizingId(a.id); setFinalizeAmount(a.amount); }} 
-                                className="h-7 px-3 bg-emerald-50 text-emerald-600 font-bold rounded-lg text-[9px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
-                                title="Submit Actual Bill"
+                                className="text-emerald-600 hover:bg-emerald-50 p-0.5 transition-colors"
+                                title="Submit Bill"
                               >
-                                Submit Bill
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                  <polyline points="14 2 14 8 20 8"/>
+                                  <path d="M9 15l2 2 4-4"/>
+                                </svg>
                               </button>
                             )}
                             <button 
                               onClick={() => handleEdit(a)} 
-                              className="text-amber-600 hover:bg-amber-100 p-1.5 rounded-lg transition-colors"
+                              className="text-amber-600 hover:bg-gray-100 p-0.5 transition-colors"
                               title="Edit & Revoke"
                             >
-                              <Edit2 size={15} />
+                              <Edit2 size={12} />
                             </button>
                             <button 
                               onClick={() => handleDelete(a.id)} 
-                              className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                              className="text-red-600 hover:bg-gray-100 p-0.5 transition-colors"
                               title="Delete Transaction"
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </td>
@@ -1504,98 +1489,87 @@ export default function AdvanceExpenseTab() {
             </div>
 
             {/* Expenses Panel */}
-            <div className="bg-blue-50/50 rounded-xl border border-blue-200 overflow-hidden shadow-card">
-              <div className="p-4 bg-blue-100/50 border-b border-blue-200 flex items-center justify-between">
+            <div className="bg-white border border-gray-300 overflow-hidden shadow-sm" style={{ fontFamily: 'Roboto, sans-serif' }}>
+              <div className="px-3 py-2 bg-gray-100 border-b border-gray-300 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-blue-900 text-sm">Expenses</h3>
+                  <h3 className="font-medium text-gray-800 text-[11px]">Expenses</h3>
                   {reportApplied && (
-                    <span className="text-xs font-medium text-blue-600 bg-white px-2 py-1 rounded border border-blue-100">
+                    <span className="text-[9px] font-medium text-gray-600 bg-white px-1.5 py-0.5 border border-gray-300">
                       Filtered
                     </span>
                   )}
                 </div>
-                <span className="bg-white px-3 py-1 rounded-full text-xs font-semibold text-blue-700 shadow-sm border border-blue-100">
-                  {reportApplied ? expForReport.length : expenses.length} Records
+                <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
+                  {(reportApplied ? expForReport : expenses).length} Records
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-zinc-50/80 border-b border-zinc-200 h-10">
-                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Transaction Info</th>
-                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Category</th>
-                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Amount</th>
-                      <th className="px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 w-[80px]">Actions</th>
+                    <tr className="bg-gray-50 border-b border-gray-300">
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Date</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Remarks</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Amount</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Payout</th>
+                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-50">
+                  <tbody>
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center py-12 text-zinc-400 text-sm italic font-medium">
+                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[9px] italic">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? expForReport : expenses).map(e => (
-                      <tr key={e.id} className="h-12 border-b border-zinc-100 hover:bg-zinc-50 transition-colors group">
-                        <td className="p-3 border-r border-zinc-50">
+                      <tr key={e.id} className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">
+                          {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </td>
+                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">
                           <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter mb-0.5">{e.transactionNo || '—'}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-bold text-zinc-500">{e.date}</span>
-                              <span className="text-[12px] font-black text-zinc-800">{e.employeeName}</span>
-                            </div>
+                            <span>{e.category || e.type || '—'}</span>
+                            {e.requestType && (
+                              <span className="text-[8px] text-gray-500">{e.requestType}</span>
+                            )}
                           </div>
                         </td>
-                        <td className="p-3 border-r border-zinc-50">
-                          <div className="flex flex-col gap-1">
-                            {(() => {
-                              const cat = e.category || e.type || '—'
-                              const match = cat.match(/(.*?) \[(.*?)\]/)
-                              if (match) {
-                                return (
-                                  <>
-                                    <span className="text-[13px] font-bold text-zinc-800 leading-tight">{match[1]}</span>
-                                    <span className="text-[11px] font-black uppercase tracking-tight text-red-500 italic">[{match[2]}]</span>
-                                  </>
-                                )
-                              }
-                              return <span className="text-[13px] font-bold text-zinc-800 leading-tight">{cat}</span>
-                            })()}
-                            <div className="flex flex-col gap-0.5">
-                              <span className={`w-fit px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${e.requestType === 'Pre-Approval' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
-                                {e.requestType || 'Reimbursement'}
-                              </span>
-                              <span className="text-[9px] font-medium text-gray-400 ml-0.5 lowercase italic">
-                                ({e.payoutMethod === 'With Salary' ? 'with salary' : (e.paymentStatus === 'Paid' ? 'reimbursed completed' : 'immediate')})
-                              </span>
-                            </div>
-                          </div>
+                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">{e.remarks || '—'}</td>
+                        <td className="px-2 py-1.5 text-[9px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">{formatINR(e.amount)}</td>
+                        <td className="px-2 py-1.5 text-[9px] border-r border-gray-200">
+                          <span className={`px-1.5 py-0.5 text-[8px] ${e.payoutMethod === 'With Salary' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                            {e.payoutMethod === 'With Salary' ? 'With Salary' : 'Immediate'}
+                          </span>
                         </td>
-                        <td className="p-3 border-r border-zinc-50 text-sm font-black text-zinc-900 tabular-nums">{formatINR(e.amount)}</td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <td className="px-2 py-1.5">
+                          <div className="flex items-center gap-1">
                             {e.requestType === 'Pre-Approval' && e.mdApproval === 'Approved' && (
                               <button 
                                 onClick={() => { setFinalizingId(e.id); setFinalizeAmount(e.amount); }} 
-                                className="h-7 px-3 bg-emerald-50 text-emerald-600 font-bold rounded-lg text-[9px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
-                                title="Submit Actual Bill"
+                                className="text-emerald-600 hover:bg-emerald-50 p-0.5 transition-colors"
+                                title="Submit Bill"
                               >
-                                Submit Bill
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                  <polyline points="14 2 14 8 20 8"/>
+                                  <path d="M9 15l2 2 4-4"/>
+                                </svg>
                               </button>
                             )}
                             <button 
                               onClick={() => handleEdit(e)} 
-                              className="text-blue-600 hover:bg-blue-100 p-1.5 rounded-lg transition-colors"
+                              className="text-amber-600 hover:bg-gray-100 p-0.5 transition-colors"
                               title="Edit & Revoke"
                             >
-                              <Edit2 size={15} />
+                              <Edit2 size={12} />
                             </button>
                             <button 
                               onClick={() => handleDelete(e.id)} 
-                              className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                              className="text-red-600 hover:bg-gray-100 p-0.5 transition-colors"
                               title="Delete Transaction"
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </td>
