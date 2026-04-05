@@ -391,45 +391,37 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
         </button>
       </div>
 
-      {/* Month Navigator - Compact */}
-      <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => navigateMonth(-1)}
-            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-          >
-            <ChevronLeft size={16} className="text-gray-600" />
-          </button>
-          
-          <div className="flex items-center bg-gray-50 rounded-md px-3 py-1.5 border border-gray-200 min-w-[140px] justify-center gap-2">
-            <Calendar size={14} className="text-gray-400" />
-            <span className="text-[13px] font-inter font-semibold text-gray-700">{formatMonth(selectedMonth)}</span>
-          </div>
-          
-          <button 
-            onClick={() => navigateMonth(1)}
-            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-          >
-            <ChevronRight size={16} className="text-gray-600" />
-          </button>
-        </div>
-
-        <div className="h-6 w-px bg-gray-200"></div>
-
-        <h3 className="text-sm font-inter font-semibold text-gray-800">
-          {activeSubTab === 'summary' ? 'Monthly Performance' : 'Attendance Summary'}
-        </h3>
-
-        {activeSubTab === 'summary' && (
-          <button onClick={exportCSV} className="ml-auto h-[32px] px-3 bg-indigo-600 text-white rounded-md text-[11px] font-inter font-medium flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm">
-            <Download size={12} /> Export CSV
-          </button>
-        )}
-      </div>
-
       {/* Summary View */}
       {activeSubTab === 'summary' && (
         <>
+          {/* Month Selector Toolbar */}
+          <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => navigateMonth(-1)}
+                className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                <ChevronLeft size={16} className="text-gray-600" />
+              </button>
+              
+              <div className="flex items-center bg-gray-50 rounded-md px-3 py-1.5 border border-gray-200 min-w-[140px] justify-center gap-2">
+                <Calendar size={14} className="text-gray-400" />
+                <span className="text-[13px] font-inter font-semibold text-gray-700">{formatMonth(selectedMonth)}</span>
+              </div>
+              
+              <button 
+                onClick={() => navigateMonth(1)}
+                className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                <ChevronRight size={16} className="text-gray-600" />
+              </button>
+            </div>
+            
+            <button onClick={exportCSV} className="h-[32px] px-3 bg-indigo-600 text-white rounded-md text-[11px] font-inter font-medium flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm">
+              <Download size={12} /> Export CSV
+            </button>
+          </div>
+
           {/* Stats Summary Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(() => {
