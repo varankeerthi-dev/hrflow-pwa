@@ -179,10 +179,6 @@ export default function AdvanceExpenseTab() {
                                row.category?.toLowerCase().includes('salary_advance') ||
                                row.category?.toLowerCase() === 'advance'
         if (isSalaryAdvance && row.paidToType === 'employee' && row.paidTo) {
-          // Get current user's name from employees list or user object
-          const currentUserEmp = employees.find(e => e.email === user.email || e.id === user.uid)
-          const paidByUserName = currentUserEmp?.name || user.name || user.displayName || user.email || 'Unknown'
-          
           // Create linked Advance record for the receiving employee
           const advanceTxnNo = `ADV-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
           const advanceDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
@@ -195,18 +191,18 @@ export default function AdvanceExpenseTab() {
             payoutMethod: 'Immediate',
             amount: Number(row.amount),
             date: row.date,
-            reason: `Cash advance from ${paidByUserName} - ${row.reason || ''}`,
+            reason: `Cash advance from ${user.name || user.email} - ${row.reason || ''}`,
             project: row.project || '',
             status: 'Approved',
-            approved_by: paidByUserName,
+            approved_by: user.name || user.email,
             approved_at: serverTimestamp(),
             hrApproval: 'Approved',
             mdApproval: 'Approved',
             paymentStatus: 'Paid',
             paidBy: user.uid,
-            paidByName: paidByUserName,
+            paidByName: user.name || user.email,
             linkedExpenseId: null, // Will be updated after expense creation
-            createdBy: paidByUserName,
+            createdBy: user.name || user.email,
             createdAt: serverTimestamp()
           })
           linkedAdvanceId = advanceDoc.id
