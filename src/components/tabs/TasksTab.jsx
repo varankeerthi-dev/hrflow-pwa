@@ -100,6 +100,33 @@ export default function TasksTab() {
   const [editingInlineTask, setEditingInlineTask] = useState(null)
   const [inlineEditValue, setInlineEditValue] = useState('')
   
+  // Table view column visibility
+  const [visibleColumns, setVisibleColumns] = useState({
+    taskName: true,
+    state: true,
+    priority: true,
+    assignees: true,
+    dueDate: true,
+    createdDate: false,
+    updatedDate: false
+  })
+  const [showColumnMenu, setShowColumnMenu] = useState(false)
+  
+  // Slide-over drawer for task editing
+  const [showSideDrawer, setShowSideDrawer] = useState(false)
+  const [drawerTask, setDrawerTask] = useState(null)
+  
+  // Table inline editing
+  const [editingTableCell, setEditingTableCell] = useState(null) // {taskId, field}
+  
+  // Calendar inline add
+  const [inlineAddingDate, setInlineAddingDate] = useState(null) // Date object
+  const [inlineAddingValue, setInlineAddingValue] = useState('')
+  
+  // Calendar filters
+  const [calendarPriorityFilter, setCalendarPriorityFilter] = useState('all')
+  const [calendarAssigneeFilter, setCalendarAssigneeFilter] = useState('all')
+  
   // Idea tab states
   const [ideaSearchTerm, setIdeaSearchTerm] = useState('')
   const [ideaFilter, setIdeaFilter] = useState('all')
@@ -483,6 +510,49 @@ export default function TasksTab() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
+  // Side drawer functions
+  const openSideDrawer = (task) => {
+    setDrawerTask(task)
+    setShowSideDrawer(true)
+  }
+
+  const closeSideDrawer = () => {
+    setShowSideDrawer(false)
+    setDrawerTask(null)
+  }
+
+  const handleDrawerSave = async () => {
+    if (!drawerTask) return
+    try {
+      await updateTask(drawerTask.id, drawerTask)
+      closeSideDrawer()
+    } catch (err) {
+      console.error('Failed to update task:', err)
+      alert('Failed to save changes')
+    }
+  }
+
+  // Calendar inline add
+  const handleCalendarInlineAdd = async (date) => {
+    if (!inlineAddingValue.trim()) return
+    try {
+      await addTask({
+        title: inlineAddingValue,
+        dueDate: date,
+        status: 'To Do',
+        priority: 'normal',
+        assignedTo: [],
+        isPersonal: activeTab === 'personal',
+        category: 'task'
+      })
+      setInlineAddingValue('')
+      setInlineAddingDate(null)
+    } catch (err) {
+      console.error('Failed to add task:', err)
+      alert('Failed to create task')
+    }
+  }
+
   const MentionList = () => {
     if (!mentionState.active || filteredMentions.length === 0) return null
     return (
@@ -834,73 +904,266 @@ export default function TasksTab() {
     </div>
   )
 
-  const renderTableView = () => (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 h-12">
-              <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Directive</th>
-              <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-              <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Protocol</th>
-              <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Deadline</th>
-              <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Personnel</th>
-              <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredTasks.length === 0 ? (
-              <tr><td colSpan="6" className="py-20 text-center text-slate-300 font-medium italic">Empty Manifest</td></tr>
-            ) : (
-              filteredTasks.map(task => (
-                <tr key={task.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => handleStatusChange(task.id, task.status === 'Completed' ? 'To Do' : 'Completed')} className={`transition-all duration-300 ${task.status === 'Completed' ? 'text-emerald-500 scale-110' : 'text-slate-200 hover:text-slate-400'}`}>
-                        {task.status === 'Completed' ? <CheckCircle2 size={18} /> : <Circle size={18} />}
-                      </button>
-                      <span className={`text-[13px] font-medium text-slate-700 ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}>{task.title}</span>
+  const renderTableView = () => {
+    const columnCount = Object.values(visibleColumns).filter(Boolean).length + 1 // +1 for actions
+    
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        {/* Display Button - Top Right */}
+        <div className="flex justify-end px-6 py-3 border-b border-slate-100 bg-slate-50/50">
+          <div className="relative">
+            <button
+              onClick={() => setShowColumnMenu(!showColumnMenu)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-all"
+            >
+              <Layout size={14} />
+              Display
+            </button>
+            {showColumnMenu && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-2">
+                <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                  Show Columns
+                </div>
+                {Object.entries(visibleColumns).map(([col, visible]) => (
+                  <button
+                    key={col}
+                    onClick={() => setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }))}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <div className={`w-4 h-4 rounded border ${visible ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} flex items-center justify-center`}>
+                      {visible && <Check size={12} className="text-white" />}
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`text-[10px] font-bold uppercase tracking-tight px-2 py-0.5 rounded-lg border ${
-                      task.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                      task.status === 'In Progress' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                      'bg-slate-50 text-slate-400 border-slate-100'
-                    }`}>
-                      {task.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`text-[10px] font-bold uppercase ${task.priority === 'urgent' ? 'text-rose-500' : 'text-slate-400'}`}>
-                      {task.priority || 'normal'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-[11px] font-medium text-slate-500 tabular-nums">
-                    {task.dueDate ? formatDueDate(task.dueDate) : '—'}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex -space-x-1.5">
-                      {getAssigneeInfo(task.assignedTo).map(emp => (
-                        <div key={emp.id} className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-slate-600 shadow-sm" title={emp.name}>
-                          {getInitials(emp.name)}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => deleteTask(task.id)} className="text-slate-200 hover:text-rose-500 transition-colors">
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))
+                    {col === 'taskName' && 'Task Name'}
+                    {col === 'state' && 'State'}
+                    {col === 'priority' && 'Priority'}
+                    {col === 'assignees' && 'Assignees'}
+                    {col === 'dueDate' && 'Due Date'}
+                    {col === 'createdDate' && 'Created'}
+                    {col === 'updatedDate' && 'Updated'}
+                  </button>
+                ))}
+              </div>
             )}
-          </tbody>
-        </table>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[900px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 h-12">
+                {visibleColumns.taskName && (
+                  <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest w-[35%]">Task Name</th>
+                )}
+                {visibleColumns.state && (
+                  <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">State</th>
+                )}
+                {visibleColumns.priority && (
+                  <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Priority</th>
+                )}
+                {visibleColumns.assignees && (
+                  <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Assignees</th>
+                )}
+                {visibleColumns.dueDate && (
+                  <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Due Date</th>
+                )}
+                {visibleColumns.createdDate && (
+                  <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Created</th>
+                )}
+                {visibleColumns.updatedDate && (
+                  <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Updated</th>
+                )}
+                <th className="px-6 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right w-[60px]"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredTasks.length === 0 ? (
+                <tr><td colSpan={columnCount} className="py-20 text-center text-slate-300 font-medium italic">No tasks found</td></tr>
+              ) : (
+                filteredTasks.map(task => (
+                  <tr key={task.id} className="hover:bg-slate-50 transition-colors group">
+                    {visibleColumns.taskName && (
+                      <td className="px-6 py-4">
+                        <div 
+                          onClick={() => openSideDrawer(task)}
+                          className={`text-[14px] font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors ${task.status === 'Completed' ? 'line-through text-slate-400' : ''}`}
+                        >
+                          {task.title}
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.state && (
+                      <td className="px-6 py-4">
+                        <div className="relative status-menu-container">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingTableCell(editingTableCell?.taskId === task.id && editingTableCell?.field === 'status' ? null : { taskId: task.id, field: 'status' })
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                              task.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                              task.status === 'In Progress' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                              task.status === 'On Hold' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                              'bg-slate-50 text-slate-600 border border-slate-200'
+                            }`}
+                          >
+                            <span className="w-2 h-2 rounded-full bg-current"></span>
+                            {task.status}
+                          </button>
+                          {editingTableCell?.taskId === task.id && editingTableCell?.field === 'status' && (
+                            <div className="absolute top-full left-0 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1">
+                              {STATUSES.map(s => (
+                                <button
+                                  key={s.id}
+                                  onClick={async () => {
+                                    await updateTask(task.id, { status: s.id })
+                                    setEditingTableCell(null)
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-[11px] font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors"
+                                >
+                                  {s.icon}
+                                  {s.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.priority && (
+                      <td className="px-6 py-4">
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingTableCell(editingTableCell?.taskId === task.id && editingTableCell?.field === 'priority' ? null : { taskId: task.id, field: 'priority' })
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                              task.priority === 'urgent' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                              task.priority === 'high' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                              'bg-slate-50 text-slate-600 border border-slate-200'
+                            }`}
+                          >
+                            {task.priority === 'urgent' && <span className="text-rose-500">🔴</span>}
+                            {task.priority === 'high' && <span className="text-amber-500">📊</span>}
+                            {(!task.priority || task.priority === 'normal') && <span>○</span>}
+                            {task.priority || 'None'}
+                          </button>
+                          {editingTableCell?.taskId === task.id && editingTableCell?.field === 'priority' && (
+                            <div className="absolute top-full left-0 mt-1 w-32 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1">
+                              {['urgent', 'high', 'normal'].map((p) => (
+                                <button
+                                  key={p}
+                                  onClick={async () => {
+                                    await updateTask(task.id, { priority: p })
+                                    setEditingTableCell(null)
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-[11px] font-medium capitalize hover:bg-slate-50 transition-colors"
+                                >
+                                  {p === 'urgent' && <span className="mr-1">🔴</span>}
+                                  {p === 'high' && <span className="mr-1">📊</span>}
+                                  {p === 'normal' && <span className="mr-1">○</span>}
+                                  {p}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.assignees && (
+                      <td className="px-6 py-4">
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingTableCell(editingTableCell?.taskId === task.id && editingTableCell?.field === 'assignees' ? null : { taskId: task.id, field: 'assignees' })
+                            }}
+                            className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                          >
+                            {getAssigneeInfo(task.assignedTo).length > 0 ? (
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex -space-x-1.5">
+                                  {getAssigneeInfo(task.assignedTo).slice(0, 3).map(emp => (
+                                    <div key={emp.id} className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-indigo-600">
+                                      {getInitials(emp.name)}
+                                    </div>
+                                  ))}
+                                </div>
+                                {getAssigneeInfo(task.assignedTo).length > 3 && (
+                                  <span className="text-[10px] text-slate-500">+{getAssigneeInfo(task.assignedTo).length - 3}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                <User size={12} />
+                                Unassigned
+                              </span>
+                            )}
+                          </button>
+                          {editingTableCell?.taskId === task.id && editingTableCell?.field === 'assignees' && (
+                            <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-2 max-h-60 overflow-y-auto">
+                              <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Assignees</div>
+                              {employees.filter(e => !e.hideInAttendance).map(emp => {
+                                const isAssigned = (task.assignedTo || []).includes(emp.id)
+                                return (
+                                  <button
+                                    key={emp.id}
+                                    onClick={async () => {
+                                      const currentAssignees = task.assignedTo || []
+                                      const newAssignees = isAssigned 
+                                        ? currentAssignees.filter(id => id !== emp.id)
+                                        : [...currentAssignees, emp.id]
+                                      await updateTask(task.id, { assignedTo: newAssignees })
+                                    }}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] transition-colors ${isAssigned ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
+                                  >
+                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                      {isAssigned ? '✓' : getInitials(emp.name)}
+                                    </div>
+                                    {emp.name}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.dueDate && (
+                      <td className="px-6 py-4 text-[13px] text-slate-600 tabular-nums">
+                        {task.dueDate ? formatDueDate(task.dueDate) : '—'}
+                      </td>
+                    )}
+                    {visibleColumns.createdDate && (
+                      <td className="px-6 py-4 text-[12px] text-slate-500 tabular-nums">
+                        {task.createdAt ? format(task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt), 'MMM d, yyyy') : '—'}
+                      </td>
+                    )}
+                    {visibleColumns.updatedDate && (
+                      <td className="px-6 py-4 text-[12px] text-slate-500 tabular-nums">
+                        {task.updatedAt ? format(task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt), 'MMM d, yyyy') : '—'}
+                      </td>
+                    )}
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openEditModal(task)
+                        }}
+                        className="text-slate-300 hover:text-slate-600 transition-colors p-1"
+                      >
+                        <MoreHorizontal size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const renderDashboardView = () => {
     const stats = {
@@ -949,11 +1212,14 @@ export default function TasksTab() {
       prevMonthDays.push(prevMonthLastDay - i)
     }
     
-    // Filter tasks that are visible in calendar (exclude completed by default)
+    // Filter tasks with calendar filters
     const visibleTasks = filteredTasks.filter(task => {
       if (!task.dueDate) return false
       if (task.status === 'Completed' && !statusFilter['Completed']) return false
-      return statusFilter[task.status] !== false
+      if (statusFilter[task.status] === false) return false
+      if (calendarPriorityFilter !== 'all' && task.priority !== calendarPriorityFilter) return false
+      if (calendarAssigneeFilter !== 'all' && !(task.assignedTo || []).includes(calendarAssigneeFilter)) return false
+      return true
     })
     
     // Group tasks by date
@@ -1017,35 +1283,62 @@ export default function TasksTab() {
             </div>
           </div>
           
-          {/* Status Filter Toggle */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-medium">Show:</span>
-            {STATUSES.filter(s => s.id !== 'Completed').map(status => (
+          {/* Filters */}
+          <div className="flex items-center gap-3">
+            {/* Priority Filter */}
+            <select
+              value={calendarPriorityFilter}
+              onChange={(e) => setCalendarPriorityFilter(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 outline-none focus:border-indigo-500"
+            >
+              <option value="all">All Priorities</option>
+              <option value="urgent">🔴 Urgent</option>
+              <option value="high">📊 High</option>
+              <option value="normal">○ Normal</option>
+            </select>
+            
+            {/* Assignee Filter */}
+            <select
+              value={calendarAssigneeFilter}
+              onChange={(e) => setCalendarAssigneeFilter(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 outline-none focus:border-indigo-500"
+            >
+              <option value="all">All Assignees</option>
+              {employees.filter(e => !e.hideInAttendance).map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+            
+            <div className="h-4 w-px bg-slate-200"></div>
+            
+            {/* Status Filter Toggle */}
+            <div className="flex items-center gap-1">
+              {STATUSES.filter(s => s.id !== 'Completed').map(status => (
+                <button
+                  key={status.id}
+                  onClick={() => setStatusFilter(prev => ({ ...prev, [status.id]: !prev[status.id] }))}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
+                    statusFilter[status.id] 
+                      ? 'bg-slate-100 text-slate-700' 
+                      : 'bg-transparent text-slate-400 line-through'
+                  }`}
+                >
+                  {status.icon}
+                  {status.label}
+                </button>
+              ))}
               <button
-                key={status.id}
-                onClick={() => setStatusFilter(prev => ({ ...prev, [status.id]: !prev[status.id] }))}
+                onClick={() => setStatusFilter(prev => ({ ...prev, 'Completed': !prev['Completed'] }))}
                 className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
-                  statusFilter[status.id] 
-                    ? 'bg-slate-100 text-slate-700' 
+                  statusFilter['Completed'] 
+                    ? 'bg-emerald-50 text-emerald-700' 
                     : 'bg-transparent text-slate-400 line-through'
                 }`}
               >
-                {status.icon}
-                {status.label}
+                <CheckCircle2 size={12} className="text-emerald-500" />
+                Completed
               </button>
-            ))}
-            <div className="h-4 w-px bg-slate-200 mx-1"></div>
-            <button
-              onClick={() => setStatusFilter(prev => ({ ...prev, 'Completed': !prev['Completed'] }))}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
-                statusFilter['Completed'] 
-                  ? 'bg-emerald-50 text-emerald-700' 
-                  : 'bg-transparent text-slate-400 line-through'
-              }`}
-            >
-              <CheckCircle2 size={12} className="text-emerald-500" />
-              Completed
-            </button>
+            </div>
           </div>
         </div>
         
@@ -1078,22 +1371,65 @@ export default function TasksTab() {
               const isToday = new Date().getDate() === day && 
                               new Date().getMonth() === month && 
                               new Date().getFullYear() === year
+              const currentDate = new Date(year, month, day)
               
               return (
                 <div
                   key={day}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, day)}
-                  className={`border-r border-b border-slate-100 p-2 min-h-[80px] transition-colors hover:bg-slate-50/50 ${
+                  className={`border-r border-b border-slate-100 p-2 min-h-[100px] transition-colors hover:bg-slate-50/50 ${
                     isToday ? 'bg-indigo-50/30' : ''
                   }`}
                 >
-                  <div className={`text-sm font-medium mb-1 ${isToday ? 'text-indigo-600' : 'text-slate-700'}`}>
-                    {day}
-                    {isToday && <span className="ml-1 text-xs text-indigo-500">Today</span>}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`text-sm font-medium ${isToday ? 'text-indigo-600' : 'text-slate-700'}`}>
+                      {day}
+                      {isToday && <span className="ml-1 text-xs text-indigo-500">Today</span>}
+                    </div>
+                    {/* Inline Add Button */}
+                    <button
+                      onClick={() => setInlineAddingDate(currentDate)}
+                      className="text-slate-300 hover:text-indigo-600 transition-colors p-0.5"
+                      title="Add task"
+                    >
+                      <Plus size={14} />
+                    </button>
                   </div>
+                  
+                  {/* Inline Add Input */}
+                  {inlineAddingDate && inlineAddingDate.getDate() === day && 
+                   inlineAddingDate.getMonth() === month && 
+                   inlineAddingDate.getFullYear() === year && (
+                    <div className="mb-2">
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Task name..."
+                        className="w-full bg-white border border-indigo-300 rounded px-2 py-1 text-[11px] outline-none"
+                        value={inlineAddingValue}
+                        onChange={(e) => setInlineAddingValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleCalendarInlineAdd(currentDate)
+                          } else if (e.key === 'Escape') {
+                            setInlineAddingDate(null)
+                            setInlineAddingValue('')
+                          }
+                        }}
+                        onBlur={() => {
+                          if (inlineAddingValue.trim()) {
+                            handleCalendarInlineAdd(currentDate)
+                          } else {
+                            setInlineAddingDate(null)
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  
                   <div className="space-y-1">
-                    {dayTasks.slice(0, 3).map(task => {
+                    {dayTasks.map(task => {
                       const assignees = getAssigneeInfo(task.assignedTo)
                       return (
                         <div
@@ -1103,14 +1439,48 @@ export default function TasksTab() {
                             e.dataTransfer.setData('taskId', task.id)
                             setDraggedTaskId(task.id)
                           }}
-                          onClick={() => openEditModal(task)}
-                          className={`text-[10px] p-1.5 rounded cursor-pointer transition-all hover:shadow-sm ${
+                          className={`group relative text-[10px] p-1.5 rounded cursor-pointer transition-all hover:shadow-sm ${
                             task.priority === 'urgent' ? 'bg-rose-50 border border-rose-200 text-rose-700' :
                             task.priority === 'high' ? 'bg-amber-50 border border-amber-200 text-amber-700' :
                             'bg-slate-50 border border-slate-200 text-slate-700'
                           }`}
                         >
-                          <div className="truncate font-medium">{task.title}</div>
+                          {/* Task Title with Three Dots Menu */}
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="truncate font-medium flex-1">{task.title}</div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openEditModal(task)
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-all p-0.5"
+                            >
+                              <MoreHorizontal size={12} />
+                            </button>
+                          </div>
+                          
+                          {/* Hover Tooltip */}
+                          <div className="absolute left-0 bottom-full mb-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                            <div className="text-[11px] font-semibold text-slate-800 mb-1">{task.title}</div>
+                            {task.description && (
+                              <div className="text-[9px] text-slate-500 mb-1 line-clamp-2">{task.description}</div>
+                            )}
+                            <div className="flex items-center gap-2 text-[9px]">
+                              {task.priority && (
+                                <span className={`${task.priority === 'urgent' ? 'text-rose-500' : task.priority === 'high' ? 'text-amber-500' : 'text-slate-400'}`}>
+                                  {task.priority === 'urgent' ? '🔴 Urgent' : task.priority === 'high' ? '📊 High' : '○ Normal'}
+                                </span>
+                              )}
+                              {assignees.length > 0 && (
+                                <span className="text-slate-500 flex items-center gap-0.5">
+                                  <User size={8} />
+                                  {assignees[0].name.split(' ')[0]}
+                                  {assignees.length > 1 && ` +${assignees.length - 1}`}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
                           {assignees.length > 0 && (
                             <div className="flex items-center gap-0.5 mt-0.5 text-[8px] text-slate-500">
                               <User size={8} />
@@ -1120,11 +1490,6 @@ export default function TasksTab() {
                         </div>
                       )
                     })}
-                    {dayTasks.length > 3 && (
-                      <div className="text-[9px] text-slate-400 text-center">
-                        +{dayTasks.length - 3} more
-                      </div>
-                    )}
                   </div>
                 </div>
               )
@@ -1927,6 +2292,153 @@ export default function TasksTab() {
           </form>
         )}
       </Modal>
+
+      {/* Side Drawer for Task Editing */}
+      {showSideDrawer && drawerTask && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            onClick={closeSideDrawer}
+          />
+          
+          {/* Drawer Panel */}
+          <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl transform transition-transform duration-300 ease-out flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+              <h2 className="text-lg font-bold text-slate-800">Edit Task</h2>
+              <button 
+                onClick={closeSideDrawer}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Title */}
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-2">Task Title</label>
+                <input
+                  type="text"
+                  value={drawerTask.title}
+                  onChange={(e) => setDrawerTask({ ...drawerTask, title: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                />
+              </div>
+              
+              {/* Description */}
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-2">Description</label>
+                <textarea
+                  value={drawerTask.description || ''}
+                  onChange={(e) => setDrawerTask({ ...drawerTask, description: e.target.value })}
+                  rows={4}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all resize-none"
+                />
+              </div>
+              
+              {/* Status */}
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-2">Status</label>
+                <select
+                  value={drawerTask.status}
+                  onChange={(e) => setDrawerTask({ ...drawerTask, status: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                >
+                  {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+              </div>
+              
+              {/* Priority */}
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-2">Priority</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['normal', 'high', 'urgent'].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setDrawerTask({ ...drawerTask, priority: p })}
+                      className={`py-2 rounded-lg text-[11px] font-medium capitalize transition-all border ${
+                        drawerTask.priority === p 
+                          ? p === 'urgent' ? 'bg-rose-50 border-rose-200 text-rose-600' :
+                            p === 'high' ? 'bg-amber-50 border-amber-200 text-amber-600' :
+                            'bg-indigo-50 border-indigo-200 text-indigo-600'
+                          : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      {p === 'urgent' && '🔴 '}
+                      {p === 'high' && '📊 '}
+                      {p === 'normal' && '○ '}
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Due Date */}
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-2">Due Date</label>
+                <div className="relative">
+                  <DatePicker
+                    selected={drawerTask.dueDate}
+                    onChange={(date) => setDrawerTask({ ...drawerTask, dueDate: date })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                    dateFormat="MMM d, yyyy"
+                    placeholderText="Select date"
+                  />
+                  <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                </div>
+              </div>
+              
+              {/* Assignees */}
+              <div>
+                <label className="block text-[12px] font-semibold text-slate-700 mb-2">Assignees</label>
+                <div className="flex flex-wrap gap-2">
+                  {employees.filter(e => !e.hideInAttendance).map(emp => {
+                    const isAssigned = (drawerTask.assignedTo || []).includes(emp.id)
+                    return (
+                      <button
+                        key={emp.id}
+                        onClick={() => {
+                          const current = drawerTask.assignedTo || []
+                          const updated = isSelected 
+                            ? current.filter(id => id !== emp.id)
+                            : [...current, emp.id]
+                          setDrawerTask({ ...drawerTask, assignedTo: updated })
+                        }}
+                        className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-all border ${
+                          isAssigned 
+                            ? 'bg-indigo-600 border-indigo-600 text-white' 
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        {emp.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 shrink-0 flex gap-3">
+              <button
+                onClick={closeSideDrawer}
+                className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDrawerSave}
+                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Modal isOpen={!!selectedReminder} onClose={() => setSelectedReminder(null)} title="Directive Summary">
         {selectedReminder && (
