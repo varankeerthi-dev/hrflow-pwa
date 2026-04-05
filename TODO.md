@@ -2,21 +2,21 @@
 
 ## Future Implementations
 
-### 1. "Paid To" Feature in Expense Form (In Progress)
+### 1. "Paid To" Feature in Expense Form ✅ COMPLETED
 **Priority:** High
-**Status:** Started
+**Status:** Completed 2026-04-05
 
 **Requirements:**
-- [ ] Add "Paid To" dropdown field in Expense form (below Category)
-- [ ] Dropdown opens outward (overlay/popup style, not container)
-- [ ] Options: All employees + "Add Other..."
-- [ ] When "Add Other..." selected → Inline text input appears
-- [ ] One-time names (EB, Carpenter, etc.) stored only with transaction
-- [ ] One-time names appear when editing that specific transaction
-- [ ] When category = "Salary Advance" AND paidTo = employee:
-  - [ ] Auto-create linked Advance record for employee
-  - [ ] Employee sees it in Advance tab with "Paid by: [Accountant]" label
-- [ ] Duplicate protection: Check Amount + Date + Recipient + Category
+- [x] Add "Paid To" dropdown field in Expense form (below Category)
+- [x] Dropdown opens outward (overlay/popup style, not container)
+- [x] Options: All employees + "Add Other..."
+- [x] When "Add Other..." selected → Inline text input appears
+- [x] One-time names (EB, Carpenter, etc.) stored only with transaction
+- [x] One-time names appear when editing that specific transaction
+- [x] When category = "Salary Advance" AND paidTo = employee:
+  - [x] Auto-create linked Advance record for employee
+  - [x] Employee sees it in Advance tab with "Source: Cash" label
+- [ ] Duplicate protection: Check Amount + Date + Recipient + Category *(Pending)*
 
 **Data Structure:**
 ```javascript
@@ -31,14 +31,15 @@ expense: {
 ```
 
 **Reports Updates:**
-- [ ] Add "Paid To" column in Expenses Report
-- [ ] Show custom names for one-time recipients
-- [ ] Date column: 55px width
-- [ ] Amount column: 90px width, remove "Rs." prefix, max 11 digits
-- [ ] Actions column: Reduce width & icon size
-- [ ] Remarks column: Increase to 190px
-- [ ] Font size: 10px throughout
-- [ ] New filter: "Cash Advances by Accountant"
+- [x] Add "Paid To" column in Expenses Report
+- [x] Show linked advance indicator (chain icon) in Expenses table
+- [x] Add "Source" column in Advances Report with Cash/Linked/Company badges
+- [x] Date column: 55px width
+- [x] Amount column: 90px width, remove "Rs." prefix
+- [x] Actions column: Reduced width to 50px & icon size to 10px
+- [x] Remarks column: 190px
+- [x] Font size: 10px throughout
+- [ ] New filter: "Cash Advances by Accountant" *(Pending)*
 
 ---
 
@@ -75,6 +76,17 @@ New report view:
 ## Completed Tasks
 
 ### 2026-04-05
+- [x] Created custom outward-opening "Paid To" dropdown component
+- [x] Added "Add Other..." option with inline text input for one-time names
+- [x] Added "Paid To" column in Desktop and Mobile expense entry forms
+- [x] Updated addMutation to auto-create linked Advance when category is "Salary Advance"
+- [x] Updated Advances Report table with "Source" column (Cash/Linked/Company badges)
+- [x] Updated Expenses Report table with "Paid To" and "Link" columns
+- [x] Removed "Rs." prefix from Amount columns in both tables
+- [x] Set font size to 10px throughout reports
+- [x] Reduced Actions column icon sizes to 10px
+
+### 2026-04-05 (Earlier)
 - [x] Redesign Advance/Expense report panels with Excel-style grid
 - [x] Add Name column to both panels
 - [x] Update column widths and font sizes
