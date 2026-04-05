@@ -2213,7 +2213,7 @@ export default function AdvanceExpenseTab() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Advances Panel */}
             <div className="bg-white border border-gray-300 overflow-hidden shadow-sm" style={{ fontFamily: 'Roboto, sans-serif' }}>
-              <div className="px-3 py-2 bg-gray-100 border-b border-gray-300 flex items-center justify-between">
+              <div className="px-3 py-2 bg-white border-b border-gray-300 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium text-gray-800 text-[11px]">Advances</h3>
                   {reportApplied && (
@@ -2222,27 +2222,53 @@ export default function AdvanceExpenseTab() {
                     </span>
                   )}
                 </div>
-                <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
-                  {(reportApplied ? advForReport : advances).length} Records
-                </span>
+                <div className="flex items-center gap-3">
+                  {reportApplied && (
+                    <div className="flex items-center gap-3 text-[10px]">
+                      <span className="text-gray-600">
+                        Total: <span className="font-semibold text-gray-900">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((reportApplied ? advForReport : advances).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
+                      </span>
+                    </div>
+                  )}
+                  <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
+                    {(reportApplied ? advForReport : advances).length} Records
+                  </span>
+                </div>
               </div>
+              {reportApplied && (
+                <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200 flex items-center gap-4 text-[10px]">
+                  <span className="text-gray-600">
+                    Advance: <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
+                  </span>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-600">
+                    Expense: <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
+                  </span>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-600">
+                    Cash in hand: <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                      advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
+                      expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+                    )}</span>
+                  </span>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-300">
+                    <tr className="bg-white border-b border-gray-300">
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px]">Date</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Name</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[90px]">Amount</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[80px]">Source</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? advForReport : advances).length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-8 text-gray-400 text-[10px] italic">
+                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[10px] italic">
                           No records found for this criteria
                         </td>
                       </tr>
@@ -2263,21 +2289,6 @@ export default function AdvanceExpenseTab() {
                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{a.remarks || '—'}</td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">
                           {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}
-                        </td>
-                        <td className="px-2 py-1.5 text-[10px] border-r border-gray-200">
-                          {a.paidByName ? (
-                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-amber-50 text-amber-600 border border-amber-100" title={`Cash advance from ${a.paidByName}`}>
-                              Cash: {a.paidByName?.split(' ')[0]}
-                            </span>
-                          ) : a.linkedExpenseId ? (
-                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-50 text-emerald-600 border border-emerald-100">
-                              Linked
-                            </span>
-                          ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-blue-50 text-blue-600 border border-blue-100">
-                              Company
-                            </span>
-                          )}
                         </td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center gap-0.5">
@@ -2319,7 +2330,7 @@ export default function AdvanceExpenseTab() {
 
             {/* Expenses Panel */}
             <div className="bg-white border border-gray-300 overflow-hidden shadow-sm" style={{ fontFamily: 'Roboto, sans-serif' }}>
-              <div className="px-3 py-2 bg-gray-100 border-b border-gray-300 flex items-center justify-between">
+              <div className="px-3 py-2 bg-white border-b border-gray-300 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium text-gray-800 text-[11px]">Expenses</h3>
                   {reportApplied && (
@@ -2328,14 +2339,41 @@ export default function AdvanceExpenseTab() {
                     </span>
                   )}
                 </div>
-                <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
-                  {(reportApplied ? expForReport : expenses).length} Records
-                </span>
+                <div className="flex items-center gap-3">
+                  {reportApplied && (
+                    <div className="flex items-center gap-3 text-[10px]">
+                      <span className="text-gray-600">
+                        Total: <span className="font-semibold text-gray-900">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((reportApplied ? expForReport : expenses).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
+                      </span>
+                    </div>
+                  )}
+                  <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
+                    {(reportApplied ? expForReport : expenses).length} Records
+                  </span>
+                </div>
               </div>
+              {reportApplied && (
+                <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200 flex items-center gap-4 text-[10px]">
+                  <span className="text-gray-600">
+                    Advance: <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
+                  </span>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-600">
+                    Expense: <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
+                  </span>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-600">
+                    Cash in hand: <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                      advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
+                      expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+                    )}</span>
+                  </span>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-300">
+                    <tr className="bg-white border-b border-gray-300">
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px]">Date</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Name</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
