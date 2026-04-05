@@ -169,7 +169,7 @@ export default function AdvanceExpenseTab() {
 
         // Determine paidTo information
         const paidToEmp = row.paidToType === 'employee' ? employees.find(e => e.id === row.paidTo) : null
-        const paidToName = row.paidToType === 'employee' ? paidToEmp?.name : row.paidToCustomName
+        const paidToName = row.paidToType === 'employee' ? (paidToEmp?.name || null) : (row.paidToCustomName || null)
 
         // Auto-link to employee advance if Salary Advance paid to employee
         let linkedAdvanceId = null
@@ -225,10 +225,10 @@ export default function AdvanceExpenseTab() {
           mdApproval: 'Pending',
           createdBy: user.name || user.email,
           createdAt: serverTimestamp(),
-          paidTo: row.paidTo,
-          paidToType: row.paidToType,
+          paidTo: row.paidTo || null,
+          paidToType: row.paidToType || null,
           paidToName: paidToName,
-          paidToCustomName: row.paidToCustomName,
+          paidToCustomName: row.paidToCustomName || null,
           linkedAdvanceId: linkedAdvanceId,
           isCashAdvance: !!linkedAdvanceId
         })
