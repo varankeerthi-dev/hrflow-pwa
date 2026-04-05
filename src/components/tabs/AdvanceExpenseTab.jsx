@@ -6,8 +6,8 @@ import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc
 import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { formatINR } from '../../lib/salaryUtils'
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import html2canvas from 'html2canvas'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -987,18 +987,32 @@ export default function AdvanceExpenseTab() {
       // Capture the reports container
       const canvas = await html2canvas(reportsContainerRef.current, {
         backgroundColor: '#ffffff',
-        scale: 2, // Higher quality
+        scale: 2,
         useCORS: true,
         allowTaint: true,
-        logging: false
+        logging: false,
+        foreignObjectRendering: false,
+        removeContainer: false
       })
       
+      // Check if canvas was created
+      if (!canvas) {
+        throw new Error('Canvas creation failed')
+      }
+      
       // Convert to PNG and download
+      const dataUrl = canvas.toDataURL('image/png')
+      if (!dataUrl || dataUrl === 'data:,') {
+        throw new Error('Canvas toDataURL failed')
+      }
+      
       const link = document.createElement('a')
       const timestamp = new Date().toISOString().slice(0, 10)
       link.download = `Adv_Exp_Reports_${timestamp}.png`
-      link.href = canvas.toDataURL('image/png')
+      link.href = dataUrl
+      document.body.appendChild(link)
       link.click()
+      document.body.removeChild(link)
       
       // Reset button
       if (button) {
@@ -1007,7 +1021,9 @@ export default function AdvanceExpenseTab() {
       }
     } catch (err) {
       console.error('Screenshot Error:', err)
-      alert('Failed to capture screenshot. Please try again.')
+      console.error('Error details:', err.message)
+      console.error('Error stack:', err.stack)
+      alert(`Failed to capture screenshot: ${err.message || 'Unknown error'}. Please check console for details.`)
       
       // Reset button on error
       const button = document.querySelector('button[title="Take Screenshot"]')
@@ -1119,7 +1135,7 @@ export default function AdvanceExpenseTab() {
           a.status || '—'
         ])
         
-        doc.autoTable({
+        autoTable(doc, {
           startY: 35,
           head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Status']],
           body: advBody,
@@ -1155,15 +1171,13 @@ export default function AdvanceExpenseTab() {
           e.category || '—',
           ((e.remarks || e.reason || '—').toString()).substring(0, 30),
           formatAmountSafe(e.amount),
-          e.payoutMethod || '—',
           e.paidToName || e.paidToCustomName || e.employeeName || '—',
-          e.linkedAdvanceId ? '✓' : '—',
           e.status || '—'
         ])
         
-        doc.autoTable({
+        autoTable(doc, {
           startY: dataToUseAdv.length > 0 && finalY > 180 ? 20 : finalY + 5,
-          head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Payout', 'Paid To', 'Link', 'Status']],
+          head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Paid To', 'Status']],
           body: expBody,
           theme: 'grid',
           styles: { fontSize: 7, cellPadding: 1.5 },
@@ -1172,12 +1186,10 @@ export default function AdvanceExpenseTab() {
             0: { cellWidth: 22 },
             1: { cellWidth: 30 },
             2: { cellWidth: 28 },
-            3: { cellWidth: 40 },
+            3: { cellWidth: 45 },
             4: { cellWidth: 22 },
-            5: { cellWidth: 22 },
-            6: { cellWidth: 30 },
-            7: { cellWidth: 12 },
-            8: { cellWidth: 22 }
+            5: { cellWidth: 30 },
+            6: { cellWidth: 22 }
           }
         })
       }
@@ -2347,7 +2359,7 @@ export default function AdvanceExpenseTab() {
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Name</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[90px]">Amount</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[60px]">Amount</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
                     </tr>
                   </thead>
@@ -2374,7 +2386,12 @@ export default function AdvanceExpenseTab() {
                         </td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{a.remarks || '—'}</td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">
-                          {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}
+                          <div className="flex flex-col">
+                            <span>{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}</span>
+                            <span className="text-[8px] text-gray-500 mt-0.5">
+                              {a.paidByName || 'Company'}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center gap-0.5">
@@ -2439,17 +2456,15 @@ export default function AdvanceExpenseTab() {
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Name</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[90px]">Amount</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Payout</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[60px]">Amount</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Paid To</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-center w-[50px]">Link</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[50px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="text-center py-8 text-gray-400 text-[10px] italic">
+                        <td colSpan={7} className="text-center py-8 text-gray-400 text-[10px] italic">
                           No records found for this criteria
                         </td>
                       </tr>
@@ -2467,27 +2482,12 @@ export default function AdvanceExpenseTab() {
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{e.remarks || '—'}</td>
+                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{e.remarks || '—'}</td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">
                           {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(e.amount)}
                         </td>
-                        <td className="px-2 py-1.5 text-[10px] border-r border-gray-200">
-                          <span className={`px-1.5 py-0.5 text-[9px] ${e.payoutMethod === 'With Salary' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
-                            {e.payoutMethod === 'With Salary' ? 'With Salary' : 'Immediate'}
-                          </span>
-                        </td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
                           {e.paidToName || e.paidToCustomName || e.employeeName}
-                        </td>
-                        <td className="px-2 py-1.5 text-[10px] border-r border-gray-200 text-center">
-                          {e.linkedAdvanceId && (
-                            <span className="inline-flex items-center justify-center w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full" title={`Linked to Advance ${e.linkedAdvanceId}`}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                              </svg>
-                            </span>
-                          )}
                         </td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center gap-0.5">
