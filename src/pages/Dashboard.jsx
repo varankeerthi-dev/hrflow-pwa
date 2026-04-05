@@ -197,7 +197,6 @@ export default function Dashboard() {
   const [summarySubTab, setSummarySubTab] = useState('summary')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState({ main: true, hr: true, payroll: true, workforce: true, account: true })
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
 
@@ -455,24 +454,13 @@ export default function Dashboard() {
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
           </div>
           <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto no-scrollbar">
-            {visibleSections.map(section => {
-              const sectionTabs = visibleTabs.filter(t => section.tabs.includes(t.id))
-              if (sectionTabs.length === 0) return null
+            {visibleTabs.map(tab => {
+              const isActive = activeTab === tab.id
               return (
-                <div key={section.id} className="flex flex-col mb-2 last:mb-0">
-                  {!isCollapsed && <div className="px-2 py-0.5 mb-0.5"><span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{section.title}</span></div>}
-                  <div className="flex flex-col gap-0.5">
-                    {sectionTabs.map(tab => {
-                      const isActive = activeTab === tab.id
-                      return (
-                        <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} className={`${isCollapsed ? 'justify-center px-0 py-2' : 'left-panel-btn px-3 py-2'} ${isActive ? 'active' : ''} transition-all duration-150`}>
-                          <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>{React.cloneElement(tab.icon, { size: 16, strokeWidth: 2 })}</span>
-                          {!isCollapsed && <span className="text-[11px] font-bold truncate leading-none">{tab.label}</span>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+                <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} className={`${isCollapsed ? 'justify-center px-0 py-2' : 'left-panel-btn px-3 py-2'} ${isActive ? 'active' : ''} transition-all duration-150`}>
+                  <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>{React.cloneElement(tab.icon, { size: 16, strokeWidth: 2 })}</span>
+                  {!isCollapsed && <span className="text-[11px] font-bold truncate leading-none">{tab.label}</span>}
+                </button>
               )
             })}
           </nav>
