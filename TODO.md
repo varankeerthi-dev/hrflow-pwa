@@ -78,10 +78,12 @@ New report view:
 ### 2026-04-05 - Filter Revamp
 - [x] Converted Reports filters to single-row horizontal layout (15px line height)
 - [x] Added Employee multi-select dropdown with employee names
-- [x] Added Date Range picker with From/To dates and arrow navigation
+- [x] Added separate From Date and To Date dropdowns (not combined)
+- [x] Auto-close dropdown when selecting date, category, or clicking Done
+- [x] Clicking any filter closes other open dropdowns first
 - [x] Set default From date to start of current month
 - [x] Set default To date to today (auto-updates when day changes)
-- [x] Added Category dropdown selector
+- [x] Added Category dropdown selector with auto-close on selection
 - [x] Added Search Remarks text input
 - [x] Implemented auto-apply filters (no Apply button needed)
 - [x] Added active filters summary badges
