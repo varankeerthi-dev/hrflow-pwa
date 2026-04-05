@@ -16,6 +16,38 @@ import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-tabl
 // Use standard fonts for maximum compatibility
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : formatINR(val);
 
+// Helper function to format date as DD/MM/YYYY
+const formatDateDDMMYYYY = (dateStr) => {
+  if (!dateStr || dateStr === '-') return '-';
+  // Handle YYYY-MM-DD format
+  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  }
+  // Handle Date object or other formats
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+};
+
+// Helper function to format month as MM/YYYY
+const formatMonthDisplay = (monthStr) => {
+  if (!monthStr) return '-';
+  // Handle YYYY-MM format
+  if (monthStr.match(/^\d{4}-\d{2}$/)) {
+    const [year, month] = monthStr.split('-');
+    return `${month}/${year}`;
+  }
+  return monthStr;
+};
+
 const s = StyleSheet.create({
   p: { padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' },
   h: { borderBottomWidth: 2, borderBottomColor: '#4f46e5', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
@@ -37,7 +69,7 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
       </View>
       <View style={{textAlign:'right'}}>
         <Text style={{fontSize:12, fontWeight: 'bold', color:'#0f172a'}}>PAYSLIP</Text>
-        <Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{data?.month ? new Date(data.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '-'}</Text>
+        <Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{data?.month ? formatMonthDisplay(data.month) : '-'}</Text>
       </View>
     </View>
     
@@ -46,8 +78,8 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
         <View style={s.row}><Text style={s.label}>Name of the Employee</Text><Text style={s.value}>: {data.employee?.name}</Text></View>
         <View style={s.row}><Text style={s.label}>Employee N0</Text><Text style={s.value}>: {data.employee?.empCode}</Text></View>
         <View style={s.row}><Text style={s.label}>Designation</Text><Text style={s.value}>: {data.employee?.designation || '-'}</Text></View>
-        <View style={s.row}><Text style={s.label}>DOB</Text><Text style={s.value}>: {data.employee?.dob || '-'}</Text></View>
-        <View style={s.row}><Text style={s.label}>DOJ</Text><Text style={s.value}>: {data.employee?.doj || '-'}</Text></View>
+        <View style={s.row}><Text style={s.label}>DOB</Text><Text style={s.value}>: {formatDateDDMMYYYY(data.employee?.dob) || '-'}</Text></View>
+        <View style={s.row}><Text style={s.label}>DOJ</Text><Text style={s.value}>: {formatDateDDMMYYYY(data.employee?.doj) || '-'}</Text></View>
         <View style={s.row}><Text style={s.label}>Total No. of Days</Text><Text style={s.value}>: {data.totalMonthDays}</Text></View>
       </View>
       <View style={{flex: 1, paddingLeft: 20}}>
@@ -628,7 +660,7 @@ export default function SalarySlipTab() {
                       <div className="text-right">
                         <h2 className="text-lg font-black text-slate-900 uppercase font-google-sans tracking-tight italic">Statement</h2>
                         <p className="text-[9px] font-black text-slate-500 mt-1 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase tracking-widest">
-                          {new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                          {formatMonthDisplay(slipData.month)}
                         </p>
                       </div>
                     </div>
@@ -660,7 +692,7 @@ export default function SalarySlipTab() {
                       </div>
                       <div className="flex justify-between border-b border-slate-100 py-1.5">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">DOB</span>
-                        <span className="text-[9px] font-bold text-slate-900">{slipData.employee?.dob || '-'}</span>
+                        <span className="text-[9px] font-bold text-slate-900">{formatDateDDMMYYYY(slipData.employee?.dob) || '-'}</span>
                       </div>
                       <div className="flex justify-between border-b border-slate-100 py-1.5">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No. of Leave Taken</span>
@@ -668,7 +700,7 @@ export default function SalarySlipTab() {
                       </div>
                       <div className="flex justify-between border-b border-slate-100 py-1.5">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">DOJ</span>
-                        <span className="text-[9px] font-bold text-slate-900">{slipData.employee?.doj || '-'}</span>
+                        <span className="text-[9px] font-bold text-slate-900">{formatDateDDMMYYYY(slipData.employee?.doj) || '-'}</span>
                       </div>
                       <div className="flex justify-between border-b border-slate-100 py-1.5">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No. of days Paid</span>
@@ -776,7 +808,7 @@ export default function SalarySlipTab() {
                   <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
                     <div className="text-[12px] font-black text-slate-900 uppercase tracking-widest">Advances & Expenses</div>
                     <div className="text-[9px] font-black text-indigo-600 uppercase tracking-[0.3em] mt-2">
-                      {new Date(slipData.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                      {formatMonthDisplay(slipData.month)}
                     </div>
                   </div>
                   <div className="p-3 overflow-auto flex-1">
@@ -796,7 +828,7 @@ export default function SalarySlipTab() {
                         ) : (
                           advExpRows.map((row, i) => (
                             <tr key={`${row.type}_${row.date}_${i}`} className="border-t border-slate-100">
-                              <td className="py-2 pr-2 font-bold text-slate-700">{row.date}</td>
+                              <td className="py-2 pr-2 font-bold text-slate-700">{formatDateDDMMYYYY(row.date)}</td>
                               <td className="py-2 pr-2">
                                 <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tight ${row.type === 'Advance' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}`}>
                                   {row.type}
