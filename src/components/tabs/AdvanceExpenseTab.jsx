@@ -2251,7 +2251,18 @@ export default function AdvanceExpenseTab() {
                   {reportApplied && (
                     <div className="flex items-center gap-3 text-[10px]">
                       <span className="text-gray-600">
-                        Total: <span className="font-semibold text-gray-900">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((reportApplied ? advForReport : advances).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
+                        Advance: <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
+                      </span>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-gray-600">
+                        Expense: <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
+                      </span>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-gray-600">
+                        Cash in hand: <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                          advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
+                          expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+                        )}</span>
                       </span>
                     </div>
                   )}
@@ -2260,24 +2271,6 @@ export default function AdvanceExpenseTab() {
                   </span>
                 </div>
               </div>
-              {reportApplied && (
-                <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200 flex items-center gap-4 text-[10px]">
-                  <span className="text-gray-600">
-                    Advance: <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
-                  </span>
-                  <span className="text-gray-400">|</span>
-                  <span className="text-gray-600">
-                    Expense: <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
-                  </span>
-                  <span className="text-gray-400">|</span>
-                  <span className="text-gray-600">
-                    Cash in hand: <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                      advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
-                      expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
-                    )}</span>
-                  </span>
-                </div>
-              )}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -2368,7 +2361,18 @@ export default function AdvanceExpenseTab() {
                   {reportApplied && (
                     <div className="flex items-center gap-3 text-[10px]">
                       <span className="text-gray-600">
-                        Total: <span className="font-semibold text-gray-900">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((reportApplied ? expForReport : expenses).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
+                        Advance: <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
+                      </span>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-gray-600">
+                        Expense: <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
+                      </span>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-gray-600">
+                        Cash in hand: <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                          advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
+                          expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+                        )}</span>
                       </span>
                     </div>
                   )}
@@ -2377,24 +2381,6 @@ export default function AdvanceExpenseTab() {
                   </span>
                 </div>
               </div>
-              {reportApplied && (
-                <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200 flex items-center gap-4 text-[10px]">
-                  <span className="text-gray-600">
-                    Advance: <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
-                  </span>
-                  <span className="text-gray-400">|</span>
-                  <span className="text-gray-600">
-                    Expense: <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
-                  </span>
-                  <span className="text-gray-400">|</span>
-                  <span className="text-gray-600">
-                    Cash in hand: <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                      advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
-                      expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
-                    )}</span>
-                  </span>
-                </div>
-              )}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
