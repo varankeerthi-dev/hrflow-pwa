@@ -3,11 +3,12 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import { formatINR } from '../../lib/salaryUtils'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import html2canvas from 'html2canvas'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export default function AdvanceExpenseTab() {
@@ -48,6 +49,9 @@ export default function AdvanceExpenseTab() {
   // Refs for date inputs to auto-open date picker
   const fromDateInputRef = useRef(null)
   const toDateInputRef = useRef(null)
+  
+  // Ref for reports container (screenshot)
+  const reportsContainerRef = useRef(null)
   
   // Helper to close all dropdowns
   const closeAllDropdowns = () => {
@@ -966,6 +970,54 @@ export default function AdvanceExpenseTab() {
   const advForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Advance'), [filteredEntries])
   const expForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Expense'), [filteredEntries])
 
+  const handleScreenshot = async () => {
+    try {
+      if (!reportsContainerRef.current) {
+        alert('No content to capture')
+        return
+      }
+      
+      // Show loading indicator
+      const button = document.querySelector('button[title="Take Screenshot"]')
+      if (button) {
+        button.innerHTML = '<span class="animate-spin">⟳</span> Capturing...'
+        button.disabled = true
+      }
+      
+      // Capture the reports container
+      const canvas = await html2canvas(reportsContainerRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Higher quality
+        useCORS: true,
+        allowTaint: true,
+        logging: false
+      })
+      
+      // Convert to PNG and download
+      const link = document.createElement('a')
+      const timestamp = new Date().toISOString().slice(0, 10)
+      link.download = `Adv_Exp_Reports_${timestamp}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+      
+      // Reset button
+      if (button) {
+        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Screenshot PNG'
+        button.disabled = false
+      }
+    } catch (err) {
+      console.error('Screenshot Error:', err)
+      alert('Failed to capture screenshot. Please try again.')
+      
+      // Reset button on error
+      const button = document.querySelector('button[title="Take Screenshot"]')
+      if (button) {
+        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Screenshot PNG'
+        button.disabled = false
+      }
+    }
+  }
+
   const exportPDF = () => {
     try {
       // Validate data exists
@@ -1064,13 +1116,12 @@ export default function AdvanceExpenseTab() {
           a.category || '—',
           ((a.remarks || a.reason || '—').toString()).substring(0, 30),
           formatAmountSafe(a.amount),
-          a.paidByName ? `Cash: ${String(a.paidByName).split(' ')[0]}` : (a.linkedExpenseId ? 'Linked' : 'Company'),
           a.status || '—'
         ])
         
         doc.autoTable({
           startY: 35,
-          head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Source', 'Status']],
+          head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Status']],
           body: advBody,
           theme: 'grid',
           styles: { fontSize: 7, cellPadding: 1.5 },
@@ -1079,10 +1130,9 @@ export default function AdvanceExpenseTab() {
             0: { cellWidth: 25 },
             1: { cellWidth: 35 },
             2: { cellWidth: 30 },
-            3: { cellWidth: 45 },
+            3: { cellWidth: 50 },
             4: { cellWidth: 25 },
-            5: { cellWidth: 25 },
-            6: { cellWidth: 25 }
+            5: { cellWidth: 25 }
           }
         })
       }
@@ -1885,7 +1935,12 @@ export default function AdvanceExpenseTab() {
                   style={{ lineHeight: '15px' }}
                 >
                   <span className="font-medium">
-                    {reportSelectedEmployees.length === 0 ? 'All Employees' : `${reportSelectedEmployees.length} Selected`}
+                    {reportSelectedEmployees.length === 0 
+                      ? 'All Employees' 
+                      : reportSelectedEmployees.length === 1 
+                        ? employees.find(e => e.id === reportSelectedEmployees[0])?.name || '1 Selected'
+                        : `${reportSelectedEmployees.length} Selected`
+                    }
                   </span>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="6 9 12 15 18 9"/>
@@ -2183,18 +2238,6 @@ export default function AdvanceExpenseTab() {
                   Clear
                 </button>
               )}
-
-              {/* Export PDF */}
-              <button 
-                onClick={exportPDF}
-                disabled={filteredEntries.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
-                style={{ lineHeight: '15px' }}
-                title="Export to PDF"
-              >
-                <FileDown size={12} />
-                Export PDF
-              </button>
             </div>
             
             {/* Active Filters Summary */}
@@ -2235,7 +2278,50 @@ export default function AdvanceExpenseTab() {
             )}
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Totals Summary Row - Between filters and tables */}
+          {reportApplied && (
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-6 text-[11px]">
+                <span className="text-gray-700">
+                  <span className="font-semibold text-gray-900">Advance:</span>{' '}
+                  <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
+                </span>
+                <span className="text-gray-700">
+                  <span className="font-semibold text-gray-900">Expense:</span>{' '}
+                  <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
+                </span>
+                <span className="text-gray-700">
+                  <span className="font-semibold text-gray-900">Cash in hand:</span>{' '}
+                  <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                    advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
+                    expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+                  )}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleScreenshot}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-[11px] font-medium rounded hover:bg-blue-700 transition-colors"
+                  title="Take Screenshot"
+                >
+                  <Camera size={14} />
+                  Screenshot PNG
+                </button>
+                <button 
+                  onClick={exportPDF}
+                  disabled={filteredEntries.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Export to PDF"
+                >
+                  <FileDown size={14} />
+                  Export PDF
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Reports Container for Screenshot */}
+          <div ref={reportsContainerRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Advances Panel */}
             <div className="bg-white border border-gray-300 overflow-hidden shadow-sm" style={{ fontFamily: 'Roboto, sans-serif' }}>
               <div className="px-3 py-2 bg-white border-b border-gray-300 flex items-center justify-between">
@@ -2248,24 +2334,6 @@ export default function AdvanceExpenseTab() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  {reportApplied && (
-                    <div className="flex items-center gap-3 text-[10px]">
-                      <span className="text-gray-600">
-                        Advance: <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
-                      </span>
-                      <span className="text-gray-400">|</span>
-                      <span className="text-gray-600">
-                        Expense: <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
-                      </span>
-                      <span className="text-gray-400">|</span>
-                      <span className="text-gray-600">
-                        Cash in hand: <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                          advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
-                          expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
-                        )}</span>
-                      </span>
-                    </div>
-                  )}
                   <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
                     {(reportApplied ? advForReport : advances).length} Records
                   </span>
@@ -2358,24 +2426,6 @@ export default function AdvanceExpenseTab() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  {reportApplied && (
-                    <div className="flex items-center gap-3 text-[10px]">
-                      <span className="text-gray-600">
-                        Advance: <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
-                      </span>
-                      <span className="text-gray-400">|</span>
-                      <span className="text-gray-600">
-                        Expense: <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
-                      </span>
-                      <span className="text-gray-400">|</span>
-                      <span className="text-gray-600">
-                        Cash in hand: <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                          advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
-                          expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
-                        )}</span>
-                      </span>
-                    </div>
-                  )}
                   <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
                     {(reportApplied ? expForReport : expenses).length} Records
                   </span>
