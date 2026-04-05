@@ -272,14 +272,17 @@ export default function SalarySlipTab() {
           if (r) { if (r.isAbsent) lop++; else if (r.sundayWorked) { sunW++; worked++ } else if (r.holidayWorked) { holW++; worked++ } else if (r.sundayHoliday) hol++; else worked++; if (r.otHours) { const [h, mi] = r.otHours.split(':').map(Number); otH += (h || 0) + (mi || 0) / 60 } }
           else if (!isSunday) lop++
         }
-        const slab = allIncrements.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
+        const slab = allIncrements.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, esiPercent: 0 }
         const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8, paidDays = daysInMonth - lop
-        const basic = ts * (slab.basicPercent / 100) * (paidDays / daysInMonth), hra = ts * (slab.hraPercent / 100) * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), otPay = otH * ((ts / daysInMonth) / minH)
+        const dailyRate = ts / daysInMonth
+        const basic = ts * (slab.basicPercent / 100) * (paidDays / daysInMonth), hra = ts * (slab.hraPercent / 100) * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), esi = 0, otPay = otH * (dailyRate / minH)
+        const sunPay = sunW * dailyRate * 1, holPay = holW * dailyRate * 2
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
-        const earnings = [{ label: 'Basic', value: basic }, { label: 'HRA', value: hra }, { label: 'OT Est.', value: otPay }, { label: 'Reimb.', value: reimb }].filter(e => e.value > 0)
-        const deductions = [{ label: 'PF', value: pf }, { label: 'IT', value: it }, { label: 'Loan', value: loanE }, { label: 'Adv.', value: adv }, { label: 'Fine', value: fine }].filter(d => d.value > 0)
+        const earnings = [{ label: 'Basic', value: basic }, { label: 'HRA', value: hra }, { label: 'Sun Pay', value: sunPay }, { label: 'Hol Pay', value: holPay }, { label: 'OT Est.', value: otPay }, { label: 'Reimb.', value: reimb }].filter(e => e.value > 0)
+        const deductions = [{ label: 'PF', value: pf }, { label: 'IT', value: it }, { label: 'ESI', value: esi }, { label: 'Loan', value: loanE }, { label: 'Adv.', value: adv }, { label: 'Fine', value: fine }].filter(d => d.value > 0)
         const net = earnings.reduce((s, e) => s + e.value, 0) - deductions.reduce((s, d) => s + d.value, 0)
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb }
+        const vrAdv = adv - reimb
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0) }
       })
     },
     enabled: !!user?.orgId && employees.length > 0 && activeTab === 'salary-summary'
@@ -550,12 +553,12 @@ export default function SalarySlipTab() {
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto space-y-4 flex flex-col h-full overflow-hidden p-2 w-full">
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end shrink-0">
-              <div className="w-[240px] max-w-full font-google-sans uppercase text-[9px] font-bold text-gray-400">
+              <div className="w-[240px] max-w-full font-google-sans uppercase text-[15px] font-bold text-gray-400">
                 Target Employee
                 <select
                   value={selectedEmp}
                   onChange={e => setSelectedEmp(e.target.value)}
-                  className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[11px] font-semibold bg-white outline-none mt-1 text-gray-900 normal-case"
+                  className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[15px] font-semibold bg-white outline-none mt-1 text-gray-900 normal-case"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
                   <option value="">Select Employee</option>
@@ -568,20 +571,20 @@ export default function SalarySlipTab() {
                   }).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
               </div>
-              <div className="w-[170px] font-google-sans uppercase text-[9px] font-bold text-gray-400">
+              <div className="w-[170px] font-google-sans uppercase text-[15px] font-bold text-gray-400">
                 Pay Period
                 <input
                   type="month"
                   value={selectedMonth}
                   onChange={e => setSelectedMonth(e.target.value)}
-                  className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[11px] font-bold mt-1 text-gray-900 normal-case"
+                  className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[15px] font-bold mt-1 text-gray-900 normal-case"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 />
               </div>
               <div className="flex flex-col items-start gap-2">
-                <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-9 px-6 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[14px] shadow-lg hover:bg-black transition-all disabled:opacity-60">Generate</button>
+                <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-9 px-6 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[15px] shadow-lg hover:bg-black transition-all disabled:opacity-60">Generate</button>
                 {loading && (
-                  <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500">
+                  <div className="flex items-center gap-2 text-[15px] font-medium text-slate-500">
                     <span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
                     Generating slip...
                   </div>
@@ -869,51 +872,93 @@ export default function SalarySlipTab() {
                   </div></div>
                 </div>
                 
-                {/* Advance/Expense Summary Table - Spreadsheet Style */}
+                {/* Detailed Salary Summary Table - Spreadsheet Style with Horizontal Scroll */}
                 <div className="flex flex-col h-1/2 min-h-0 space-y-1">
                   <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0">
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white">
                         <Wallet size={10} />
                       </div>
-                      <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Advance / Expense Summary</p>
+                      <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Detailed Salary Summary</p>
                     </div>
-                    <span className="text-[9px] text-gray-500">Cash Flow Analysis</span>
+                    <span className="text-[9px] text-gray-500">Comprehensive Payroll Breakdown</span>
                   </div>
                   <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0" style={{ fontFamily: 'Roboto, sans-serif' }}>
                     <div className="overflow-auto flex-1">
-                      <table className="w-full border-collapse text-[11px]">
+                      <table className="border-collapse text-[11px] min-w-max">
                         <thead className="sticky top-0 z-10">
                           <tr style={{ height: '21px' }} className="bg-white">
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px' }}>Employee Name</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px' }}>Advance</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px' }}>Expense</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px' }}>Net (Adv - Exp)</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '40px' }}>S.No</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Emp No</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '120px' }}>Name</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '100px' }}>Designation</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Food</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Basic</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>HRA</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Salary</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>Days</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>Worked</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Sun+Hol<br/>Work</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Holidays</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>Leave</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>Paid</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Basic</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>HRA</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Salary</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Food</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Sunday</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>OT</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '90px' }}>Total<br/>Earnings</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>PF</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>ESI</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>Loan/<br/>Advance</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>VR Adv</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>Other<br/>Ded</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '90px' }}>Total<br/>Deduction</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '90px' }}>Net Pay</th>
                           </tr>
                         </thead>
                         <tbody>
                           {isAttendanceLoading ? (
-                            <tr><td colSpan={4} className="p-4 text-center"><Spinner /></td></tr>
+                            <tr><td colSpan={28} className="p-4 text-center"><Spinner /></td></tr>
                           ) : attendanceSummaryData.length === 0 ? (
-                            <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>
+                            <tr><td colSpan={28} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>
                           ) : (
                             attendanceSummaryData.map((emp, idx) => {
-                              const advanceAmount = emp.advanceAmount || 0
-                              const expenseAmount = emp.expenseAmount || 0
-                              const netAmount = advanceAmount - expenseAmount
+                              const foodAllowance = 0
+                              const otherDeductions = emp.fine || 0
+                              const it = emp.salary.deductions.find(d => d.label === 'IT')?.value || 0
                               
                               return (
                                 <tr key={emp.id} style={{ height: '21px' }} className={`hover:bg-gray-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-white'}`}>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 font-medium text-[11px] truncate max-w-[150px] font-roboto">{emp.name}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-amber-600 font-semibold text-right text-[11px] tabular-nums font-roboto">
-                                    {advanceAmount > 0 ? `₹${advanceAmount.toLocaleString('en-IN')}` : '-'}
-                                  </td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-blue-600 font-semibold text-right text-[11px] tabular-nums font-roboto">
-                                    {expenseAmount > 0 ? `₹${expenseAmount.toLocaleString('en-IN')}` : '-'}
-                                  </td>
-                                  <td className={`px-2 py-0.5 border border-gray-200 font-bold text-right text-[11px] tabular-nums font-roboto ${netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                    {netAmount !== 0 ? `₹${Math.abs(netAmount).toLocaleString('en-IN')}` : '-'}
-                                  </td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.sno}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-[11px] font-roboto">{emp.empId}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 font-medium text-[11px] truncate max-w-[120px] font-roboto">{emp.name}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-600 text-[11px] font-roboto">{emp.designation}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">-</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.totalDays}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.worked}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.sunW + emp.holW}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.totalHolidays}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.leave}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.totalWorkingDays}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">-</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-amber-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-blue-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-emerald-600 font-semibold text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">-</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-purple-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(otherDeductions).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 font-semibold text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-emerald-700 font-bold text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td>
                                 </tr>
                               )
                             })

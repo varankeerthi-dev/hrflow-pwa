@@ -28,7 +28,7 @@ export default function SalarySlabSettings() {
   useEffect(() => {
     const initialForms = {}
     employees.forEach(emp => {
-      const slab = slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, includeInPayroll: emp.includeInSalary !== false }
+      const slab = slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, esiPercent: 0, includeInPayroll: emp.includeInSalary !== false }
       initialForms[emp.id] = { ...slab, includeInPayroll: slab.includeInPayroll !== false }
     })
     setForms(initialForms)
@@ -64,6 +64,7 @@ export default function SalarySlabSettings() {
         hraPercent: Number(form.hraPercent) || 20,
         incomeTaxPercent: Number(form.incomeTaxPercent) || 0,
         pfPercent: Number(form.pfPercent) || 0,
+        esiPercent: Number(form.esiPercent) || 0,
         includeInPayroll: form.includeInPayroll,
         effectiveFrom: `${year}-${month}`,
         reason: 'Structure Update',
@@ -199,7 +200,7 @@ export default function SalarySlabSettings() {
                   <th className={headCellClassName}>Employee</th>
                   <th className={headCellClassName}>Gross CTC</th>
                   <th className={headCellClassName}>E (B% / H%)</th>
-                  <th className={headCellClassName}>D (T% / P%)</th>
+                  <th className={headCellClassName}>D (T% / P% / E%)</th>
                   <th className={`${headCellClassName} text-right`}>Save</th>
                 </tr>
               </thead>
@@ -275,6 +276,16 @@ export default function SalarySlabSettings() {
                               max="999"
                               value={form.pfPercent}
                               onChange={e => handleFormChange(emp.id, 'pfPercent', e.target.value)}
+                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-rose-400"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">E</p>
+                            <input
+                              type="number"
+                              max="999"
+                              value={form.esiPercent}
+                              onChange={e => handleFormChange(emp.id, 'esiPercent', e.target.value)}
                               className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-rose-400"
                             />
                           </div>
