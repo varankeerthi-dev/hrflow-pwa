@@ -19,13 +19,21 @@ export default function AdvanceExpenseTab() {
   
   // Reports Filter States
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM
-  const [reportFilterName, setReportFilterName] = useState('')
+  const [reportFromDate, setReportFromDate] = useState('')
+  const [reportToDate, setReportToDate] = useState('')
+  const [reportSelectedEmployees, setReportSelectedEmployees] = useState([]) // Multi-select
   const [reportFilterCategory, setReportFilterCategory] = useState('')
+  const [reportFilterRemarks, setReportFilterRemarks] = useState('')
   const [reportFilterTxn, setReportFilterTxn] = useState('')
   const [reportFilterType, setReportFilterType] = useState('All') // All | Advance | Expense
   const [reportFilterPayout, setReportFilterPayout] = useState('All') // All | Immediate | With Salary
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
+  
+  // Filter dropdown states
+  const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false)
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false)
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
   
   // Transferred To Modal State
   const [transferModalRowId, setTransferModalRowId] = useState(null)
@@ -477,6 +485,74 @@ export default function AdvanceExpenseTab() {
 
   useEffect(() => { fetchCategories() }, [user?.orgId])
 
+  // Auto-apply filters when any filter changes
+  useEffect(() => {
+    const autoApplyFilters = () => {
+      const filtered = entries.filter(e => {
+        // Date range filter
+        let matchesDate = true
+        if (reportFromDate && reportToDate) {
+          matchesDate = e.date >= reportFromDate && e.date <= reportToDate
+        } else if (reportFromDate) {
+          matchesDate = e.date >= reportFromDate
+        } else if (reportToDate) {
+          matchesDate = e.date <= reportToDate
+        } else {
+          // Fallback to month filter if no date range selected
+          matchesDate = e.date && e.date.startsWith(reportMonth)
+        }
+        
+        // Employee multi-select filter
+        const matchesEmployee = reportSelectedEmployees.length === 0 || 
+          reportSelectedEmployees.some(empId => e.employeeId === empId)
+        
+        // Category filter
+        const matchesCategory = !reportFilterCategory || 
+          (e.category && e.category.toLowerCase().includes(reportFilterCategory.toLowerCase()))
+        
+        // Remarks search filter
+        const matchesRemarks = !reportFilterRemarks || 
+          (e.remarks && e.remarks.toLowerCase().includes(reportFilterRemarks.toLowerCase()))
+        
+        // Transaction number filter
+        const matchesTxn = !reportFilterTxn || 
+          (e.transactionNo && e.transactionNo.toLowerCase().includes(reportFilterTxn.toLowerCase()))
+        
+        // Type filter
+        const matchesType = reportFilterType === 'All' || e.type === reportFilterType
+        
+        // Payout filter
+        const matchesPayout = reportFilterPayout === 'All' || e.payoutMethod === reportFilterPayout
+        
+        return matchesDate && matchesEmployee && matchesCategory && matchesRemarks && matchesTxn && matchesType && matchesPayout
+      })
+      
+      setFilteredEntries(filtered)
+      setReportApplied(true)
+    }
+    
+    if (entries.length > 0) {
+      autoApplyFilters()
+    }
+  }, [entries, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategory, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportMonth])
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (employeeDropdownOpen || dateDropdownOpen || categoryDropdownOpen) {
+        const target = event.target
+        if (!target.closest('.relative')) {
+          setEmployeeDropdownOpen(false)
+          setDateDropdownOpen(false)
+          setCategoryDropdownOpen(false)
+        }
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [employeeDropdownOpen, dateDropdownOpen, categoryDropdownOpen])
+
   const handleAddRow = () => {
     const myId = !canSelectAll ? getMyEmpId() : ''
     setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
@@ -798,18 +874,20 @@ export default function AdvanceExpenseTab() {
   }
 
   const applyReportFilters = () => {
-    const filtered = entries.filter(e => {
-      const matchesMonth = e.date && e.date.startsWith(reportMonth)
-      const matchesName = !reportFilterName || (e.employeeName && e.employeeName.toLowerCase().includes(reportFilterName.toLowerCase()))
-      const matchesCategory = !reportFilterCategory || (e.category && e.category.toLowerCase().includes(reportFilterCategory.toLowerCase()))
-      const matchesTxn = !reportFilterTxn || (e.transactionNo && e.transactionNo.toLowerCase().includes(reportFilterTxn.toLowerCase()))
-      const matchesType = reportFilterType === 'All' || e.type === reportFilterType
-      const matchesPayout = reportFilterPayout === 'All' || e.payoutMethod === reportFilterPayout
-      
-      return matchesMonth && matchesName && matchesCategory && matchesTxn && matchesType && matchesPayout
-    })
-    setFilteredEntries(filtered)
+    // This is now handled by useEffect auto-apply, but kept for manual refresh
     setReportApplied(true)
+  }
+
+  const clearAllFilters = () => {
+    setReportFromDate('')
+    setReportToDate('')
+    setReportSelectedEmployees([])
+    setReportFilterCategory('')
+    setReportFilterRemarks('')
+    setReportFilterTxn('')
+    setReportFilterType('All')
+    setReportFilterPayout('All')
+    setReportMonth(new Date().toISOString().slice(0, 7))
   }
 
   const advForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Advance'), [filteredEntries])
@@ -817,49 +895,125 @@ export default function AdvanceExpenseTab() {
 
   const exportPDF = () => {
     try {
-      const doc = new jsPDF()
-      const [year, month] = reportMonth.split('-').map(Number)
-      const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' })
+      const doc = new jsPDF('landscape') // Use landscape for more columns
       
-      doc.setFontSize(16)
-      doc.text(`Advances & Expenses Report - ${monthName} ${year}`, 14, 15)
-      if (reportApplied && (reportFilterName || reportFilterCategory || reportFilterTxn)) {
-        doc.setFontSize(10)
-        doc.text(`Filters: ${[reportFilterName, reportFilterCategory, reportFilterTxn].filter(Boolean).join(', ')}`, 14, 22)
+      // Title with date range
+      let titleText = 'Advances & Expenses Report'
+      if (reportFromDate && reportToDate) {
+        const from = new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        const to = new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        titleText += ` (${from} - ${to})`
+      } else if (reportFromDate) {
+        const from = new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        titleText += ` (From ${from})`
+      } else if (reportToDate) {
+        const to = new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        titleText += ` (To ${to})`
+      } else {
+        const [year, month] = reportMonth.split('-').map(Number)
+        const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+        titleText += ` - ${monthName}`
+      }
+      
+      doc.setFontSize(14)
+      doc.text(titleText, 14, 15)
+      
+      // Filter summary
+      const activeFilters = []
+      if (reportSelectedEmployees.length > 0) activeFilters.push(`${reportSelectedEmployees.length} Employees`)
+      if (reportFilterCategory) activeFilters.push(`Category: ${reportFilterCategory}`)
+      if (reportFilterRemarks) activeFilters.push(`Remarks: "${reportFilterRemarks}"`)
+      if (reportFilterType !== 'All') activeFilters.push(`Type: ${reportFilterType}`)
+      if (reportFilterPayout !== 'All') activeFilters.push(`Payout: ${reportFilterPayout}`)
+      
+      if (activeFilters.length > 0) {
+        doc.setFontSize(9)
+        doc.text(`Filters: ${activeFilters.join(' | ')}`, 14, 22)
       }
       
       const dataToUseAdv = reportApplied ? advForReport : entries.filter(e => e.type === 'Advance' && e.date?.startsWith(reportMonth))
       const dataToUseExp = reportApplied ? expForReport : entries.filter(e => e.type === 'Expense' && e.date?.startsWith(reportMonth))
 
       if (dataToUseAdv.length > 0) {
-        doc.setFontSize(12)
-        doc.text('Advances', 14, 30)
+        doc.setFontSize(11)
+        doc.text(`Advances (${dataToUseAdv.length} records)`, 14, 30)
         doc.autoTable({
           startY: 35,
-          head: [['Ref No', 'Date', 'Employee', 'Category', 'Amount', 'Status']],
-          body: dataToUseAdv.map(a => [a.transactionNo || '—', a.date, a.employeeName, a.category, formatINR(a.amount), a.status]),
+          head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Source', 'Status']],
+          body: dataToUseAdv.map(a => [
+            new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+            a.employeeName,
+            a.category || '—',
+            (a.remarks || '—').substring(0, 30),
+            new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount),
+            a.paidByName ? `Cash: ${a.paidByName?.split(' ')[0]}` : (a.linkedExpenseId ? 'Linked' : 'Company'),
+            a.status
+          ]),
           theme: 'grid',
-          styles: { fontSize: 7 },
-          headStyles: { fillColor: [245, 158, 11] } // Amber-500
+          styles: { fontSize: 7, cellPadding: 1.5 },
+          headStyles: { fillColor: [245, 158, 11], textColor: 255, fontSize: 8 }, // Amber-500
+          columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 35 },
+            2: { cellWidth: 30 },
+            3: { cellWidth: 45 },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 25 },
+            6: { cellWidth: 25 }
+          }
         })
       }
       
       const finalY = (doc.lastAutoTable?.finalY || 30) + 10
       
       if (dataToUseExp.length > 0) {
-        doc.setFontSize(12)
-        doc.text('Expenses', 14, finalY)
+        // Check if we need a new page
+        if (finalY > 180 && dataToUseAdv.length > 0) {
+          doc.addPage()
+        }
+        
+        doc.setFontSize(11)
+        doc.text(`Expenses (${dataToUseExp.length} records)`, 14, dataToUseAdv.length > 0 && finalY > 180 ? 15 : finalY)
         doc.autoTable({
-          startY: finalY + 5,
-          head: [['Ref No', 'Date', 'Employee', 'Category', 'Amount', 'Status']],
-          body: dataToUseExp.map(e => [e.transactionNo || '—', e.date, e.employeeName, e.category, formatINR(e.amount), e.status]),
+          startY: dataToUseAdv.length > 0 && finalY > 180 ? 20 : finalY + 5,
+          head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Payout', 'Paid To', 'Link', 'Status']],
+          body: dataToUseExp.map(e => [
+            new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+            e.employeeName,
+            e.category || '—',
+            (e.remarks || '—').substring(0, 30),
+            new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(e.amount),
+            e.payoutMethod || '—',
+            e.paidToName || e.paidToCustomName || e.employeeName,
+            e.linkedAdvanceId ? '✓' : '—',
+            e.status
+          ]),
           theme: 'grid',
-          styles: { fontSize: 7 },
-          headStyles: { fillColor: [37, 99, 235] } // Blue-600
+          styles: { fontSize: 7, cellPadding: 1.5 },
+          headStyles: { fillColor: [37, 99, 235], textColor: 255, fontSize: 8 }, // Blue-600
+          columnStyles: {
+            0: { cellWidth: 22 },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 28 },
+            3: { cellWidth: 40 },
+            4: { cellWidth: 22 },
+            5: { cellWidth: 22 },
+            6: { cellWidth: 30 },
+            7: { cellWidth: 12 },
+            8: { cellWidth: 22 }
+          }
         })
       }
       
-      doc.save(`Adv_Exp_Report_${reportMonth}.pdf`)
+      // Generate filename with date range
+      let filenameDate = reportMonth
+      if (reportFromDate || reportToDate) {
+        const from = reportFromDate ? reportFromDate.replace(/-/g, '') : 'start'
+        const to = reportToDate ? reportToDate.replace(/-/g, '') : 'end'
+        filenameDate = `${from}_to_${to}`
+      }
+      
+      doc.save(`Adv_Exp_Report_${filenameDate}.pdf`)
     } catch (err) {
       console.error('PDF Export Error:', err)
       alert('Failed to generate PDF. Please try again.')
@@ -1578,99 +1732,276 @@ export default function AdvanceExpenseTab() {
 
       {/* Reports Module */}
       {activeModule === 'Reports' && (
-        <div className="space-y-6">
-          <div className="bg-white pt-2.5 pb-6 px-6 rounded-xl border border-gray-200 shadow-card">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
-              <div className="space-y-2 lg:col-span-1">
-                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Calendar size={14} /> Month
-                </label>
-                <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-                  <button onClick={() => handleMonthChange(-1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
-                  <div className="flex-1 text-center font-bold text-gray-700 text-[11px]">
-                    {(() => {
-                      const [ry, rm] = reportMonth.split('-').map(Number)
-                      return new Date(ry, rm - 1).toLocaleString('default', { month: 'short', year: 'numeric' })
-                    })()}
+        <div className="space-y-4">
+          {/* Compact Filter Bar - Single Row */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+            <div className="flex flex-wrap items-center gap-2" style={{ lineHeight: '15px' }}>
+              
+              {/* Employee Multi-Select Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => setEmployeeDropdownOpen(!employeeDropdownOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
+                  style={{ lineHeight: '15px' }}
+                >
+                  <span className="font-medium">
+                    {reportSelectedEmployees.length === 0 ? 'All Employees' : `${reportSelectedEmployees.length} Selected`}
+                  </span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                
+                {employeeDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                    <div className="p-2 border-b border-gray-100">
+                      <button 
+                        onClick={() => setReportSelectedEmployees([])}
+                        className="text-[10px] text-blue-600 hover:underline"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    {employees.map(emp => (
+                      <label key={emp.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={reportSelectedEmployees.includes(emp.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setReportSelectedEmployees([...reportSelectedEmployees, emp.id])
+                            } else {
+                              setReportSelectedEmployees(reportSelectedEmployees.filter(id => id !== emp.id))
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded border-gray-300"
+                        />
+                        <span className="text-[11px] text-gray-700">{emp.name}</span>
+                      </label>
+                    ))}
                   </div>
-                  <button onClick={() => handleMonthChange(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
+                )}
+              </div>
+
+              {/* Date Range Picker */}
+              <div className="relative">
+                <button 
+                  onClick={() => setDateDropdownOpen(!dateDropdownOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
+                  style={{ lineHeight: '15px' }}
+                >
+                  <Calendar size={12} />
+                  <span className="font-medium">
+                    {reportFromDate && reportToDate 
+                      ? `${new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                      : reportFromDate 
+                        ? `From ${new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                        : reportToDate
+                          ? `To ${new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                          : 'Select Date Range'
+                    }
+                  </span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                
+                {dateDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <button 
+                        onClick={() => {
+                          const current = reportFromDate ? new Date(reportFromDate) : new Date()
+                          current.setMonth(current.getMonth() - 1)
+                          setReportFromDate(current.toISOString().split('T')[0])
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="text-[11px] font-medium text-gray-700">
+                        {reportFromDate ? new Date(reportFromDate).toLocaleString('default', { month: 'short', year: 'numeric' }) : 'From'}
+                      </span>
+                      <button 
+                        onClick={() => {
+                          const current = reportFromDate ? new Date(reportFromDate) : new Date()
+                          current.setMonth(current.getMonth() + 1)
+                          setReportFromDate(current.toISOString().split('T')[0])
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded"
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                    <input 
+                      type="date"
+                      value={reportFromDate}
+                      onChange={(e) => setReportFromDate(e.target.value)}
+                      className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded mb-2"
+                      placeholder="From Date"
+                    />
+                    <div className="text-center text-[10px] text-gray-400 my-1">to</div>
+                    <input 
+                      type="date"
+                      value={reportToDate}
+                      onChange={(e) => setReportToDate(e.target.value)}
+                      className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded"
+                      placeholder="To Date"
+                    />
+                    <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
+                      <button 
+                        onClick={() => { setReportFromDate(''); setReportToDate(''); }}
+                        className="text-[10px] text-gray-500 hover:text-gray-700"
+                      >
+                        Clear
+                      </button>
+                      <button 
+                        onClick={() => setDateDropdownOpen(false)}
+                        className="text-[10px] bg-primary-600 text-white px-2 py-1 rounded"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Category Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
+                  style={{ lineHeight: '15px' }}
+                >
+                  <Filter size={12} />
+                  <span className="font-medium">{reportFilterCategory || 'All Categories'}</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                
+                {categoryDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <button 
+                      onClick={() => { setReportFilterCategory(''); setCategoryDropdownOpen(false); }}
+                      className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 ${!reportFilterCategory ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                    >
+                      All Categories
+                    </button>
+                    {categories.map(cat => (
+                      <button 
+                        key={cat}
+                        onClick={() => { setReportFilterCategory(cat); setCategoryDropdownOpen(false); }}
+                        className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Search Remarks */}
+              <div className="flex-1 min-w-[150px] max-w-[200px]">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Search remarks..."
+                    value={reportFilterRemarks}
+                    onChange={(e) => setReportFilterRemarks(e.target.value)}
+                    className="w-full pl-7 pr-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none"
+                    style={{ lineHeight: '15px' }}
+                  />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Search size={14} /> Ref No
-                </label>
-                <input 
-                  type="text" 
-                  placeholder="TXN-..." 
-                  value={reportFilterTxn}
-                  onChange={e => setReportFilterTxn(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50"
-                />
-              </div>
+              {/* Type Filter */}
+              <select 
+                value={reportFilterType}
+                onChange={(e) => setReportFilterType(e.target.value)}
+                className="px-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer"
+                style={{ lineHeight: '15px' }}
+              >
+                <option value="All">All Types</option>
+                <option value="Advance">Advances</option>
+                <option value="Expense">Expenses</option>
+              </select>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Search size={14} /> Employee
-                </label>
-                <input 
-                  type="text" 
-                  placeholder="Name..." 
-                  value={reportFilterName}
-                  onChange={e => setReportFilterName(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50"
-                />
-              </div>
+              {/* Payout Filter */}
+              <select 
+                value={reportFilterPayout}
+                onChange={(e) => setReportFilterPayout(e.target.value)}
+                className="px-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer"
+                style={{ lineHeight: '15px' }}
+              >
+                <option value="All">All Payouts</option>
+                <option value="Immediate">Immediate</option>
+                <option value="With Salary">With Salary</option>
+              </select>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Filter size={14} /> Type
-                </label>
-                <select 
-                  value={reportFilterType}
-                  onChange={e => setReportFilterType(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50"
-                >
-                  <option value="All">All Types</option>
-                  <option value="Advance">Advances</option>
-                  <option value="Expense">Expenses</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Filter size={14} /> Payout
-                </label>
-                <select 
-                  value={reportFilterPayout}
-                  onChange={e => setReportFilterPayout(e.target.value)}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-normal focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50/50"
-                >
-                  <option value="All">All Payouts</option>
-                  <option value="Immediate">Immediate</option>
-                  <option value="With Salary">With Salary</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2">
+              {/* Clear Filters */}
+              {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All') && (
                 <button 
-                  onClick={applyReportFilters}
-                  className="flex-1 h-10 bg-primary-600 text-white font-medium rounded-lg text-sm shadow-elevated hover:bg-primary-700 active:bg-primary-800 transition-all flex items-center justify-center gap-2"
+                  onClick={clearAllFilters}
+                  className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-600 hover:bg-red-50 rounded transition-colors"
+                  style={{ lineHeight: '15px' }}
+                  title="Clear all filters"
                 >
-                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                  Apply
+                  <X size={12} />
+                  Clear
                 </button>
-                <button 
-                  onClick={exportPDF}
-                  disabled={!reportApplied || filteredEntries.length === 0}
-                  className="h-10 px-4 bg-emerald-600 text-white font-medium rounded-lg text-sm shadow-elevated hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50 flex items-center justify-center"
-                  title="Export to PDF"
-                >
-                  <FileDown size={18} />
-                </button>
-              </div>
+              )}
+
+              {/* Export PDF */}
+              <button 
+                onClick={exportPDF}
+                disabled={filteredEntries.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+                style={{ lineHeight: '15px' }}
+                title="Export to PDF"
+              >
+                <FileDown size={12} />
+                Export PDF
+              </button>
             </div>
+            
+            {/* Active Filters Summary */}
+            {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All') && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">
+                <span className="text-[10px] text-gray-500">Active:</span>
+                {reportSelectedEmployees.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[9px] rounded border border-blue-100">
+                    {reportSelectedEmployees.length} Employees
+                  </span>
+                )}
+                {(reportFromDate || reportToDate) && (
+                  <span className="px-1.5 py-0.5 bg-green-50 text-green-700 text-[9px] rounded border border-green-100">
+                    Date Range
+                  </span>
+                )}
+                {reportFilterCategory && (
+                  <span className="px-1.5 py-0.5 bg-purple-50 text-purple-700 text-[9px] rounded border border-purple-100">
+                    {reportFilterCategory}
+                  </span>
+                )}
+                {reportFilterRemarks && (
+                  <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[9px] rounded border border-amber-100">
+                    Remarks: "{reportFilterRemarks}"
+                  </span>
+                )}
+                {reportFilterType !== 'All' && (
+                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[9px] rounded border border-gray-200">
+                    {reportFilterType}s
+                  </span>
+                )}
+                {reportFilterPayout !== 'All' && (
+                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[9px] rounded border border-gray-200">
+                    {reportFilterPayout}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
