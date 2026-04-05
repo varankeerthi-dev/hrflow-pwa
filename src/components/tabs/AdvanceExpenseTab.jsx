@@ -96,6 +96,9 @@ export default function AdvanceExpenseTab() {
   const [approvalDrawerOpen, setApprovalDrawerOpen] = useState(false)
   const [pendingApprovals, setPendingApprovals] = useState([])
   const [drawerLoading, setDrawerLoading] = useState(false)
+  
+  // Recently Deleted State
+  const [showDeletedModal, setShowDeletedModal] = useState(false)
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
