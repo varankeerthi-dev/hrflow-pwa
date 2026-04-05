@@ -1716,44 +1716,46 @@ export default function TasksTab() {
       >
         {editingTask && (
           <form onSubmit={handleSaveEdit} className="p-6 space-y-6">
-            {/* Action Buttons - Top Right */}
-            <div className="flex justify-end items-center gap-2 pb-4 border-b border-gray-100">
-              <button
-                type="button"
-                onClick={() => { setShowEditModal(false); setEditingTask(null); }}
-                className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-md text-xs font-medium hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
-                    try {
-                      await deleteTask(editingTask.id)
-                      setShowEditModal(false)
-                      setEditingTask(null)
-                    } catch (err) {
-                      console.error('Failed to delete task:', err)
-                      alert('Failed to delete task')
-                    }
-                  }
-                }}
-                className="px-3 py-1.5 border border-red-300 text-red-600 rounded-md text-xs font-medium hover:bg-red-50 transition-colors"
-              >
-                <Trash2 size={14} className="inline mr-1" /> Delete
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-indigo-600 text-white rounded-md text-xs font-medium hover:bg-indigo-700 transition-all shadow-sm active:scale-[0.98]"
-              >
-                Save Changes
-              </button>
-            </div>
-            {/* Title Section */}
+            {/* Title Section with Action Buttons */}
             <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="block text-[12px] font-semibold text-gray-700">Task Title</label>
+                {/* Action Buttons - Right aligned next to Task Title */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { setShowEditModal(false); setEditingTask(null); }}
+                    className="px-2 py-1 border border-gray-300 text-gray-600 rounded-md text-[10px] font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+                        try {
+                          await deleteTask(editingTask.id)
+                          setShowEditModal(false)
+                          setEditingTask(null)
+                        } catch (err) {
+                          console.error('Failed to delete task:', err)
+                          alert('Failed to delete task')
+                        }
+                      }
+                    }}
+                    className="px-2 py-1 border border-red-300 text-red-600 rounded-md text-[10px] font-medium hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={12} className="inline mr-0.5" /> Delete
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 bg-indigo-600 text-white rounded-md text-[10px] font-medium hover:bg-indigo-700 transition-all shadow-sm active:scale-[0.98]"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
               <div className="relative">
-                <label className="block text-[12px] font-semibold text-gray-700 mb-2">Task Title</label>
                 <input
                   type="text"
                   required
