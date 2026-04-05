@@ -916,16 +916,14 @@ export default function TasksTab() {
   const renderTableView = () => {
     const columnCount = Object.values(visibleColumns).filter(Boolean).length + 1 // +1 for actions
     
-    // Filter tasks based on table filters
-    const tableFilteredTasks = useMemo(() => {
-      return filteredTasks.filter(task => {
-        if (tableFilters.search && !task.title?.toLowerCase().includes(tableFilters.search.toLowerCase())) return false
-        if (tableFilters.status && task.status !== tableFilters.status) return false
-        if (tableFilters.priority && task.priority !== tableFilters.priority) return false
-        if (tableFilters.assignee && !task.assignees?.includes(tableFilters.assignee)) return false
-        return true
-      })
-    }, [filteredTasks, tableFilters])
+    // Filter tasks based on table filters (computed directly, not using useMemo inside function)
+    const tableFilteredTasks = filteredTasks.filter(task => {
+      if (tableFilters.search && !task.title?.toLowerCase().includes(tableFilters.search.toLowerCase())) return false
+      if (tableFilters.status && task.status !== tableFilters.status) return false
+      if (tableFilters.priority && task.priority !== tableFilters.priority) return false
+      if (tableFilters.assignee && !task.assignees?.includes(tableFilters.assignee)) return false
+      return true
+    })
     
     return (
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
