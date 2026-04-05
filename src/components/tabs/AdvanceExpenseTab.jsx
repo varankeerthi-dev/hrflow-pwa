@@ -2388,12 +2388,14 @@ export default function AdvanceExpenseTab() {
                           </div>
                         </td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{a.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">
+                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums w-[60px]">
                           <div className="flex flex-col">
                             <span>{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}</span>
-                            <span className="text-[8px] text-gray-500 mt-0.5">
-                              {a.paidByName || 'Company'}
-                            </span>
+                            {a.paidByName && (
+                              <span className="text-[8px] text-gray-500 mt-0.5">
+                                {a.paidByName}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-2 py-1.5">

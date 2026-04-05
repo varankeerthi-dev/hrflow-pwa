@@ -1247,10 +1247,10 @@ export default function ApprovalsTab() {
                                               <button
                                                 type="button"
                                                 onClick={() => {
+                                                  setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], hrPick: 'Approve' } }))
                                                   setAdvMenuOpen(null)
-                                                  handleHrAdvExpenseSubmit(item.id)
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 border-b border-zinc-100"
+                                                className={`w-full px-3 py-2 text-left text-[10px] font-bold flex items-center gap-2 border-b border-zinc-100 ${(!rowState.hrPick || rowState.hrPick === 'Approve') ? 'bg-emerald-50 text-emerald-700' : 'text-emerald-600 hover:bg-emerald-50'}`}
                                               >
                                                 <Check size={14} /> Approve
                                               </button>
@@ -1259,9 +1259,8 @@ export default function ApprovalsTab() {
                                                 onClick={() => {
                                                   setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], hrPick: 'Rejected' } }))
                                                   setAdvMenuOpen(null)
-                                                  handleHrAdvExpenseSubmit(item.id)
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-[10px] font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                                className={`w-full px-3 py-2 text-left text-[10px] font-bold flex items-center gap-2 ${rowState.hrPick === 'Rejected' ? 'bg-rose-50 text-rose-700' : 'text-rose-600 hover:bg-rose-50'}`}
                                               >
                                                 <XCircle size={14} /> Reject
                                               </button>
@@ -1270,9 +1269,8 @@ export default function ApprovalsTab() {
                                                 onClick={() => {
                                                   setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], hrPick: 'Hold' } }))
                                                   setAdvMenuOpen(null)
-                                                  handleHrAdvExpenseSubmit(item.id)
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-[10px] font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-2"
+                                                className={`w-full px-3 py-2 text-left text-[10px] font-bold flex items-center gap-2 ${rowState.hrPick === 'Hold' ? 'bg-amber-50 text-amber-700' : 'text-amber-600 hover:bg-amber-50'}`}
                                               >
                                                 <PauseCircle size={14} /> Hold
                                               </button>
@@ -1282,7 +1280,7 @@ export default function ApprovalsTab() {
                                                   setAdvMenuOpen(null)
                                                   openPartialModal(item.id, 'hr')
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2"
+                                                className={`w-full px-3 py-2 text-left text-[10px] font-bold flex items-center gap-2 ${rowState.hrPick === 'Partial' ? 'bg-indigo-50 text-indigo-700' : 'text-indigo-600 hover:bg-indigo-50'}`}
                                               >
                                                 <AlertCircle size={14} /> Partial
                                               </button>
@@ -1346,16 +1344,60 @@ export default function ApprovalsTab() {
                                     <>
                                       {(!item.mdApproval || item.mdApproval === 'Pending') ? (
                                         <div className="flex items-center gap-1">
-                                          {/* Approve Button - Default Action */}
-                                          <button
-                                            type="button"
-                                            onClick={() => handleMdAdvExpenseSubmit(item.id)}
-                                            className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
-                                            title="Approve"
-                                          >
-                                            <Check size={12} strokeWidth={3} />
-                                            Approve
-                                          </button>
+                                          {/* Dynamic Action Button - Shows selected action */}
+                                          {(() => {
+                                            const selectedAction = rowState.mdPick
+                                            if (selectedAction === 'Rejected') {
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleMdAdvExpenseSubmit(item.id)}
+                                                  className="h-7 px-3 bg-rose-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all flex items-center gap-1"
+                                                  title="Click to Reject"
+                                                >
+                                                  <XCircle size={12} strokeWidth={3} />
+                                                  Reject
+                                                </button>
+                                              )
+                                            } else if (selectedAction === 'Hold') {
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleMdAdvExpenseSubmit(item.id)}
+                                                  className="h-7 px-3 bg-amber-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all flex items-center gap-1"
+                                                  title="Click to Hold"
+                                                >
+                                                  <PauseCircle size={12} strokeWidth={3} />
+                                                  Hold
+                                                </button>
+                                              )
+                                            } else if (selectedAction === 'Partial') {
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleMdAdvExpenseSubmit(item.id)}
+                                                  className="h-7 px-3 bg-indigo-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-1"
+                                                  title="Click to Approve Partially"
+                                                >
+                                                  <AlertCircle size={12} strokeWidth={3} />
+                                                  Partial
+                                                </button>
+                                              )
+                                            } else {
+                                              // Default Approve button
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleMdAdvExpenseSubmit(item.id)}
+                                                  className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
+                                                  title="Approve"
+                                                >
+                                                  <Check size={12} strokeWidth={3} />
+                                                  Approve
+                                                </button>
+                                              )
+                                            }
+                                          })()}
                                           
                                           {/* Actions Dropdown Toggle */}
                                           <button
@@ -1400,10 +1442,10 @@ export default function ApprovalsTab() {
                                               <button
                                                 type="button"
                                                 onClick={() => {
+                                                  setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], mdPick: 'Approve' } }))
                                                   setAdvMenuOpen(null)
-                                                  handleMdAdvExpenseSubmit(item.id)
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 border-b border-zinc-100"
+                                                className={`w-full px-3 py-2 text-left text-[10px] font-bold flex items-center gap-2 border-b border-zinc-100 ${(!rowState.mdPick || rowState.mdPick === 'Approve') ? 'bg-emerald-50 text-emerald-700' : 'text-emerald-600 hover:bg-emerald-50'}`}
                                               >
                                                 <Check size={14} /> Approve
                                               </button>
@@ -1412,9 +1454,8 @@ export default function ApprovalsTab() {
                                                 onClick={() => {
                                                   setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], mdPick: 'Rejected' } }))
                                                   setAdvMenuOpen(null)
-                                                  handleMdAdvExpenseSubmit(item.id)
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-[10px] font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                                className={`w-full px-3 py-2 text-left text-[10px] font-bold flex items-center gap-2 ${rowState.mdPick === 'Rejected' ? 'bg-rose-50 text-rose-700' : 'text-rose-600 hover:bg-rose-50'}`}
                                               >
                                                 <XCircle size={14} /> Reject
                                               </button>
@@ -1423,9 +1464,8 @@ export default function ApprovalsTab() {
                                                 onClick={() => {
                                                   setActionState(prev => ({ ...prev, [item.id]: { ...prev[item.id], mdPick: 'Hold' } }))
                                                   setAdvMenuOpen(null)
-                                                  handleMdAdvExpenseSubmit(item.id)
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-[10px] font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-2"
+                                                className={`w-full px-3 py-2 text-left text-[10px] font-bold flex items-center gap-2 ${rowState.mdPick === 'Hold' ? 'bg-amber-50 text-amber-700' : 'text-amber-600 hover:bg-amber-50'}`}
                                               >
                                                 <PauseCircle size={14} /> Hold
                                               </button>
@@ -1435,7 +1475,7 @@ export default function ApprovalsTab() {
                                                   setAdvMenuOpen(null)
                                                   openPartialModal(item.id, 'md')
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2"
+                                                className={`w-full px-3 py-2 text-left text-[10px] font-bold flex items-center gap-2 ${rowState.mdPick === 'Partial' ? 'bg-indigo-50 text-indigo-700' : 'text-indigo-600 hover:bg-indigo-50'}`}
                                               >
                                                 <AlertCircle size={14} /> Partial
                                               </button>
