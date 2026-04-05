@@ -92,8 +92,10 @@ export default function AdvanceExpenseTab() {
   const [paidToDropdownOpen, setPaidToDropdownOpen] = useState(null) // stores rowId when open
   const [paidToSearchTerm, setPaidToSearchTerm] = useState('')
 
-  // Recently Deleted State
-  const [showDeletedModal, setShowDeletedModal] = useState(false)
+  // Side Drawer State for Approvals
+  const [approvalDrawerOpen, setApprovalDrawerOpen] = useState(false)
+  const [pendingApprovals, setPendingApprovals] = useState([])
+  const [drawerLoading, setDrawerLoading] = useState(false)
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
@@ -756,12 +758,64 @@ export default function AdvanceExpenseTab() {
 
     setSubmitting(true)
     try {
-      await addMutation.mutateAsync(validRows)
+      const result = await addMutation.mutateAsync(validRows)
+      // After successful submission, fetch pending approvals and open drawer
+      if (canSelectAll) {
+        await fetchPendingApprovalsForDrawer()
+        setApprovalDrawerOpen(true)
+      }
     } catch (err) {
       console.error('Submission error:', err)
       alert(`Failed to save: ${err.message}`)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // Fetch pending approvals for side drawer
+  const fetchPendingApprovalsForDrawer = async () => {
+    setDrawerLoading(true)
+    try {
+      const q = query(
+        collection(db, 'organisations', user.orgId, 'advances_expenses'),
+        where('status', 'in', ['Pending', 'Hold']),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      )
+      const snap = await getDocs(q)
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      setPendingApprovals(data)
+    } catch (err) {
+      console.error('Error fetching approvals:', err)
+    } finally {
+      setDrawerLoading(false)
+    }
+  }
+
+  // Approve from drawer
+  const approveFromDrawer = async (id, type) => {
+    try {
+      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', id)
+      if (type === 'hr') {
+        await updateDoc(itemRef, {
+          hrApproval: 'Approved',
+          hrApprovedBy: user.uid,
+          hrApprovedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        })
+      } else {
+        await updateDoc(itemRef, {
+          mdApproval: 'Approved',
+          mdApprovedBy: user.uid,
+          mdApprovedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        })
+      }
+      // Refresh the list
+      await fetchPendingApprovalsForDrawer()
+    } catch (err) {
+      console.error('Approval error:', err)
+      alert('Failed to approve')
     }
   }
 
@@ -1606,150 +1660,172 @@ export default function AdvanceExpenseTab() {
             </div>
           </div>
 
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto p-5">
-            <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
-              <table className="w-full text-left border-collapse min-w-[1000px]">
+          {/* Desktop Spreadsheet View */}
+          <div className="hidden md:block overflow-x-auto">
+            <div className="border border-gray-300 bg-white shadow-sm" style={{ fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+              <table className="w-full border-collapse" style={{ fontSize: '11px' }}>
                 <thead>
-                  <tr className="bg-zinc-50/80 border-b border-zinc-200">
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
-                      Request Date
+                  <tr className="bg-gray-100 border-b border-gray-300" style={{ height: '21px' }}>
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
+                      Date
                     </th>
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[220px]">
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '180px', fontSize: '10px' }}>
                       Employee
                     </th>
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[160px]">
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '140px', fontSize: '10px' }}>
                       Category
                     </th>
                     {activeModule === 'Add Expense' && (
-                      <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]" title="Required for 'Salary to others' and 'Given to others' categories">
-                        Paid To <span className="text-[8px] text-zinc-400 font-normal">*</span>
+                      <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '160px', fontSize: '10px' }} title="Required for 'Salary to others' and 'Given to others'">
+                        Paid To *
                       </th>
                     )}
                     {activeModule === 'Add Expense' && (
-                      <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
+                      <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
                         Type
                       </th>
                     )}
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
                       Payout
                     </th>
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">
+                    <th className="px-2 text-right font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
                       Amount
                     </th>
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ minWidth: '150px', fontSize: '10px' }}>
                       Remarks
                     </th>
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
                       Project
                     </th>
-                    <th className="h-10 w-[50px]"></th>
+                    <th className="px-1 text-center font-semibold text-gray-700 bg-gray-50" style={{ width: '28px', fontSize: '10px' }}>
+                      ×
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {addRows.map((row, idx) => (
-                    <tr key={row.id} className={`border-b border-zinc-100 transition-colors hover:bg-zinc-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50/20'}`}>
-                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                    <tr 
+                      key={row.id} 
+                      className="border-b border-gray-200 hover:bg-blue-50/30"
+                      style={{ height: '21px' }}
+                    >
+                      <td className="px-1 border-r border-gray-200">
                         <input 
                           type="date" 
                           value={row.date} 
                           onChange={e => handleRowChange(row.id, 'date', e.target.value)} 
-                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
+                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent" 
+                          style={{ height: '19px' }}
                         />
                       </td>
-                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                      <td className="px-1 border-r border-gray-200">
                         <select 
                           value={row.employeeId} 
                           onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
                           disabled={!canSelectAll}
-                          className={`w-full h-9 border border-zinc-200 rounded-lg px-2 text-[12px] font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          className={`w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent ${!canSelectAll ? 'opacity-60' : ''}`}
+                          style={{ height: '19px' }}
                         >
-                          <option value="">Select employee...</option>
+                          <option value="">Select...</option>
                           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                       </td>
-                      <td className="px-2 py-1.5 border-r border-zinc-100">
-                        <div className="flex flex-col gap-1">
-                          <input 
-                            list="categories-list" 
-                            value={row.category} 
-                            onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
-                            className="no-arrow w-full h-9 border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
-                            placeholder="Type..." 
-                          />
-                          {row.transferredToName && (
-                            <span className="text-red-500 text-[9px] font-black uppercase tracking-tight italic">
-                              [{row.transferredToName}]
-                            </span>
-                          )}
-                        </div>
+                      <td className="px-1 border-r border-gray-200">
+                        <input 
+                          list="categories-list" 
+                          value={row.category} 
+                          onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
+                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent"
+                          style={{ height: '19px' }}
+                          placeholder="Type category..."
+                        />
                       </td>
                       {activeModule === 'Add Expense' && (
-                        <td className="px-2 py-1.5 border-r border-zinc-100">
-                          <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
+                        <td className="px-1 border-r border-gray-200">
+                          <div style={{ transform: 'scale(0.85)', transformOrigin: 'left center' }}>
+                            <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
+                          </div>
                         </td>
                       )}
                       {activeModule === 'Add Expense' && (
-                        <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <td className="px-1 border-r border-gray-200">
                           <select 
                             value={row.requestType} 
                             onChange={e => handleRowChange(row.id, 'requestType', e.target.value)} 
-                            className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[11px] font-black uppercase bg-zinc-50/50 outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                            className="w-full border-0 px-1 py-0 text-[10px] outline-none focus:bg-yellow-50 bg-transparent uppercase"
+                            style={{ height: '19px' }}
                           >
                             <option value="Reimbursement">Spent</option>
                             <option value="Pre-Approval">Request</option>
                           </select>
                         </td>
                       )}
-                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                      <td className="px-1 border-r border-gray-200">
                         <select 
                           value={row.payoutMethod} 
                           onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
-                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[11px] font-black uppercase bg-zinc-50/50 outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                          className="w-full border-0 px-1 py-0 text-[10px] outline-none focus:bg-yellow-50 bg-transparent uppercase"
+                          style={{ height: '19px' }}
                         >
                           <option value="Immediate">Immediate</option>
                           <option value="With Salary">Monthly</option>
                         </select>
                       </td>
-                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                      <td className="px-1 border-r border-gray-200">
                         <input 
                           type="number" 
                           value={row.amount} 
                           onChange={e => handleRowChange(row.id, 'amount', e.target.value)} 
-                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[13px] font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
-                          placeholder="0.00" 
+                          className="w-full border-0 px-1 py-0 text-[11px] text-right outline-none focus:bg-yellow-50 bg-transparent text-indigo-600 font-semibold"
+                          style={{ height: '19px' }}
+                          placeholder="0.00"
                         />
                       </td>
-                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                      <td className="px-1 border-r border-gray-200">
                         <input 
                           type="text" 
                           value={row.reason} 
                           onChange={e => handleRowChange(row.id, 'reason', e.target.value)} 
-                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[11px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
-                          placeholder="..." 
+                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent"
+                          style={{ height: '19px' }}
+                          placeholder="..."
                         />
                       </td>
-                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                      <td className="px-1 border-r border-gray-200">
                         <input 
                           type="text" 
                           value={row.project} 
                           onChange={e => handleRowChange(row.id, 'project', e.target.value)} 
-                          className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-[11px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors" 
-                          placeholder="..." 
+                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent"
+                          style={{ height: '19px' }}
+                          placeholder="..."
                         />
                       </td>
-                      <td className="px-2 text-center">
+                      <td className="px-0 text-center">
                         <button 
                           onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} 
-                          className="text-zinc-300 hover:text-rose-500 transition-colors"
+                          className="w-full h-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center"
+                          style={{ height: '21px' }}
+                          title="Delete row"
                         >
-                          <Trash2 size={16} />
+                          <span className="text-[14px] leading-none">×</span>
                         </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+            
+            {/* Spreadsheet Toolbar */}
+            <div className="flex items-center justify-between mt-2 px-1">
+              <div className="text-[10px] text-gray-500">
+                {addRows.length} row{addRows.length !== 1 ? 's' : ''}
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-[9px] text-gray-600">Tab</kbd>
+                <span className="text-[10px] text-gray-500">to navigate</span>
+              </div>
             </div>
           </div>
 
@@ -2789,6 +2865,155 @@ export default function AdvanceExpenseTab() {
               ))}
             </>
           )}
+        </div>
+      )}
+
+      {/* Approval Side Drawer */}
+      {approvalDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+            onClick={() => setApprovalDrawerOpen(false)}
+          />
+          
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Pending Approvals</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {pendingApprovals.length} item{pendingApprovals.length !== 1 ? 's' : ''} waiting for approval
+                </p>
+              </div>
+              <button
+                onClick={() => setApprovalDrawerOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {drawerLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Spinner size="w-6 h-6" color="text-blue-600" />
+                  <span className="ml-2 text-sm text-gray-600">Loading...</span>
+                </div>
+              ) : pendingApprovals.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle2 size={32} className="text-green-600" />
+                  </div>
+                  <p className="text-gray-600 font-medium">All caught up!</p>
+                  <p className="text-sm text-gray-400 mt-1">No pending approvals</p>
+                </div>
+              ) : (
+                pendingApprovals.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow bg-white"
+                  >
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          item.type === 'Advance' 
+                            ? 'bg-amber-100 text-amber-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {item.type}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(item.date).toLocaleDateString('en-GB', { 
+                            day: '2-digit', 
+                            month: 'short', 
+                            year: '2-digit' 
+                          })}
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold text-indigo-600">
+                        ₹{Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    
+                    {/* Employee & Category */}
+                    <div className="mb-2">
+                      <p className="text-sm font-semibold text-gray-800">{item.employeeName}</p>
+                      <p className="text-xs text-gray-500">{item.category}</p>
+                    </div>
+                    
+                    {/* Approval Status */}
+                    <div className="flex items-center gap-3 mb-3 text-xs">
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-400">HR:</span>
+                        <span className={`font-medium ${
+                          item.hrApproval === 'Approved' ? 'text-green-600' : 
+                          item.hrApproval === 'Rejected' ? 'text-red-600' :
+                          item.hrApproval === 'Partial' ? 'text-indigo-600' :
+                          item.hrApproval === 'Hold' ? 'text-amber-600' :
+                          'text-gray-400'
+                        }`}>
+                          {item.hrApproval || 'Pending'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-400">MD:</span>
+                        <span className={`font-medium ${
+                          item.mdApproval === 'Approved' ? 'text-green-600' : 
+                          item.mdApproval === 'Rejected' ? 'text-red-600' :
+                          item.mdApproval === 'Partial' ? 'text-indigo-600' :
+                          item.mdApproval === 'Hold' ? 'text-amber-600' :
+                          'text-gray-400'
+                        }`}>
+                          {item.mdApproval || 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Quick Actions */}
+                    {(isHR || isAdmin) && item.hrApproval !== 'Approved' && (
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={() => approveFromDrawer(item.id, 'hr')}
+                          className="flex-1 py-1.5 px-2 bg-sky-600 text-white text-xs font-semibold rounded hover:bg-sky-700 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Check size={12} />
+                          Approve HR
+                        </button>
+                      </div>
+                    )}
+                    {(isMD || isAdmin) && item.mdApproval !== 'Approved' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => approveFromDrawer(item.id, 'md')}
+                          className="flex-1 py-1.5 px-2 bg-violet-600 text-white text-xs font-semibold rounded hover:bg-violet-700 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Check size={12} />
+                          Approve MD
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => {
+                  setApprovalDrawerOpen(false)
+                  setActiveModule('Approvals')
+                }}
+                className="w-full py-2 px-4 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-900 transition-colors"
+              >
+                Go to Full Approvals Page
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
