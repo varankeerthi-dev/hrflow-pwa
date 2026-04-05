@@ -45,6 +45,10 @@ export default function AdvanceExpenseTab() {
   const toDateDropdownRef = useRef(null)
   const categoryDropdownRef = useRef(null)
   
+  // Refs for date inputs to auto-open date picker
+  const fromDateInputRef = useRef(null)
+  const toDateInputRef = useRef(null)
+  
   // Helper to close all dropdowns
   const closeAllDropdowns = () => {
     setEmployeeDropdownOpen(false)
@@ -599,6 +603,25 @@ export default function AdvanceExpenseTab() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [employeeDropdownOpen, fromDateDropdownOpen, toDateDropdownOpen, categoryDropdownOpen])
+
+  // Auto-open date picker when dropdown opens
+  useEffect(() => {
+    if (fromDateDropdownOpen && fromDateInputRef.current) {
+      // Small delay to ensure the input is rendered
+      setTimeout(() => {
+        fromDateInputRef.current?.showPicker?.()
+      }, 100)
+    }
+  }, [fromDateDropdownOpen])
+  
+  useEffect(() => {
+    if (toDateDropdownOpen && toDateInputRef.current) {
+      // Small delay to ensure the input is rendered
+      setTimeout(() => {
+        toDateInputRef.current?.showPicker?.()
+      }, 100)
+    }
+  }, [toDateDropdownOpen])
 
   const handleAddRow = () => {
     const myId = !canSelectAll ? getMyEmpId() : ''
@@ -1961,6 +1984,7 @@ export default function AdvanceExpenseTab() {
                       </button>
                     </div>
                     <input 
+                      ref={fromDateInputRef}
                       type="date"
                       value={reportFromDate}
                       onChange={(e) => {
@@ -2040,6 +2064,7 @@ export default function AdvanceExpenseTab() {
                       </button>
                     </div>
                     <input 
+                      ref={toDateInputRef}
                       type="date"
                       value={reportToDate}
                       onChange={(e) => {
