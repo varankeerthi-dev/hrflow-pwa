@@ -257,70 +257,80 @@ export default function VehicleManagementTab() {
             </div>
 
             {/* Desktop Table - Hidden on Mobile */}
-            <div className="hidden md:block rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
+            <div className="hidden md:block rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full caption-bottom text-sm border-collapse min-w-[1000px]">
-                  <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
-                    <tr className="border-b border-zinc-200">
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 w-[30%]">Asset Designation</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Registration</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Insurance Control</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Unit Lead</th>
-                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Action</th>
+                <table className="w-full caption-bottom text-sm border-collapse">
+                  <thead className="border-b border-gray-200 bg-gray-50/80">
+                    <tr>
+                      <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicle</th>
+                      <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Registration</th>
+                      <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">RC Number</th>
+                      <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Insurance Status</th>
+                      <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Lead</th>
+                      <th className="h-11 px-4 text-right align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="[&_tr:last-child]:border-0">
                     {loadingVehicles ? (
-                      <tr><td colSpan={5} className="py-20 text-center"><Spinner size="w-8 h-8" color="text-zinc-400" /></td></tr>
+                      <tr><td colSpan={6} className="py-20 text-center"><Spinner size="w-8 h-8" color="text-gray-400" /></td></tr>
                     ) : filteredVehicles.length === 0 ? (
-                      <tr><td colSpan={5} className="py-20 text-center text-zinc-400 font-medium italic">No vehicles found</td></tr>
+                      <tr><td colSpan={6} className="py-20 text-center text-gray-400 font-medium">No vehicles found</td></tr>
                     ) : filteredVehicles.map(v => (
-                      <tr key={v.id} className="border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors">
-                        <td className="px-3 py-2 align-middle">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-zinc-900">{v.name}</span>
-                            <span className="text-[10px] text-zinc-400">Fleet Deployment Unit</span>
+                      <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors">
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+                              <Car size={14} className="text-indigo-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{v.name}</p>
+                              <p className="text-[10px] text-gray-400">{v.manufacturer || 'Fleet Vehicle'}</p>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
-                          <div className="flex flex-col">
-                            <span>{v.vehicleNo}</span>
-                            <span className="text-[10px] text-zinc-400">RC: {v.rcNo || 'N/A'}</span>
-                          </div>
+                        <td className="px-4 py-3 align-middle">
+                          <span className="text-sm font-medium text-gray-700">{v.vehicleNo}</span>
                         </td>
-                        <td className="px-3 py-2 align-middle">
+                        <td className="px-4 py-3 align-middle">
+                          <span className="text-sm text-gray-600">{v.rcNo || '—'}</span>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
                           <div className="flex flex-col">
-                            <span className={`text-[11px] font-medium ${isExpired(v.insuranceExpiry) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            <span className={`inline-flex w-fit px-2.5 py-1 rounded-md text-xs font-medium ${
+                              isExpired(v.insuranceExpiry) 
+                                ? 'bg-rose-50 text-rose-600' 
+                                : 'bg-emerald-50 text-emerald-600'
+                            }`}>
                               {isExpired(v.insuranceExpiry) ? 'Expired' : 'Active'}
                             </span>
-                            <span className="text-xs text-zinc-500">
+                            <span className="text-[11px] text-gray-400 mt-1">
                               {v.insuranceExpiry ? new Date(v.insuranceExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-2 align-middle">
+                        <td className="px-4 py-3 align-middle">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-600">
+                            <div className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-600">
                               {getInitials(employees.find(e => e.id === v.inchargeId)?.name || '??')}
                             </div>
-                            <span className="text-[12px] font-medium text-zinc-700">
+                            <span className="text-sm font-medium text-gray-700">
                               {employees.find(e => e.id === v.inchargeId)?.name || 'Unassigned'}
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-2 align-middle text-right">
-                          <div className="flex justify-end gap-1">
+                        <td className="px-4 py-3 align-middle text-right">
+                          <div className="flex items-center justify-end gap-2">
                             <button 
                               onClick={() => setSelectedVehicleForHistory(v)}
-                              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded transition-all"
+                              className="h-8 px-3 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5"
                             >
-                              <History size={14} />
+                              <History size={14} /> History
                             </button>
                             <button 
                               onClick={() => setEditingVehicle(v)}
-                              className="h-8 w-8 flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded transition-all"
+                              className="h-8 px-3 bg-indigo-50 text-indigo-600 text-xs font-medium rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
                             >
-                              <Edit2 size={14} />
+                              <Edit2 size={14} /> Edit
                             </button>
                           </div>
                         </td>
@@ -332,63 +342,63 @@ export default function VehicleManagementTab() {
             </div>
 
             {/* Mobile Cards - Shown only on Mobile */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-4">
               {loadingVehicles ? (
                 <div className="py-12 text-center">
-                  <Spinner size="w-10 h-10" color="text-zinc-400" />
-                  <p className="text-zinc-400 text-sm mt-3">Loading vehicles...</p>
+                  <Spinner size="w-10 h-10" color="text-gray-400" />
+                  <p className="text-gray-400 text-sm mt-3">Loading vehicles...</p>
                 </div>
               ) : filteredVehicles.length === 0 ? (
-                <div className="py-16 text-center border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
-                  <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Car size={28} className="text-zinc-300" />
+                <div className="py-16 text-center border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Car size={28} className="text-gray-300" />
                   </div>
-                  <p className="text-zinc-400 text-sm font-medium">No vehicles found</p>
-                  <p className="text-zinc-300 text-xs mt-1">Add a vehicle to get started</p>
+                  <p className="text-gray-400 text-sm font-medium">No vehicles found</p>
+                  <p className="text-gray-300 text-xs mt-1">Add a vehicle to get started</p>
                 </div>
               ) : filteredVehicles.map(v => (
-                <div key={v.id} className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden active:scale-[0.98] transition-transform">
+                <div key={v.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden active:scale-[0.98] transition-transform">
                   {/* Card Header */}
-                  <div className="px-4 py-3 bg-gradient-to-r from-zinc-50 to-white border-b border-zinc-100 flex items-center justify-between">
+                  <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
                         <Car size={20} className="text-indigo-600" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-zinc-900">{v.name}</h3>
-                        <p className="text-xs text-zinc-400">Fleet Unit</p>
+                        <h3 className="text-sm font-semibold text-gray-900">{v.name}</h3>
+                        <p className="text-xs text-gray-400">{v.manufacturer || 'Fleet Vehicle'}</p>
                       </div>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${isExpired(v.insuranceExpiry) ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${isExpired(v.insuranceExpiry) ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
                       {isExpired(v.insuranceExpiry) ? 'Expired' : 'Active'}
                     </span>
                   </div>
                   
                   {/* Card Body */}
                   <div className="p-4 space-y-3">
-                    {/* Registration Info */}
+                    {/* Vehicle Number */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Hash size={14} className="text-zinc-400" />
-                        <span className="text-xs text-zinc-500">Registration</span>
+                        <Hash size={14} className="text-gray-400" />
+                        <span className="text-xs text-gray-500">Registration</span>
                       </div>
-                      <span className="text-sm font-semibold text-zinc-700">{v.vehicleNo}</span>
+                      <span className="text-sm font-semibold text-gray-700">{v.vehicleNo}</span>
                     </div>
                     
-                    {/* RC Info */}
+                    {/* RC Number */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <FileText size={14} className="text-zinc-400" />
-                        <span className="text-xs text-zinc-500">RC Number</span>
+                        <FileText size={14} className="text-gray-400" />
+                        <span className="text-xs text-gray-500">RC Number</span>
                       </div>
-                      <span className="text-sm font-medium text-zinc-600">{v.rcNo || 'N/A'}</span>
+                      <span className="text-sm font-medium text-gray-600">{v.rcNo || '—'}</span>
                     </div>
                     
                     {/* Insurance Expiry */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-zinc-400" />
-                        <span className="text-xs text-zinc-500">Insurance Until</span>
+                        <Calendar size={14} className="text-gray-400" />
+                        <span className="text-xs text-gray-500">Insurance Until</span>
                       </div>
                       <span className={`text-sm font-medium ${isExpired(v.insuranceExpiry) ? 'text-rose-600' : 'text-emerald-600'}`}>
                         {v.insuranceExpiry ? new Date(v.insuranceExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
@@ -396,24 +406,24 @@ export default function VehicleManagementTab() {
                     </div>
                     
                     {/* Unit Lead */}
-                    <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-600">
+                        <div className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-600">
                           {getInitials(employees.find(e => e.id === v.inchargeId)?.name || '??')}
                         </div>
-                        <span className="text-xs text-zinc-500">Unit Lead</span>
+                        <span className="text-xs text-gray-500">Unit Lead</span>
                       </div>
-                      <span className="text-sm font-medium text-zinc-700">
+                      <span className="text-sm font-medium text-gray-700">
                         {employees.find(e => e.id === v.inchargeId)?.name || 'Unassigned'}
                       </span>
                     </div>
                   </div>
                   
                   {/* Card Actions */}
-                  <div className="px-4 py-3 bg-zinc-50 border-t border-zinc-100 flex gap-2">
+                  <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex gap-2">
                     <button 
                       onClick={() => setSelectedVehicleForHistory(v)}
-                      className="flex-1 flex items-center justify-center gap-2 h-11 text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 active:bg-zinc-100 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 h-11 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors"
                     >
                       <History size={16} />
                       History
