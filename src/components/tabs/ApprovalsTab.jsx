@@ -1,5 +1,5 @@
 import React from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
@@ -155,11 +155,23 @@ export default function ApprovalsTab() {
   // For the Advance/Expense action toggles
   const [actionState, setActionState] = useState({}) // hrPick, mdPick, remarks, partialAmount, paymentMethod, paymentRef, ...
   const [advMenuOpen, setAdvMenuOpen] = useState(null) // `${id}-hr` | `${id}-md` | null
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
+  const dropdownButtonRef = useRef(null)
   const [advanceRightTab, setAdvanceRightTab] = useState('month-reports') // 'month-reports' | 'recent-updates'
   
   // Partial Amount Modal State
   const [partialModalOpen, setPartialModalOpen] = useState(false)
   const [partialModalData, setPartialModalData] = useState({ id: null, lane: null, amount: '' })
+
+  // Helper to calculate dropdown position
+  const calculateDropdownPosition = (buttonElement) => {
+    if (!buttonElement) return { top: 0, left: 0 }
+    const rect = buttonElement.getBoundingClientRect()
+    return {
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.left + window.scrollX
+    }
+  }
 
   // PHASE 4: Bulk Approval State
   const [selectedIds, setSelectedIds] = useState([])
@@ -784,6 +796,47 @@ export default function ApprovalsTab() {
     }
   }
 
+  const handleMarkAsUnpaid = async (id) => {
+    if (!isAccountant) return alert('Only accountants can process payments')
+    
+    const confirmed = confirm('Mark as Unpaid? This item will be paid with salary at month end instead of immediate payment.')
+    if (!confirmed) return
+
+    try {
+      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', id)
+      const itemSnap = await getDoc(itemRef)
+      const itemData = itemSnap.data()
+
+      await updateDoc(itemRef, {
+        paymentStatus: 'Unpaid',
+        payoutMethod: 'With Salary',
+        markedUnpaidAt: serverTimestamp(),
+        markedUnpaidBy: user.uid,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid,
+        unpaidReason: 'Payment deferred to month end'
+      })
+
+      // Remove from payment queue (do NOT create advance deduction record)
+      // The amount will be paid with salary instead
+      alert('Marked as Unpaid. This will be paid with salary at month end.')
+      
+      // Admin Logging
+      if (isAdmin) {
+        await logActivity(user.orgId, user, {
+          module: 'PaymentQueue',
+          action: 'Marked as Unpaid',
+          detail: `Payment for ${itemData?.employeeName} (₹${itemData?.partialAmount || itemData?.amount}) deferred to month end by admin`
+        })
+      }
+
+      fetchData()
+    } catch (err) {
+      console.error('Mark as Unpaid error:', err)
+      alert('Failed to mark as unpaid')
+    }
+  }
+
   const getStatusIcon = (status) => {
     const s = status?.toLowerCase()
     if (s === 'approve' || s === 'approved') return <CheckCircle2 size={14} className="text-green-500" />
@@ -908,12 +961,21 @@ export default function ApprovalsTab() {
                             />
                           </td>
                           <td className="px-4 text-right">
-                            <button 
-                              onClick={() => handleUpdatePaymentStatus(item.id)}
-                              className="h-8 px-4 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all"
-                            >
-                              Pay Now
-                            </button>
+                            <div className="flex items-center gap-2 justify-end">
+                              <button 
+                                onClick={() => handleUpdatePaymentStatus(item.id)}
+                                className="h-8 px-4 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all"
+                              >
+                                Pay Now
+                              </button>
+                              <button 
+                                onClick={() => handleMarkAsUnpaid(item.id)}
+                                className="h-8 px-3 bg-gray-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-gray-200 hover:bg-gray-600 active:scale-95 transition-all"
+                                title="Mark as Unpaid - will be paid with salary at month end"
+                              >
+                                Mark Unpaid
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -1148,7 +1210,12 @@ export default function ApprovalsTab() {
                                           {/* Actions Dropdown Toggle */}
                                           <button
                                             type="button"
-                                            onClick={() => setAdvMenuOpen(o => o === `${item.id}-hr-dropdown` ? null : `${item.id}-hr-dropdown`)}
+                                            ref={dropdownButtonRef}
+                                            onClick={(e) => {
+                                              const pos = calculateDropdownPosition(e.currentTarget)
+                                              setDropdownPosition(pos)
+                                              setAdvMenuOpen(o => o === `${item.id}-hr-dropdown` ? null : `${item.id}-hr-dropdown`)
+                                            }}
                                             className={`h-7 w-7 flex items-center justify-center rounded-md border transition-all ${advMenuOpen === `${item.id}-hr-dropdown` ? 'bg-zinc-200 border-zinc-300' : 'bg-white border-zinc-200 hover:bg-zinc-50'}`}
                                             title="More actions"
                                           >
@@ -1172,7 +1239,8 @@ export default function ApprovalsTab() {
                                           {/* Actions Dropdown Menu */}
                                           {advMenuOpen === `${item.id}-hr-dropdown` && (
                                             <div
-                                              className="absolute left-0 top-full z-30 mt-1 w-[130px] rounded-md border border-zinc-200 bg-white py-1 shadow-lg"
+                                              className="fixed z-50 w-[130px] rounded-md border border-zinc-200 bg-white py-1 shadow-xl"
+                                              style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
                                               data-adv-dropdown-root
                                               onMouseDown={(e) => e.stopPropagation()}
                                             >
@@ -1223,7 +1291,10 @@ export default function ApprovalsTab() {
                                           
                                           {/* Remarks Popover */}
                                           {advMenuOpen === `${item.id}-hr-rem` && (
-                                            <div className="absolute right-0 bottom-full z-40 mb-2 w-56 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl">
+                                            <div 
+                                              className="fixed z-50 w-56 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl"
+                                              style={{ top: dropdownPosition.top - 100, left: dropdownPosition.left }}
+                                            >
                                               <p className="mb-2 text-[9px] font-black uppercase text-zinc-400">HR Remarks</p>
                                               <textarea
                                                 autoFocus
@@ -1289,7 +1360,11 @@ export default function ApprovalsTab() {
                                           {/* Actions Dropdown Toggle */}
                                           <button
                                             type="button"
-                                            onClick={() => setAdvMenuOpen(o => o === `${item.id}-md-dropdown` ? null : `${item.id}-md-dropdown`)}
+                                            onClick={(e) => {
+                                              const pos = calculateDropdownPosition(e.currentTarget)
+                                              setDropdownPosition(pos)
+                                              setAdvMenuOpen(o => o === `${item.id}-md-dropdown` ? null : `${item.id}-md-dropdown`)
+                                            }}
                                             className={`h-7 w-7 flex items-center justify-center rounded-md border transition-all ${advMenuOpen === `${item.id}-md-dropdown` ? 'bg-zinc-200 border-zinc-300' : 'bg-white border-zinc-200 hover:bg-zinc-50'}`}
                                             title="More actions"
                                           >
@@ -1304,7 +1379,11 @@ export default function ApprovalsTab() {
                                           <button 
                                             type="button"
                                             className={`h-7 w-7 flex items-center justify-center rounded-md transition-all ${rowState.remarks ? 'text-violet-600 bg-violet-100' : 'text-zinc-400 bg-zinc-100 hover:bg-zinc-200'}`}
-                                            onClick={() => setAdvMenuOpen(o => o === `${item.id}-md-rem` ? null : `${item.id}-md-rem`)}
+                                            onClick={(e) => {
+                                              const pos = calculateDropdownPosition(e.currentTarget)
+                                              setDropdownPosition(pos)
+                                              setAdvMenuOpen(o => o === `${item.id}-md-rem` ? null : `${item.id}-md-rem`)
+                                            }}
                                             title="Add remarks"
                                           >
                                             <MessageSquare size={14} />
@@ -1313,7 +1392,8 @@ export default function ApprovalsTab() {
                                           {/* Actions Dropdown Menu */}
                                           {advMenuOpen === `${item.id}-md-dropdown` && (
                                             <div
-                                              className="absolute left-0 top-full z-30 mt-1 w-[130px] rounded-md border border-zinc-200 bg-white py-1 shadow-lg"
+                                              className="fixed z-50 w-[130px] rounded-md border border-zinc-200 bg-white py-1 shadow-xl"
+                                              style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
                                               data-adv-dropdown-root
                                               onMouseDown={(e) => e.stopPropagation()}
                                             >
@@ -1364,7 +1444,10 @@ export default function ApprovalsTab() {
                                           
                                           {/* Remarks Popover */}
                                           {advMenuOpen === `${item.id}-md-rem` && (
-                                            <div className="absolute right-0 bottom-full z-40 mb-2 w-56 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl">
+                                            <div 
+                                              className="fixed z-50 w-56 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl"
+                                              style={{ top: dropdownPosition.top - 100, left: dropdownPosition.left }}
+                                            >
                                               <p className="mb-2 text-[9px] font-black uppercase text-zinc-400">MD Remarks</p>
                                               <textarea
                                                 autoFocus
@@ -1826,37 +1909,46 @@ export default function ApprovalsTab() {
                                                  Approve
                                                </button>
                                                
-                                               {/* Actions Dropdown Toggle */}
-                                               <button
-                                                 type="button"
-                                                 onClick={() => setAdvMenuOpen(o => o === `${req.id}-md-dropdown` ? null : `${req.id}-md-dropdown`)}
-                                                 className={`h-7 w-7 flex items-center justify-center rounded-md border transition-all ${advMenuOpen === `${req.id}-md-dropdown` ? 'bg-zinc-200 border-zinc-300' : 'bg-white border-zinc-200 hover:bg-zinc-50'}`}
-                                                 title="More actions"
-                                               >
-                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600">
-                                                   <circle cx="12" cy="5" r="1"/>
-                                                   <circle cx="12" cy="12" r="1"/>
-                                                   <circle cx="12" cy="19" r="1"/>
-                                                 </svg>
-                                               </button>
-                                               
-                                               {/* Remarks */}
-                                               <button 
-                                                 type="button"
-                                                 className={`h-7 w-7 flex items-center justify-center rounded-md transition-all ${actionState[req.id]?.mdRemarks ? 'text-violet-600 bg-violet-100' : 'text-zinc-400 bg-zinc-100 hover:bg-zinc-200'}`}
-                                                 onClick={() => setAdvMenuOpen(o => o === `${req.id}-md-rem` ? null : `${req.id}-md-rem`)}
-                                                 title="Add remarks"
-                                               >
-                                                 <MessageSquare size={14} />
-                                               </button>
-                                               
-                                               {/* Actions Dropdown Menu */}
-                                               {advMenuOpen === `${req.id}-md-dropdown` && (
-                                                 <div
-                                                   className="absolute left-0 top-full z-30 mt-1 w-[130px] rounded-md border border-zinc-200 bg-white py-1 shadow-lg"
-                                                   data-adv-dropdown-root
-                                                   onMouseDown={(e) => e.stopPropagation()}
-                                                 >
+                                                {/* Actions Dropdown Toggle */}
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    const pos = calculateDropdownPosition(e.currentTarget)
+                                                    setDropdownPosition(pos)
+                                                    setAdvMenuOpen(o => o === `${req.id}-md-dropdown` ? null : `${req.id}-md-dropdown`)
+                                                  }}
+                                                  className={`h-7 w-7 flex items-center justify-center rounded-md border transition-all ${advMenuOpen === `${req.id}-md-dropdown` ? 'bg-zinc-200 border-zinc-300' : 'bg-white border-zinc-200 hover:bg-zinc-50'}`}
+                                                  title="More actions"
+                                                >
+                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600">
+                                                    <circle cx="12" cy="5" r="1"/>
+                                                    <circle cx="12" cy="12" r="1"/>
+                                                    <circle cx="12" cy="19" r="1"/>
+                                                  </svg>
+                                                </button>
+                                                
+                                                {/* Remarks */}
+                                                <button 
+                                                  type="button"
+                                                  className={`h-7 w-7 flex items-center justify-center rounded-md transition-all ${actionState[req.id]?.mdRemarks ? 'text-violet-600 bg-violet-100' : 'text-zinc-400 bg-zinc-100 hover:bg-zinc-200'}`}
+                                                  onClick={(e) => {
+                                                    const pos = calculateDropdownPosition(e.currentTarget)
+                                                    setDropdownPosition(pos)
+                                                    setAdvMenuOpen(o => o === `${req.id}-md-rem` ? null : `${req.id}-md-rem`)
+                                                  }}
+                                                  title="Add remarks"
+                                                >
+                                                  <MessageSquare size={14} />
+                                                </button>
+                                                
+                                                {/* Actions Dropdown Menu */}
+                                                {advMenuOpen === `${req.id}-md-dropdown` && (
+                                                  <div
+                                                    className="fixed z-50 w-[130px] rounded-md border border-zinc-200 bg-white py-1 shadow-xl"
+                                                    style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+                                                    data-adv-dropdown-root
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                  >
                                                    <button
                                                      type="button"
                                                      onClick={() => {
@@ -1903,18 +1995,21 @@ export default function ApprovalsTab() {
                                                  </div>
                                                )}
                                                
-                                               {/* Remarks Popover */}
-                                               {advMenuOpen === `${req.id}-md-rem` && (
-                                                 <div className="absolute right-0 bottom-full z-40 mb-2 w-56 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl">
-                                                   <p className="mb-2 text-[9px] font-black uppercase text-zinc-400">MD Remarks</p>
-                                                   <textarea
-                                                     autoFocus
-                                                     className="w-full rounded border border-zinc-100 p-2 text-[11px] outline-none focus:border-violet-400"
-                                                     rows={2}
-                                                     placeholder="Required for Reject/Hold/Postpone..."
-                                                     value={actionState[req.id]?.mdRemarks || ''}
-                                                     onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], mdRemarks: e.target.value } }))}
-                                                   />
+                                                {/* Remarks Popover */}
+                                                {advMenuOpen === `${req.id}-md-rem` && (
+                                                  <div 
+                                                    className="fixed z-50 w-56 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl"
+                                                    style={{ top: dropdownPosition.top - 100, left: dropdownPosition.left }}
+                                                  >
+                                                    <p className="mb-2 text-[9px] font-black uppercase text-zinc-400">MD Remarks</p>
+                                                    <textarea
+                                                      autoFocus
+                                                      className="w-full rounded border border-zinc-100 p-2 text-[11px] outline-none focus:border-violet-400"
+                                                      rows={2}
+                                                      placeholder="Required for Reject/Hold/Postpone..."
+                                                      value={actionState[req.id]?.mdRemarks || ''}
+                                                      onChange={(e) => setActionState(prev => ({ ...prev, [req.id]: { ...prev[req.id], mdRemarks: e.target.value } }))}
+                                                    />
                                                  </div>
                                                )}
                                              </div>
