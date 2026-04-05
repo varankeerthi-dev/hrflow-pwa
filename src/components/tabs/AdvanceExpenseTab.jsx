@@ -94,7 +94,7 @@ export default function AdvanceExpenseTab() {
 
   // Side Drawer State for Approvals
   const [approvalDrawerOpen, setApprovalDrawerOpen] = useState(false)
-  const [pendingApprovals, setPendingApprovals] = useState([])
+  const [submittedItems, setSubmittedItems] = useState([]) // Store submitted items, not fetch all
   const [drawerLoading, setDrawerLoading] = useState(false)
   
   // Recently Deleted State
@@ -762,9 +762,26 @@ export default function AdvanceExpenseTab() {
     setSubmitting(true)
     try {
       const result = await addMutation.mutateAsync(validRows)
-      // After successful submission, fetch pending approvals and open drawer
-      if (canSelectAll) {
-        await fetchPendingApprovalsForDrawer()
+      // After successful submission, open drawer with submitted items
+      if (canSelectAll && result && result.length > 0) {
+        // Transform submitted rows to match approval display format
+        const justSubmitted = validRows.map((row, idx) => ({
+          id: result[idx], // Transaction number
+          transactionNo: result[idx],
+          employeeName: employees.find(e => e.id === row.employeeId)?.name || 'Unknown',
+          employeeId: row.employeeId,
+          category: row.category,
+          amount: row.amount,
+          date: row.date,
+          type: activeModule === 'Add Advance' ? 'Advance' : 'Expense',
+          hrApproval: 'Pending',
+          mdApproval: 'Pending',
+          status: 'Pending',
+          payoutMethod: row.payoutMethod,
+          requestType: row.requestType,
+          _isNew: true // Flag to identify just-submitted items
+        }))
+        setSubmittedItems(justSubmitted)
         setApprovalDrawerOpen(true)
       }
     } catch (err) {
@@ -775,51 +792,69 @@ export default function AdvanceExpenseTab() {
     }
   }
 
-  // Fetch pending approvals for side drawer
-  const fetchPendingApprovalsForDrawer = async () => {
-    setDrawerLoading(true)
+  // Approve from drawer
+  const approveFromDrawer = async (itemId, approvalType) => {
     try {
+      // Find the item in our submitted list
+      const item = submittedItems.find(i => i.id === itemId || i.transactionNo === itemId)
+      if (!item) {
+        alert('Item not found in submitted list')
+        return
+      }
+
+      // Find the actual document ID from Firestore by transaction number
       const q = query(
         collection(db, 'organisations', user.orgId, 'advances_expenses'),
-        where('status', 'in', ['Pending', 'Hold']),
-        orderBy('createdAt', 'desc'),
-        limit(50)
+        where('transactionNo', '==', itemId)
       )
       const snap = await getDocs(q)
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      setPendingApprovals(data)
-    } catch (err) {
-      console.error('Error fetching approvals:', err)
-    } finally {
-      setDrawerLoading(false)
-    }
-  }
+      
+      if (snap.empty) {
+        alert('Document not found')
+        return
+      }
 
-  // Approve from drawer
-  const approveFromDrawer = async (id, type) => {
-    try {
-      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', id)
-      if (type === 'hr') {
-        await updateDoc(itemRef, {
+      const docId = snap.docs[0].id
+      const docRef = doc(db, 'organisations', user.orgId, 'advances_expenses', docId)
+
+      if (approvalType === 'hr') {
+        await updateDoc(docRef, {
           hrApproval: 'Approved',
           hrApprovedBy: user.uid,
           hrApprovedAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         })
       } else {
-        await updateDoc(itemRef, {
+        await updateDoc(docRef, {
           mdApproval: 'Approved',
           mdApprovedBy: user.uid,
           mdApprovedAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         })
       }
-      // Refresh the list
-      await fetchPendingApprovalsForDrawer()
+
+      // Update local state
+      setSubmittedItems(prev => 
+        prev.map(item => 
+          (item.id === itemId || item.transactionNo === itemId)
+            ? { 
+                ...item, 
+                [approvalType === 'hr' ? 'hrApproval' : 'mdApproval']: 'Approved',
+                _approved: true 
+              }
+            : item
+        )
+      )
     } catch (err) {
       console.error('Approval error:', err)
-      alert('Failed to approve')
+      alert('Failed to approve: ' + err.message)
     }
+  }
+
+  // Close drawer and refresh data
+  const closeApprovalDrawer = () => {
+    setApprovalDrawerOpen(false)
+    setSubmittedItems([])
   }
 
   const deleteMutation = useMutation({
@@ -2871,149 +2906,119 @@ export default function AdvanceExpenseTab() {
         </div>
       )}
 
-      {/* Approval Side Drawer */}
+      {/* Approval Side Drawer - 30% width, minimalist */}
       {approvalDrawerOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
-            onClick={() => setApprovalDrawerOpen(false)}
+            className="absolute inset-0 bg-black/20 transition-opacity"
+            onClick={closeApprovalDrawer}
           />
           
-          {/* Drawer Panel */}
-          <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+          {/* Drawer Panel - 30% width */}
+          <div className="relative w-[30%] min-w-[320px] max-w-[450px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
             {/* Drawer Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-              <div>
-                <h2 className="text-lg font-bold text-gray-800">Pending Approvals</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {pendingApprovals.length} item{pendingApprovals.length !== 1 ? 's' : ''} waiting for approval
-                </p>
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gray-50">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-gray-800">Just Submitted</h2>
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-semibold rounded">
+                  {submittedItems.length}
+                </span>
               </div>
               <button
-                onClick={() => setApprovalDrawerOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={closeApprovalDrawer}
+                className="p-1 hover:bg-gray-200 rounded transition-colors"
               >
-                <X size={20} className="text-gray-500" />
+                <X size={16} className="text-gray-500" />
               </button>
             </div>
             
-            {/* Drawer Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {drawerLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Spinner size="w-6 h-6" color="text-blue-600" />
-                  <span className="ml-2 text-sm text-gray-600">Loading...</span>
-                </div>
-              ) : pendingApprovals.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <CheckCircle2 size={32} className="text-green-600" />
-                  </div>
-                  <p className="text-gray-600 font-medium">All caught up!</p>
-                  <p className="text-sm text-gray-400 mt-1">No pending approvals</p>
-                </div>
-              ) : (
-                pendingApprovals.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow bg-white"
-                  >
-                    {/* Card Header */}
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          item.type === 'Advance' 
-                            ? 'bg-amber-100 text-amber-700' 
-                            : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {item.type}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {new Date(item.date).toLocaleDateString('en-GB', { 
-                            day: '2-digit', 
-                            month: 'short', 
-                            year: '2-digit' 
-                          })}
-                        </span>
-                      </div>
-                      <span className="text-sm font-bold text-indigo-600">
-                        ₹{Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    
-                    {/* Employee & Category */}
-                    <div className="mb-2">
-                      <p className="text-sm font-semibold text-gray-800">{item.employeeName}</p>
-                      <p className="text-xs text-gray-500">{item.category}</p>
-                    </div>
-                    
-                    {/* Approval Status */}
-                    <div className="flex items-center gap-3 mb-3 text-xs">
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400">HR:</span>
-                        <span className={`font-medium ${
-                          item.hrApproval === 'Approved' ? 'text-green-600' : 
-                          item.hrApproval === 'Rejected' ? 'text-red-600' :
-                          item.hrApproval === 'Partial' ? 'text-indigo-600' :
-                          item.hrApproval === 'Hold' ? 'text-amber-600' :
-                          'text-gray-400'
-                        }`}>
-                          {item.hrApproval || 'Pending'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400">MD:</span>
-                        <span className={`font-medium ${
-                          item.mdApproval === 'Approved' ? 'text-green-600' : 
-                          item.mdApproval === 'Rejected' ? 'text-red-600' :
-                          item.mdApproval === 'Partial' ? 'text-indigo-600' :
-                          item.mdApproval === 'Hold' ? 'text-amber-600' :
-                          'text-gray-400'
-                        }`}>
-                          {item.mdApproval || 'Pending'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Quick Actions */}
-                    {(isHR || isAdmin) && item.hrApproval !== 'Approved' && (
-                      <div className="flex gap-2 mb-2">
-                        <button
-                          onClick={() => approveFromDrawer(item.id, 'hr')}
-                          className="flex-1 py-1.5 px-2 bg-sky-600 text-white text-xs font-semibold rounded hover:bg-sky-700 transition-colors flex items-center justify-center gap-1"
-                        >
-                          <Check size={12} />
-                          Approve HR
-                        </button>
-                      </div>
-                    )}
-                    {(isMD || isAdmin) && item.mdApproval !== 'Approved' && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => approveFromDrawer(item.id, 'md')}
-                          className="flex-1 py-1.5 px-2 bg-violet-600 text-white text-xs font-semibold rounded hover:bg-violet-700 transition-colors flex items-center justify-center gap-1"
-                        >
-                          <Check size={12} />
-                          Approve MD
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
+            {/* Drawer Content - Minimalist Table */}
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full text-[11px] border-collapse">
+                <thead className="bg-gray-100 sticky top-0">
+                  <tr className="border-b border-gray-200">
+                    <th className="px-2 py-1.5 text-left font-semibold text-gray-600">Ref</th>
+                    <th className="px-2 py-1.5 text-left font-semibold text-gray-600">Employee</th>
+                    <th className="px-2 py-1.5 text-left font-semibold text-gray-600">Category</th>
+                    <th className="px-2 py-1.5 text-right font-semibold text-gray-600">Amount</th>
+                    <th className="px-2 py-1.5 text-center font-semibold text-gray-600">HR</th>
+                    <th className="px-2 py-1.5 text-center font-semibold text-gray-600">MD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submittedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-gray-400 text-[11px]">
+                        No items submitted
+                      </td>
+                    </tr>
+                  ) : (
+                    submittedItems.map((item, idx) => (
+                      <tr 
+                        key={item.id || idx} 
+                        className={`border-b border-gray-100 ${item._approved ? 'bg-green-50/50' : 'hover:bg-blue-50/30'}`}
+                      >
+                        <td className="px-2 py-1.5 font-mono text-[10px] text-gray-600">
+                          {item.transactionNo?.slice(-6)}
+                        </td>
+                        <td className="px-2 py-1.5 font-medium text-gray-800 truncate max-w-[80px]">
+                          {item.employeeName}
+                        </td>
+                        <td className="px-2 py-1.5 text-gray-600 truncate max-w-[80px]">
+                          {item.category}
+                        </td>
+                        <td className="px-2 py-1.5 text-right font-semibold text-indigo-600 tabular-nums">
+                          ₹{Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                        </td>
+                        <td className="px-1 py-1.5 text-center">
+                          {item.hrApproval === 'Approved' ? (
+                            <span className="text-green-600">✓</span>
+                          ) : (isHR || isAdmin) ? (
+                            <button
+                              onClick={() => approveFromDrawer(item.transactionNo || item.id, 'hr')}
+                              className="px-2 py-0.5 bg-sky-600 text-white text-[9px] rounded hover:bg-sky-700 transition-colors"
+                            >
+                              Approve
+                            </button>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-1 py-1.5 text-center">
+                          {item.mdApproval === 'Approved' ? (
+                            <span className="text-green-600">✓</span>
+                          ) : (isMD || isAdmin) ? (
+                            <button
+                              onClick={() => approveFromDrawer(item.transactionNo || item.id, 'md')}
+                              className="px-2 py-0.5 bg-violet-600 text-white text-[9px] rounded hover:bg-violet-700 transition-colors"
+                            >
+                              Approve
+                            </button>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
             
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
+            <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+              <span className="text-[10px] text-gray-500">
+                {submittedItems.filter(i => i._approved).length} of {submittedItems.length} approved
+              </span>
               <button
                 onClick={() => {
-                  setApprovalDrawerOpen(false)
-                  setActiveModule('Approvals')
+                  closeApprovalDrawer()
+                  setActiveModule('Reports')
                 }}
-                className="w-full py-2 px-4 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-900 transition-colors"
+                className="px-3 py-1 bg-gray-800 text-white text-[11px] rounded hover:bg-gray-900 transition-colors"
               >
-                Go to Full Approvals Page
+                View Reports
               </button>
             </div>
           </div>
