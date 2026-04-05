@@ -1305,7 +1305,7 @@ export default function AdvanceExpenseTab() {
       {/* Reports Module */}
       {activeModule === 'Reports' && (
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-card">
+          <div className="bg-white pt-2.5 pb-6 px-6 rounded-xl border border-gray-200 shadow-card">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
               <div className="space-y-2 lg:col-span-1">
                 <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
