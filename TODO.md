@@ -81,8 +81,9 @@ New report view:
 ### 2026-04-05 - Report Table Updates
 - [x] Removed Source column from Advances table
 - [x] Changed all table header backgrounds from gray to plain white
-- [x] Added totals summary row showing Advance, Expense, and Cash in hand amounts
-- [x] Totals row appears below 'Filtered' badge and above table headers
+- [x] Added totals showing Advance, Expense, and Cash in hand amounts in header flex row
+- [x] Totals now appear in the same row as 'Advances/Expenses' title and 'Filtered' badge
+- [x] Removed separate totals row that was below the header
 - [x] Shows individual panel total in header section
 - [x] Cash in hand = Cash Advances - Cash Expenses
 
