@@ -1419,37 +1419,37 @@ export default function AdvanceExpenseTab() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-300">
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Date</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Remarks</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Received from</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Amount</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px]">Date</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Name</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[90px]">Amount</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? advForReport : advances).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[9px] italic">
+                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[10px] italic">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? advForReport : advances).map(a => (
                       <tr key={a.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
                           {new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
-                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200 font-medium">{a.employeeName}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
                           <div className="flex flex-col">
                             <span>{a.category || a.type || '—'}</span>
                             {a.requestType && (
-                              <span className="text-[8px] text-gray-500">{a.requestType}</span>
+                              <span className="text-[9px] text-gray-500">{a.requestType}</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">{a.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">{a.employeeName}</td>
-                        <td className="px-2 py-1.5 text-[9px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">{formatINR(a.amount)}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{a.remarks || '—'}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">{formatINR(a.amount)}</td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center gap-1">
                             {a.requestType === 'Pre-Approval' && a.mdApproval === 'Approved' && (
@@ -1507,38 +1507,40 @@ export default function AdvanceExpenseTab() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-300">
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Date</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Remarks</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Amount</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200 text-left">Payout</th>
-                      <th className="px-2 py-1.5 text-[9px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px]">Date</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Name</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[90px]">Amount</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Payout</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[9px] italic">
+                        <td colSpan={7} className="text-center py-8 text-gray-400 text-[10px] italic">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? expForReport : expenses).map(e => (
                       <tr key={e.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
                           {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
-                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200 font-medium">{e.employeeName}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
                           <div className="flex flex-col">
                             <span>{e.category || e.type || '—'}</span>
                             {e.requestType && (
-                              <span className="text-[8px] text-gray-500">{e.requestType}</span>
+                              <span className="text-[9px] text-gray-500">{e.requestType}</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-[9px] text-gray-700 border-r border-gray-200">{e.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[9px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">{formatINR(e.amount)}</td>
-                        <td className="px-2 py-1.5 text-[9px] border-r border-gray-200">
-                          <span className={`px-1.5 py-0.5 text-[8px] ${e.payoutMethod === 'With Salary' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{e.remarks || '—'}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">{formatINR(e.amount)}</td>
+                        <td className="px-2 py-1.5 text-[10px] border-r border-gray-200">
+                          <span className={`px-1.5 py-0.5 text-[9px] ${e.payoutMethod === 'With Salary' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
                             {e.payoutMethod === 'With Salary' ? 'With Salary' : 'Immediate'}
                           </span>
                         </td>
