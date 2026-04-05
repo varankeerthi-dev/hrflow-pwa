@@ -286,34 +286,39 @@ export default function SalarySlipTab() {
   })
 
   const columns = useMemo(() => [
-    { accessorKey: 'sno', header: 'S.No', size: 15, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
-    { accessorKey: 'name', header: 'Employee Name', size: 150, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-semibold text-indigo-600 hover:text-indigo-800 px-1 truncate w-full text-[11px] block">{info.getValue()}</button> },
-    { accessorKey: 'totalDays', header: 'Total\nDays', size: 18, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
-    { accessorKey: 'worked', header: 'Worked', size: 20, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+    { 
+      header: 'Basic Info',
+      columns: [
+        { accessorKey: 'sno', header: 'S.No', size: 15, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'name', header: 'Employee Name', size: 150, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-semibold text-indigo-600 hover:text-indigo-800 px-1 truncate w-full text-[11px] block font-roboto">{info.getValue()}</button> },
+        { accessorKey: 'worked', header: 'Worked', size: 20, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+      ]
+    },
+    { accessorKey: 'totalDays', header: 'Total\nDays', size: 18, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
     { 
       header: 'Holiday',
       columns: [
-        { accessorKey: 'sunday', header: 'Sunday', size: 30, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
-        { accessorKey: 'holidays', header: 'Holiday', size: 30, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+        { accessorKey: 'sunday', header: 'Sunday', size: 30, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'holidays', header: 'Holiday', size: 30, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'totalHolidays', header: 'Tot', size: 22, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
       ]
     },
-    { accessorKey: 'totalHolidays', header: 'Tot', size: 22, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
     { 
       header: 'LEAVE',
       columns: [
-        { accessorKey: 'leave', header: 'Approved', size: 30, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
-        { accessorKey: 'lop', header: 'LOP', size: 25, cell: info => <div className="text-center text-[10px] text-red-600">{info.getValue()}</div> },
+        { accessorKey: 'leave', header: 'Approved', size: 30, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'lop', header: 'LOP', size: 25, cell: info => <div className="text-center text-[10px] text-red-600 font-roboto">{info.getValue()}</div> },
       ]
     },
-    { accessorKey: 'ot', header: 'OT', size: 25, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+    { accessorKey: 'ot', header: 'OT', size: 25, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
     { 
       header: 'Holiday worked',
       columns: [
-        { accessorKey: 'sunW', header: 'SUN', size: 28, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
-        { accessorKey: 'holW', header: 'HOL', size: 28, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+        { accessorKey: 'sunW', header: 'SUN', size: 28, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'holW', header: 'HOL', size: 28, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
       ]
     },
-    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 30, cell: info => <div className="text-center font-bold text-[10px] text-emerald-600">{info.getValue()}</div> },
+    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 30, cell: info => <div className="text-center font-bold text-[10px] text-emerald-600 font-roboto">{info.getValue()}</div> },
   ], [])
 
   const table = useReactTable({ 
@@ -517,8 +522,8 @@ export default function SalarySlipTab() {
   }
 
   return (
-    <div className="flex h-full bg-[#fbfbfb] font-inter text-gray-900 overflow-hidden">
-      <div className="w-[220px] bg-white border-r border-gray-200 flex flex-col pt-8 shrink-0 shadow-sm">
+      <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden">
+      <div className="w-[150px] bg-white border-r border-gray-200 flex flex-col pt-8 shrink-0 shadow-sm">
         <div className="px-6 mb-8 font-google-sans text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Payroll Engine</div>
         <nav className="flex-1 space-y-1 px-3">
           {[
@@ -832,17 +837,17 @@ export default function SalarySlipTab() {
               <div className="flex-1 min-w-0 flex flex-col gap-2 h-full overflow-hidden">
                 <div className="flex flex-col h-1/2 min-h-0 space-y-1">
                   <button onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)} className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0 hover:border-indigo-200 transition-all group w-[50px] h-10"><div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center text-white group-hover:bg-indigo-600 transition-colors"><Clock size={10} /></div><p className="text-[8px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Summary</p></div><div className="flex items-center gap-1"><button onClick={(e) => { e.stopPropagation(); setIsDetailPanelOpen(!isDetailPanelOpen); }} className={`p-0.5 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`} title={isDetailPanelOpen ? "Close Details" : "Open Details"}><Info size={10} /></button>{isAttendanceSummaryOpen ? <ChevronUp size={10} className="text-gray-400" /> : <ChevronDown size={10} className="text-gray-400" />}</div></button>
-                  <div className={`bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 ${!isAttendanceSummaryOpen ? 'hidden' : 'flex'}`} style={{ fontFamily: 'Segoe UI, Arial, sans-serif' }}><div className="overflow-auto flex-1">
+                  <div className={`bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 ${!isAttendanceSummaryOpen ? 'hidden' : 'flex'}`} style={{ fontFamily: 'Roboto, sans-serif' }}><div className="overflow-auto flex-1">
                     <table className="w-full border-collapse text-[11px] table-auto">
                       <thead className="sticky top-0 z-10">
                         {table.getHeaderGroups().map((headerGroup) => (
-                          <tr key={headerGroup.id} style={{ height: '21px' }} className="bg-gray-100">
+                          <tr key={headerGroup.id} style={{ height: '21px' }} className="bg-white">
                             {headerGroup.headers.map(header => (
                               <th 
                                 key={header.id} 
                                 colSpan={header.colSpan} 
                                 rowSpan={header.rowSpan || 1}
-                                className={`px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center ${header.colSpan > 1 ? 'bg-gray-200' : 'bg-gray-50'}`}
+                                className={`px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white`}
                                 style={{ fontSize: '10px', height: header.colSpan > 1 ? '21px' : '21px' }}
                               >
                                 {flexRender(header.column.columnDef.header, header.getContext())}
@@ -854,7 +859,7 @@ export default function SalarySlipTab() {
                       <tbody>
                         {isAttendanceLoading ? (<tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>) : (
                           table.getRowModel().rows.map(row => (
-                            <tr key={row.id} style={{ height: '21px' }} className={`hover:bg-blue-50/30 ${summaryEmpDetail?.id === row.original.id ? 'bg-blue-50' : ''}`}>
+                            <tr key={row.id} style={{ height: '21px' }} className={`hover:bg-gray-50 ${summaryEmpDetail?.id === row.original.id ? 'bg-gray-100' : 'bg-white'}`}>
                               {row.getVisibleCells().map(cell => (<td key={cell.id} className="px-1 py-0.5 border border-gray-200 text-gray-800 text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}
                             </tr>
                           ))
@@ -875,15 +880,15 @@ export default function SalarySlipTab() {
                     </div>
                     <span className="text-[9px] text-gray-500">Cash Flow Analysis</span>
                   </div>
-                  <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0" style={{ fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+                  <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0" style={{ fontFamily: 'Roboto, sans-serif' }}>
                     <div className="overflow-auto flex-1">
                       <table className="w-full border-collapse text-[11px]">
                         <thead className="sticky top-0 z-10">
-                          <tr style={{ height: '21px' }} className="bg-gray-100">
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left" style={{ fontSize: '10px' }}>Employee Name</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right" style={{ fontSize: '10px' }}>Advance</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right" style={{ fontSize: '10px' }}>Expense</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right" style={{ fontSize: '10px' }}>Net (Adv - Exp)</th>
+                          <tr style={{ height: '21px' }} className="bg-white">
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px' }}>Employee Name</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px' }}>Advance</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px' }}>Expense</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px' }}>Net (Adv - Exp)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -893,26 +898,20 @@ export default function SalarySlipTab() {
                             <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>
                           ) : (
                             attendanceSummaryData.map((emp, idx) => {
-                              // Calculate advances and expenses for this employee from the same month's data
-                              const empId = emp.id
-                              const monthPrefix = summaryMonth // Format: YYYY-MM
-                              
-                              // These would come from the data calculation - using mock for now
-                              // In reality, you'd calculate this from advExpRows or similar data source
                               const advanceAmount = emp.advanceAmount || 0
                               const expenseAmount = emp.expenseAmount || 0
                               const netAmount = advanceAmount - expenseAmount
                               
                               return (
-                                <tr key={emp.id} style={{ height: '21px' }} className={`hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 font-medium text-[11px] truncate max-w-[150px]">{emp.name}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-amber-600 font-semibold text-right text-[11px] tabular-nums">
+                                <tr key={emp.id} style={{ height: '21px' }} className={`hover:bg-gray-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-white'}`}>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 font-medium text-[11px] truncate max-w-[150px] font-roboto">{emp.name}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-amber-600 font-semibold text-right text-[11px] tabular-nums font-roboto">
                                     {advanceAmount > 0 ? `₹${advanceAmount.toLocaleString('en-IN')}` : '-'}
                                   </td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-blue-600 font-semibold text-right text-[11px] tabular-nums">
+                                  <td className="px-2 py-0.5 border border-gray-200 text-blue-600 font-semibold text-right text-[11px] tabular-nums font-roboto">
                                     {expenseAmount > 0 ? `₹${expenseAmount.toLocaleString('en-IN')}` : '-'}
                                   </td>
-                                  <td className={`px-2 py-0.5 border border-gray-200 font-bold text-right text-[11px] tabular-nums ${netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  <td className={`px-2 py-0.5 border border-gray-200 font-bold text-right text-[11px] tabular-nums font-roboto ${netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                     {netAmount !== 0 ? `₹${Math.abs(netAmount).toLocaleString('en-IN')}` : '-'}
                                   </td>
                                 </tr>
