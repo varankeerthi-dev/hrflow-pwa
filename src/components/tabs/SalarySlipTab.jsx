@@ -279,29 +279,49 @@ export default function SalarySlipTab() {
         const earnings = [{ label: 'Basic', value: basic }, { label: 'HRA', value: hra }, { label: 'OT Est.', value: otPay }, { label: 'Reimb.', value: reimb }].filter(e => e.value > 0)
         const deductions = [{ label: 'PF', value: pf }, { label: 'IT', value: it }, { label: 'Loan', value: loanE }, { label: 'Adv.', value: adv }, { label: 'Fine', value: fine }].filter(d => d.value > 0)
         const net = earnings.reduce((s, e) => s + e.value, 0) - deductions.reduce((s, d) => s + d.value, 0)
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net } }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb }
       })
     },
     enabled: !!user?.orgId && employees.length > 0 && activeTab === 'salary-summary'
   })
 
   const columns = useMemo(() => [
-    { accessorKey: 'sno', header: 'S.No', size: 15, cell: info => <div className="text-center">{info.getValue()}</div> },
-    { accessorKey: 'name', header: 'Employee Name', cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-bold text-indigo-600 hover:text-indigo-800 px-1 truncate w-[150px] block">{info.getValue()}</button> },
-    { accessorKey: 'totalDays', header: 'Total\nDays', size: 18, cell: info => <div className="text-center font-bold" style={{ color: 'oklch(62.3% 0.214 259.815)' }}>{info.getValue()}</div> },
-    { accessorKey: 'worked', header: 'Worked', size: 20, cell: info => <div className="text-center">{info.getValue()}</div> },
-    { accessorKey: 'sunday', header: 'Sunday', size: 30 },
-    { accessorKey: 'holidays', header: 'Holiday', size: 30 },
-    { accessorKey: 'totalHolidays', header: 'Tot', size: 22 },
-    { accessorKey: 'leave', header: 'Appro', size: 30 },
-    { accessorKey: 'lop', header: 'LOP', size: 25 },
-    { accessorKey: 'ot', header: 'OT', size: 25 },
-    { accessorKey: 'sunW', header: 'SUN', size: 28 },
-    { accessorKey: 'holW', header: 'HOL', size: 28 },
-    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 30 },
+    { accessorKey: 'sno', header: 'S.No', size: 15, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+    { accessorKey: 'name', header: 'Employee Name', size: 150, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-semibold text-indigo-600 hover:text-indigo-800 px-1 truncate w-full text-[11px] block">{info.getValue()}</button> },
+    { accessorKey: 'totalDays', header: 'Total\nDays', size: 18, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+    { accessorKey: 'worked', header: 'Worked', size: 20, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+    { 
+      header: 'Holiday',
+      columns: [
+        { accessorKey: 'sunday', header: 'Sunday', size: 30, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+        { accessorKey: 'holidays', header: 'Holiday', size: 30, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+      ]
+    },
+    { accessorKey: 'totalHolidays', header: 'Tot', size: 22, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+    { 
+      header: 'LEAVE',
+      columns: [
+        { accessorKey: 'leave', header: 'Approved', size: 30, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+        { accessorKey: 'lop', header: 'LOP', size: 25, cell: info => <div className="text-center text-[10px] text-red-600">{info.getValue()}</div> },
+      ]
+    },
+    { accessorKey: 'ot', header: 'OT', size: 25, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+    { 
+      header: 'Holiday worked',
+      columns: [
+        { accessorKey: 'sunW', header: 'SUN', size: 28, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+        { accessorKey: 'holW', header: 'HOL', size: 28, cell: info => <div className="text-center text-[10px]">{info.getValue()}</div> },
+      ]
+    },
+    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 30, cell: info => <div className="text-center font-bold text-[10px] text-emerald-600">{info.getValue()}</div> },
   ], [])
 
-  const table = useReactTable({ data: attendanceSummaryData, columns, getCoreRowModel: getCoreRowModel() })
+  const table = useReactTable({ 
+    data: attendanceSummaryData, 
+    columns, 
+    getCoreRowModel: getCoreRowModel(),
+    getHeaderGroups: () => table.getHeaderGroups()
+  })
 
   useEffect(() => { if (!user?.orgId) return; getDoc(doc(db, 'organisations', user.orgId)).then(snap => { if (snap.exists()) setOrgLogo(snap.data().logoURL || '') }); fetchLoans() }, [user?.orgId])
   
@@ -812,16 +832,18 @@ export default function SalarySlipTab() {
               <div className="flex-1 min-w-0 flex flex-col gap-2 h-full overflow-hidden">
                 <div className="flex flex-col h-1/2 min-h-0 space-y-1">
                   <button onClick={() => setIsAttendanceSummaryOpen(!isAttendanceSummaryOpen)} className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0 hover:border-indigo-200 transition-all group w-[50px] h-10"><div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center text-white group-hover:bg-indigo-600 transition-colors"><Clock size={10} /></div><p className="text-[8px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Summary</p></div><div className="flex items-center gap-1"><button onClick={(e) => { e.stopPropagation(); setIsDetailPanelOpen(!isDetailPanelOpen); }} className={`p-0.5 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`} title={isDetailPanelOpen ? "Close Details" : "Open Details"}><Info size={10} /></button>{isAttendanceSummaryOpen ? <ChevronUp size={10} className="text-gray-400" /> : <ChevronDown size={10} className="text-gray-400" />}</div></button>
-                  <div className={`bg-white rounded border border-gray-200 shadow-sm overflow-hidden flex-col flex-1 min-h-0 ${!isAttendanceSummaryOpen ? 'hidden' : 'flex'}`}><div className="overflow-auto flex-1">
-                    <table className="w-full border-collapse text-[14px] font-inter table-auto">
+                  <div className={`bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 ${!isAttendanceSummaryOpen ? 'hidden' : 'flex'}`} style={{ fontFamily: 'Segoe UI, Arial, sans-serif' }}><div className="overflow-auto flex-1">
+                    <table className="w-full border-collapse text-[11px] table-auto">
                       <thead className="sticky top-0 z-10">
                         {table.getHeaderGroups().map((headerGroup) => (
-                          <tr key={headerGroup.id}>
+                          <tr key={headerGroup.id} style={{ height: '21px' }} className="bg-gray-100">
                             {headerGroup.headers.map(header => (
                               <th 
                                 key={header.id} 
                                 colSpan={header.colSpan} 
-                                className="px-1 py-2 border border-gray-200 bg-gray-50 text-gray-700 font-black uppercase text-center whitespace-pre-line break-words leading-tight"
+                                rowSpan={header.rowSpan || 1}
+                                className={`px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center ${header.colSpan > 1 ? 'bg-gray-200' : 'bg-gray-50'}`}
+                                style={{ fontSize: '10px', height: header.colSpan > 1 ? '21px' : '21px' }}
                               >
                                 {flexRender(header.column.columnDef.header, header.getContext())}
                               </th>
@@ -832,8 +854,8 @@ export default function SalarySlipTab() {
                       <tbody>
                         {isAttendanceLoading ? (<tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>) : (
                           table.getRowModel().rows.map(row => (
-                            <tr key={row.id} className={`hover:bg-indigo-50/30 transition-colors odd:bg-gray-50/30 ${summaryEmpDetail?.id === row.original.id ? 'bg-indigo-50' : ''}`}>
-                              {row.getVisibleCells().map(cell => (<td key={cell.id} className="px-1 py-1.5 border border-gray-100 text-gray-600 font-medium text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}
+                            <tr key={row.id} style={{ height: '21px' }} className={`hover:bg-blue-50/30 ${summaryEmpDetail?.id === row.original.id ? 'bg-blue-50' : ''}`}>
+                              {row.getVisibleCells().map(cell => (<td key={cell.id} className="px-1 py-0.5 border border-gray-200 text-gray-800 text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}
                             </tr>
                           ))
                         )}
@@ -841,7 +863,67 @@ export default function SalarySlipTab() {
                     </table>
                   </div></div>
                 </div>
-                <div className="flex-1 bg-white/40 rounded border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-300 min-h-0"><div className="text-center"><Plus size={24} strokeWidth={1} className="mx-auto mb-1.5 opacity-20" /><p className="text-[8px] font-bold uppercase tracking-[0.2em]">Secondary Analysis Area</p></div></div>
+                
+                {/* Advance/Expense Summary Table - Spreadsheet Style */}
+                <div className="flex flex-col h-1/2 min-h-0 space-y-1">
+                  <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white">
+                        <Wallet size={10} />
+                      </div>
+                      <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Advance / Expense Summary</p>
+                    </div>
+                    <span className="text-[9px] text-gray-500">Cash Flow Analysis</span>
+                  </div>
+                  <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0" style={{ fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+                    <div className="overflow-auto flex-1">
+                      <table className="w-full border-collapse text-[11px]">
+                        <thead className="sticky top-0 z-10">
+                          <tr style={{ height: '21px' }} className="bg-gray-100">
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left" style={{ fontSize: '10px' }}>Employee Name</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right" style={{ fontSize: '10px' }}>Advance</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right" style={{ fontSize: '10px' }}>Expense</th>
+                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right" style={{ fontSize: '10px' }}>Net (Adv - Exp)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {isAttendanceLoading ? (
+                            <tr><td colSpan={4} className="p-4 text-center"><Spinner /></td></tr>
+                          ) : attendanceSummaryData.length === 0 ? (
+                            <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>
+                          ) : (
+                            attendanceSummaryData.map((emp, idx) => {
+                              // Calculate advances and expenses for this employee from the same month's data
+                              const empId = emp.id
+                              const monthPrefix = summaryMonth // Format: YYYY-MM
+                              
+                              // These would come from the data calculation - using mock for now
+                              // In reality, you'd calculate this from advExpRows or similar data source
+                              const advanceAmount = emp.advanceAmount || 0
+                              const expenseAmount = emp.expenseAmount || 0
+                              const netAmount = advanceAmount - expenseAmount
+                              
+                              return (
+                                <tr key={emp.id} style={{ height: '21px' }} className={`hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 font-medium text-[11px] truncate max-w-[150px]">{emp.name}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-amber-600 font-semibold text-right text-[11px] tabular-nums">
+                                    {advanceAmount > 0 ? `₹${advanceAmount.toLocaleString('en-IN')}` : '-'}
+                                  </td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-blue-600 font-semibold text-right text-[11px] tabular-nums">
+                                    {expenseAmount > 0 ? `₹${expenseAmount.toLocaleString('en-IN')}` : '-'}
+                                  </td>
+                                  <td className={`px-2 py-0.5 border border-gray-200 font-bold text-right text-[11px] tabular-nums ${netAmount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    {netAmount !== 0 ? `₹${Math.abs(netAmount).toLocaleString('en-IN')}` : '-'}
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               {isDetailPanelOpen && (
