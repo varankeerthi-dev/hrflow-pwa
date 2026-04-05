@@ -33,6 +33,20 @@ export default function AdvanceExpenseTab() {
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
   
+  // Filter dropdown states
+  const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false)
+  const [fromDateDropdownOpen, setFromDateDropdownOpen] = useState(false)
+  const [toDateDropdownOpen, setToDateDropdownOpen] = useState(false)
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
+  
+  // Helper to close all dropdowns
+  const closeAllDropdowns = () => {
+    setEmployeeDropdownOpen(false)
+    setFromDateDropdownOpen(false)
+    setToDateDropdownOpen(false)
+    setCategoryDropdownOpen(false)
+  }
+  
   // Auto-update 'to' date to today when a new day starts
   useEffect(() => {
     const checkAndUpdateDate = () => {
@@ -58,11 +72,6 @@ export default function AdvanceExpenseTab() {
     
     return () => clearInterval(interval)
   }, [reportToDate])
-  
-  // Filter dropdown states
-  const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false)
-  const [dateDropdownOpen, setDateDropdownOpen] = useState(false)
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
   
   // Transferred To Modal State
   const [transferModalRowId, setTransferModalRowId] = useState(null)
@@ -568,11 +577,12 @@ export default function AdvanceExpenseTab() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (employeeDropdownOpen || dateDropdownOpen || categoryDropdownOpen) {
+      if (employeeDropdownOpen || fromDateDropdownOpen || toDateDropdownOpen || categoryDropdownOpen) {
         const target = event.target
         if (!target.closest('.relative')) {
           setEmployeeDropdownOpen(false)
-          setDateDropdownOpen(false)
+          setFromDateDropdownOpen(false)
+          setToDateDropdownOpen(false)
           setCategoryDropdownOpen(false)
         }
       }
@@ -580,7 +590,7 @@ export default function AdvanceExpenseTab() {
     
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [employeeDropdownOpen, dateDropdownOpen, categoryDropdownOpen])
+  }, [employeeDropdownOpen, fromDateDropdownOpen, toDateDropdownOpen, categoryDropdownOpen])
 
   const handleAddRow = () => {
     const myId = !canSelectAll ? getMyEmpId() : ''
@@ -1772,7 +1782,10 @@ export default function AdvanceExpenseTab() {
               {/* Employee Multi-Select Dropdown */}
               <div className="relative">
                 <button 
-                  onClick={() => setEmployeeDropdownOpen(!employeeDropdownOpen)}
+                  onClick={() => {
+                    closeAllDropdowns()
+                    setEmployeeDropdownOpen(true)
+                  }}
                   className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
                   style={{ lineHeight: '15px' }}
                 >
@@ -1788,7 +1801,10 @@ export default function AdvanceExpenseTab() {
                   <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
                     <div className="p-2 border-b border-gray-100">
                       <button 
-                        onClick={() => setReportSelectedEmployees([])}
+                        onClick={() => {
+                          setReportSelectedEmployees([])
+                          closeAllDropdowns()
+                        }}
                         className="text-[10px] text-blue-600 hover:underline"
                       >
                         Clear All
@@ -1811,26 +1827,33 @@ export default function AdvanceExpenseTab() {
                         <span className="text-[11px] text-gray-700">{emp.name}</span>
                       </label>
                     ))}
+                    <div className="p-2 border-t border-gray-100">
+                      <button 
+                        onClick={() => closeAllDropdowns()}
+                        className="w-full text-center text-[10px] bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
+                      >
+                        Done
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Date Range Picker */}
+              {/* From Date Dropdown */}
               <div className="relative">
                 <button 
-                  onClick={() => setDateDropdownOpen(!dateDropdownOpen)}
+                  onClick={() => {
+                    closeAllDropdowns()
+                    setFromDateDropdownOpen(true)
+                  }}
                   className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
                   style={{ lineHeight: '15px' }}
                 >
                   <Calendar size={12} />
                   <span className="font-medium">
-                    {reportFromDate && reportToDate 
-                      ? `${new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
-                      : reportFromDate 
-                        ? `From ${new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
-                        : reportToDate
-                          ? `To ${new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
-                          : 'Select Date Range'
+                    {reportFromDate 
+                      ? `From: ${new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                      : 'From Date'
                     }
                   </span>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1838,8 +1861,8 @@ export default function AdvanceExpenseTab() {
                   </svg>
                 </button>
                 
-                {dateDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
+                {fromDateDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
                     <div className="flex items-center justify-between mb-2">
                       <button 
                         onClick={() => {
@@ -1852,7 +1875,7 @@ export default function AdvanceExpenseTab() {
                         <ChevronLeft size={14} />
                       </button>
                       <span className="text-[11px] font-medium text-gray-700">
-                        {reportFromDate ? new Date(reportFromDate).toLocaleString('default', { month: 'short', year: 'numeric' }) : 'From'}
+                        {reportFromDate ? new Date(reportFromDate).toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month'}
                       </span>
                       <button 
                         onClick={() => {
@@ -1868,28 +1891,104 @@ export default function AdvanceExpenseTab() {
                     <input 
                       type="date"
                       value={reportFromDate}
-                      onChange={(e) => setReportFromDate(e.target.value)}
-                      className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded mb-2"
-                      placeholder="From Date"
-                    />
-                    <div className="text-center text-[10px] text-gray-400 my-1">to</div>
-                    <input 
-                      type="date"
-                      value={reportToDate}
-                      onChange={(e) => setReportToDate(e.target.value)}
+                      onChange={(e) => {
+                        setReportFromDate(e.target.value)
+                        closeAllDropdowns()
+                      }}
                       className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded"
-                      placeholder="To Date"
                     />
-                    <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex justify-between gap-2 mt-2 pt-2 border-t border-gray-100">
                       <button 
-                        onClick={() => { setReportFromDate(''); setReportToDate(''); }}
+                        onClick={() => {
+                          setReportFromDate('')
+                          closeAllDropdowns()
+                        }}
                         className="text-[10px] text-gray-500 hover:text-gray-700"
                       >
                         Clear
                       </button>
                       <button 
-                        onClick={() => setDateDropdownOpen(false)}
-                        className="text-[10px] bg-primary-600 text-white px-2 py-1 rounded"
+                        onClick={() => closeAllDropdowns()}
+                        className="text-[10px] bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* To Date Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => {
+                    closeAllDropdowns()
+                    setToDateDropdownOpen(true)
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
+                  style={{ lineHeight: '15px' }}
+                >
+                  <Calendar size={12} />
+                  <span className="font-medium">
+                    {reportToDate 
+                      ? `To: ${new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                      : 'To Date'
+                    }
+                  </span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                
+                {toDateDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <button 
+                        onClick={() => {
+                          const current = reportToDate ? new Date(reportToDate) : new Date()
+                          current.setMonth(current.getMonth() - 1)
+                          setReportToDate(current.toISOString().split('T')[0])
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="text-[11px] font-medium text-gray-700">
+                        {reportToDate ? new Date(reportToDate).toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month'}
+                      </span>
+                      <button 
+                        onClick={() => {
+                          const current = reportToDate ? new Date(reportToDate) : new Date()
+                          current.setMonth(current.getMonth() + 1)
+                          setReportToDate(current.toISOString().split('T')[0])
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded"
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                    <input 
+                      type="date"
+                      value={reportToDate}
+                      onChange={(e) => {
+                        setReportToDate(e.target.value)
+                        closeAllDropdowns()
+                      }}
+                      className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded"
+                    />
+                    <div className="flex justify-between gap-2 mt-2 pt-2 border-t border-gray-100">
+                      <button 
+                        onClick={() => {
+                          setReportToDate('')
+                          closeAllDropdowns()
+                        }}
+                        className="text-[10px] text-gray-500 hover:text-gray-700"
+                      >
+                        Clear
+                      </button>
+                      <button 
+                        onClick={() => closeAllDropdowns()}
+                        className="text-[10px] bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
                       >
                         Done
                       </button>
@@ -1901,7 +2000,10 @@ export default function AdvanceExpenseTab() {
               {/* Category Dropdown */}
               <div className="relative">
                 <button 
-                  onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                  onClick={() => {
+                    closeAllDropdowns()
+                    setCategoryDropdownOpen(true)
+                  }}
                   className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
                   style={{ lineHeight: '15px' }}
                 >
@@ -1915,7 +2017,7 @@ export default function AdvanceExpenseTab() {
                 {categoryDropdownOpen && (
                   <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                     <button 
-                      onClick={() => { setReportFilterCategory(''); setCategoryDropdownOpen(false); }}
+                      onClick={() => { setReportFilterCategory(''); closeAllDropdowns(); }}
                       className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 ${!reportFilterCategory ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
                     >
                       All Categories
@@ -1923,7 +2025,7 @@ export default function AdvanceExpenseTab() {
                     {categories.map(cat => (
                       <button 
                         key={cat}
-                        onClick={() => { setReportFilterCategory(cat); setCategoryDropdownOpen(false); }}
+                        onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
                         className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
                       >
                         {cat}
