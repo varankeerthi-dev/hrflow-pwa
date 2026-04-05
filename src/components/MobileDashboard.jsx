@@ -509,7 +509,7 @@ export default function MobileDashboard() {
           </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 bg-white">
           {visibleModules.map((mod) => (
             <button
               key={mod.id}
@@ -535,7 +535,7 @@ export default function MobileDashboard() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-200 space-y-2">
+        <div className="p-4 border-t border-gray-200 space-y-2 bg-white">
           <button 
             onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}
             className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-indigo-50 transition-colors hover:text-indigo-600"
@@ -653,7 +653,7 @@ export default function MobileDashboard() {
               </button>
             </div>
             
-            <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+            <nav className="flex-1 overflow-y-auto p-4 space-y-1 bg-white">
               {visibleModules.map(mod => (
                 <button
                   key={mod.id}
@@ -671,7 +671,7 @@ export default function MobileDashboard() {
               ))}
             </nav>
 
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
+            <div className="p-4 border-t border-gray-200 bg-white">
               <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] leading-5 text-red-600 hover:bg-red-50 transition-colors font-medium">
                 <LogOut size={18} />
                 <span className="uppercase tracking-widest">Sign Out</span>
