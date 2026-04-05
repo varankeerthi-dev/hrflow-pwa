@@ -95,7 +95,9 @@ export default function AdvanceExpenseTab() {
   // Side Drawer State for Approvals
   const [approvalDrawerOpen, setApprovalDrawerOpen] = useState(false)
   const [submittedItems, setSubmittedItems] = useState([]) // Store submitted items, not fetch all
+  const [selectedForApproval, setSelectedForApproval] = useState([]) // Track selected items for bulk approval
   const [drawerLoading, setDrawerLoading] = useState(false)
+  const [bulkProcessing, setBulkProcessing] = useState(false) // Track bulk approval processing
   
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
@@ -860,6 +862,58 @@ export default function AdvanceExpenseTab() {
   const closeApprovalDrawer = () => {
     setApprovalDrawerOpen(false)
     setSubmittedItems([])
+    setSelectedForApproval([])
+  }
+
+  // Toggle item selection for bulk approval
+  const toggleItemSelection = (transactionNo) => {
+    setSelectedForApproval(prev => 
+      prev.includes(transactionNo) 
+        ? prev.filter(t => t !== transactionNo)
+        : [...prev, transactionNo]
+    )
+  }
+
+  // Select/deselect all items
+  const toggleSelectAll = () => {
+    if (selectedForApproval.length === submittedItems.length) {
+      setSelectedForApproval([])
+    } else {
+      setSelectedForApproval(submittedItems.map(item => item.transactionNo))
+    }
+  }
+
+  // Bulk approve selected items
+  const bulkApprove = async (approvalType) => {
+    if (selectedForApproval.length === 0) {
+      alert('Please select at least one item to approve')
+      return
+    }
+    
+    const confirmMsg = `Approve ${selectedForApproval.length} item${selectedForApproval.length > 1 ? 's' : ''} for ${approvalType.toUpperCase()}?`
+    if (!window.confirm(confirmMsg)) return
+    
+    setBulkProcessing(true)
+    const approved = []
+    const failed = []
+    
+    for (const txnNo of selectedForApproval) {
+      try {
+        await approveFromDrawer(txnNo, approvalType)
+        approved.push(txnNo)
+      } catch (err) {
+        failed.push(txnNo)
+      }
+    }
+    
+    setBulkProcessing(false)
+    setSelectedForApproval([]) // Clear selection after approval
+    
+    if (failed.length > 0) {
+      alert(`${approved.length} approved, ${failed.length} failed`)
+    } else {
+      alert(`${approved.length} item${approved.length > 1 ? 's' : ''} approved successfully`)
+    }
   }
 
   const deleteMutation = useMutation({
@@ -2938,23 +2992,61 @@ export default function AdvanceExpenseTab() {
               </button>
             </div>
             
+            {/* Bulk Actions Bar */}
+            <div className="px-3 py-2 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedForApproval.length === submittedItems.length && submittedItems.length > 0}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-[11px] text-gray-600">
+                  {selectedForApproval.length > 0 ? `${selectedForApproval.length} selected` : 'Select all'}
+                </span>
+              </div>
+              {selectedForApproval.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {(isHR || isAdmin) && (
+                    <button
+                      onClick={() => bulkApprove('hr')}
+                      disabled={bulkProcessing}
+                      className="px-2 py-1 bg-sky-600 text-white text-[10px] font-medium rounded hover:bg-sky-700 transition-colors disabled:opacity-50"
+                    >
+                      {bulkProcessing ? '...' : `Approve HR (${selectedForApproval.length})`}
+                    </button>
+                  )}
+                  {(isMD || isAdmin) && (
+                    <button
+                      onClick={() => bulkApprove('md')}
+                      disabled={bulkProcessing}
+                      className="px-2 py-1 bg-violet-600 text-white text-[10px] font-medium rounded hover:bg-violet-700 transition-colors disabled:opacity-50"
+                    >
+                      {bulkProcessing ? '...' : `Approve MD (${selectedForApproval.length})`}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            
             {/* Drawer Content - Minimalist Table */}
             <div className="flex-1 overflow-y-auto">
               <table className="w-full text-[11px] border-collapse">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr className="border-b border-gray-200">
-                    <th className="px-2 py-1.5 text-left font-semibold text-gray-600">Ref</th>
+                    <th className="px-1 py-1.5 text-center font-semibold text-gray-600 w-8"></th>
+                    <th className="px-2 py-1.5 text-left font-semibold text-gray-600">Date</th>
                     <th className="px-2 py-1.5 text-left font-semibold text-gray-600">Employee</th>
                     <th className="px-2 py-1.5 text-left font-semibold text-gray-600">Category</th>
                     <th className="px-2 py-1.5 text-right font-semibold text-gray-600">Amount</th>
-                    <th className="px-2 py-1.5 text-center font-semibold text-gray-600">HR</th>
-                    <th className="px-2 py-1.5 text-center font-semibold text-gray-600">MD</th>
+                    <th className="px-1 py-1.5 text-center font-semibold text-gray-600 w-16">HR</th>
+                    <th className="px-1 py-1.5 text-center font-semibold text-gray-600 w-16">MD</th>
                   </tr>
                 </thead>
                 <tbody>
                   {submittedItems.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-gray-400 text-[11px]">
+                      <td colSpan={7} className="py-8 text-center text-gray-400 text-[11px]">
                         No items submitted
                       </td>
                     </tr>
@@ -2962,10 +3054,21 @@ export default function AdvanceExpenseTab() {
                     submittedItems.map((item, idx) => (
                       <tr 
                         key={item.id || idx} 
-                        className={`border-b border-gray-100 ${item._approved ? 'bg-green-50/50' : 'hover:bg-blue-50/30'}`}
+                        className={`border-b border-gray-100 ${item._approved ? 'bg-green-50/50' : selectedForApproval.includes(item.transactionNo) ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
                       >
-                        <td className="px-2 py-1.5 font-mono text-[10px] text-gray-600">
-                          {item.transactionNo?.slice(-6)}
+                        <td className="px-1 py-1.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedForApproval.includes(item.transactionNo)}
+                            onChange={() => toggleItemSelection(item.transactionNo)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 font-mono text-[10px] text-gray-600 whitespace-nowrap">
+                          {new Date(item.date).toLocaleDateString('en-GB', { 
+                            day: '2-digit', 
+                            month: 'short' 
+                          })}
                         </td>
                         <td className="px-2 py-1.5 font-medium text-gray-800 truncate max-w-[80px]">
                           {item.employeeName}
@@ -2978,7 +3081,7 @@ export default function AdvanceExpenseTab() {
                         </td>
                         <td className="px-1 py-1.5 text-center">
                           {item.hrApproval === 'Approved' ? (
-                            <span className="text-green-600 font-bold">✓</span>
+                            <span className="text-green-600 font-bold text-[12px]">✓</span>
                           ) : (isHR || isAdmin) ? (
                             <button
                               onClick={() => approveFromDrawer(item.transactionNo || item.id, 'hr')}
@@ -2992,7 +3095,7 @@ export default function AdvanceExpenseTab() {
                         </td>
                         <td className="px-1 py-1.5 text-center">
                           {item.mdApproval === 'Approved' ? (
-                            <span className="text-green-600 font-bold">✓</span>
+                            <span className="text-green-600 font-bold text-[12px]">✓</span>
                           ) : (isMD || isAdmin) ? (
                             <button
                               onClick={() => approveFromDrawer(item.transactionNo || item.id, 'md')}
