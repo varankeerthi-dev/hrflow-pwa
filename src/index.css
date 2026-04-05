@@ -39,22 +39,22 @@ body {
 
 /* Enhanced UI Utilities */
 .sidebar-active {
-  background-color: #ffffff;
-  color: var(--color-primary);
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
   font-weight: 700;
-  border-left: 3px solid var(--color-primary);
+  border-left: 3px solid #4f46e5;
   border-radius: 0;
 }
 
 .sidebar-hover {
-  background-color: #ffffff;
-  color: var(--color-primary);
+  background-color: #f1f5f9;
+  color: #6366f1;
   transition: all 0.2s ease;
 }
 
 .sidebar-inactive {
   background-color: #ffffff;
-  color: var(--color-text-secondary);
+  color: #64748b;
   transition: all 0.2s ease;
 }
 
