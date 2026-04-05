@@ -519,9 +519,9 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
 
       {/* Monthly View */}
       {activeSubTab === 'monthlyView' && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col font-inter shadow-sm">
+        <>
           {/* Header with Controls */}
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <div className="p-4 border-b border-gray-200 bg-gray-50 rounded-xl">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
               {/* Month/Year Selectors + Show Button */}
               <div className="flex items-center gap-3">
@@ -729,7 +729,7 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
               </table>
             </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Column Settings Modal */}
