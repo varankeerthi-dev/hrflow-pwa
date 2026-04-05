@@ -799,8 +799,8 @@ export default function AdvanceExpenseTab() {
     }
   }
 
-  // Approve from drawer
-  const approveFromDrawer = async (itemId, approvalType) => {
+  // Approve/Reject/Hold from drawer
+  const approveFromDrawer = async (itemId, approvalType, action = 'approve') => {
     try {
       // Find the item in our submitted list
       const item = submittedItems.find(i => i.id === itemId || i.transactionNo === itemId)
@@ -824,21 +824,52 @@ export default function AdvanceExpenseTab() {
       const docId = snap.docs[0].id
       const docRef = doc(db, 'organisations', user.orgId, 'advances_expenses', docId)
 
-      if (approvalType === 'hr') {
-        await updateDoc(docRef, {
-          hrApproval: 'Approved',
-          hrApprovedBy: user.uid,
-          hrApprovedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        })
-      } else {
-        await updateDoc(docRef, {
-          mdApproval: 'Approved',
-          mdApprovedBy: user.uid,
-          mdApprovedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        })
+      let updateData = {
+        updatedAt: serverTimestamp()
       }
+
+      // Handle different approval actions
+      switch (action) {
+        case 'approve':
+          if (approvalType === 'hr') {
+            updateData.hrApproval = 'Approved'
+            updateData.hrApprovedBy = user.uid
+            updateData.hrApprovedAt = serverTimestamp()
+          } else {
+            updateData.mdApproval = 'Approved'
+            updateData.mdApprovedBy = user.uid
+            updateData.mdApprovedAt = serverTimestamp()
+          }
+          break
+        case 'reject':
+          if (approvalType === 'hr') {
+            updateData.hrApproval = 'Rejected'
+            updateData.hrRejectedBy = user.uid
+            updateData.hrRejectedAt = serverTimestamp()
+          } else {
+            updateData.mdApproval = 'Rejected'
+            updateData.mdRejectedBy = user.uid
+            updateData.mdRejectedAt = serverTimestamp()
+          }
+          updateData.status = 'Rejected'
+          break
+        case 'hold':
+          if (approvalType === 'hr') {
+            updateData.hrApproval = 'Hold'
+            updateData.hrHoldBy = user.uid
+            updateData.hrHoldAt = serverTimestamp()
+          } else {
+            updateData.mdApproval = 'Hold'
+            updateData.mdHoldBy = user.uid
+            updateData.mdHoldAt = serverTimestamp()
+          }
+          updateData.status = 'Hold'
+          break
+        default:
+          return
+      }
+
+      await updateDoc(docRef, updateData)
 
       // Update local state
       setSubmittedItems(prev => 
@@ -846,15 +877,18 @@ export default function AdvanceExpenseTab() {
           (item.id === itemId || item.transactionNo === itemId)
             ? { 
                 ...item, 
-                [approvalType === 'hr' ? 'hrApproval' : 'mdApproval']: 'Approved',
-                _approved: true 
+                [approvalType === 'hr' ? 'hrApproval' : 'mdApproval']: 
+                  action === 'approve' ? 'Approved' : 
+                  action === 'reject' ? 'Rejected' : 
+                  action === 'hold' ? 'Hold' : 'Pending',
+                _approved: action === 'approve'
               }
             : item
         )
       )
     } catch (err) {
-      console.error('Approval error:', err)
-      alert('Failed to approve: ' + err.message)
+      console.error('Approval action error:', err)
+      alert('Failed to process: ' + err.message)
     }
   }
 
@@ -884,13 +918,19 @@ export default function AdvanceExpenseTab() {
   }
 
   // Bulk approve selected items
-  const bulkApprove = async (approvalType) => {
+  const bulkApprove = async (approvalType, action = 'approve') => {
     if (selectedForApproval.length === 0) {
-      alert('Please select at least one item to approve')
+      alert('Please select at least one item')
       return
     }
     
-    const confirmMsg = `Approve ${selectedForApproval.length} item${selectedForApproval.length > 1 ? 's' : ''} for ${approvalType.toUpperCase()}?`
+    const actionLabels = {
+      'approve': 'Approve',
+      'reject': 'Reject',
+      'hold': 'Hold'
+    }
+    
+    const confirmMsg = `${actionLabels[action]} ${selectedForApproval.length} item${selectedForApproval.length > 1 ? 's' : ''} for ${approvalType.toUpperCase()}?`
     if (!window.confirm(confirmMsg)) return
     
     setBulkProcessing(true)
@@ -899,7 +939,7 @@ export default function AdvanceExpenseTab() {
     
     for (const txnNo of selectedForApproval) {
       try {
-        await approveFromDrawer(txnNo, approvalType)
+        await approveFromDrawer(txnNo, approvalType, action)
         approved.push(txnNo)
       } catch (err) {
         failed.push(txnNo)
@@ -907,12 +947,12 @@ export default function AdvanceExpenseTab() {
     }
     
     setBulkProcessing(false)
-    setSelectedForApproval([]) // Clear selection after approval
+    setSelectedForApproval([]) // Clear selection after action
     
     if (failed.length > 0) {
-      alert(`${approved.length} approved, ${failed.length} failed`)
+      alert(`${approved.length} ${action}ed, ${failed.length} failed`)
     } else {
-      alert(`${approved.length} item${approved.length > 1 ? 's' : ''} approved successfully`)
+      alert(`${approved.length} item${approved.length > 1 ? 's' : ''} ${action}ed successfully`)
     }
   }
 
@@ -3008,22 +3048,40 @@ export default function AdvanceExpenseTab() {
               {selectedForApproval.length > 0 && (
                 <div className="flex items-center gap-1">
                   {(isHR || isAdmin) && (
-                    <button
-                      onClick={() => bulkApprove('hr')}
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          bulkApprove('hr', e.target.value)
+                          e.target.value = ''
+                        }
+                      }}
                       disabled={bulkProcessing}
-                      className="px-2 py-1 bg-sky-600 text-white text-[10px] font-medium rounded hover:bg-sky-700 transition-colors disabled:opacity-50"
+                      className="px-2 py-1 bg-sky-600 text-white text-[10px] font-medium rounded hover:bg-sky-700 transition-colors disabled:opacity-50 cursor-pointer"
+                      value=""
                     >
-                      {bulkProcessing ? '...' : `Approve HR (${selectedForApproval.length})`}
-                    </button>
+                      <option value="">HR Actions ({selectedForApproval.length})</option>
+                      <option value="approve">✓ Approve All</option>
+                      <option value="reject">✗ Reject All</option>
+                      <option value="hold">⏸ Hold All</option>
+                    </select>
                   )}
                   {(isMD || isAdmin) && (
-                    <button
-                      onClick={() => bulkApprove('md')}
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          bulkApprove('md', e.target.value)
+                          e.target.value = ''
+                        }
+                      }}
                       disabled={bulkProcessing}
-                      className="px-2 py-1 bg-violet-600 text-white text-[10px] font-medium rounded hover:bg-violet-700 transition-colors disabled:opacity-50"
+                      className="px-2 py-1 bg-violet-600 text-white text-[10px] font-medium rounded hover:bg-violet-700 transition-colors disabled:opacity-50 cursor-pointer"
+                      value=""
                     >
-                      {bulkProcessing ? '...' : `Approve MD (${selectedForApproval.length})`}
-                    </button>
+                      <option value="">MD Actions ({selectedForApproval.length})</option>
+                      <option value="approve">✓ Approve All</option>
+                      <option value="reject">✗ Reject All</option>
+                      <option value="hold">⏸ Hold All</option>
+                    </select>
                   )}
                 </div>
               )}
@@ -3082,13 +3140,26 @@ export default function AdvanceExpenseTab() {
                         <td className="px-1 py-1.5 text-center">
                           {item.hrApproval === 'Approved' ? (
                             <span className="text-green-600 font-bold text-[12px]">✓</span>
+                          ) : item.hrApproval === 'Rejected' ? (
+                            <span className="text-red-600 font-bold text-[10px]">✗</span>
+                          ) : item.hrApproval === 'Hold' ? (
+                            <span className="text-amber-600 font-bold text-[10px]">⏸</span>
                           ) : (isHR || isAdmin) ? (
-                            <button
-                              onClick={() => approveFromDrawer(item.transactionNo || item.id, 'hr')}
-                              className="px-2 py-0.5 bg-sky-600 text-white text-[9px] rounded hover:bg-sky-700 transition-colors"
+                            <select
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  approveFromDrawer(item.transactionNo || item.id, 'hr', e.target.value)
+                                  e.target.value = ''
+                                }
+                              }}
+                              className="w-full px-1 py-0.5 bg-sky-600 text-white text-[9px] rounded hover:bg-sky-700 transition-colors cursor-pointer border-0 outline-none"
+                              value=""
                             >
-                              Approve
-                            </button>
+                              <option value="">Action</option>
+                              <option value="approve">✓ Approve</option>
+                              <option value="reject">✗ Reject</option>
+                              <option value="hold">⏸ Hold</option>
+                            </select>
                           ) : (
                             <span className="text-gray-400 text-[9px]">Pending</span>
                           )}
@@ -3096,13 +3167,26 @@ export default function AdvanceExpenseTab() {
                         <td className="px-1 py-1.5 text-center">
                           {item.mdApproval === 'Approved' ? (
                             <span className="text-green-600 font-bold text-[12px]">✓</span>
+                          ) : item.mdApproval === 'Rejected' ? (
+                            <span className="text-red-600 font-bold text-[10px]">✗</span>
+                          ) : item.mdApproval === 'Hold' ? (
+                            <span className="text-amber-600 font-bold text-[10px]">⏸</span>
                           ) : (isMD || isAdmin) ? (
-                            <button
-                              onClick={() => approveFromDrawer(item.transactionNo || item.id, 'md')}
-                              className="px-2 py-0.5 bg-violet-600 text-white text-[9px] rounded hover:bg-violet-700 transition-colors"
+                            <select
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  approveFromDrawer(item.transactionNo || item.id, 'md', e.target.value)
+                                  e.target.value = ''
+                                }
+                              }}
+                              className="w-full px-1 py-0.5 bg-violet-600 text-white text-[9px] rounded hover:bg-violet-700 transition-colors cursor-pointer border-0 outline-none"
+                              value=""
                             >
-                              Approve
-                            </button>
+                              <option value="">Action</option>
+                              <option value="approve">✓ Approve</option>
+                              <option value="reject">✗ Reject</option>
+                              <option value="hold">⏸ Hold</option>
+                            </select>
                           ) : (
                             <span className="text-gray-400 text-[9px]">Pending</span>
                           )}
