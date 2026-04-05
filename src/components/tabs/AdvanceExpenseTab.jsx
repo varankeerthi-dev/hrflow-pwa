@@ -61,31 +61,29 @@ export default function AdvanceExpenseTab() {
     setCategoryDropdownOpen(false)
   }
   
-  // Auto-update 'to' date to today when a new day starts
+  // Ref for current toDate value (for interval callback)
+  const reportToDateRef = useRef(reportToDate)
+  reportToDateRef.current = reportToDate
+
+  // Auto-update 'to' date to today when a new day starts (only on mount, not when user changes date)
   useEffect(() => {
     const checkAndUpdateDate = () => {
       const currentDate = new Date().toISOString().split('T')[0]
-      if (reportToDate && reportToDate !== currentDate) {
-        // Only update if user hasn't manually changed it recently
-        // Check if current time is past midnight
-        const now = new Date()
-        const currentTime = now.getHours() * 60 + now.getMinutes()
-        
-        // Update at midnight (00:00) or if date has changed
-        if (currentTime < 5 || reportToDate < currentDate) {
-          setReportToDate(currentDate)
-        }
+      const storedDate = reportToDateRef.current
+      // Only update if the stored date is in the past (not future)
+      if (storedDate && storedDate < currentDate) {
+        setReportToDate(currentDate)
       }
     }
     
-    // Check immediately
+    // Check immediately on mount
     checkAndUpdateDate()
     
     // Set up interval to check every minute
     const interval = setInterval(checkAndUpdateDate, 60000)
     
     return () => clearInterval(interval)
-  }, [reportToDate])
+  }, [])
   
   // Transferred To Modal State
   const [transferModalRowId, setTransferModalRowId] = useState(null)
@@ -1600,9 +1598,11 @@ export default function AdvanceExpenseTab() {
                     <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[160px]">
                       Category
                     </th>
-                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">
-                      Paid To
-                    </th>
+                    {activeModule === 'Add Expense' && (
+                      <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">
+                        Paid To
+                      </th>
+                    )}
                     {activeModule === 'Add Expense' && (
                       <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
                         Type
@@ -1661,9 +1661,11 @@ export default function AdvanceExpenseTab() {
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-1.5 border-r border-zinc-100">
-                        <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
-                      </td>
+                      {activeModule === 'Add Expense' && (
+                        <td className="px-2 py-1.5 border-r border-zinc-100">
+                          <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
+                        </td>
+                      )}
                       {activeModule === 'Add Expense' && (
                         <td className="px-2 py-1.5 border-r border-zinc-100">
                           <select 
@@ -1806,13 +1808,15 @@ export default function AdvanceExpenseTab() {
                     )}
                   </div>
                   
-                  {/* Paid To */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Paid To
-                    </label>
-                    <PaidToDropdown rowId={row.id} row={row} isMobile={true} />
-                  </div>
+                  {/* Paid To - Only for Expense */}
+                  {activeModule === 'Add Expense' && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                        Paid To
+                      </label>
+                      <PaidToDropdown rowId={row.id} row={row} isMobile={true} />
+                    </div>
+                  )}
                   
                   {/* Type & Payout Row - Only for Expense */}
                   {activeModule === 'Add Expense' && (
