@@ -530,21 +530,21 @@ export default function SalarySlipTab() {
         <div className="px-6 mb-8 font-google-sans text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Payroll Engine</div>
         <nav className="flex-1 space-y-1 px-3">
           {[
-            {id:'salary-slip', icon:<Banknote size={18}/>, label:'Salary Slip'}, 
-            {id:'salary-summary', icon:<FileText size={18}/>, label:'Salary Summary'}, 
-            {id:'loan', icon:<Wallet size={18}/>, label:'Loan Management'}
+            {id:'salary-slip', icon:<Banknote size={16}/>, label:'Slip'}, 
+            {id:'salary-summary', icon:<FileText size={16}/>, label:'Summary'}, 
+            {id:'loan', icon:<Wallet size={16}/>, label:'Loans'}
           ].map(t => (
             <button 
               key={t.id} 
               onClick={() => setActiveTab(t.id)} 
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-200 whitespace-nowrap ${
                 activeTab === t.id 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                  ? 'bg-indigo-600 text-white shadow-md' 
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <span className={activeTab === t.id ? 'text-white' : 'text-slate-400'}>{t.icon}</span>
-              <span className="text-[14px] font-bold tracking-tight">{t.label}</span>
+              <span className="text-[13px] font-semibold tracking-tight whitespace-nowrap">{t.label}</span>
             </button>
           ))}
         </nav>
