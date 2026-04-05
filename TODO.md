@@ -81,15 +81,16 @@ New report view:
 ### 2026-04-05 - Report Table Updates
 - [x] Removed Source column from Advances table
 - [x] Changed all table header backgrounds from gray to plain white
-- [x] Added totals showing Advance, Expense, and Cash in hand amounts in header flex row
-- [x] Totals now appear in the same row as 'Advances/Expenses' title and 'Filtered' badge
-- [x] Removed separate totals row that was below the header
-- [x] Shows individual panel total in header section
+- [x] Moved totals row (Advance, Expense, Cash in hand) to between filters and tables
+- [x] Removed totals from individual panel headers - now in single summary row above tables
+- [x] Totals row includes Screenshot PNG and Export PDF buttons
 - [x] Cash in hand = Cash Advances - Cash Expenses
+- [x] Shows individual panel record count in header section
 
 ### 2026-04-05 - Filter Revamp
 - [x] Converted Reports filters to single-row horizontal layout (15px line height)
 - [x] Added Employee multi-select dropdown with employee names
+- [x] Name filter displays selected employee name(s) in the button
 - [x] Added separate From Date and To Date dropdowns (not combined)
 - [x] Auto-open date picker calendar when clicking date filter button (using showPicker API)
 - [x] Auto-close dropdown when selecting date, category, or clicking Done
@@ -103,6 +104,14 @@ New report view:
 - [x] Added Clear Filters button
 - [x] Updated Export PDF to match current view with landscape format
 - [x] Added click-outside handler to close dropdowns
+
+### 2026-04-05 - Screenshot Feature
+- [x] Added 'Screenshot PNG' button in totals row
+- [x] Integrated html2canvas for capturing reports section
+- [x] Screenshot captures entire container: filters, totals, and both tables
+- [x] High-quality capture with scale: 2
+- [x] Downloads PNG with timestamped filename
+- [x] Shows loading state while capturing
 
 ### 2026-04-05 - Paid To Feature
 - [x] Created custom outward-opening "Paid To" dropdown component
