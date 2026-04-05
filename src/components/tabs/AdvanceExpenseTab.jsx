@@ -18,9 +18,12 @@ export default function AdvanceExpenseTab() {
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
   
   // Reports Filter States
+  const today = new Date().toISOString().split('T')[0]
+  const firstDayOfMonth = new Date().toISOString().slice(0, 8) + '01'
+  
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM
-  const [reportFromDate, setReportFromDate] = useState('')
-  const [reportToDate, setReportToDate] = useState('')
+  const [reportFromDate, setReportFromDate] = useState(firstDayOfMonth)
+  const [reportToDate, setReportToDate] = useState(today)
   const [reportSelectedEmployees, setReportSelectedEmployees] = useState([]) // Multi-select
   const [reportFilterCategory, setReportFilterCategory] = useState('')
   const [reportFilterRemarks, setReportFilterRemarks] = useState('')
@@ -29,6 +32,32 @@ export default function AdvanceExpenseTab() {
   const [reportFilterPayout, setReportFilterPayout] = useState('All') // All | Immediate | With Salary
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
+  
+  // Auto-update 'to' date to today when a new day starts
+  useEffect(() => {
+    const checkAndUpdateDate = () => {
+      const currentDate = new Date().toISOString().split('T')[0]
+      if (reportToDate && reportToDate !== currentDate) {
+        // Only update if user hasn't manually changed it recently
+        // Check if current time is past midnight
+        const now = new Date()
+        const currentTime = now.getHours() * 60 + now.getMinutes()
+        
+        // Update at midnight (00:00) or if date has changed
+        if (currentTime < 5 || reportToDate < currentDate) {
+          setReportToDate(currentDate)
+        }
+      }
+    }
+    
+    // Check immediately
+    checkAndUpdateDate()
+    
+    // Set up interval to check every minute
+    const interval = setInterval(checkAndUpdateDate, 60000)
+    
+    return () => clearInterval(interval)
+  }, [reportToDate])
   
   // Filter dropdown states
   const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false)
@@ -879,8 +908,11 @@ export default function AdvanceExpenseTab() {
   }
 
   const clearAllFilters = () => {
-    setReportFromDate('')
-    setReportToDate('')
+    const today = new Date().toISOString().split('T')[0]
+    const firstDayOfMonth = new Date().toISOString().slice(0, 8) + '01'
+    
+    setReportFromDate(firstDayOfMonth)
+    setReportToDate(today)
     setReportSelectedEmployees([])
     setReportFilterCategory('')
     setReportFilterRemarks('')
