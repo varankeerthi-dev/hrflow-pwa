@@ -33,7 +33,10 @@ expense: {
 **Reports Updates:**
 - [x] Add "Paid To" column in Expenses Report
 - [x] Show linked advance indicator (chain icon) in Expenses table
-- [x] Add "Source" column in Advances Report with Cash/Linked/Company badges
+- ~~[x] Add "Source" column in Advances Report with Cash/Linked/Company badges~~ (Removed - not needed)
+- [x] Removed "Source" column from Advances Report
+- [x] Changed table header backgrounds to plain white (from gray)
+- [x] Added totals row showing: Advance total, Expense total, Cash in hand
 - [x] Date column: 55px width
 - [x] Amount column: 90px width, remove "Rs." prefix
 - [x] Actions column: Reduced width to 50px & icon size to 10px
@@ -74,6 +77,14 @@ New report view:
 ---
 
 ## Completed Tasks
+
+### 2026-04-05 - Report Table Updates
+- [x] Removed Source column from Advances table
+- [x] Changed all table header backgrounds from gray to plain white
+- [x] Added totals summary row showing Advance, Expense, and Cash in hand amounts
+- [x] Totals row appears below 'Filtered' badge and above table headers
+- [x] Shows individual panel total in header section
+- [x] Cash in hand = Cash Advances - Cash Expenses
 
 ### 2026-04-05 - Filter Revamp
 - [x] Converted Reports filters to single-row horizontal layout (15px line height)
