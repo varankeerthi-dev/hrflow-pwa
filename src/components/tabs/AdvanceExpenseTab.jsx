@@ -937,24 +937,47 @@ export default function AdvanceExpenseTab() {
 
   const exportPDF = () => {
     try {
+      // Validate data exists
+      if (!filteredEntries || filteredEntries.length === 0) {
+        alert('No data to export. Please apply filters first.')
+        return
+      }
+      
       const doc = new jsPDF('landscape') // Use landscape for more columns
       
       // Title with date range
       let titleText = 'Advances & Expenses Report'
-      if (reportFromDate && reportToDate) {
-        const from = new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        const to = new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        titleText += ` (${from} - ${to})`
-      } else if (reportFromDate) {
-        const from = new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        titleText += ` (From ${from})`
-      } else if (reportToDate) {
-        const to = new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        titleText += ` (To ${to})`
-      } else {
-        const [year, month] = reportMonth.split('-').map(Number)
-        const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
-        titleText += ` - ${monthName}`
+      try {
+        if (reportFromDate && reportToDate) {
+          const fromDate = new Date(reportFromDate)
+          const toDate = new Date(reportToDate)
+          if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
+            const from = fromDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            const to = toDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            titleText += ` (${from} - ${to})`
+          }
+        } else if (reportFromDate) {
+          const fromDate = new Date(reportFromDate)
+          if (!isNaN(fromDate.getTime())) {
+            const from = fromDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            titleText += ` (From ${from})`
+          }
+        } else if (reportToDate) {
+          const toDate = new Date(reportToDate)
+          if (!isNaN(toDate.getTime())) {
+            const to = toDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            titleText += ` (To ${to})`
+          }
+        } else {
+          const [year, month] = reportMonth.split('-').map(Number)
+          if (!isNaN(year) && !isNaN(month)) {
+            const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+            titleText += ` - ${monthName}`
+          }
+        }
+      } catch (dateErr) {
+        console.error('Date formatting error:', dateErr)
+        // Continue with default title
       }
       
       doc.setFontSize(14)
@@ -973,27 +996,54 @@ export default function AdvanceExpenseTab() {
         doc.text(`Filters: ${activeFilters.join(' | ')}`, 14, 22)
       }
       
-      const dataToUseAdv = reportApplied ? advForReport : entries.filter(e => e.type === 'Advance' && e.date?.startsWith(reportMonth))
-      const dataToUseExp = reportApplied ? expForReport : entries.filter(e => e.type === 'Expense' && e.date?.startsWith(reportMonth))
+      // Get filtered data safely
+      const dataToUseAdv = advForReport || []
+      const dataToUseExp = expForReport || []
+
+      // Format date safely
+      const formatDateSafe = (dateStr) => {
+        try {
+          if (!dateStr) return '—'
+          const date = new Date(dateStr)
+          if (isNaN(date.getTime())) return '—'
+          return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })
+        } catch {
+          return '—'
+        }
+      }
+      
+      // Format amount safely
+      const formatAmountSafe = (amount) => {
+        try {
+          const num = parseFloat(amount)
+          if (isNaN(num)) return '0.00'
+          return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
+        } catch {
+          return '0.00'
+        }
+      }
 
       if (dataToUseAdv.length > 0) {
         doc.setFontSize(11)
         doc.text(`Advances (${dataToUseAdv.length} records)`, 14, 30)
+        
+        const advBody = dataToUseAdv.map(a => [
+          formatDateSafe(a.date),
+          a.employeeName || '—',
+          a.category || '—',
+          ((a.remarks || a.reason || '—').toString()).substring(0, 30),
+          formatAmountSafe(a.amount),
+          a.paidByName ? `Cash: ${String(a.paidByName).split(' ')[0]}` : (a.linkedExpenseId ? 'Linked' : 'Company'),
+          a.status || '—'
+        ])
+        
         doc.autoTable({
           startY: 35,
           head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Source', 'Status']],
-          body: dataToUseAdv.map(a => [
-            new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }),
-            a.employeeName,
-            a.category || '—',
-            (a.remarks || '—').substring(0, 30),
-            new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount),
-            a.paidByName ? `Cash: ${a.paidByName?.split(' ')[0]}` : (a.linkedExpenseId ? 'Linked' : 'Company'),
-            a.status
-          ]),
+          body: advBody,
           theme: 'grid',
           styles: { fontSize: 7, cellPadding: 1.5 },
-          headStyles: { fillColor: [245, 158, 11], textColor: 255, fontSize: 8 }, // Amber-500
+          headStyles: { fillColor: [245, 158, 11], textColor: 255, fontSize: 8 },
           columnStyles: {
             0: { cellWidth: 25 },
             1: { cellWidth: 35 },
@@ -1015,24 +1065,28 @@ export default function AdvanceExpenseTab() {
         }
         
         doc.setFontSize(11)
-        doc.text(`Expenses (${dataToUseExp.length} records)`, 14, dataToUseAdv.length > 0 && finalY > 180 ? 15 : finalY)
+        const expTitleY = dataToUseAdv.length > 0 && finalY > 180 ? 15 : finalY
+        doc.text(`Expenses (${dataToUseExp.length} records)`, 14, expTitleY)
+        
+        const expBody = dataToUseExp.map(e => [
+          formatDateSafe(e.date),
+          e.employeeName || '—',
+          e.category || '—',
+          ((e.remarks || e.reason || '—').toString()).substring(0, 30),
+          formatAmountSafe(e.amount),
+          e.payoutMethod || '—',
+          e.paidToName || e.paidToCustomName || e.employeeName || '—',
+          e.linkedAdvanceId ? '✓' : '—',
+          e.status || '—'
+        ])
+        
         doc.autoTable({
           startY: dataToUseAdv.length > 0 && finalY > 180 ? 20 : finalY + 5,
           head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Payout', 'Paid To', 'Link', 'Status']],
-          body: dataToUseExp.map(e => [
-            new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }),
-            e.employeeName,
-            e.category || '—',
-            (e.remarks || '—').substring(0, 30),
-            new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(e.amount),
-            e.payoutMethod || '—',
-            e.paidToName || e.paidToCustomName || e.employeeName,
-            e.linkedAdvanceId ? '✓' : '—',
-            e.status
-          ]),
+          body: expBody,
           theme: 'grid',
           styles: { fontSize: 7, cellPadding: 1.5 },
-          headStyles: { fillColor: [37, 99, 235], textColor: 255, fontSize: 8 }, // Blue-600
+          headStyles: { fillColor: [37, 99, 235], textColor: 255, fontSize: 8 },
           columnStyles: {
             0: { cellWidth: 22 },
             1: { cellWidth: 30 },
@@ -1047,18 +1101,28 @@ export default function AdvanceExpenseTab() {
         })
       }
       
+      if (dataToUseAdv.length === 0 && dataToUseExp.length === 0) {
+        doc.setFontSize(12)
+        doc.text('No records found for the selected filters.', 14, 40)
+      }
+      
       // Generate filename with date range
       let filenameDate = reportMonth
-      if (reportFromDate || reportToDate) {
-        const from = reportFromDate ? reportFromDate.replace(/-/g, '') : 'start'
-        const to = reportToDate ? reportToDate.replace(/-/g, '') : 'end'
-        filenameDate = `${from}_to_${to}`
+      try {
+        if (reportFromDate || reportToDate) {
+          const from = reportFromDate ? reportFromDate.replace(/-/g, '') : 'start'
+          const to = reportToDate ? reportToDate.replace(/-/g, '') : 'end'
+          filenameDate = `${from}_to_${to}`
+        }
+      } catch (filenameErr) {
+        filenameDate = new Date().toISOString().slice(0, 10)
       }
       
       doc.save(`Adv_Exp_Report_${filenameDate}.pdf`)
     } catch (err) {
       console.error('PDF Export Error:', err)
-      alert('Failed to generate PDF. Please try again.')
+      console.error('Error stack:', err.stack)
+      alert(`Failed to generate PDF. Error: ${err.message || 'Unknown error'}. Please check console for details.`)
     }
   }
 
