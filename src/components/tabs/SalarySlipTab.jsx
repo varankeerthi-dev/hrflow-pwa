@@ -275,14 +275,15 @@ export default function SalarySlipTab() {
         const slab = allIncrements.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, esiPercent: 0 }
         const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8, paidDays = daysInMonth - lop
         const dailyRate = ts / daysInMonth
-        const basic = ts * (slab.basicPercent / 100) * (paidDays / daysInMonth), hra = ts * (slab.hraPercent / 100) * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), esi = 0, otPay = otH * (dailyRate / minH)
+        const fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
+        const basic = fullBasic * (paidDays / daysInMonth), hra = fullHra * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), esi = 0, otPay = otH * (dailyRate / minH)
         const sunPay = sunW * dailyRate * 1, holPay = holW * dailyRate * 2
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const earnings = [{ label: 'Basic', value: basic }, { label: 'HRA', value: hra }, { label: 'Sun Pay', value: sunPay }, { label: 'Hol Pay', value: holPay }, { label: 'OT Est.', value: otPay }, { label: 'Reimb.', value: reimb }].filter(e => e.value > 0)
         const deductions = [{ label: 'PF', value: pf }, { label: 'IT', value: it }, { label: 'ESI', value: esi }, { label: 'Loan', value: loanE }, { label: 'Adv.', value: adv }, { label: 'Fine', value: fine }].filter(d => d.value > 0)
         const net = earnings.reduce((s, e) => s + e.value, 0) - deductions.reduce((s, d) => s + d.value, 0)
         const vrAdv = adv - reimb
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0) }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0), fullBasic, fullHra }
       })
     },
     enabled: !!user?.orgId && employees.length > 0 && activeTab === 'salary-summary'
@@ -892,7 +893,6 @@ export default function SalarySlipTab() {
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Emp No</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '120px' }}>Name</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '100px' }}>Designation</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Food</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Basic</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>HRA</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Salary</th>
@@ -905,7 +905,6 @@ export default function SalarySlipTab() {
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Basic</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>HRA</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Salary</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Food</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Sunday</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>OT</th>
                             <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '90px' }}>Total<br/>Earnings</th>
@@ -920,12 +919,11 @@ export default function SalarySlipTab() {
                         </thead>
                         <tbody>
                           {isAttendanceLoading ? (
-                            <tr><td colSpan={28} className="p-4 text-center"><Spinner /></td></tr>
+                            <tr><td colSpan={27} className="p-4 text-center"><Spinner /></td></tr>
                           ) : attendanceSummaryData.length === 0 ? (
-                            <tr><td colSpan={28} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>
+                            <tr><td colSpan={27} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>
                           ) : (
                             attendanceSummaryData.map((emp, idx) => {
-                              const foodAllowance = 0
                               const otherDeductions = emp.fine || 0
                               const it = emp.salary.deductions.find(d => d.label === 'IT')?.value || 0
                               
@@ -935,10 +933,9 @@ export default function SalarySlipTab() {
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-[11px] font-roboto">{emp.empId}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-800 font-medium text-[11px] truncate max-w-[120px] font-roboto">{emp.name}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-600 text-[11px] font-roboto">{emp.designation}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">-</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.fullBasic).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.fullHra).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.totalDays}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.worked}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.sunW + emp.holW}</td>
@@ -948,7 +945,6 @@ export default function SalarySlipTab() {
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">-</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-amber-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-blue-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-emerald-600 font-semibold text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td>
@@ -958,7 +954,7 @@ export default function SalarySlipTab() {
                                   <td className="px-2 py-0.5 border border-gray-200 text-purple-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(otherDeductions).toLocaleString('en-IN')}</td>
                                   <td className="px-2 py-0.5 border border-gray-200 text-red-600 font-semibold text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-emerald-700 font-bold text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td>
+                                  <td className="px-2 py-0.5 font-roboto py-0.5 border border-gray-200 text-emerald-700 font-bold text-right text-[11px] tabular-nums">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td>
                                 </tr>
                               )
                             })
