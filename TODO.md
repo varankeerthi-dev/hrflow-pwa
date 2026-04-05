@@ -79,6 +79,8 @@ New report view:
 - [x] Converted Reports filters to single-row horizontal layout (15px line height)
 - [x] Added Employee multi-select dropdown with employee names
 - [x] Added Date Range picker with From/To dates and arrow navigation
+- [x] Set default From date to start of current month
+- [x] Set default To date to today (auto-updates when day changes)
 - [x] Added Category dropdown selector
 - [x] Added Search Remarks text input
 - [x] Implemented auto-apply filters (no Apply button needed)
