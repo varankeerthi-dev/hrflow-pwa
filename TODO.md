@@ -75,7 +75,19 @@ New report view:
 
 ## Completed Tasks
 
-### 2026-04-05
+### 2026-04-05 - Filter Revamp
+- [x] Converted Reports filters to single-row horizontal layout (15px line height)
+- [x] Added Employee multi-select dropdown with employee names
+- [x] Added Date Range picker with From/To dates and arrow navigation
+- [x] Added Category dropdown selector
+- [x] Added Search Remarks text input
+- [x] Implemented auto-apply filters (no Apply button needed)
+- [x] Added active filters summary badges
+- [x] Added Clear Filters button
+- [x] Updated Export PDF to match current view with landscape format
+- [x] Added click-outside handler to close dropdowns
+
+### 2026-04-05 - Paid To Feature
 - [x] Created custom outward-opening "Paid To" dropdown component
 - [x] Added "Add Other..." option with inline text input for one-time names
 - [x] Added "Paid To" column in Desktop and Mobile expense entry forms
