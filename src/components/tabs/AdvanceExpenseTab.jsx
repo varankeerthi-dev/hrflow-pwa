@@ -30,6 +30,10 @@ export default function AdvanceExpenseTab() {
   // Transferred To Modal State
   const [transferModalRowId, setTransferModalRowId] = useState(null)
 
+  // Paid To Search/Filter State
+  const [paidToDropdownOpen, setPaidToDropdownOpen] = useState(null) // stores rowId when open
+  const [paidToSearchTerm, setPaidToSearchTerm] = useState('')
+
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
 
@@ -105,6 +109,10 @@ export default function AdvanceExpenseTab() {
           ? `${row.category} [${row.transferredToName}]`
           : row.category
 
+        // Determine paidTo information
+        const paidToEmp = row.paidToType === 'employee' ? employees.find(e => e.id === row.paidTo) : null
+        const paidToName = row.paidToType === 'employee' ? paidToEmp?.name : row.paidToCustomName
+
         await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
           transactionNo: txnNo,
           employeeId: row.employeeId,
@@ -123,14 +131,18 @@ export default function AdvanceExpenseTab() {
           hrApproval: 'Pending',
           mdApproval: 'Pending',
           createdBy: user.name || user.email,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          paidTo: row.paidTo,
+          paidToType: row.paidToType,
+          paidToName: paidToName,
+          paidToCustomName: row.paidToCustomName
         })
       }
       return generatedIds
     },
     onSuccess: (txnNos) => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
-      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '' }])
+      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
       const typeLabel = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
       const msg = `${typeLabel} submitted for approval.\n\nRef Nos: ${txnNos.join(', ')}`
       alert(msg)
@@ -203,8 +215,183 @@ export default function AdvanceExpenseTab() {
     return me ? me.id : ''
   }
 
+  // Paid To Dropdown Component Helper
+  const PaidToDropdown = ({ rowId, row, isMobile = false }) => {
+    const isOpen = paidToDropdownOpen === rowId
+    const triggerRef = React.useRef(null)
+    const [dropdownPosition, setDropdownPosition] = React.useState({ top: 0, left: 0 })
+    
+    // Filter employees based on search term
+    const filteredEmployees = useMemo(() => {
+      if (!paidToSearchTerm.trim()) return employees
+      return employees.filter(e => 
+        e.name?.toLowerCase().includes(paidToSearchTerm.toLowerCase()) ||
+        e.id?.toLowerCase().includes(paidToSearchTerm.toLowerCase())
+      )
+    }, [employees, paidToSearchTerm])
+    
+    // Calculate dropdown position when opened
+    React.useLayoutEffect(() => {
+      if (isOpen && triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect()
+        setDropdownPosition({
+          top: rect.bottom + 4,
+          left: rect.left
+        })
+      }
+    }, [isOpen])
+    
+    const handleSelectEmployee = (empId) => {
+      handleRowChange(rowId, 'paidTo', empId)
+      setPaidToDropdownOpen(null)
+      setPaidToSearchTerm('')
+    }
+    
+    const handleSelectAddOther = () => {
+      handleRowChange(rowId, 'paidToType', 'custom')
+      setPaidToDropdownOpen(null)
+      setPaidToSearchTerm('')
+    }
+    
+    const handleClose = (e) => {
+      e.stopPropagation()
+      setPaidToDropdownOpen(null)
+      setPaidToSearchTerm('')
+    }
+    
+    // Get display value
+    const getDisplayValue = () => {
+      if (row.paidToType === 'custom' && row.paidToCustomName) {
+        return row.paidToCustomName
+      }
+      if (row.paidTo) {
+        const emp = employees.find(e => e.id === row.paidTo)
+        return emp ? `${emp.name} (${emp.id})` : row.paidTo
+      }
+      return isMobile ? 'Select paid to...' : 'Select...'
+    }
+    
+    return (
+      <div className="relative">
+        {/* Trigger Button */}
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => {
+            if (isOpen) {
+              setPaidToDropdownOpen(null)
+            } else {
+              setPaidToDropdownOpen(rowId)
+              setPaidToSearchTerm('')
+            }
+          }}
+          className={`w-full border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors flex items-center justify-between ${
+            isMobile ? 'h-11 px-3 text-sm' : 'h-9'
+          } ${row.paidToType === 'custom' ? 'text-indigo-600' : 'text-zinc-800'}`}
+        >
+          <span className="truncate">{getDisplayValue()}</span>
+          <svg 
+            className={`w-4 h-4 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        
+        {/* Dropdown Overlay - Fixed position to avoid scroll issues */}
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 z-40"
+              onClick={handleClose}
+            />
+            {/* Dropdown Panel */}
+            <div 
+              className={`fixed z-50 bg-white rounded-lg border border-zinc-200 shadow-xl ${
+                isMobile ? 'w-[calc(100vw-3rem)] max-w-sm' : 'w-72'
+              }`}
+              style={{
+                top: dropdownPosition.top,
+                left: dropdownPosition.left
+              }}
+            >
+              {/* Search Input */}
+              <div className="p-2 border-b border-zinc-100">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                  <input
+                    type="text"
+                    placeholder="Search employees..."
+                    value={paidToSearchTerm}
+                    onChange={(e) => setPaidToSearchTerm(e.target.value)}
+                    className="w-full h-8 pl-8 pr-2 border border-zinc-200 rounded text-[12px] outline-none focus:ring-2 focus:ring-indigo-500"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              
+              {/* Options List */}
+              <div className="max-h-60 overflow-y-auto">
+                {/* "Add Other..." Option */}
+                <button
+                  type="button"
+                  onClick={handleSelectAddOther}
+                  className={`w-full px-3 py-2 text-left text-[12px] font-medium text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 border-b border-zinc-100 ${
+                    row.paidToType === 'custom' ? 'bg-indigo-50' : ''
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Other...
+                </button>
+                
+                {/* Employee Options */}
+                {filteredEmployees.length === 0 ? (
+                  <div className="px-3 py-3 text-[12px] text-zinc-400 text-center">
+                    No employees found
+                  </div>
+                ) : (
+                  filteredEmployees.map(emp => (
+                    <button
+                      key={emp.id}
+                      type="button"
+                      onClick={() => handleSelectEmployee(emp.id)}
+                      className={`w-full px-3 py-2 text-left text-[12px] hover:bg-zinc-50 flex flex-col ${
+                        row.paidTo === emp.id && row.paidToType === 'employee' ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700'
+                      }`}
+                    >
+                      <span className="font-medium">{emp.name}</span>
+                      <span className="text-[10px] text-zinc-400">ID: {emp.id}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )}
+        
+        {/* Custom Name Input - shown when "Add Other..." is selected */}
+        {row.paidToType === 'custom' && (
+          <input
+            type="text"
+            value={row.paidToCustomName}
+            onChange={(e) => handleRowChange(rowId, 'paidToCustomName', e.target.value)}
+            placeholder="Enter recipient name..."
+            className={`w-full border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white mt-1 ${
+              isMobile ? 'h-11 px-3 text-sm' : 'h-9'
+            }`}
+          />
+        )}
+      </div>
+    )
+  }
+
   const [addRows, setAddRows] = useState([
-    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '' }
+    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }
   ])
 
   useEffect(() => {
@@ -244,7 +431,7 @@ export default function AdvanceExpenseTab() {
 
   const handleAddRow = () => {
     const myId = !canSelectAll ? getMyEmpId() : ''
-    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '' }])
+    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
   }
 
   const handleSelfExpense = () => {
@@ -258,6 +445,31 @@ export default function AdvanceExpenseTab() {
       if (row.id === id) {
         if (field === 'category' && value === 'Others') {
           setTransferModalRowId(id)
+        }
+        // Handle paidToType changes - reset values when switching types
+        if (field === 'paidToType') {
+          return { 
+            ...row, 
+            [field]: value,
+            paidTo: value === 'employee' ? '' : row.paidTo,
+            paidToCustomName: value === 'custom' ? row.paidToCustomName : ''
+          }
+        }
+        // Handle paidTo employee selection
+        if (field === 'paidTo') {
+          return { 
+            ...row, 
+            [field]: value,
+            paidToType: 'employee'
+          }
+        }
+        // Handle paidToCustomName
+        if (field === 'paidToCustomName') {
+          return { 
+            ...row, 
+            [field]: value,
+            paidToType: 'custom'
+          }
         }
         return { ...row, [field]: value }
       }
@@ -987,6 +1199,9 @@ export default function AdvanceExpenseTab() {
                     <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[160px]">
                       Category
                     </th>
+                    <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">
+                      Paid To
+                    </th>
                     {activeModule === 'Add Expense' && (
                       <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">
                         Type
@@ -1044,6 +1259,9 @@ export default function AdvanceExpenseTab() {
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-2 py-1.5 border-r border-zinc-100">
+                        <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
                       </td>
                       {activeModule === 'Add Expense' && (
                         <td className="px-2 py-1.5 border-r border-zinc-100">
@@ -1185,6 +1403,14 @@ export default function AdvanceExpenseTab() {
                         → {row.transferredToName}
                       </p>
                     )}
+                  </div>
+                  
+                  {/* Paid To */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Paid To
+                    </label>
+                    <PaidToDropdown rowId={row.id} row={row} isMobile={true} />
                   </div>
                   
                   {/* Type & Payout Row - Only for Expense */}
