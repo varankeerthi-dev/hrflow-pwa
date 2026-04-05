@@ -90,6 +90,7 @@ New report view:
 - [x] Converted Reports filters to single-row horizontal layout (15px line height)
 - [x] Added Employee multi-select dropdown with employee names
 - [x] Added separate From Date and To Date dropdowns (not combined)
+- [x] Auto-open date picker calendar when clicking date filter button (using showPicker API)
 - [x] Auto-close dropdown when selecting date, category, or clicking Done
 - [x] Clicking any filter closes other open dropdowns first
 - [x] Set default From date to start of current month
