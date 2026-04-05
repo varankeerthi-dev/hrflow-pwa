@@ -102,6 +102,8 @@ export default function AdvanceExpenseTab() {
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
+  const isHR = user?.role?.toLowerCase() === 'hr' || isAdmin
+  const isMD = user?.role?.toLowerCase() === 'md' || isAdmin
   const canSelectAll = isAdmin || isAccountant
 
   // For editing
@@ -249,9 +251,7 @@ export default function AdvanceExpenseTab() {
     onSuccess: (txnNos) => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
       setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
-      const typeLabel = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
-      const msg = `${typeLabel} submitted for approval.\n\nRef Nos: ${txnNos.join(', ')}`
-      alert(msg)
+      // Note: Drawer will open automatically showing submitted items
     }
   })
 
@@ -762,8 +762,11 @@ export default function AdvanceExpenseTab() {
     setSubmitting(true)
     try {
       const result = await addMutation.mutateAsync(validRows)
+      console.log('Submission result:', result)
+      console.log('Valid rows:', validRows)
+      
       // After successful submission, open drawer with submitted items
-      if (canSelectAll && result && result.length > 0) {
+      if (result && result.length > 0) {
         // Transform submitted rows to match approval display format
         const justSubmitted = validRows.map((row, idx) => ({
           id: result[idx], // Transaction number
@@ -781,6 +784,8 @@ export default function AdvanceExpenseTab() {
           requestType: row.requestType,
           _isNew: true // Flag to identify just-submitted items
         }))
+        
+        console.log('Just submitted items:', justSubmitted)
         setSubmittedItems(justSubmitted)
         setApprovalDrawerOpen(true)
       }
@@ -2973,7 +2978,7 @@ export default function AdvanceExpenseTab() {
                         </td>
                         <td className="px-1 py-1.5 text-center">
                           {item.hrApproval === 'Approved' ? (
-                            <span className="text-green-600">✓</span>
+                            <span className="text-green-600 font-bold">✓</span>
                           ) : (isHR || isAdmin) ? (
                             <button
                               onClick={() => approveFromDrawer(item.transactionNo || item.id, 'hr')}
@@ -2982,12 +2987,12 @@ export default function AdvanceExpenseTab() {
                               Approve
                             </button>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-gray-400 text-[9px]">Pending</span>
                           )}
                         </td>
                         <td className="px-1 py-1.5 text-center">
                           {item.mdApproval === 'Approved' ? (
-                            <span className="text-green-600">✓</span>
+                            <span className="text-green-600 font-bold">✓</span>
                           ) : (isMD || isAdmin) ? (
                             <button
                               onClick={() => approveFromDrawer(item.transactionNo || item.id, 'md')}
@@ -2996,7 +3001,7 @@ export default function AdvanceExpenseTab() {
                               Approve
                             </button>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-gray-400 text-[9px]">Pending</span>
                           )}
                         </td>
                       </tr>
