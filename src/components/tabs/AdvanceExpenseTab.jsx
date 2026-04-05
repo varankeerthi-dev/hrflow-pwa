@@ -113,7 +113,42 @@ export default function AdvanceExpenseTab() {
         const paidToEmp = row.paidToType === 'employee' ? employees.find(e => e.id === row.paidTo) : null
         const paidToName = row.paidToType === 'employee' ? paidToEmp?.name : row.paidToCustomName
 
-        await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
+        // Auto-link to employee advance if Salary Advance paid to employee
+        let linkedAdvanceId = null
+        const isSalaryAdvance = row.category?.toLowerCase().includes('salary advance') || 
+                               row.category?.toLowerCase().includes('salary_advance') ||
+                               row.category?.toLowerCase() === 'advance'
+        if (isSalaryAdvance && row.paidToType === 'employee' && row.paidTo) {
+          // Create linked Advance record for the receiving employee
+          const advanceTxnNo = `ADV-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+          const advanceDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
+            transactionNo: advanceTxnNo,
+            employeeId: row.paidTo,
+            employeeName: paidToEmp?.name || 'Unknown',
+            type: 'Advance',
+            category: 'Salary Advance (Cash)',
+            requestType: 'Pre-Approval',
+            payoutMethod: 'Immediate',
+            amount: Number(row.amount),
+            date: row.date,
+            reason: `Cash advance from ${user.name || user.email} - ${row.reason || ''}`,
+            project: row.project || '',
+            status: 'Approved',
+            approved_by: user.name || user.email,
+            approved_at: serverTimestamp(),
+            hrApproval: 'Approved',
+            mdApproval: 'Approved',
+            paymentStatus: 'Paid',
+            paidBy: user.uid,
+            paidByName: user.name || user.email,
+            linkedExpenseId: null, // Will be updated after expense creation
+            createdBy: user.name || user.email,
+            createdAt: serverTimestamp()
+          })
+          linkedAdvanceId = advanceDoc.id
+        }
+
+        const expenseDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
           transactionNo: txnNo,
           employeeId: row.employeeId,
           employeeName: emp?.name || 'Unknown',
@@ -135,8 +170,17 @@ export default function AdvanceExpenseTab() {
           paidTo: row.paidTo,
           paidToType: row.paidToType,
           paidToName: paidToName,
-          paidToCustomName: row.paidToCustomName
+          paidToCustomName: row.paidToCustomName,
+          linkedAdvanceId: linkedAdvanceId,
+          isCashAdvance: !!linkedAdvanceId
         })
+        
+        // Update the linked advance with expense ID
+        if (linkedAdvanceId) {
+          await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', linkedAdvanceId), {
+            linkedExpenseId: expenseDoc.id
+          })
+        }
       }
       return generatedIds
     },
@@ -266,7 +310,7 @@ export default function AdvanceExpenseTab() {
       }
       if (row.paidTo) {
         const emp = employees.find(e => e.id === row.paidTo)
-        return emp ? `${emp.name} (${emp.id})` : row.paidTo
+        return emp ? emp.name : row.paidTo
       }
       return isMobile ? 'Select paid to...' : 'Select...'
     }
@@ -360,12 +404,16 @@ export default function AdvanceExpenseTab() {
                       key={emp.id}
                       type="button"
                       onClick={() => handleSelectEmployee(emp.id)}
-                      className={`w-full px-3 py-2 text-left text-[12px] hover:bg-zinc-50 flex flex-col ${
+                      className={`w-full px-3 py-2 text-left text-[12px] hover:bg-zinc-50 flex items-center justify-between ${
                         row.paidTo === emp.id && row.paidToType === 'employee' ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700'
                       }`}
                     >
                       <span className="font-medium">{emp.name}</span>
-                      <span className="text-[10px] text-zinc-400">ID: {emp.id}</span>
+                      {row.paidTo === emp.id && row.paidToType === 'employee' && (
+                        <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
                     </button>
                   ))
                 )}
@@ -1650,13 +1698,14 @@ export default function AdvanceExpenseTab() {
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[90px]">Amount</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[80px]">Source</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? advForReport : advances).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[10px] italic">
+                        <td colSpan={7} className="text-center py-8 text-gray-400 text-[10px] italic">
                           No records found for this criteria
                         </td>
                       </tr>
@@ -1675,16 +1724,33 @@ export default function AdvanceExpenseTab() {
                           </div>
                         </td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{a.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">{formatINR(a.amount)}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">
+                          {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}
+                        </td>
+                        <td className="px-2 py-1.5 text-[10px] border-r border-gray-200">
+                          {a.paidByName ? (
+                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-amber-50 text-amber-600 border border-amber-100" title={`Cash advance from ${a.paidByName}`}>
+                              Cash: {a.paidByName?.split(' ')[0]}
+                            </span>
+                          ) : a.linkedExpenseId ? (
+                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-50 text-emerald-600 border border-emerald-100">
+                              Linked
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[8px] bg-blue-50 text-blue-600 border border-blue-100">
+                              Company
+                            </span>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-0.5">
                             {a.requestType === 'Pre-Approval' && a.mdApproval === 'Approved' && (
                               <button 
                                 onClick={() => { setFinalizingId(a.id); setFinalizeAmount(a.amount); }} 
                                 className="text-emerald-600 hover:bg-emerald-50 p-0.5 transition-colors"
                                 title="Submit Bill"
                               >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                   <polyline points="14 2 14 8 20 8"/>
                                   <path d="M9 15l2 2 4-4"/>
@@ -1696,14 +1762,14 @@ export default function AdvanceExpenseTab() {
                               className="text-amber-600 hover:bg-gray-100 p-0.5 transition-colors"
                               title="Edit & Revoke"
                             >
-                              <Edit2 size={12} />
+                              <Edit2 size={10} />
                             </button>
                             <button 
                               onClick={() => handleDelete(a.id)} 
                               className="text-red-600 hover:bg-gray-100 p-0.5 transition-colors"
                               title="Delete Transaction"
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={10} />
                             </button>
                           </div>
                         </td>
@@ -1739,13 +1805,15 @@ export default function AdvanceExpenseTab() {
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[90px]">Amount</th>
                       <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Payout</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Paid To</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-center w-[50px]">Link</th>
+                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[50px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-8 text-gray-400 text-[10px] italic">
+                        <td colSpan={9} className="text-center py-8 text-gray-400 text-[10px] italic">
                           No records found for this criteria
                         </td>
                       </tr>
@@ -1764,21 +1832,36 @@ export default function AdvanceExpenseTab() {
                           </div>
                         </td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{e.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">{formatINR(e.amount)}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">
+                          {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(e.amount)}
+                        </td>
                         <td className="px-2 py-1.5 text-[10px] border-r border-gray-200">
                           <span className={`px-1.5 py-0.5 text-[9px] ${e.payoutMethod === 'With Salary' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
                             {e.payoutMethod === 'With Salary' ? 'With Salary' : 'Immediate'}
                           </span>
                         </td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
+                          {e.paidToName || e.paidToCustomName || e.employeeName}
+                        </td>
+                        <td className="px-2 py-1.5 text-[10px] border-r border-gray-200 text-center">
+                          {e.linkedAdvanceId && (
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full" title={`Linked to Advance ${e.linkedAdvanceId}`}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                              </svg>
+                            </span>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-0.5">
                             {e.requestType === 'Pre-Approval' && e.mdApproval === 'Approved' && (
                               <button 
                                 onClick={() => { setFinalizingId(e.id); setFinalizeAmount(e.amount); }} 
                                 className="text-emerald-600 hover:bg-emerald-50 p-0.5 transition-colors"
                                 title="Submit Bill"
                               >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                   <polyline points="14 2 14 8 20 8"/>
                                   <path d="M9 15l2 2 4-4"/>
@@ -1790,14 +1873,14 @@ export default function AdvanceExpenseTab() {
                               className="text-amber-600 hover:bg-gray-100 p-0.5 transition-colors"
                               title="Edit & Revoke"
                             >
-                              <Edit2 size={12} />
+                              <Edit2 size={10} />
                             </button>
                             <button 
                               onClick={() => handleDelete(e.id)} 
                               className="text-red-600 hover:bg-gray-100 p-0.5 transition-colors"
                               title="Delete Transaction"
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={10} />
                             </button>
                           </div>
                         </td>
