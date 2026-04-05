@@ -113,6 +113,14 @@ export default function TasksTab() {
   })
   const [showColumnMenu, setShowColumnMenu] = useState(false)
   
+  // Table view filters
+  const [tableFilters, setTableFilters] = useState({
+    search: '',
+    status: '',
+    priority: '',
+    assignee: ''
+  })
+  
   // Slide-over drawer for task editing
   const [showSideDrawer, setShowSideDrawer] = useState(false)
   const [drawerTask, setDrawerTask] = useState(null)
@@ -908,10 +916,83 @@ export default function TasksTab() {
   const renderTableView = () => {
     const columnCount = Object.values(visibleColumns).filter(Boolean).length + 1 // +1 for actions
     
+    // Filter tasks based on table filters
+    const tableFilteredTasks = useMemo(() => {
+      return filteredTasks.filter(task => {
+        if (tableFilters.search && !task.title?.toLowerCase().includes(tableFilters.search.toLowerCase())) return false
+        if (tableFilters.status && task.status !== tableFilters.status) return false
+        if (tableFilters.priority && task.priority !== tableFilters.priority) return false
+        if (tableFilters.assignee && !task.assignees?.includes(tableFilters.assignee)) return false
+        return true
+      })
+    }, [filteredTasks, tableFilters])
+    
     return (
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        {/* Display Button - Top Right */}
-        <div className="flex justify-end px-6 py-3 border-b border-slate-100 bg-slate-50/50">
+        {/* Filters & Display Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+          {/* Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Search */}
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                value={tableFilters.search}
+                onChange={(e) => setTableFilters(prev => ({ ...prev, search: e.target.value }))}
+                className="pl-8 pr-3 h-8 w-40 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
+            
+            {/* Status Filter */}
+            <select
+              value={tableFilters.status}
+              onChange={(e) => setTableFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="">All Status</option>
+              {STATUSES.map(s => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+            
+            {/* Priority Filter */}
+            <select
+              value={tableFilters.priority}
+              onChange={(e) => setTableFilters(prev => ({ ...prev, priority: e.target.value }))}
+              className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="">All Priority</option>
+              <option value="urgent">Urgent</option>
+              <option value="high">High</option>
+              <option value="normal">Normal</option>
+            </select>
+            
+            {/* Assignee Filter */}
+            <select
+              value={tableFilters.assignee}
+              onChange={(e) => setTableFilters(prev => ({ ...prev, assignee: e.target.value }))}
+              className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="">All Assignees</option>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+            
+            {/* Clear Filters */}
+            {(tableFilters.search || tableFilters.status || tableFilters.priority || tableFilters.assignee) && (
+              <button
+                onClick={() => setTableFilters({ search: '', status: '', priority: '', assignee: '' })}
+                className="h-8 px-2.5 text-[11px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          
+          {/* Display Button */}
           <div className="relative">
             <button
               onClick={() => setShowColumnMenu(!showColumnMenu)}
@@ -977,10 +1058,10 @@ export default function TasksTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredTasks.length === 0 ? (
+              {tableFilteredTasks.length === 0 ? (
                 <tr><td colSpan={columnCount} className="py-20 text-center text-slate-300 font-medium italic">No tasks found</td></tr>
               ) : (
-                filteredTasks.map(task => (
+                tableFilteredTasks.map(task => (
                   <tr key={task.id} className="hover:bg-slate-50 transition-colors group">
                     {visibleColumns.taskName && (
                       <td className="px-6 py-4">
@@ -1818,7 +1899,7 @@ export default function TasksTab() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-5">
+      <div className="flex-1 overflow-auto p-2.5">
         {activeTab === 'reminders' ? (
           <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {reminders.map(r => (
