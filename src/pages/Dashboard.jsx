@@ -388,7 +388,7 @@ export default function Dashboard() {
             ) : (
               <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center shadow-sm text-white"><Building2 size={16} /></div>
             )}
-            <span className="text-md font-black text-gray-900 tracking-tight">{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
+            <span className="text-md font-black text-green-600 tracking-tight" style={{ fontFamily: 'Roboto, sans-serif' }}>{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
           </div>
 
           {/* Quick Access Bar */}
