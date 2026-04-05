@@ -82,89 +82,90 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
     if (defaultSubTab) setActiveSubTab(defaultSubTab)
   }, [defaultSubTab])
 
+  // Fetch pivot data function - defined outside useEffect to be callable from button
+  const fetchPivotData = async () => {
+    if (!user?.orgId || !selectedMonth) return
+    setPivotLoading(true)
+    try {
+      const [empSnap, attSnap, shiftSnap, orgSnap] = await Promise.all([
+        getDocs(collection(db, 'organisations', user.orgId, 'employees')),
+        getDocs(query(
+          collection(db, 'organisations', user.orgId, 'attendance'),
+          where('date', '>=', selectedMonth + '-01'),
+          where('date', '<=', selectedMonth + '-31')
+        )),
+        getDocs(collection(db, 'organisations', user.orgId, 'shifts')),
+        getDoc(doc(db, 'organisations', user.orgId))
+      ])
+
+      const shiftMap = {}
+      shiftSnap.docs.forEach(d => { shiftMap[d.id] = d.data() })
+
+      const orgData = orgSnap.exists() ? orgSnap.data() : {}
+      const holidays = orgData.holidays || []
+
+      const [year, month] = selectedMonth.split('-').map(Number)
+      const daysInMonth = new Date(year, month, 0).getDate()
+      
+      const attendanceMap = {}
+      attSnap.docs.forEach(d => {
+        const data = d.data()
+        const day = parseInt(data.date.split('-')[2], 10)
+        if (!attendanceMap[data.employeeId]) attendanceMap[data.employeeId] = {}
+        attendanceMap[data.employeeId][day] = data
+      })
+
+      const filteredEmployees = empSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(emp => {
+          if (emp.hideInAttendance) return false
+          if (isEmployeeActiveStatus(emp.status)) return true
+          
+          if (emp.joinedDate) {
+            const joinDate = new Date(emp.joinedDate)
+            const monthEnd = new Date(year, month - 1, daysInMonth)
+            if (joinDate <= monthEnd) return true
+          }
+          
+          if (attendanceMap[emp.id]) {
+            const empDays = Object.keys(attendanceMap[emp.id]).map(Number)
+            return empDays.some(day => {
+              const att = attendanceMap[emp.id][day]
+              return att && (att.inTime || att.isAbsent)
+            })
+          }
+          return false
+        })
+
+      const savedOrder = Array.isArray(orgData.employeeOrder) ? orgData.employeeOrder : []
+      const orderedEmployees = [...filteredEmployees].sort((a, b) => {
+        const idxA = savedOrder.indexOf(a.id)
+        const idxB = savedOrder.indexOf(b.id)
+        if (idxA === -1 && idxB === -1) return 0
+        if (idxA === -1) return 1
+        if (idxB === -1) return -1
+        return idxA - idxB
+      })
+
+      setDisplayOrder(orderedEmployees.map(e => e.id))
+
+      setMonthlyViewData({
+        employees: orderedEmployees,
+        attendanceMap,
+        shiftMap,
+        daysInMonth,
+        holidays
+      })
+    } catch (err) {
+      console.error('Pivot fetch error:', err)
+    } finally {
+      setPivotLoading(false)
+    }
+  }
+
+  // Auto-fetch when tab or month changes
   useEffect(() => {
     if (activeSubTab !== 'monthlyView') return
-    if (!user?.orgId || !selectedMonth) return
-
-    const fetchPivotData = async () => {
-      setPivotLoading(true)
-      try {
-        const [empSnap, attSnap, shiftSnap, orgSnap] = await Promise.all([
-          getDocs(collection(db, 'organisations', user.orgId, 'employees')),
-          getDocs(query(
-            collection(db, 'organisations', user.orgId, 'attendance'),
-            where('date', '>=', selectedMonth + '-01'),
-            where('date', '<=', selectedMonth + '-31')
-          )),
-          getDocs(collection(db, 'organisations', user.orgId, 'shifts')),
-          getDoc(doc(db, 'organisations', user.orgId))
-        ])
-
-        const shiftMap = {}
-        shiftSnap.docs.forEach(d => { shiftMap[d.id] = d.data() })
-
-        const orgData = orgSnap.exists() ? orgSnap.data() : {}
-        const holidays = orgData.holidays || []
-
-        const [year, month] = selectedMonth.split('-').map(Number)
-        const daysInMonth = new Date(year, month, 0).getDate()
-        
-        const attendanceMap = {}
-        attSnap.docs.forEach(d => {
-          const data = d.data()
-          const day = parseInt(data.date.split('-')[2], 10)
-          if (!attendanceMap[data.employeeId]) attendanceMap[data.employeeId] = {}
-          attendanceMap[data.employeeId][day] = data
-        })
-
-        const filteredEmployees = empSnap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(emp => {
-            if (emp.hideInAttendance) return false
-            if (isEmployeeActiveStatus(emp.status)) return true
-            
-            if (emp.joinedDate) {
-              const joinDate = new Date(emp.joinedDate)
-              const monthEnd = new Date(year, month - 1, daysInMonth)
-              if (joinDate <= monthEnd) return true
-            }
-            
-            if (attendanceMap[emp.id]) {
-              const empDays = Object.keys(attendanceMap[emp.id]).map(Number)
-              return empDays.some(day => {
-                const att = attendanceMap[emp.id][day]
-                return att && (att.inTime || att.isAbsent)
-              })
-            }
-            return false
-          })
-
-        const savedOrder = Array.isArray(orgData.employeeOrder) ? orgData.employeeOrder : []
-        const orderedEmployees = [...filteredEmployees].sort((a, b) => {
-          const idxA = savedOrder.indexOf(a.id)
-          const idxB = savedOrder.indexOf(b.id)
-          if (idxA === -1 && idxB === -1) return 0
-          if (idxA === -1) return 1
-          if (idxB === -1) return -1
-          return idxA - idxB
-        })
-
-        setDisplayOrder(orderedEmployees.map(e => e.id))
-
-        setMonthlyViewData({
-          employees: orderedEmployees,
-          attendanceMap,
-          shiftMap,
-          daysInMonth,
-          holidays
-        })
-      } catch (err) {
-        console.error('Pivot fetch error:', err)
-      } finally {
-        setPivotLoading(false)
-      }
-    }
-
     fetchPivotData()
   }, [user?.orgId, selectedMonth, activeSubTab])
 
@@ -204,6 +205,22 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
       return { bg: 'bg-green-50', text: 'P', color: 'text-green-600', type: 'present' }
     }
     return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
+  }
+
+  const getEmployeeHeaderColor = (index) => {
+    const colors = [
+      { bg: 'bg-indigo-600', border: 'border-indigo-700' },
+      { bg: 'bg-teal-600', border: 'border-teal-700' },
+      { bg: 'bg-orange-600', border: 'border-orange-700' },
+      { bg: 'bg-rose-600', border: 'border-rose-700' },
+      { bg: 'bg-violet-600', border: 'border-violet-700' },
+      { bg: 'bg-sky-600', border: 'border-sky-700' },
+      { bg: 'bg-emerald-600', border: 'border-emerald-700' },
+      { bg: 'bg-amber-600', border: 'border-amber-700' },
+      { bg: 'bg-pink-600', border: 'border-pink-700' },
+      { bg: 'bg-cyan-600', border: 'border-cyan-700' }
+    ]
+    return colors[index % colors.length]
   }
 
   const getEmployeeColor = (index) => {
@@ -502,41 +519,82 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
 
       {/* Monthly View */}
       {activeSubTab === 'monthlyView' && (
-        <div className="bg-white border border-gray-300 overflow-hidden flex flex-col font-inter shadow-sm">
-          <div className="p-2 border-b border-gray-300 flex justify-between items-center bg-gray-50">
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setShowColumnSettings(true)}
-                className="h-[28px] px-2 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[11px] font-medium text-gray-700 transition-colors"
-              >
-                <Filter size={12} /> Columns
-              </button>
-              <button 
-                onClick={() => setShowOrderModal(true)}
-                className="h-[28px] px-2 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[11px] font-medium text-gray-700 transition-colors"
-              >
-                <GripVertical size={12} /> Order
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={exportPDF}
-                className="h-[28px] px-3 bg-gray-800 text-white rounded text-[11px] font-medium flex items-center gap-1.5 hover:bg-gray-900 transition-colors"
-              >
-                <Download size={12} /> Export PDF
-              </button>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col font-inter shadow-sm">
+          {/* Header with Controls */}
+          <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+              {/* Month/Year Selectors + Show Button */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <select 
+                    value={selectedMonth.split('-')[1]}
+                    onChange={(e) => {
+                      const year = selectedMonth.split('-')[0]
+                      setSelectedMonth(`${year}-${e.target.value}`)
+                    }}
+                    className="h-9 px-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none cursor-pointer"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const monthNum = String(i + 1).padStart(2, '0')
+                      const monthName = new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'long' })
+                      return <option key={monthNum} value={monthNum}>{monthName}</option>
+                    })}
+                  </select>
+                  <select
+                    value={selectedMonth.split('-')[0]}
+                    onChange={(e) => {
+                      const month = selectedMonth.split('-')[1]
+                      setSelectedMonth(`${e.target.value}-${month}`)
+                    }}
+                    className="h-9 px-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none cursor-pointer"
+                  >
+                    {Array.from({ length: 5 }, (_, i) => {
+                      const year = new Date().getFullYear() - 2 + i
+                      return <option key={year} value={year}>{year}</option>
+                    })}
+                  </select>
+                  <button 
+                    onClick={() => fetchPivotData()}
+                    className="h-9 px-4 bg-gray-800 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-gray-900 transition-colors"
+                  >
+                    <BarChart3 size={14} /> Show
+                  </button>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setShowColumnSettings(true)}
+                  className="h-9 px-3 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                >
+                  <Filter size={14} /> Columns
+                </button>
+                <button 
+                  onClick={() => setShowOrderModal(true)}
+                  className="h-9 px-3 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                >
+                  <GripVertical size={14} /> Order
+                </button>
+                <button 
+                  onClick={exportPDF}
+                  className="h-9 px-4 bg-indigo-600 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm"
+                >
+                  <Download size={14} /> Export PDF
+                </button>
+              </div>
             </div>
           </div>
           
           {pivotLoading ? (
             <div className="text-center py-20 bg-gray-50"><Spinner /></div>
           ) : (
-            <div className="overflow-x-auto max-h-[calc(100vh-180px)] flex-1 overflow-y-auto bg-white">
-              <table id="monthly-pivot-table" className="w-full border-collapse text-[11px] font-inter">
+            <div className="overflow-x-auto max-h-[calc(100vh-280px)] flex-1 overflow-y-auto bg-white">
+              <table id="monthly-pivot-table" className="border-collapse text-sm font-inter" style={{ width: 'auto', minWidth: '100%' }}>
                 <thead className="sticky top-0 z-30">
-                  <tr className="bg-gray-100">
-                    <th className="px-2 py-2 text-center font-semibold text-gray-800 border-r border-b border-gray-300 w-[50px] bg-gray-100 sticky left-0 z-40" rowSpan={2}>
-                      <div className="text-[10px] text-gray-500 mb-0.5">Date</div>
+                  <tr>
+                    <th className="px-3 py-3 text-center font-bold text-gray-700 border-r border-b border-gray-200 bg-gray-100 sticky left-0 z-40" rowSpan={2} style={{ minWidth: '60px' }}>
+                      <div className="text-xs uppercase tracking-wider text-gray-500">Date</div>
                     </th>
                     {monthlyViewData.employees?.map((emp, idx) => {
                       let colSpan = 0;
@@ -546,14 +604,16 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                       if (columnSettings.remarks) colSpan++;
                       if (colSpan === 0) colSpan = 1;
 
+                      const colorScheme = getEmployeeHeaderColor(idx);
+
                       return (
                         <th 
                           key={emp.id} 
-                          className="px-2 py-2 text-center font-semibold border-r border-b border-gray-300 min-w-[70px] bg-gray-100 text-gray-800"
+                          className={`px-3 py-3 text-center font-bold text-white border-r border-b ${colorScheme.border} ${colorScheme.bg} text-sm whitespace-nowrap`}
                           colSpan={colSpan}
+                          style={{ minWidth: `${Math.max(120, emp.name.length * 12 + 40)}px` }}
                         >
-                          <div className="truncate max-w-[100px] mx-auto text-[10px] font-medium">{emp.name}</div>
-                          <div className="text-[9px] font-normal text-gray-500">{emp.department || 'Operations'}</div>
+                          <div className="font-semibold tracking-wide">{emp.name}</div>
                         </th>
                       )
                     })}
@@ -561,11 +621,11 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                   <tr className="bg-white">
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        {columnSettings.inTime && <th className="px-1 py-1 text-[9px] font-medium border-r border-b border-gray-300 text-center bg-white text-gray-600">In</th>}
-                        {columnSettings.outTime && <th className="px-1 py-1 text-[9px] font-medium border-r border-b border-gray-300 text-center bg-white text-gray-600">Out</th>}
-                        {columnSettings.ot && <th className="px-1 py-1 text-[9px] font-medium border-r border-b border-gray-300 text-center bg-white text-gray-600">OT</th>}
-                        {columnSettings.remarks && <th className="px-1 py-1 text-[9px] font-medium border-r border-b border-gray-300 text-center bg-white text-gray-600">{remarksLabel}</th>}
-                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-1 py-1 border-r border-b border-gray-300 bg-white">-</th>}
+                        {columnSettings.inTime && <th className="px-2 py-2 text-xs font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">IN</th>}
+                        {columnSettings.outTime && <th className="px-2 py-2 text-xs font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">OUT</th>}
+                        {columnSettings.ot && <th className="px-2 py-2 text-xs font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">OT</th>}
+                        {columnSettings.remarks && <th className="px-2 py-2 text-xs font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider" style={{ minWidth: '100px' }}>{remarksLabel}</th>}
+                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-2 py-2 border-r border-b border-gray-300 bg-white">-</th>}
                       </React.Fragment>
                     ))}
                   </tr>
@@ -585,9 +645,9 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                     
                     return (
                       <tr key={day} className="hover:bg-gray-50 transition-colors">
-                        <td className={`px-2 py-1.5 text-center font-medium sticky left-0 z-20 border-r border-b border-gray-200 ${dateClass}`}>
-                          <div className="text-[11px] leading-none">{day}</div>
-                          <div className="text-[9px] text-gray-500 mt-0.5">{dayName}</div>
+                        <td className={`px-3 py-2 text-center font-bold sticky left-0 z-20 border-r border-b border-gray-200 ${dateClass}`} style={{ minWidth: '60px' }}>
+                          <div className="text-sm leading-none">{String(day).padStart(2, '0')}</div>
+                          <div className="text-xs text-gray-500 mt-0.5 font-medium">{dayName}</div>
                         </td>
                         {monthlyViewData.employees?.map(emp => {
                           const [empYear, empMonth] = selectedMonth.split('-').map(Number)
@@ -608,20 +668,20 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                           return (
                             <React.Fragment key={emp.id}>
                               {isAbsentOrNonWorking ? (
-                                <td colSpan={colSpan} className={`px-1 py-1.5 text-center border-r border-b border-gray-200 ${isBeforeStart ? 'bg-gray-50' : status.bg} transition-colors`}>
-                                  <span className={`text-[10px] font-medium ${isBeforeStart ? 'text-gray-400' : status.color}`}>
+                                <td colSpan={colSpan} className={`px-2 py-2 text-center border-r border-b border-gray-200 ${isBeforeStart ? 'bg-gray-50' : status.bg} transition-colors`}>
+                                  <span className={`text-sm font-semibold ${isBeforeStart ? 'text-gray-400' : status.color}`}>
                                     {isBeforeStart ? '—' : status.text}
                                   </span>
                                 </td>
                               ) : (
                                 <>
                                   {columnSettings.inTime && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 text-[10px] text-gray-800 bg-white">
+                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 text-sm text-gray-800 bg-white whitespace-nowrap">
                                       {isBeforeStart ? '—' : formatTimeTo12Hour(att?.inTime) || '—'}
                                     </td>
                                   )}
                                   {columnSettings.outTime && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 text-[10px] text-gray-800 bg-white">
+                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 text-sm text-gray-800 bg-white whitespace-nowrap">
                                       {(() => {
                                         if (isBeforeStart) return '—'
                                         const time = formatTimeTo12Hour(att?.outTime)
@@ -634,7 +694,7 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                                           return (
                                             <div className="flex flex-col items-center leading-none">
                                               <span>{time}</span>
-                                              <span className="text-[8px] text-red-500 font-medium mt-0.5">
+                                              <span className="text-xs text-red-500 font-semibold mt-0.5">
                                                 → {shortDate}
                                               </span>
                                             </div>
@@ -645,17 +705,17 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                                     </td>
                                   )}
                                   {columnSettings.ot && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 text-[10px] font-medium text-indigo-600 bg-white">
+                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 text-sm font-semibold text-indigo-600 bg-white">
                                       {isBeforeStart ? '—' : formatOTHours(att?.otHours)}
                                     </td>
                                   )}
                                   {columnSettings.remarks && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 text-[9px] font-normal text-gray-500 bg-white italic">
+                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 text-xs font-normal text-gray-500 bg-white italic" style={{ minWidth: '100px' }}>
                                       {isBeforeStart ? '—' : (att?.remarks || '—')}
                                     </td>
                                   )}
                                   {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && (
-                                    <td className="px-1 py-1.5 text-center border-r border-b border-gray-200 bg-white">—</td>
+                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 bg-white">—</td>
                                   )}
                                 </>
                               )}
