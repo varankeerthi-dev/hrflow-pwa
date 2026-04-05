@@ -91,6 +91,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const [activePortalTab, setActivePortalTab] = useState(initialSubTab)
   const [loading, setLoading] = useState(false)
   const [requests, setRequests] = useState([])
+  const [expandedMonths, setExpandedMonths] = useState({}) // Track which months are expanded
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [approvalSetting, setApprovalSetting] = useState(null)
   const [requestForm, setRequestForm] = useState({
@@ -364,6 +365,69 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     if (rec.inTime && !rec.outTime) return 'Pending Checkout'
     if (rec.isAbsent) return 'Absent'
     return 'Present'
+  }
+
+  // Helper to group requests by month
+  const groupRequestsByMonth = (requests) => {
+    const grouped = {}
+    requests.forEach(req => {
+      const date = req.createdAt?.toDate ? req.createdAt.toDate() : new Date()
+      const monthKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = []
+      }
+      grouped[monthKey].push(req)
+    })
+    return grouped
+  }
+
+  // Helper to get detailed approval status
+  const getDetailedStatus = (req) => {
+    if (req.status === 'Rejected') {
+      return { label: 'Rejected', color: 'bg-red-100 text-red-700', stage: 'rejected' }
+    }
+    if (req.status === 'Approved') {
+      return { label: 'Approved', color: 'bg-green-100 text-green-700', stage: 'approved' }
+    }
+    
+    // For pending requests, show approval workflow
+    const hrStatus = req.hrApproval || 'Pending'
+    const mdStatus = req.mdApproval || 'Pending'
+    const deptHeadStatus = req.deptHeadApproval || 'Pending'
+    
+    // Multi-stage approval flow
+    if (req.approvalType === 'multi') {
+      if (deptHeadStatus === 'Pending') {
+        return { label: 'Dept Head Pending', color: 'bg-amber-100 text-amber-700', stage: 'dept-head' }
+      }
+      if (deptHeadStatus === 'Approved' && mdStatus === 'Pending') {
+        return { label: 'MD Pending', color: 'bg-amber-100 text-amber-700', stage: 'md' }
+      }
+      if (deptHeadStatus === 'Rejected' || mdStatus === 'Rejected') {
+        return { label: 'Rejected', color: 'bg-red-100 text-red-700', stage: 'rejected' }
+      }
+    } else {
+      // Single or dual approval flow
+      if (hrStatus === 'Pending') {
+        return { label: 'HR Pending', color: 'bg-amber-100 text-amber-700', stage: 'hr' }
+      }
+      if (hrStatus === 'Approved' && mdStatus === 'Pending') {
+        return { label: 'MD Pending', color: 'bg-blue-100 text-blue-700', stage: 'md' }
+      }
+      if (hrStatus === 'Rejected' || mdStatus === 'Rejected') {
+        return { label: 'Rejected', color: 'bg-red-100 text-red-700', stage: 'rejected' }
+      }
+    }
+    
+    return { label: 'Pending', color: 'bg-amber-100 text-amber-700', stage: 'pending' }
+  }
+
+  // Toggle month expansion
+  const toggleMonth = (monthKey) => {
+    setExpandedMonths(prev => ({
+      ...prev,
+      [monthKey]: !prev[monthKey]
+    }))
   }
 
   if (empLoading || !user) {
@@ -906,146 +970,250 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
-              {requests.map(req => (
-                <div key={req.id} className="bg-white p-8 rounded-[12px] border border-gray-100 shadow-sm flex flex-col relative overflow-hidden group hover:shadow-lg transition-all">
-                  <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-xl text-[9px] font-black uppercase tracking-[0.2em] ${
-                    req.status === 'Rejected' ? 'bg-red-100 text-red-700 border-l border-b border-red-200' :
-                    req.status === 'Approved' ? 'bg-green-100 text-green-700 border-l border-b border-green-200' :
-                    'bg-amber-50 text-amber-600 border-l border-b border-amber-100'
-                  }`}>
-                    {(() => {
-                      if (req.status === 'Rejected') return 'Rejected'
-                      if (req.status === 'Approved') return 'Approved'
-                      if (req.status === 'Hold') return 'Pending'
-                      
-                      // For multi-stage approvals
-                      if (req.approvalType === 'multi') {
-                        if (req.mdApproval === 'Approved') return 'Approved'
-                        if (req.deptHeadApproval === 'Approved' && req.mdApproval === 'Pending') return 'Waiting MD Approval'
-                        if (req.deptHeadApproval === 'Pending' && req.mdApproval === 'Pending') return 'Dept Head Approval Pending'
-                      }
-                      
-                      return req.status
-                    })()}
+            {(() => {
+              const grouped = groupRequestsByMonth(requests)
+              const monthKeys = Object.keys(grouped).sort((a, b) => {
+                // Sort months in descending order (newest first)
+                const dateA = new Date(a)
+                const dateB = new Date(b)
+                return dateB - dateA
+              })
+              
+              if (monthKeys.length === 0) {
+                return (
+                  <div className="col-span-full py-32 text-center">
+                    <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-6 text-gray-200"><FileText size={40} /></div>
+                    <p className="text-gray-300 font-medium uppercase tracking-[0.25em] text-xl italic opacity-40">No internal records found</p>
                   </div>
-                  <div className="mb-6 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 group-hover:text-indigo-600 transition-colors">
-                      <FileText size={20} />
-                    </div>
-                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">{req.type}</span>
-                    {req.source === 'advances_expenses' && (
-                      <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">{req.category}</span>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest flex items-center gap-2">
-                        <Calendar size={12} /> Details
-                      </p>
-                      <p className="text-sm font-black text-gray-800 mb-2 flex items-center gap-2">
-                        {req.type === 'Leave' && (
-                          <>
-                            {req.leaveType || 'Leave'}: {req.fromDate} <ArrowRight size={14} className="text-gray-300" />{' '}
-                            {req.toDate || req.fromDate}
-                          </>
-                        )}
-                        {req.type === 'Permission' && (
-                          <>
-                            {req.permissionDate} at {req.permissionTime || '--'}
-                          </>
-                        )}
-                        {(req.type === 'Advance' || req.type === 'Expense') && <>₹{req.amount}</>}
-                      </p>
-                    </div>
-                    {(req.type === 'Advance' || req.type === 'Expense') && req.date && (
-                      <div className="text-right">
-                         <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Entry Date</p>
-                         <p className="text-[12px] font-bold text-gray-700">{req.date}</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-tight mb-1">Status 1 (HR Approval)</span>
-                      <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${req.hrApproval === 'Approved' ? 'bg-green-500' : req.hrApproval === 'Rejected' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
-                        <span className={`text-[10px] font-black uppercase ${req.hrApproval === 'Approved' ? 'text-green-700' : req.hrApproval === 'Rejected' ? 'text-red-700' : 'text-amber-600'}`}>
-                          {req.hrApproval || 'Pending'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-tight mb-1">Status 2 (MD Approval)</span>
-                      <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${req.mdApproval === 'Approved' ? 'bg-green-500' : req.mdApproval === 'Rejected' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
-                        <span className={`text-[10px] font-black uppercase ${req.mdApproval === 'Approved' ? 'text-green-700' : req.mdApproval === 'Rejected' ? 'text-red-700' : 'text-amber-600'}`}>
-                          {req.mdApproval || 'Pending'}
-                        </span>
-                      </div>
-                    </div>
-                    {(req.type === 'Advance' || req.type === 'Expense') && (
-                      <div className="flex flex-col col-span-2 pt-2 border-t border-gray-200/50">
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-tight mb-1">Payment Queue Status</span>
-                        <div className="flex items-center gap-1.5">
-                          <div className={`w-1.5 h-1.5 rounded-full ${req.paymentStatus === 'Paid' ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
-                          <span className={`text-[10px] font-black uppercase ${req.paymentStatus === 'Paid' ? 'text-emerald-700' : 'text-gray-500'}`}>
-                            {req.paymentStatus || 'Pending'}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                )
+              }
+              
+              return (
+                <div className="space-y-6 px-4">
+                  {monthKeys.map((monthKey, index) => {
+                    const monthRequests = grouped[monthKey]
+                    const isExpanded = expandedMonths[monthKey] !== false // Default to expanded
+                    
+                    // Count statuses for summary
+                    const pendingCount = monthRequests.filter(r => r.status === 'Pending' || (!r.status && r.hrApproval === 'Pending')).length
+                    const approvedCount = monthRequests.filter(r => r.status === 'Approved').length
+                    const rejectedCount = monthRequests.filter(r => r.status === 'Rejected').length
+                    
+                    return (
+                      <div key={monthKey} className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
+                        {/* Month Header - Clickable to expand/collapse */}
+                        <button 
+                          onClick={() => toggleMonth(monthKey)}
+                          className="w-full flex items-center justify-between p-5 bg-gray-50/50 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                              <ArrowRight size={16} className="text-gray-400" />
+                            </div>
+                            <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">{monthKey}</h4>
+                            <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                              {monthRequests.length} request{monthRequests.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {pendingCount > 0 && (
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                {pendingCount} Pending
+                              </span>
+                            )}
+                            {approvedCount > 0 && (
+                              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                {approvedCount} Approved
+                              </span>
+                            )}
+                            {rejectedCount > 0 && (
+                              <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+                                {rejectedCount} Rejected
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                        
+                        {/* Month Content - Collapsible */}
+                        {isExpanded && (
+                          <div className="p-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                              {monthRequests.map(req => {
+                                const statusInfo = getDetailedStatus(req)
+                                return (
+                                  <div key={req.id} className="bg-white p-6 rounded-[12px] border border-gray-100 shadow-sm flex flex-col relative overflow-hidden group hover:shadow-lg transition-all">
+                                    <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-xl text-[9px] font-black uppercase tracking-[0.2em] ${statusInfo.color} border-l border-b border-gray-200`}>
+                                      {statusInfo.label}
+                                    </div>
+                                    <div className="mb-4 flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 group-hover:text-indigo-600 transition-colors">
+                                        <FileText size={20} />
+                                      </div>
+                                      <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">{req.type}</span>
+                                      {req.source === 'advances_expenses' && (
+                                        <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">{req.category}</span>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between mb-4">
+                                      <div>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest flex items-center gap-2">
+                                          <Calendar size={12} /> Details
+                                        </p>
+                                        <p className="text-sm font-black text-gray-800 mb-2 flex items-center gap-2">
+                                          {req.type === 'Leave' && (
+                                            <>
+                                              {req.leaveType || 'Leave'}: {req.fromDate} <ArrowRight size={14} className="text-gray-300" />{' '}
+                                              {req.toDate || req.fromDate}
+                                            </>
+                                          )}
+                                          {req.type === 'Permission' && (
+                                            <>
+                                              {req.permissionDate || req.date} at {req.permissionTime || req.fromTime || '--'}
+                                            </>
+                                          )}
+                                          {(req.type === 'Advance' || req.type === 'Expense') && <>₹{req.amount}</>}
+                                        </p>
+                                      </div>
+                                      {(req.type === 'Advance' || req.type === 'Expense') && req.date && (
+                                        <div className="text-right">
+                                          <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Entry Date</p>
+                                          <p className="text-[12px] font-bold text-gray-700">{req.date}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Approval Workflow Display */}
+                                    <div className="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                      <p className="text-[9px] font-black text-gray-400 uppercase mb-2 tracking-widest">Approval Workflow</p>
+                                      
+                                      {/* Dept Head Stage (for multi-stage) */}
+                                      {req.approvalType === 'multi' && (
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <div className={`w-2 h-2 rounded-full ${
+                                            req.deptHeadApproval === 'Approved' ? 'bg-green-500' : 
+                                            req.deptHeadApproval === 'Rejected' ? 'bg-red-500' : 
+                                            'bg-amber-500 animate-pulse'
+                                          }`}></div>
+                                          <span className={`text-[10px] font-bold uppercase ${
+                                            req.deptHeadApproval === 'Approved' ? 'text-green-700' : 
+                                            req.deptHeadApproval === 'Rejected' ? 'text-red-700' : 
+                                            'text-amber-600'
+                                          }`}>
+                                            Dept Head: {req.deptHeadApproval || 'Pending'}
+                                          </span>
+                                          {req.deptHeadName && (
+                                            <span className="text-[9px] text-gray-400">({req.deptHeadName})</span>
+                                          )}
+                                        </div>
+                                      )}
+                                      
+                                      {/* HR Stage */}
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className={`w-2 h-2 rounded-full ${
+                                          req.hrApproval === 'Approved' ? 'bg-green-500' : 
+                                          req.hrApproval === 'Rejected' ? 'bg-red-500' : 
+                                          'bg-amber-500 animate-pulse'
+                                        }`}></div>
+                                        <span className={`text-[10px] font-bold uppercase ${
+                                          req.hrApproval === 'Approved' ? 'text-green-700' : 
+                                          req.hrApproval === 'Rejected' ? 'text-red-700' : 
+                                          'text-amber-600'
+                                        }`}>
+                                          HR: {req.hrApproval || 'Pending'}
+                                        </span>
+                                      </div>
+                                      
+                                      {/* MD Stage */}
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${
+                                          req.mdApproval === 'Approved' ? 'bg-green-500' : 
+                                          req.mdApproval === 'Rejected' ? 'bg-red-500' : 
+                                          req.hrApproval === 'Approved' ? 'bg-amber-500 animate-pulse' :
+                                          'bg-gray-300'
+                                        }`}></div>
+                                        <span className={`text-[10px] font-bold uppercase ${
+                                          req.mdApproval === 'Approved' ? 'text-green-700' : 
+                                          req.mdApproval === 'Rejected' ? 'text-red-700' : 
+                                          req.hrApproval === 'Approved' ? 'text-amber-600' :
+                                          'text-gray-400'
+                                        }`}>
+                                          MD: {req.mdApproval || (req.hrApproval === 'Approved' ? 'Pending' : 'Waiting')}
+                                        </span>
+                                      </div>
+                                      
+                                      {/* Payment Status for Advance/Expense */}
+                                      {(req.type === 'Advance' || req.type === 'Expense') && (
+                                        <div className="mt-2 pt-2 border-t border-gray-200">
+                                          <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${
+                                              req.paymentStatus === 'Paid' ? 'bg-emerald-500' : 'bg-gray-300'
+                                            }`}></div>
+                                            <span className={`text-[10px] font-bold uppercase ${
+                                              req.paymentStatus === 'Paid' ? 'text-emerald-700' : 'text-gray-400'
+                                            }`}>
+                                              Payment: {req.paymentStatus || 'Pending'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
 
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Remarks / Justification</p>
-                  <p className="text-[13px] font-medium text-gray-600 italic leading-relaxed">"{req.reason || 'No justification provided'}"</p>
-                  
-                  {(req.hrRemarks || req.mdRemarks || req.remarks) && (
-                    <div className="mt-4 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
-                      <p className="text-[9px] font-black text-indigo-400 uppercase mb-2 tracking-widest flex items-center gap-2">
-                        <MessageSquare size={12} />
-                        Approver Remarks
-                      </p>
-                      {req.hrRemarks && (
-                        <p className="text-[11px] text-gray-600 mb-1">
-                          <span className="font-bold text-indigo-600">HR:</span> {req.hrRemarks}
-                        </p>
-                      )}
-                      {req.mdRemarks && (
-                        <p className="text-[11px] text-gray-600 mb-1">
-                          <span className="font-bold text-indigo-600">MD:</span> {req.mdRemarks}
-                        </p>
-                      )}
-                      {req.remarks && !req.hrRemarks && !req.mdRemarks && (
-                        <p className="text-[11px] text-gray-600">
-                          {req.remarks}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center opacity-40 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[8px] font-black text-gray-300 uppercase">Ref: {req.id.slice(-8).toUpperCase()}</span>
-                    {req.status === 'Pending' && (
-                      <button 
-                        onClick={() => handleWithdraw(req.id, req.source)}
-                        className="text-[9px] font-black text-red-400 uppercase hover:text-red-600"
-                      >
-                        Withdraw
-                      </button>
-                    )}
-                  </div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Remarks / Justification</p>
+                                    <p className="text-[13px] font-medium text-gray-600 italic leading-relaxed">"{req.reason || 'No justification provided'}"</p>
+                                    
+                                    {(req.hrRemarks || req.mdRemarks || req.deptHeadRemarks || req.remarks) && (
+                                      <div className="mt-4 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                                        <p className="text-[9px] font-black text-indigo-400 uppercase mb-2 tracking-widest flex items-center gap-2">
+                                          <MessageSquare size={12} />
+                                          Approver Remarks
+                                        </p>
+                                        {req.deptHeadRemarks && (
+                                          <p className="text-[11px] text-gray-600 mb-1">
+                                            <span className="font-bold text-indigo-600">Dept Head:</span> {req.deptHeadRemarks}
+                                          </p>
+                                        )}
+                                        {req.hrRemarks && (
+                                          <p className="text-[11px] text-gray-600 mb-1">
+                                            <span className="font-bold text-indigo-600">HR:</span> {req.hrRemarks}
+                                          </p>
+                                        )}
+                                        {req.mdRemarks && (
+                                          <p className="text-[11px] text-gray-600 mb-1">
+                                            <span className="font-bold text-indigo-600">MD:</span> {req.mdRemarks}
+                                          </p>
+                                        )}
+                                        {req.remarks && !req.hrRemarks && !req.mdRemarks && !req.deptHeadRemarks && (
+                                          <p className="text-[11px] text-gray-600">
+                                            {req.remarks}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                    
+                                    <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center opacity-40 group-hover:opacity-100 transition-opacity">
+                                      <span className="text-[8px] font-black text-gray-300 uppercase">Ref: {req.id.slice(-8).toUpperCase()}</span>
+                                      {req.status === 'Pending' && (
+                                        <button 
+                                          onClick={() => handleWithdraw(req.id, req.source)}
+                                          className="text-[9px] font-black text-red-400 uppercase hover:text-red-600"
+                                        >
+                                          Withdraw
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              ))}
-              {requests.length === 0 && (
-                <div className="col-span-full py-32 text-center">
-                  <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-6 text-gray-200"><FileText size={40} /></div>
-                  <p className="text-gray-300 font-medium uppercase tracking-[0.25em] text-xl italic opacity-40">No internal records found</p>
-                </div>
-              )}
-            </div>
+              )
+            })()}
           </div>
         )}
 
