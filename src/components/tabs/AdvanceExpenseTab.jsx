@@ -705,8 +705,32 @@ export default function AdvanceExpenseTab() {
   }
 
   const handleSubmitAll = async () => {
-    const validRows = addRows.filter(r => r.employeeId && r.amount && r.category)
-    if (validRows.length === 0) return alert('Please fill in required fields (Employee, Category, Amount) for at least one row.')
+    // Check for required fields
+    const rowsWithMissingFields = addRows.filter(r => !r.employeeId || !r.amount || !r.category)
+    if (rowsWithMissingFields.length > 0) {
+      return alert('Please fill in required fields (Employee, Category, Amount) for all rows.')
+    }
+    
+    // Check for "Paid To" requirement in specific categories
+    const categoriesRequiringPaidTo = ['salary to others', 'given to others']
+    const rowsMissingPaidTo = addRows.filter(r => {
+      const categoryLower = r.category?.toLowerCase().trim() || ''
+      const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => 
+        categoryLower.includes(reqCat)
+      )
+      return requiresPaidTo && (!r.paidTo || r.paidTo === '')
+    })
+    
+    if (rowsMissingPaidTo.length > 0) {
+      const empNames = rowsMissingPaidTo.map(r => {
+        const emp = employees.find(e => e.id === r.employeeId)
+        return emp?.name || 'Unknown'
+      }).join(', ')
+      return alert(`The following categories require "Paid To" field:\n\n${rowsMissingPaidTo.map(r => `• ${r.category} (Employee: ${employees.find(e => e.id === r.employeeId)?.name || 'Unknown'})`).join('\n')}\n\nPlease select who the money is being paid to.`)
+    }
+    
+    // All rows are valid
+    const validRows = addRows
     
     // Pro Duplicate Detection
     const duplicates = []
@@ -1598,8 +1622,8 @@ export default function AdvanceExpenseTab() {
                       Category
                     </th>
                     {activeModule === 'Add Expense' && (
-                      <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]">
-                        Paid To
+                      <th className="h-10 px-3 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[180px]" title="Required for 'Salary to others' and 'Given to others' categories">
+                        Paid To <span className="text-[8px] text-zinc-400 font-normal">*</span>
                       </th>
                     )}
                     {activeModule === 'Add Expense' && (
@@ -1810,8 +1834,8 @@ export default function AdvanceExpenseTab() {
                   {/* Paid To - Only for Expense */}
                   {activeModule === 'Add Expense' && (
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                        Paid To
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5" title="Required for 'Salary to others' and 'Given to others' categories">
+                        Paid To <span className="text-[8px] text-zinc-400 font-normal">*</span>
                       </label>
                       <PaidToDropdown rowId={row.id} row={row} isMobile={true} />
                     </div>
