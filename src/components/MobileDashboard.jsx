@@ -509,7 +509,7 @@ export default function MobileDashboard() {
           </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 bg-white">
+        <nav className="flex-1 overflow-y-auto py-4 px-2 bg-white">
           {visibleModules.map((mod) => (
             <button
               key={mod.id}
@@ -653,7 +653,7 @@ export default function MobileDashboard() {
               </button>
             </div>
             
-            <nav className="flex-1 overflow-y-auto p-4 space-y-1 bg-white">
+            <nav className="flex-1 overflow-y-auto p-4 bg-white">
               {visibleModules.map(mod => (
                 <button
                   key={mod.id}
