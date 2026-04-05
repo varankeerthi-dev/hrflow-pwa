@@ -1224,84 +1224,96 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         )}
       </div>
 
-      <Modal isOpen={showRequestModal} onClose={() => setShowRequestModal(false)} title="New Request">
-        <form onSubmit={e => { e.preventDefault(); handleRequestSubmit(); }} className="p-10 space-y-8 max-w-lg mx-auto font-inter">
+      <Modal isOpen={showRequestModal} onClose={() => setShowRequestModal(false)} title="Initialize Request" size="2xl">
+        <form onSubmit={e => { e.preventDefault(); handleRequestSubmit(); }} className="p-6 space-y-6">
+          {/* Request Type Selector */}
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Request Type</label>
-            <div className="flex bg-gray-100 p-1.5 rounded-xl border border-gray-200">
+            <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+              Request Type
+            </label>
+            <div className="grid grid-cols-3 gap-2">
               {['Leave', 'Permission', 'Advance'].map(t => (
-                <button key={t} type="button" onClick={() => setRequestForm(f => ({ ...f, type: t }))} className={`flex-1 py-3 rounded-lg text-[11px] font-black tracking-[0.1em] transition-all uppercase ${requestForm.type === t ? 'bg-white shadow-lg text-indigo-600 border border-indigo-50' : 'text-gray-400'}`}>{t}</button>
+                <button 
+                  key={t} 
+                  type="button" 
+                  onClick={() => setRequestForm(f => ({ ...f, type: t }))} 
+                  className={`py-2 rounded-lg text-[11px] font-medium uppercase tracking-wider transition-all border ${
+                    requestForm.type === t 
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm shadow-indigo-100' 
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {t}
+                </button>
               ))}
             </div>
           </div>
+
           {requestForm.type === 'Leave' && (
             <div className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
-                      Leave Classification
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                    Leave Classification
+                  </label>
+                  <select
+                    value={requestForm.leaveType}
+                    onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="Casual">Casual Leave</option>
+                    <option value="Sick">Sick Leave</option>
+                    <option value="Privilege">Privilege Leave</option>
+                    <option value="Maternity">Maternity Leave</option>
+                    <option value="Paternity">Paternity Leave</option>
+                    <option value="Unpaid">Unpaid Leave</option>
+                    <option value="LOP">Loss of Pay (LOP)</option>
+                  </select>
+                </div>
+                
+                {/* Dynamic Approver logic */}
+                {approvalSetting?.type === 'multi' && approvalSetting.stages?.length > 1 && (
+                  <div>
+                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                      Approver
                     </label>
-                    <select
-                      value={requestForm.leaveType}
-                      onChange={e => setRequestForm(f => ({ ...f, leaveType: e.target.value }))}
-                      className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                    <select 
+                      value={requestForm.approverIds?.[0] || ''} 
+                      onChange={e => {
+                        const newApprovers = [...(requestForm.approverIds || [])]
+                        newApprovers[0] = e.target.value
+                        setRequestForm({...requestForm, approverIds: newApprovers}) 
+                      }} 
+                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
                     >
-                      <option value="Casual">Casual Leave</option>
-                      <option value="Sick">Sick Leave</option>
-                      <option value="Privilege">Privilege Leave</option>
-                      <option value="Maternity">Maternity Leave</option>
-                      <option value="Paternity">Paternity Leave</option>
-                      <option value="Unpaid">Unpaid Leave</option>
-                      <option value="LOP">Loss of Pay (LOP)</option>
+                      <option value="">Select Approver</option>
+                      {employees.filter(emp => emp.id !== employeeId).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                     </select>
                   </div>
-                  
-                  {/* Dynamic Approver logic */}
-                  {approvalSetting?.type === 'multi' && approvalSetting.stages?.length > 1 && (
-                    <>
-                      {approvalSetting.stages.slice(0, -1).map((stage, idx) => (
-                        <div key={idx} className="space-y-2">
-                          <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
-                            Approver {idx + 1} ({stage.role || 'Dept Head'})
-                          </label>
-                          <select 
-                            value={requestForm.approverIds?.[idx] || ''} 
-                            onChange={e => {
-                              const newApprovers = [...(requestForm.approverIds || [])]
-                              newApprovers[idx] = e.target.value
-                              setRequestForm({...requestForm, approverIds: newApprovers}) 
-                            }} 
-                            className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
-                          >
-                            <option value="">Select Approver</option>
-                            {employees.filter(emp => emp.id !== employeeId).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                          </select>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
-                    Commencement
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                    Start Date
                   </label>
                   <input
                     type="date"
                     value={requestForm.fromDate}
                     onChange={e => setRequestForm(f => ({ ...f, fromDate: e.target.value }))}
-                    className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">
-                    Conclusion
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                    End Date
                   </label>
                   <input
                     type="date"
                     value={requestForm.toDate}
                     onChange={e => setRequestForm(f => ({ ...f, toDate: e.target.value }))}
-                    className="w-full h-[46px] border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
                   />
                 </div>
               </div>
@@ -1311,24 +1323,25 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           {requestForm.type === 'Permission' && (
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                <label className="block text-[12px] font-semibold text-gray-700 mb-2">
                   Date
                 </label>
                 <input
                   type="date"
                   value={requestForm.date}
                   onChange={e => setRequestForm(f => ({ ...f, date: e.target.value }))}
-                  className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                <label className="block text-[12px] font-semibold text-gray-700 mb-2">
                   Time
                 </label>
                 <div className="relative">
                   <button
+                    type="button"
                     onClick={() => setShowTimePicker(!showTimePicker)}
-                    className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none text-left flex items-center justify-between"
+                    className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all text-left flex items-center justify-between cursor-pointer"
                   >
                     <span>{requestForm.time ? (() => {
                       const [h, m] = requestForm.time.split(':').map(Number)
@@ -1336,6 +1349,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                       const h12 = h % 12 || 12
                       return `${h12}:${String(m).padStart(2, '0')} ${p}`
                     })() : 'Select time'}</span>
+                    <Clock size={14} className="text-gray-400" />
                   </button>
                   {showTimePicker && (
                     <TimePicker
@@ -1351,25 +1365,49 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
 
           {requestForm.type === 'Advance' && (
             <div>
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
-                Amount
+              <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                Amount (₹)
               </label>
               <input
                 type="number"
                 value={requestForm.amount}
                 onChange={e => setRequestForm(f => ({ ...f, amount: e.target.value }))}
-                className="w-full h-[44px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="₹"
+                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
+                placeholder="Enter amount..."
               />
             </div>
           )}
+
+          {/* Reason */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Detailed Justification</label>
-            <textarea value={requestForm.reason} onChange={e => setRequestForm(f => ({ ...f, reason: e.target.value }))} className="w-full border border-gray-200 rounded-xl p-5 text-sm font-medium outline-none bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 h-[120px] transition-all" placeholder="Briefly state the reason for this administrative request..." />
+            <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+              Reason / Justification
+            </label>
+            <textarea 
+              value={requestForm.reason} 
+              onChange={e => setRequestForm(f => ({ ...f, reason: e.target.value }))} 
+              className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[80px] resize-none placeholder:text-gray-400" 
+              placeholder="Briefly state the reason for this request..." 
+            />
           </div>
-          <button type="submit" disabled={loading} className="w-full h-[48px] bg-indigo-600 text-white font-black py-3 rounded-xl shadow-2xl shadow-indigo-900/20 hover:bg-indigo-700 transition-all uppercase tracking-[0.25em] text-[12px]">
-            Submit for Approval
-          </button>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowRequestModal(false)}
+              className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Submitting...' : 'Submit Request'}
+            </button>
+          </div>
         </form>
       </Modal>
     </div>
