@@ -36,13 +36,20 @@ export function useSalarySlab(orgId) {
   }
 
   const saveSlab = async (employeeId, payload) => {
-    // payload: { totalSalary, basicPercent, hraPercent, incomeTaxPercent, pfPercent, effectiveFrom, reason }
-    await addDoc(collection(db, 'organisations', orgId, 'salaryIncrements'), {
-      employeeId,
-      ...payload,
-      createdAt: serverTimestamp()
-    })
-    fetchSlabs()
+    // payload: { totalSalary, basicPercent, hraPercent, incomeTaxPercent, pfPercent, esiPercent, effectiveFrom, reason }
+    try {
+      await addDoc(collection(db, 'organisations', orgId, 'salaryIncrements'), {
+        employeeId,
+        ...payload,
+        createdAt: serverTimestamp()
+      })
+      // Wait for fetch to complete before returning
+      await fetchSlabs()
+      return { success: true }
+    } catch (error) {
+      console.error('Error saving slab:', error)
+      throw error
+    }
   }
 
   useEffect(() => {
