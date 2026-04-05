@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
@@ -38,6 +38,12 @@ export default function AdvanceExpenseTab() {
   const [fromDateDropdownOpen, setFromDateDropdownOpen] = useState(false)
   const [toDateDropdownOpen, setToDateDropdownOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
+  
+  // Refs for dropdown containers
+  const employeeDropdownRef = useRef(null)
+  const fromDateDropdownRef = useRef(null)
+  const toDateDropdownRef = useRef(null)
+  const categoryDropdownRef = useRef(null)
   
   // Helper to close all dropdowns
   const closeAllDropdowns = () => {
@@ -577,14 +583,16 @@ export default function AdvanceExpenseTab() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (employeeDropdownOpen || fromDateDropdownOpen || toDateDropdownOpen || categoryDropdownOpen) {
-        const target = event.target
-        if (!target.closest('.relative')) {
-          setEmployeeDropdownOpen(false)
-          setFromDateDropdownOpen(false)
-          setToDateDropdownOpen(false)
-          setCategoryDropdownOpen(false)
-        }
+      // Check if click is outside all dropdown containers
+      const isOutsideEmployee = employeeDropdownRef.current && !employeeDropdownRef.current.contains(event.target)
+      const isOutsideFromDate = fromDateDropdownRef.current && !fromDateDropdownRef.current.contains(event.target)
+      const isOutsideToDate = toDateDropdownRef.current && !toDateDropdownRef.current.contains(event.target)
+      const isOutsideCategory = categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)
+      
+      // Only close if at least one dropdown is open and click is outside all of them
+      if ((employeeDropdownOpen || fromDateDropdownOpen || toDateDropdownOpen || categoryDropdownOpen) &&
+          isOutsideEmployee && isOutsideFromDate && isOutsideToDate && isOutsideCategory) {
+        closeAllDropdowns()
       }
     }
     
@@ -1844,7 +1852,7 @@ export default function AdvanceExpenseTab() {
             <div className="flex flex-wrap items-center gap-2" style={{ lineHeight: '15px' }}>
               
               {/* Employee Multi-Select Dropdown */}
-              <div className="relative">
+              <div className="relative" ref={employeeDropdownRef}>
                 <button 
                   onClick={() => {
                     closeAllDropdowns()
@@ -1904,7 +1912,7 @@ export default function AdvanceExpenseTab() {
               </div>
 
               {/* From Date Dropdown */}
-              <div className="relative">
+              <div className="relative" ref={fromDateDropdownRef}>
                 <button 
                   onClick={() => {
                     closeAllDropdowns()
@@ -1983,7 +1991,7 @@ export default function AdvanceExpenseTab() {
               </div>
 
               {/* To Date Dropdown */}
-              <div className="relative">
+              <div className="relative" ref={toDateDropdownRef}>
                 <button 
                   onClick={() => {
                     closeAllDropdowns()
@@ -2062,7 +2070,7 @@ export default function AdvanceExpenseTab() {
               </div>
 
               {/* Category Dropdown */}
-              <div className="relative">
+              <div className="relative" ref={categoryDropdownRef}>
                 <button 
                   onClick={() => {
                     closeAllDropdowns()
