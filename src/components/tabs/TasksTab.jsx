@@ -12,6 +12,7 @@ import {
   Trash2, 
   Filter,
   CheckCircle,
+  Check,
   PlayCircle,
   Lightbulb,
   X,
