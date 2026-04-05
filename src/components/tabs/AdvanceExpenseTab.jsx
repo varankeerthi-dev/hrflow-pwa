@@ -835,10 +835,20 @@ export default function AdvanceExpenseTab() {
             updateData.hrApproval = 'Approved'
             updateData.hrApprovedBy = user.uid
             updateData.hrApprovedAt = serverTimestamp()
+            // Check if MD is also approved, then mark as fully approved
+            const currentData = snap.docs[0].data()
+            if (currentData.mdApproval === 'Approved') {
+              updateData.status = 'Approved'
+            }
           } else {
             updateData.mdApproval = 'Approved'
             updateData.mdApprovedBy = user.uid
             updateData.mdApprovedAt = serverTimestamp()
+            // Check if HR is also approved, then mark as fully approved
+            const currentData = snap.docs[0].data()
+            if (currentData.hrApproval === 'Approved') {
+              updateData.status = 'Approved'
+            }
           }
           break
         case 'reject':
@@ -870,6 +880,9 @@ export default function AdvanceExpenseTab() {
       }
 
       await updateDoc(docRef, updateData)
+
+      // Invalidate queries to refresh Approvals tab
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
 
       // Update local state
       setSubmittedItems(prev => 
@@ -1868,14 +1881,29 @@ export default function AdvanceExpenseTab() {
                         </select>
                       </td>
                       <td className="px-1 border-r border-gray-200">
-                        <input 
-                          list="categories-list" 
+                        <select
                           value={row.category} 
                           onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
-                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent"
+                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent cursor-pointer"
                           style={{ height: '19px' }}
-                          placeholder="Type category..."
-                        />
+                        >
+                          <option value="">Select category...</option>
+                          {categories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          <option value="custom">+ Other (Type below)</option>
+                        </select>
+                        {row.category === 'custom' && (
+                          <input 
+                            type="text" 
+                            value={row.customCategory || ''} 
+                            onChange={e => handleRowChange(row.id, 'customCategory', e.target.value)} 
+                            className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent mt-1"
+                            style={{ height: '19px' }}
+                            placeholder="Enter custom category..."
+                            autoFocus
+                          />
+                        )}
                       </td>
                       {activeModule === 'Add Expense' && (
                         <td className="px-1 border-r border-gray-200">
