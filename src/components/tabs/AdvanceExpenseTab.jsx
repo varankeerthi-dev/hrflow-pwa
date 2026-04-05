@@ -171,12 +171,11 @@ export default function AdvanceExpenseTab() {
         const paidToEmp = row.paidToType === 'employee' ? employees.find(e => e.id === row.paidTo) : null
         const paidToName = row.paidToType === 'employee' ? (paidToEmp?.name || null) : (row.paidToCustomName || null)
 
-        // Auto-link to employee advance if Salary Advance paid to employee
+        // Auto-link to employee advance if expense is paid to another employee
+        // ANY expense paid to an employee creates an advance for that receiving employee
         let linkedAdvanceId = null
-        const isSalaryAdvance = row.category?.toLowerCase().includes('salary advance') || 
-                               row.category?.toLowerCase().includes('salary_advance') ||
-                               row.category?.toLowerCase() === 'advance'
-        if (isSalaryAdvance && row.paidToType === 'employee' && row.paidTo) {
+        const isPaidToEmployee = row.paidToType === 'employee' && row.paidTo
+        if (isPaidToEmployee) {
           // Create linked Advance record for the receiving employee
           const advanceTxnNo = `ADV-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
           const advanceDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
@@ -184,12 +183,12 @@ export default function AdvanceExpenseTab() {
             employeeId: row.paidTo,
             employeeName: paidToEmp?.name || 'Unknown',
             type: 'Advance',
-            category: 'Salary Advance (Cash)',
+            category: 'Cash Advance (Paid)',
             requestType: 'Pre-Approval',
             payoutMethod: 'Immediate',
             amount: Number(row.amount),
             date: row.date,
-            reason: `Cash advance from ${user.name || user.email} - ${row.reason || ''}`,
+            reason: `Cash paid from ${user.name || user.email} - ${row.reason || row.category || ''}`,
             project: row.project || '',
             status: 'Approved',
             approved_by: user.name || user.email,
