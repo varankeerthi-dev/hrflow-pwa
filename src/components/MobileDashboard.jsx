@@ -96,58 +96,58 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 mx-4 border border-gray-100">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mb-4 shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-200">
             <span className="text-white text-3xl">🏢</span>
           </div>
-          <h2 className="text-xl font-bold text-gray-800 uppercase tracking-tight">Organization Setup</h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-2">
+          <h2 className="text-xl font-bold text-gray-800 tracking-tight">Organization Setup</h2>
+          <p className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider text-center mt-2">
             {hasOrg && isAdmin ? 'Create New Division' : 'Join a Team or Create Your Own'}
           </p>
         </div>
 
         {!(hasOrg && isAdmin) && (
-          <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+          <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
             <button onClick={() => { setModalTab('join'); setError('') }}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${modalTab === 'join' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
+              className={`flex-1 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${modalTab === 'join' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>
               Join Team
             </button>
             <button onClick={() => { setModalTab('create'); setError('') }}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${modalTab === 'create' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
+              className={`flex-1 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${modalTab === 'create' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>
               Create Org
             </button>
           </div>
         )}
 
-        {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-lg text-[10px] font-bold mb-4 uppercase text-center">{error}</div>}
+        {error && <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-[11px] font-semibold mb-4 text-center">{error}</div>}
 
         {createdCode ? (
           <div className="space-y-4">
-            <div className="bg-green-50 border border-green-100 rounded-xl p-5 text-center">
-              <p className="text-[10px] text-green-700 font-bold uppercase tracking-widest mb-3">Organization Online! 🎉</p>
-              <div className="bg-white border border-green-200 rounded-lg px-4 py-3 font-mono font-bold tracking-widest text-lg select-all shadow-inner">{createdCode}</div>
-              <p className="text-[9px] text-gray-400 font-bold uppercase mt-3 tracking-tighter italic">Share this code with your employees</p>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-5 text-center">
+              <p className="text-[11px] text-green-700 font-semibold uppercase tracking-wider mb-3">Organization Online! 🎉</p>
+              <div className="bg-white border border-green-200 rounded-xl px-4 py-3 font-mono font-bold tracking-widest text-lg select-all shadow-sm">{createdCode}</div>
+              <p className="text-[10px] text-gray-400 font-medium mt-3">Share this code with your employees</p>
             </div>
-            <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg shadow-xl uppercase text-[10px] tracking-widest">Get Started</button>
+            <button onClick={() => window.location.reload()} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold py-3 rounded-xl shadow-md shadow-indigo-200 hover:shadow-lg transition-all text-[11px] tracking-wider">Get Started</button>
           </div>
         ) : modalTab === 'join' ? (
           <form onSubmit={handleJoin} className="space-y-4">
-            <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold tracking-widest bg-gray-50" />
-            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Verifying...' : 'Join Organization'}</button>
+            <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-xl h-[46px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm font-semibold tracking-wide bg-gray-50/50 transition-all" />
+            <button type="submit" disabled={loading} className="w-full h-[44px] bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl shadow-md shadow-indigo-200 hover:shadow-lg transition-all disabled:opacity-50 text-[11px] tracking-wider">{loading ? 'Verifying...' : 'Join Organization'}</button>
           </form>
         ) : (
           <form onSubmit={handleCreate} className="space-y-4">
-            <input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="BUSINESS NAME" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold uppercase tracking-widest bg-gray-50" />
-            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Creating...' : 'Initialize Org'}</button>
+            <input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="BUSINESS NAME" className="w-full border border-gray-200 rounded-xl h-[46px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm font-semibold tracking-wide bg-gray-50/50 transition-all" />
+            <button type="submit" disabled={loading} className="w-full h-[44px] bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl shadow-md shadow-indigo-200 hover:shadow-lg transition-all disabled:opacity-50 text-[11px] tracking-wider">{loading ? 'Creating...' : 'Initialize Org'}</button>
           </form>
         )}
 
         <div className="mt-6 pt-4 border-t border-gray-100">
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 uppercase text-[10px] font-bold tracking-widest"
+            className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 text-[11px] font-semibold tracking-wider"
           >
             <LogOut size={14} />
             <span>Back to login</span>
@@ -171,12 +171,12 @@ function getAvatarColor(id) {
 
 function StatCard({ icon, label, value, color }) {
   return (
-    <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}>
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow duration-200">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${color} shadow-sm`}>
         {icon}
       </div>
-      <p className="text-xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500 font-medium">{label}</p>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-[11px] text-gray-500 font-semibold mt-0.5">{label}</p>
     </div>
   )
 }
@@ -185,12 +185,12 @@ function MenuCard({ icon, label, onClick, color }) {
   return (
     <button 
       onClick={onClick}
-      className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
+      className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all duration-200 hover:shadow-md hover:border-indigo-100"
     >
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${color} shadow-sm`}>
         {icon}
       </div>
-      <span className="text-[10px] font-bold text-gray-700 text-center">{label}</span>
+      <span className="text-[11px] font-semibold text-gray-700 text-center">{label}</span>
     </button>
   )
 }
@@ -361,9 +361,12 @@ export default function MobileDashboard() {
 
   if (authLoading || (user?.orgId && empLoading)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 font-medium">Loading your dashboard...</p>
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 mb-6 flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse">
+          <span className="text-white text-3xl font-bold">H</span>
+        </div>
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-600 font-semibold uppercase tracking-wider text-[11px]">Loading Dashboard...</p>
       </div>
     )
   }
@@ -493,38 +496,38 @@ export default function MobileDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex overflow-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] flex overflow-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {/* ─── Desktop Sidebar (Hidden on Mobile) ─── */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white text-gray-900 border-r border-gray-200 shrink-0">
-        <div className="p-6 flex items-center gap-3 border-b border-gray-200">
+      <aside className="hidden lg:flex flex-col w-[240px] bg-white text-gray-900 border-r border-gray-200/80 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div className="p-5 flex items-center gap-3 border-b border-gray-200/80">
           {orgSettings?.logoURL ? (
-            <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
+            <img src={orgSettings.logoURL} alt="Logo" className="w-9 h-9 rounded-xl object-cover ring-2 ring-gray-100 shadow-sm" />
           ) : (
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
               <Building2 size={18} />
             </div>
           )}
           <span className="text-sm font-bold text-gray-900 tracking-tight truncate">
-            {orgSettings?.name || user?.orgName || 'HRFlow ERP'}
+            {orgSettings?.name || user?.orgName || 'HRFlow'}
           </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-2 bg-white">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 bg-white">
           {visibleModules.map((mod) => (
             <button
               key={mod.id}
               onClick={() => setActiveTab(mod.id)}
-              className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-lg text-[13px] leading-5 transition-all duration-200 ${
+              className={`w-full flex items-center justify-between group px-3 py-2.5 rounded-xl text-[13px] leading-5 transition-all duration-200 ${
                 activeTab === mod.id
-                  ? 'sidebar-active shadow-sm'
-                  : 'text-gray-600 hover:sidebar-hover'
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200'
+                  : 'text-gray-600 hover:bg-indigo-50/80 hover:text-indigo-700'
               }`}
             >
               <div className="flex items-center gap-3">
                 <div className={`${activeTab === mod.id ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
                   {mod.icon}
                 </div>
-                <span className="font-medium leading-5 tracking-tight">{mod.label}</span>
+                <span className="font-semibold leading-5 tracking-tight">{mod.label}</span>
               </div>
               {mod.badge && (
                 <Badge variant="destructive" className="px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center text-[10px]">
@@ -535,54 +538,55 @@ export default function MobileDashboard() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-200 space-y-2 bg-white">
+        <div className="p-3 border-t border-gray-200/80 space-y-2 bg-gray-50/50">
           <button 
             onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }}
-            className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-indigo-50 transition-colors hover:text-indigo-600"
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-200 ${
+              activeTab === 'portal' 
+                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' 
+                : 'text-gray-600 hover:bg-indigo-50/80 hover:text-indigo-700'
+            }`}
           >
-            {currentEmployee?.photoURL ? (
-              <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white">
-                {getInitials(user?.name)}
-              </div>
-            )}
-            <div className="flex-1 text-left truncate">
-              <p className="text-xs font-bold text-gray-900 truncate">{user?.name}</p>
-              <p className="text-[10px] text-gray-500 truncate uppercase tracking-tighter">{user?.role || 'Member'}</p>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold ${
+              activeTab === 'portal' 
+                ? 'bg-white/20 text-white' 
+                : 'bg-indigo-100 text-indigo-600'
+            }`}>
+              {getInitials(currentEmployee?.name || user?.displayName || 'U')}
             </div>
+            <span className="font-semibold truncate">{currentEmployee?.name || user?.displayName || 'Profile'}</span>
           </button>
           
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] leading-5 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] leading-5 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
           >
             <LogOut size={16} />
-            <span className="font-medium">Sign Out</span>
+            <span className="font-semibold">Sign Out</span>
           </button>
         </div>
       </aside>
 
       {/* ─── Main Content Area ─── */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#F8FAFC]">
         {/* Mobile Header (Hidden on Desktop) */}
-        <header className="lg:hidden sticky top-0 z-40 bg-white border-b border-gray-200 px-4 h-14 flex items-center justify-between shrink-0">
+        <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/80 px-4 h-14 flex items-center justify-between shrink-0 shadow-sm">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setShowMenu(true)}
-              className="p-2 -ml-2 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition-colors"
+              className="p-2 -ml-2 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition-colors"
             >
               <Menu size={20} />
             </button>
-            <span className="text-sm font-bold text-gray-900 tracking-tight uppercase">
+            <span className="text-sm font-bold text-gray-900 tracking-tight">
               {getCurrentModuleLabel()}
             </span>
           </div>
-          <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="hover:bg-indigo-50 p-2 rounded-lg transition-colors">
+          <button onClick={() => { setActiveTab('portal'); setPortalSubTab('profile') }} className="hover:bg-indigo-50 p-2 rounded-xl transition-colors">
             {currentEmployee?.photoURL ? (
               <img src={currentEmployee.photoURL} alt="P" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md">
                 {getInitials(user?.name)}
               </div>
             )}
@@ -590,9 +594,9 @@ export default function MobileDashboard() {
         </header>
 
         {/* Desktop Header / Breadcrumb */}
-        <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-white border-b border-gray-200 shrink-0">
+        <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-white/80 backdrop-blur-md border-b border-gray-200/80 shrink-0 shadow-sm">
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-gray-500 font-medium">Organization</span>
+            <span className="text-gray-500 font-semibold">Organization</span>
             <ChevronRight size={14} className="text-gray-300" />
             <span className="text-gray-900 font-bold tracking-tight">{getCurrentModuleLabel()}</span>
           </div>
@@ -600,7 +604,7 @@ export default function MobileDashboard() {
             <div className="h-8 w-px bg-gray-200 mx-2" />
             <div className="text-right">
               <p className="text-xs font-bold text-gray-900 leading-none">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-              <p className="text-[10px] text-gray-500 font-medium mt-1 uppercase tracking-tighter">Attendance System</p>
+              <p className="text-[10px] text-gray-500 font-semibold mt-1 uppercase tracking-wider">HRFlow ERP</p>
             </div>
           </div>
         </header>
