@@ -458,7 +458,7 @@ export default function Dashboard() {
               return (
                 <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} className={`${isCollapsed ? 'justify-center px-0 py-2' : 'left-panel-btn px-3 py-2'} ${isActive ? 'active' : ''} transition-all duration-150`}>
                   <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>{React.cloneElement(tab.icon, { size: 16, strokeWidth: 2 })}</span>
-                  {!isCollapsed && <span className="text-[11px] font-bold truncate leading-none">{tab.label}</span>}
+                  {!isCollapsed && <span className={`text-[11px] font-medium truncate leading-none ${isActive ? 'text-white' : 'text-gray-600'}`}>{tab.label}</span>}
                 </button>
               )
             })}
