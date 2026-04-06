@@ -53,8 +53,8 @@ const s = StyleSheet.create({
   h: { borderBottomWidth: 2, borderBottomColor: '#4f46e5', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   t: { fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#0f172a' },
   row: { flexDirection: 'row', marginBottom: 2 },
-  label: { width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 8 },
-  value: { flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 8 }
+  label: { width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 },
+  value: { flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }
 })
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
@@ -64,7 +64,7 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
         {orgLogo && <Image src={orgLogo} style={{width:40,height:40,marginRight:10}}/>}
         <View>
           <Text style={s.t}>{orgName}</Text>
-          <Text style={{fontSize:7, color:'#6366f1', fontWeight: 'bold', marginTop:2, letterSpacing:1}}>PAYROLL STATEMENT</Text>
+          <Text style={{fontSize:7, color:'#3b82f6', fontWeight: 'bold', marginTop:2, letterSpacing:1}}>PAYROLL STATEMENT</Text>
         </View>
       </View>
       <View style={{textAlign:'right'}}>
@@ -558,29 +558,32 @@ export default function SalarySlipTab() {
   }
 
   return (
-      <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden">
-      <div className="w-[150px] bg-white border-r border-gray-200 flex flex-col pt-8 shrink-0 shadow-sm">
-        <div className="px-6 mb-8 font-google-sans text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Payroll Engine</div>
-        <nav className="flex-1 space-y-1 px-3">
-          {[
-            {id:'salary-slip', icon:<Banknote size={16}/>, label:'Slip'}, 
-            {id:'salary-summary', icon:<FileText size={16}/>, label:'Summary'}, 
-            {id:'loan', icon:<Wallet size={16}/>, label:'Loans'}
-          ].map(t => (
-            <button 
-              key={t.id} 
-              onClick={() => setActiveTab(t.id)} 
-              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-200 whitespace-nowrap ${
-                activeTab === t.id 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <span className={activeTab === t.id ? 'text-white' : 'text-slate-400'}>{t.icon}</span>
-              <span className="text-[13px] font-semibold tracking-tight whitespace-nowrap">{t.label}</span>
-            </button>
-          ))}
-        </nav>
+      <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden flex-col">
+      {/* Horizontal Sub-tabs at top */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3 shrink-0 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mr-4">Payroll Engine</div>
+          <nav className="flex items-center gap-2">
+            {[
+              {id:'salary-slip', icon:<Banknote size={16}/>, label:'Slip'}, 
+              {id:'salary-summary', icon:<FileText size={16}/>, label:'Summary'}, 
+              {id:'loan', icon:<Wallet size={16}/>, label:'Loans'}
+            ].map(t => (
+              <button 
+                key={t.id} 
+                onClick={() => setActiveTab(t.id)} 
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap ${
+                  activeTab === t.id 
+                    ? 'bg-indigo-600 text-white shadow-md' 
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <span className={activeTab === t.id ? 'text-white' : 'text-slate-400'}>{t.icon}</span>
+                <span className="text-[13px] font-semibold tracking-tight whitespace-nowrap">{t.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
       <div className="flex-1 min-w-0 p-6 h-full overflow-hidden flex flex-col">
         {activeTab === 'salary-slip' && (
@@ -728,8 +731,8 @@ export default function SalarySlipTab() {
                     </div>
 
                     <div className="border border-slate-200 rounded-[20px] overflow-hidden mb-6 shadow-sm relative z-10">
-                      <div className="grid grid-cols-2 bg-slate-950 font-google-sans font-black text-[9px] uppercase tracking-widest text-white">
-                        <div className="p-3 flex justify-between items-center border-r border-slate-800">
+                      <div className="grid grid-cols-2 bg-slate-100 font-google-sans font-black text-[9px] uppercase tracking-widest text-slate-900 border-b border-slate-200">
+                        <div className="p-3 flex justify-between items-center border-r border-slate-200">
                           <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Earnings</span>
                           <span className="text-slate-500">Amount</span>
                         </div>
@@ -776,27 +779,27 @@ export default function SalarySlipTab() {
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 divide-x divide-slate-800 bg-slate-950 border-t border-slate-800 font-black font-google-sans uppercase text-[10px] text-white tracking-widest">
+                      <div className="grid grid-cols-2 divide-x divide-slate-200 bg-slate-100 border-t border-slate-200 font-black font-google-sans uppercase text-[10px] text-slate-900 tracking-widest">
                         <div className="p-4 flex justify-between items-center">
-                          <span className="text-slate-400">Gross Earnings</span>
+                          <span className="text-slate-500">Gross Earnings</span>
                           <span className="text-sm tracking-tighter">{formatINR(slipData.grossEarnings)}</span>
                         </div>
                         <div className="p-4 flex justify-between items-center">
-                          <span className="text-slate-400">Total Deductions</span>
-                          <span className="text-sm tracking-tighter text-rose-400">{formatINR(slipData.totalDeductions)}</span>
+                          <span className="text-slate-500">Total Deductions</span>
+                          <span className="text-sm tracking-tighter text-rose-500">{formatINR(slipData.totalDeductions)}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="text-center pt-4 border-t border-dashed border-slate-200 relative z-10">
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Final Disbursement Value</p>
-                      <div className="bg-slate-950 text-white rounded-xl p-4 inline-block min-w-[300px] shadow-xl">
-                        <p className="text-[14px] font-black tracking-tight text-white mb-1">{formatINR(slipData.netPay)}</p>
-                        <p className="text-[9px] font-black italic tracking-tight uppercase text-slate-400">
+                      <div className="bg-white border-2 border-slate-200 text-slate-900 rounded-xl p-4 inline-block min-w-[300px] shadow-xl">
+                        <p className="text-[14px] font-black tracking-tight text-slate-900 mb-1">{formatINR(slipData.netPay)}</p>
+                        <p className="text-[9px] font-black italic tracking-tight uppercase text-slate-500">
                           {numberToWords(slipData.netPay)} Only
                         </p>
                       </div>
-                      <p className="text-[8px] text-slate-300 mt-6 font-black uppercase tracking-[0.4em] opacity-40 font-google-sans italic">
+                      <p className="text-[8px] text-slate-400 mt-6 font-black uppercase tracking-[0.4em] font-google-sans italic">
                         Confidential • HRFlow Intelligence
                       </p>
                     </div>
@@ -1057,10 +1060,10 @@ export default function SalarySlipTab() {
               {loanActiveModule === 'Configuration' && (
                 <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden">
-                    <div className="p-6 bg-slate-950 text-white flex justify-between items-center">
+                    <div className="p-6 bg-slate-100 text-slate-900 flex justify-between items-center border-b border-slate-200">
                       <div>
                         <h3 className="text-lg font-black uppercase font-google-sans tracking-tight">Loan Setup</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Lifecycle tracking for advances</p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Lifecycle tracking for advances</p>
                       </div>
                       <Settings className="text-indigo-500" size={24} />
                     </div>
@@ -1103,9 +1106,9 @@ export default function SalarySlipTab() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse font-inter">
                         <thead>
-                          <tr className="bg-slate-950 text-[10px] font-black uppercase tracking-widest text-slate-400 h-14">
-                            <th className="px-8 border-r border-slate-800">Employee</th>
-                            <th className="px-8 border-r border-slate-800 text-right">Remaining Principal</th>
+                          <tr className="bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-600 h-14 border-b border-slate-200">
+                            <th className="px-8 border-r border-slate-200">Employee</th>
+                            <th className="px-8 border-r border-slate-200 text-right">Remaining Principal</th>
                             <th className="px-8 text-right">Actions</th>
                           </tr>
                         </thead>
