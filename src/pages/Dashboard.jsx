@@ -290,7 +290,7 @@ export default function Dashboard() {
   const sections = useMemo(() => [
     { id: 'main', title: 'MAIN', tabs: ['home', 'tasks'] },
     { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'documents', 'summary'] },
-    { id: 'payroll', title: 'PAYROLL', tabs: ['salary-slip', 'advance', 'fines'] },
+    { id: 'payroll', title: 'PAYROLL', tabs: ['advance', 'salary-slip', 'fines'] },
     { id: 'workforce', title: 'WORKFORCE', tabs: ['vehicles', 'engage', 'chat', 'shift-planning'] },
     { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
   ], []);
@@ -399,7 +399,7 @@ export default function Dashboard() {
               { label: 'Attendance', tab: 'attendance', icon: <Calendar size={15} />, module: 'Attendance', right: 'create' },
               { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
               { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
-              { label: 'Correction', tab: 'correction', icon: <PencilLine size={15} />, module: 'Correction', right: 'create' },
+              { label: 'Advance', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
               { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
             ].filter(action => {
               if (isAdmin) return true

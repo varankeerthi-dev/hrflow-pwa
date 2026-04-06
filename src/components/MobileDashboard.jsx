@@ -260,7 +260,6 @@ export default function MobileDashboard() {
       { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-blue-400' },
       { id: 'attendance-list', label: 'Attendance', icon: <Calendar className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400' },
       { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 className="h-4 w-4" />, module: 'Tasks', color: 'text-indigo-400', badge: pendingTaskCount > 0 ? pendingTaskCount : null },
-      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400' },
       
       // HR modules
       { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', color: 'text-orange-400' },
@@ -271,6 +270,7 @@ export default function MobileDashboard() {
       { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400' },
       
       // Payroll modules
+      { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400' },
       { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400' },
       { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400' },
       
