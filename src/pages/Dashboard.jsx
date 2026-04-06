@@ -200,12 +200,12 @@ export default function Dashboard() {
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
 
-  // Load Inter and Roboto fonts
+  // Load Plus Jakarta Sans font (Enterprise SaaS design system)
   useEffect(() => {
     if (document.getElementById('google-fonts')) return
     const link = document.createElement('link')
     link.id = 'google-fonts'
-    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap'
+    link.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
     link.rel = 'stylesheet'
     document.head.appendChild(link)
   }, [])
@@ -311,15 +311,15 @@ export default function Dashboard() {
         // User doesn't have permission for this tab
         return (
           <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center max-w-md">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Lock size={24} className="text-red-500" />
+            <div className="text-center max-w-md bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8 border border-gray-100">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-red-50 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-sm">
+                <Lock size={28} className="text-red-500" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Access Denied</h3>
-              <p className="text-sm text-gray-500 mb-4">You don't have permission to access this module. Please contact your administrator.</p>
+              <p className="text-sm text-gray-500 mb-6 leading-relaxed">You don't have permission to access this module. Please contact your administrator.</p>
               <button 
                 onClick={() => { setActiveTab('home'); setTabSearchParams({ tab: 'home' }); }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-semibold hover:shadow-md hover:shadow-indigo-200 transition-all duration-200"
               >
                 Go to Dashboard
               </button>
@@ -356,12 +356,12 @@ export default function Dashboard() {
 
   if (authLoading || (user?.orgId && empLoading)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 mb-6 flex items-center justify-center shadow-lg animate-pulse">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 mb-6 flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse">
           <span className="text-white text-3xl font-bold">H</span>
         </div>
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 font-bold uppercase tracking-widest text-[10px]">Synchronizing Dashboard...</p>
+        <p className="text-gray-600 font-semibold uppercase tracking-wider text-[11px]">Synchronizing Dashboard...</p>
       </div>
     )
   }
@@ -375,20 +375,20 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col font-inter">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 h-14 shrink-0 px-4 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/80 h-14 shrink-0 px-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 hidden md:block transition-all"><PanelLeft size={18} /></button>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-1.5 hover:bg-indigo-50 rounded-md text-gray-500 hover:text-indigo-600 md:hidden transition-all"><Menu size={18} /></button>
-          <div className="flex items-center gap-2">
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 hidden md:block transition-all duration-200"><PanelLeft size={18} /></button>
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 md:hidden transition-all duration-200"><Menu size={18} /></button>
+          <div className="flex items-center gap-2.5">
             {orgSettings?.logoURL ? (
-              <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
+              <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-xl object-cover shadow-sm ring-2 ring-gray-100" />
             ) : (
-              <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center shadow-sm text-white"><Building2 size={16} /></div>
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-sm"><Building2 size={16} className="text-white" /></div>
             )}
-            <span className="text-md font-black text-green-600 tracking-tight" style={{ fontFamily: 'Roboto, sans-serif' }}>{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
+            <span className="text-sm font-bold text-gray-900 tracking-tight">{orgSettings?.name || user?.orgName || 'HRFlow'}</span>
           </div>
 
           {/* Quick Access Bar */}
@@ -396,11 +396,11 @@ export default function Dashboard() {
             const userPerms = user?.permissions || {}
             const isAdmin = user?.role?.toLowerCase() === 'admin'
             const quickActions = [
-              { label: 'Attendance', tab: 'attendance', icon: <Calendar size={15} />, module: 'Attendance', right: 'create' },
-              { label: 'Add Employee', tab: 'settings', icon: <Users size={15} />, module: 'Employees', right: 'create' },
-              { label: 'Add Expense', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
-              { label: 'Advance', tab: 'advance', icon: <Wallet size={15} />, module: 'AdvanceExpense', right: 'create' },
-              { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={15} />, module: 'Summary', right: 'view' },
+              { label: 'Attendance', tab: 'attendance', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
+              { label: 'Add Employee', tab: 'settings', icon: <Users size={14} />, module: 'Employees', right: 'create' },
+              { label: 'Add Expense', tab: 'advance', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
+              { label: 'Advance', tab: 'advance', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
+              { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={14} />, module: 'Summary', right: 'view' },
             ].filter(action => {
               if (isAdmin) return true
               if (action.module === 'Employees') return userPerms['Employees']?.create === true || userPerms['Settings']?.create === true
@@ -409,9 +409,9 @@ export default function Dashboard() {
             })
             if (quickActions.length === 0) return null
             return (
-              <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200">
+              <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200/80">
                 {quickActions.map(item => (
-                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab) }} className={`flex items-center gap-1.5 px-3 h-8 rounded-lg border text-[11px] font-bold whitespace-nowrap transition-all ${activeTab === item.tab ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'}`}>
+                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab) }} className={`flex items-center gap-1.5 px-4 h-9 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === item.tab ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'bg-white border border-gray-200/80 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'}`}>
                     <span>{item.icon}</span> <span>{item.label}</span>
                   </button>
                 ))}
@@ -444,36 +444,62 @@ export default function Dashboard() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
-        <aside className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[56px]' : 'md:w-[150px] w-64 shadow-2xl md:shadow-none'}`}>
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between md:hidden h-14 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white shadow-sm"><Building2 size={16} /></div>
-              <span className="text-md font-black text-gray-900 tracking-tight">HRFlow</span>
+        <aside className={`bg-white border-r border-gray-200/80 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
+          <div className="p-4 border-b border-gray-200/80 flex items-center justify-between md:hidden h-14 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-sm"><Building2 size={16} className="text-white" /></div>
+              <span className="text-sm font-bold text-gray-900 tracking-tight">HRFlow</span>
             </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><X size={18} /></button>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 transition-colors"><X size={18} /></button>
           </div>
-          <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto no-scrollbar">
-            {visibleTabs.map(tab => {
-              const isActive = activeTab === tab.id
-              return (
-                <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} className={`${isCollapsed ? 'justify-center px-0 py-2' : 'left-panel-btn px-3 py-2'} ${isActive ? 'active' : ''} transition-all duration-150`}>
-                  <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>{React.cloneElement(tab.icon, { size: 16, strokeWidth: 2 })}</span>
-                  {!isCollapsed && <span className={`text-[11px] font-medium truncate leading-none ${isActive ? 'text-white' : 'text-gray-600'}`}>{tab.label}</span>}
-                </button>
-              )
-            })}
+          <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto no-scrollbar">
+            {visibleSections.map(section => (
+              <div key={section.id} className="mb-4">
+                {!isCollapsed && (
+                  <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    {section.title}
+                  </div>
+                )}
+                <div className="space-y-0.5">
+                  {section.tabs.map(tabId => {
+                    const tab = visibleTabs.find(t => t.id === tabId)
+                    if (!tab) return null
+                    const isActive = activeTab === tab.id
+                    return (
+                      <button 
+                        key={tab.id} 
+                        onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} 
+                        className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group ${isCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2.5'} ${isActive ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+                      >
+                        <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
+                          {React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
+                        </span>
+                        {!isCollapsed && (
+                          <span className={`text-[12px] font-semibold truncate leading-none ${isActive ? 'text-white' : ''}`}>
+                            {tab.label}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
-          <div className="p-2 border-t border-gray-100 shrink-0">
-            <button onClick={() => setIsCollapsed(!isCollapsed)} className={`w-full flex items-center rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${isCollapsed ? 'justify-center py-2' : 'px-3 py-2 gap-3'}`}>
-              <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform`} />
-              {!isCollapsed && <span className="text-[11px] font-bold">Collapse Sidebar</span>}
+          <div className="p-3 border-t border-gray-200/80 shrink-0 bg-gray-50/50">
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)} 
+              className={`w-full flex items-center rounded-xl text-gray-500 hover:text-indigo-700 hover:bg-indigo-50/80 transition-all duration-200 ${isCollapsed ? 'justify-center py-2.5' : 'px-3 py-2.5 gap-3'}`}
+            >
+              <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform duration-300`} />
+              {!isCollapsed && <span className="text-[11px] font-semibold">Collapse Sidebar</span>}
             </button>
           </div>
         </aside>
-        <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <main className="flex-1 overflow-auto bg-gray-50 relative flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
+          <main className="flex-1 overflow-auto bg-[#F8FAFC] relative flex flex-col">
             <ErrorBoundary>
-              <div className="w-full flex-1">
+              <div className="w-full flex-1 p-4">
                 {renderTabContent()}
               </div>
             </ErrorBoundary>
