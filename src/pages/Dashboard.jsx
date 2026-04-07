@@ -502,7 +502,7 @@ export default function Dashboard() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
-        <aside className={`bg-white border-r border-gray-200/80 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
+        <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
           <div className="p-4 border-b border-gray-200/80 flex items-center justify-between md:hidden h-14 shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-sm"><Building2 size={16} className="text-white" /></div>
