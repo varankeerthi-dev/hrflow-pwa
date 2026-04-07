@@ -413,41 +413,37 @@ export default function AdvanceExpenseTab() {
           <>
             {/* Backdrop */}
             <div 
-              className="fixed inset-0 z-40"
+              className="fixed inset-0 z-40 bg-black/30"
               onClick={handleClose}
             />
-            {/* Dropdown Panel */}
+            {/* Dropdown Panel - Centered on screen */}
             <div 
-              className={`fixed z-50 bg-white rounded-lg border border-zinc-200 shadow-xl ${
-                isMobile ? 'w-[calc(100vw-3rem)] max-w-sm' : 'w-72'
+              className={`fixed z-50 bg-white rounded-xl border border-zinc-200 shadow-2xl ${
+                isMobile ? 'w-[calc(100vw-3rem)] max-w-sm left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2' : 'w-96 left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2'
               }`}
-              style={{
-                top: dropdownPosition.top,
-                left: dropdownPosition.left
-              }}
             >
               {/* Search Input */}
-              <div className="p-2 border-b border-zinc-100">
+              <div className="p-3 border-b border-zinc-100">
                 <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
                   <input
                     type="text"
                     placeholder="Search employees..."
                     value={paidToSearchTerm}
                     onChange={(e) => setPaidToSearchTerm(e.target.value)}
-                    className="w-full h-8 pl-8 pr-2 border border-zinc-200 rounded text-[12px] outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full h-10 pl-9 pr-3 border border-zinc-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                     autoFocus
                   />
                 </div>
               </div>
               
               {/* Options List */}
-              <div className="max-h-60 overflow-y-auto">
+              <div className="max-h-72 overflow-y-auto">
                 {/* "Add Other..." Option */}
                 <button
                   type="button"
                   onClick={handleSelectAddOther}
-                  className={`w-full px-3 py-2 text-left text-[12px] font-medium text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 border-b border-zinc-100 ${
+                  className={`w-full px-4 py-3 text-left text-sm font-medium text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 border-b border-zinc-100 ${
                     row.paidToType === 'custom' ? 'bg-indigo-50' : ''
                   }`}
                 >
@@ -459,7 +455,7 @@ export default function AdvanceExpenseTab() {
                 
                 {/* Employee Options */}
                 {filteredEmployees.length === 0 ? (
-                  <div className="px-3 py-3 text-[12px] text-zinc-400 text-center">
+                  <div className="px-4 py-4 text-sm text-zinc-400 text-center">
                     No employees found
                   </div>
                 ) : (
@@ -468,7 +464,7 @@ export default function AdvanceExpenseTab() {
                       key={emp.id}
                       type="button"
                       onClick={() => handleSelectEmployee(emp.id)}
-                      className={`w-full px-3 py-2 text-left text-[12px] hover:bg-zinc-50 flex items-center justify-between ${
+                      className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-50 flex items-center justify-between ${
                         row.paidTo === emp.id && row.paidToType === 'employee' ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700'
                       }`}
                     >
@@ -493,8 +489,8 @@ export default function AdvanceExpenseTab() {
             value={row.paidToCustomName}
             onChange={(e) => handleRowChange(rowId, 'paidToCustomName', e.target.value)}
             placeholder="Enter recipient name..."
-            className={`w-full border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white mt-1 ${
-              isMobile ? 'h-11 px-3 text-sm' : 'h-9'
+            className={`w-full border border-zinc-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white mt-2 ${
+              isMobile ? 'h-11 px-3 text-sm' : 'h-10'
             }`}
           />
         )}

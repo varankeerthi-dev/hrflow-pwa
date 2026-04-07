@@ -577,6 +577,32 @@ export default function AttendanceTab() {
 
   const handleGenerate = () => {
     if (!activeEmployees.length) return
+    
+    // If we already have existing records for this date, use them instead of generating fresh rows
+    if (existingRecords.length > 0) {
+      const existingIds = new Set(existingRecords.map(r => r.employeeId))
+      const enrichedRecords = existingRecords.map(record => {
+        const emp = employees.find(e => e.id === record.employeeId)
+        return {
+          ...record,
+          minDailyHours: record.minDailyHours || emp?.minDailyHours || 8
+        }
+      })
+      
+      const sortedRecords = [...enrichedRecords].sort((a, b) => {
+        if (!Array.isArray(rowOrder) || !rowOrder.length) return a.name.localeCompare(b.name)
+        const idxA = rowOrder.indexOf(a.employeeId)
+        const idxB = rowOrder.indexOf(b.employeeId)
+        if (idxA === -1 && idxB === -1) return a.name.localeCompare(b.name)
+        if (idxA === -1) return 1
+        if (idxB === -1) return -1
+        return idxA - idxB
+      })
+      setRows(sortedRecords)
+      setHasGenerated(true)
+      return
+    }
+    
     const newRows = activeEmployees.map(emp => ({
       employeeId: emp.id,
       name: emp.name,
