@@ -31,7 +31,9 @@ import {
   MoreHorizontal,
   History,
   MessageSquare,
-  Lock
+  Lock,
+  ChevronDown,
+  Sparkles
 } from 'lucide-react'
 import ActivityLogSidebar from '../components/ui/ActivityLogSidebar'
 import OrganizationSwitcher from '../components/ui/OrganizationSwitcher'
@@ -199,6 +201,7 @@ export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
+  const [isFeaturesExpanded, setIsFeaturesExpanded] = useState(true)
 
   // Load Plus Jakarta Sans font (Enterprise SaaS design system)
   useEffect(() => {
@@ -232,14 +235,14 @@ export default function Dashboard() {
     { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, module: 'Tasks' },
     { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'SalarySlip' },
+    { id: 'advance', label: 'Advances', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
+    { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
-    { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
     { id: 'vehicles', label: 'Vehicles', icon: <Car size={18} strokeWidth={1.75} />, module: 'Workforce' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
     { id: 'summary', label: 'Summary', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Summary' },
-    { id: 'advance', label: 'Advances', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
     { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
@@ -287,21 +290,72 @@ export default function Dashboard() {
     }
   }, [tabSearchParams, visibleTabs])
 
-  const sections = useMemo(() => [
-    { id: 'main', title: 'MAIN', tabs: ['home', 'tasks'] },
-    { id: 'hr', title: 'HR', tabs: ['attendance-list', 'correction', 'leave', 'approvals', 'letters', 'documents', 'summary'] },
-    { id: 'payroll', title: 'PAYROLL', tabs: ['advance', 'salary-slip', 'fines'] },
-    { id: 'workforce', title: 'WORKFORCE', tabs: ['vehicles', 'engage', 'chat', 'shift-planning'] },
-    { id: 'account', title: 'ACCOUNT', tabs: ['portal', 'settings'] }
-  ], []);
+  const mainTabs = ['home', 'attendance-list', 'tasks', 'salary-slip', 'advance', 'approvals']
+  
+  const featuresTabs = ['correction', 'leave', 'letters', 'vehicles', 'documents', 'summary', 'fines', 'engage', 'chat', 'shift-planning']
 
-  // Filter sections to only show tabs user has permission for
-  const visibleSections = useMemo(() => {
-    return sections.map(section => ({
-      ...section,
-      tabs: section.tabs.filter(tabId => visibleTabIds.includes(tabId))
-    })).filter(section => section.tabs.length > 0)
-  }, [sections, visibleTabIds])
+  const renderMenuItem = (tab, isActive, onClick) => (
+    <button 
+      key={tab.id} 
+      onClick={onClick} 
+      className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group ${isCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2.5'} ${isActive ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+    >
+      <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
+        {React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
+      </span>
+      {!isCollapsed && (
+        <span className={`text-[12px] font-semibold truncate leading-none ${isActive ? 'text-white' : ''}`}>
+          {tab.label}
+        </span>
+      )}
+    </button>
+  )
+
+  const renderMenu = () => {
+    const mainItems = visibleTabs.filter(t => mainTabs.includes(t.id))
+    const featuresItems = visibleTabs.filter(t => featuresTabs.includes(t.id))
+    const portalItem = visibleTabs.find(t => t.id === 'portal')
+    const settingsItem = visibleTabs.find(t => t.id === 'settings')
+
+    return (
+      <>
+        {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
+        
+        {featuresItems.length > 0 && (
+          <div className="mt-2">
+            <button 
+              onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
+              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+            >
+              <span className="shrink-0 text-gray-400 group-hover:text-indigo-600">
+                <Sparkles size={18} strokeWidth={2} />
+              </span>
+              {!isCollapsed && (
+                <span className="text-[12px] font-semibold truncate leading-none flex-1 text-left">Features</span>
+              )}
+              {!isCollapsed && (
+                <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
+              )}
+            </button>
+            
+            {isFeaturesExpanded && featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
+          </div>
+        )}
+
+        {portalItem && (
+          <div className="mt-2">
+            {renderMenuItem(portalItem, activeTab === 'portal', () => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setIsMobileMenuOpen(false) })}
+          </div>
+        )}
+
+        {settingsItem && (
+          <div className="mt-auto pt-2 border-t border-gray-200/80">
+            {renderMenuItem(settingsItem, activeTab === 'settings', () => { setActiveTab('settings'); setTabSearchParams({ tab: 'settings' }); setIsMobileMenuOpen(false) })}
+          </div>
+        )}
+      </>
+    )
+  }
 
   const renderTabContent = () => {
     // RBAC: Check if user has permission to view this tab
@@ -453,25 +507,7 @@ export default function Dashboard() {
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 transition-colors"><X size={18} /></button>
           </div>
           <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
-            {visibleTabs.map(tab => {
-              const isActive = activeTab === tab.id
-              return (
-                <button 
-                  key={tab.id} 
-                  onClick={() => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }} 
-                  className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group ${isCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2.5'} ${isActive ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
-                >
-                  <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
-                    {React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
-                  </span>
-                  {!isCollapsed && (
-                    <span className={`text-[12px] font-semibold truncate leading-none ${isActive ? 'text-white' : ''}`}>
-                      {tab.label}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
+            {renderMenu()}
           </nav>
           <div className="p-3 border-t border-gray-200/80 shrink-0 bg-gray-50/50">
             <button 
