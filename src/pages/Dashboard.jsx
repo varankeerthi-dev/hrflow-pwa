@@ -338,7 +338,11 @@ export default function Dashboard() {
               )}
             </button>
             
-            {isFeaturesExpanded && featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
+            {isFeaturesExpanded && (
+              <div className="ml-3 pl-3 border-l-2 border-gray-100 space-y-0.5">
+                {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
+              </div>
+            )}
           </div>
         )}
 
