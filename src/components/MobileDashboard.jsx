@@ -36,7 +36,8 @@ import {
   ArrowLeft,
   Menu,
   MessageSquare,
-  Car
+  Car,
+  LifeBuoy
 } from 'lucide-react'
 
 import HomeTab from '../components/tabs/HomeTab'
@@ -59,6 +60,7 @@ import VehicleManagementTab from '../components/tabs/VehicleManagementTab'
 import MobileTasksView from './MobileTasksView'
 import MobileEmployeePortal from './MobileEmployeePortal'
 import Badge from '../components/ui/Badge'
+import HelpTab from './tabs/HelpTab'
 
 // ─── Org Setup Modal ────────
 function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
@@ -283,6 +285,7 @@ export default function MobileDashboard() {
       // Account modules
       { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400' },
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400' },
+      { id: 'help', label: 'HELP', icon: <LifeBuoy className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400' },
     ], [stats.pendingCorrections, unreadChatCount, pendingTaskCount])
 
   const visibleModules = useMemo(() => {
@@ -485,6 +488,8 @@ export default function MobileDashboard() {
         return <MobileEmployeePortal />
       case 'settings':
         return <SettingsTab />
+      case 'help':
+        return <HelpTab />
       default:
         return renderHomeDashboard()
     }

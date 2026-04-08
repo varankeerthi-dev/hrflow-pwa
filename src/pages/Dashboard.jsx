@@ -33,7 +33,8 @@ import {
   MessageSquare,
   Lock,
   ChevronDown,
-  Sparkles
+  Sparkles,
+  LifeBuoy
 } from 'lucide-react'
 import ActivityLogSidebar from '../components/ui/ActivityLogSidebar'
 import OrganizationSwitcher from '../components/ui/OrganizationSwitcher'
@@ -56,6 +57,7 @@ import VehicleManagementTab from '../components/tabs/VehicleManagementTab'
 import TasksTab from '../components/tabs/TasksTab'
 import ChatTab from '../components/tabs/ChatTab'
 import HomeTab from '../components/tabs/HomeTab'
+import HelpTab from '../components/tabs/HelpTab'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
 class ErrorBoundary extends Component {
@@ -257,6 +259,7 @@ export default function Dashboard() {
     { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
     { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
+    { id: 'help', label: 'Help', icon: <LifeBuoy size={18} strokeWidth={1.75} />, module: 'Settings' },
   ], [])
 
   // RBAC: Filter tabs based on user permissions
@@ -324,6 +327,7 @@ export default function Dashboard() {
     const featuresItems = visibleTabs.filter(t => featuresTabs.includes(t.id))
     const portalItem = visibleTabs.find(t => t.id === 'portal')
     const settingsItem = visibleTabs.find(t => t.id === 'settings')
+    const helpItem = visibleTabs.find(t => t.id === 'help')
 
     return (
       <>
@@ -363,6 +367,7 @@ export default function Dashboard() {
         {settingsItem && (
           <div className="mt-auto pt-2 border-t border-gray-200/80">
             {renderMenuItem(settingsItem, activeTab === 'settings', () => { setActiveTab('settings'); setTabSearchParams({ tab: 'settings' }); setIsMobileMenuOpen(false) })}
+            {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { setActiveTab('help'); setTabSearchParams({ tab: 'help' }); setIsMobileMenuOpen(false) })}
           </div>
         )}
       </>
@@ -415,6 +420,7 @@ export default function Dashboard() {
       case 'tasks': return <TasksTab />
       case 'portal': return <EmployeePortalTab portalSubTab={portalSubTab} />
       case 'settings': return <SettingsTab />
+      case 'help': return <HelpTab />
       default: return <EmployeePortalTab portalSubTab={portalSubTab} />
     }
   }
