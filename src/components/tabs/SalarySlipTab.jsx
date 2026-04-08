@@ -200,13 +200,28 @@ export default function SalarySlipTab() {
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const [activeTab, setActiveTab] = useState('salary-summary'), [selectedEmp, setSelectedEmp] = useState(''), [selectedMonth, setSelectedMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
   const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
-  const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [advExpRows, setAdvExpRows] = useState([]), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState('')
+  const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [advExpRows, setAdvExpRows] = useState([]), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState(''), [orgData, setOrgData] = useState(null)
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(true)
   const [summaryEmpDetail, setSummaryEmpDetail] = useState(null)
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false)
   const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
   const monthInputRef = useRef(null)
+
+  const sortedEmployees = useMemo(() => {
+    if (!employees.length) return []
+    const savedOrder = orgData?.employeeRowOrder || []
+    if (!savedOrder.length) return employees
+
+    return [...employees].sort((a, b) => {
+      const idxA = savedOrder.indexOf(a.id)
+      const idxB = savedOrder.indexOf(b.id)
+      if (idxA === -1 && idxB === -1) return 0
+      if (idxA === -1) return 1
+      if (idxB === -1) return -1
+      return idxA - idxB
+    })
+  }, [employees, orgData])
   
   // Loan UI State
   const [loanActiveModule, setLoanActiveModule] = useState('Active Schedules')
@@ -273,9 +288,9 @@ export default function SalarySlipTab() {
   }
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
-    queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
+    queryKey: ['attendanceSummary', user?.orgId, summaryMonth, orgData?.employeeRowOrder],
     queryFn: async () => {
-      if (!user?.orgId || !employees.length) return []
+      if (!user?.orgId || !sortedEmployees.length) return []
       const [y, m] = summaryMonth.split('-').map(Number)
       const daysInMonth = new Date(y, m, 0).getDate()
       const sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${daysInMonth}`
@@ -295,7 +310,7 @@ export default function SalarySlipTab() {
       const allAdvExp = advSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
       const allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed)
       
-      return employees.filter(e => e.includeInSalary !== false).map((emp, idx) => {
+      return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) => {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
         let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunW = 0, holW = 0
         for (let i = 1; i <= daysInMonth; i++) {
@@ -364,7 +379,17 @@ export default function SalarySlipTab() {
     getHeaderGroups: () => table.getHeaderGroups()
   })
 
-  useEffect(() => { if (!user?.orgId) return; getDoc(doc(db, 'organisations', user.orgId)).then(snap => { if (snap.exists()) setOrgLogo(snap.data().logoURL || '') }); fetchLoans() }, [user?.orgId])
+  useEffect(() => { 
+    if (!user?.orgId) return; 
+    getDoc(doc(db, 'organisations', user.orgId)).then(snap => { 
+      if (snap.exists()) {
+        const data = snap.data();
+        setOrgData(data);
+        setOrgLogo(data.logoURL || '');
+      }
+    }); 
+    fetchLoans() 
+  }, [user?.orgId])
   
   const fetchLoans = async () => { try { const q = query(collection(db, 'organisations', user.orgId, 'loans'), orderBy('createdAt', 'desc')); const snap = await getDocs(q); setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() }))); const actSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'activityLogs'), where('module', '==', 'Loans'), orderBy('timestamp', 'desc'), limit(5))); setLoanActivities(actSnap.docs.map(d => ({ id: d.id, ...d.data() }))) } catch (e) { console.error(e) } }
   const handleCreateLoan = async () => { if (!loanForm.employeeId || !loanForm.totalAmount || !loanForm.emiAmount) return alert('Fill fields'); setLoading(true); try { const emp = employees.find(e => e.id === loanForm.employeeId); const docD = { ...loanForm, employeeName: emp?.name || 'Unknown', totalAmount: Number(loanForm.totalAmount), emiAmount: Number(loanForm.emiAmount), updatedAt: serverTimestamp() }; if (editingLoanId) { await updateDoc(doc(db, 'organisations', user.orgId, 'loans', editingLoanId), docD); await logActivity(user.orgId, user, { module: 'Loans', action: 'Updated', detail: `Updated for ${emp?.name}` }) } else { await addDoc(collection(db, 'organisations', user.orgId, 'loans'), { ...docD, remainingAmount: docD.totalAmount, status: 'Active', monthOverrides: {}, createdAt: serverTimestamp(), createdBy: user.uid }); await logActivity(user.orgId, user, { module: 'Loans', action: 'Created', detail: `Created ₹${docD.totalAmount} for ${emp?.name}` }) }; setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }); setEditingLoanId(null); setSlipData(null); fetchLoans(); alert('Success'); setLoanActiveModule('Active Schedules'); } catch (e) { alert(e.message) } finally { setLoading(false) } }
@@ -598,7 +623,7 @@ export default function SalarySlipTab() {
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
                   <option value="">Select Employee</option>
-                  {employees.filter(e => {
+                  {sortedEmployees.filter(e => {
                     if (e.includeInSalary === false) return false
                     if (e.status === 'Inactive' && e.inactiveFrom) {
                       return e.inactiveFrom.startsWith(selectedMonth) || e.inactiveFrom < selectedMonth
