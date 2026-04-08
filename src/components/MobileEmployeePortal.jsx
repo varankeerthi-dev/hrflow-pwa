@@ -512,7 +512,7 @@ export default function MobileEmployeePortal() {
               <p className="text-xs text-gray-500 mb-1">Duration</p>
               <p className="font-semibold text-gray-900">
                 {todayRecord.inTime && todayRecord.outTime 
-                  ? calcOT(todayRecord.inTime, todayRecord.outTime, todayRecord.date, todayRecord.outDate || todayRecord.date, 8)
+                  ? calcOT(todayRecord.inTime, todayRecord.outTime, todayRecord.date, todayRecord.outDate || todayRecord.date, todayRecord.minDailyHours || 8)
                   : '—'}
               </p>
             </div>

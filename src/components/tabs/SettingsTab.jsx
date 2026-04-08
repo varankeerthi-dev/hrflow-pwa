@@ -65,7 +65,6 @@ function createEmployeeFormState() {
     designation: '',
     department: '',
     shiftId: '',
-    workHours: 9,
     minDailyHoursCategory: '',
     site: '',
     employmentType: 'Full-time',
@@ -266,10 +265,6 @@ export default function SettingsTab() {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false)
   const [newMinWorkHours, setNewMinWorkHours] = useState({ name: '', hours: 8, description: '' })
   const [newEmployee, setNewEmployee] = useState(createEmployeeFormState())
-  const [newEmployeeOriginalWorkHours, setNewEmployeeOriginalWorkHours] = useState(9)
-  const [newEmployeeOriginalShiftId, setNewEmployeeOriginalShiftId] = useState('')
-  const [editOriginalWorkHours, setEditOriginalWorkHours] = useState(9)
-  const [editOriginalShiftId, setEditOriginalShiftId] = useState('')
   const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
   const [viewerState, setViewerState] = useState(null) // { docs, index }
   const [newRole, setNewRole] = useState({ 
@@ -678,8 +673,16 @@ export default function SettingsTab() {
       statusHistory: Array.isArray(employee.statusHistory) ? employee.statusHistory : [],
       loginEnabled: employee.loginEnabled || false,
       tempPassword: '',
+      shiftEffectiveDate: '',
       minDailyHoursCategory: mwhCategory?.name || defaultCategory || employee.minDailyHours || '',
     }
+  }
+
+  const getMinDailyHoursForCategory = (categoryName) => {
+    const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
+    const match = mwhList.find(m => m.name === categoryName)
+    const hours = Number(match?.hours)
+    return Number.isFinite(hours) && hours > 0 ? hours : 8
   }
 
   const buildStatusHistoryEntry = ({ fromStatus, toStatus, effectiveDate, dateField, actionLabel, name }) => ({
@@ -752,8 +755,6 @@ export default function SettingsTab() {
     setEditOriginalStatus(originalStatus)
     setEditStatusTransition(null)
     setEditForm(baseForm)
-    setEditOriginalWorkHours(baseForm.workHours || 9)
-    setEditOriginalShiftId(baseForm.shiftId || '')
 
     if (emp.email) {
       const uSnap = await getDocs(query(collection(db, 'users'), where('orgId', '==', user.orgId), where('email', '==', emp.email.toLowerCase().trim())))
@@ -765,88 +766,55 @@ export default function SettingsTab() {
   }
 
   const handleShiftChange = (newShiftId, formType) => {
-    const selectedShift = shifts.find(s => s.id === newShiftId)
-    const newWorkHours = selectedShift ? (selectedShift.workHours || 9) : 9
-    
     if (formType === 'edit') {
-      const oldShiftId = editOriginalShiftId
-      const oldWorkHours = editOriginalWorkHours
-      
-      if (newShiftId !== oldShiftId || newWorkHours !== oldWorkHours) {
-        const effectiveDate = prompt('Shift schedule change detected.\n\nEnter Effective From Date (YYYY-MM-DD):', new Date().toISOString().split('T')[0])
-        if (effectiveDate && /^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
-          setEditForm(prev => ({
-            ...prev,
-            shiftId: newShiftId,
-            workHours: newWorkHours,
-            shiftEffectiveDate: effectiveDate,
-            shiftChangeHistory: [...(prev.shiftChangeHistory || []), {
-              fromShiftId: oldShiftId,
-              toShiftId: newShiftId,
-              fromWorkHours: oldWorkHours,
-              toWorkHours: newWorkHours,
-              effectiveDate: effectiveDate,
-              changedAt: new Date().toISOString(),
-              changedBy: user.uid
-            }]
-          }))
-          alert(`Shift change will be effective from ${effectiveDate}. OT hours will be recalculated from this date.`)
-        } else if (effectiveDate !== null) {
-          alert('Invalid date format. Please use YYYY-MM-DD format.')
-          return
-        }
-      } else {
-        setEditForm(prev => ({ ...prev, shiftId: newShiftId, workHours: newWorkHours }))
-      }
+      setEditForm(prev => ({ ...prev, shiftId: newShiftId }))
     } else {
-      // New employee form
       setNewEmployee(prev => ({
         ...prev,
-        shiftId: newShiftId,
-        workHours: newWorkHours
+        shiftId: newShiftId
       }))
-      setNewEmployeeOriginalShiftId(newShiftId)
-      setNewEmployeeOriginalWorkHours(newWorkHours)
     }
   }
 
-  const handleWorkHoursChange = (newWorkHours, formType) => {
+  const handleMinDailyHoursCategoryChange = (categoryName, formType) => {
+    const newMinDailyHours = getMinDailyHoursForCategory(categoryName)
+
     if (formType === 'edit') {
-      const oldWorkHours = editOriginalWorkHours
-      
-      if (newWorkHours !== oldWorkHours) {
-        const effectiveDate = prompt('Work hours change detected.\n\nEnter Effective From Date (YYYY-MM-DD):', new Date().toISOString().split('T')[0])
+      const oldMinDailyHours = Number(editForm.minDailyHours) || getMinDailyHoursForCategory(editForm.minDailyHoursCategory)
+      if (newMinDailyHours !== oldMinDailyHours) {
+        const effectiveDate = prompt('Working Hours category change detected.\n\nEnter Effective From Date (YYYY-MM-DD):', new Date().toISOString().split('T')[0])
         if (effectiveDate && /^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
           setEditForm(prev => ({
             ...prev,
-            workHours: newWorkHours,
+            minDailyHoursCategory: categoryName,
+            minDailyHours: newMinDailyHours,
             shiftEffectiveDate: effectiveDate,
             shiftChangeHistory: [...(prev.shiftChangeHistory || []), {
-              fromWorkHours: oldWorkHours,
-              toWorkHours: newWorkHours,
-              effectiveDate: effectiveDate,
+              fromCategory: prev.minDailyHoursCategory || '',
+              toCategory: categoryName,
+              fromMinDailyHours: oldMinDailyHours,
+              toMinDailyHours: newMinDailyHours,
+              effectiveDate,
               changedAt: new Date().toISOString(),
               changedBy: user.uid
             }]
           }))
-          alert(`Work hours change will be effective from ${effectiveDate}. OT hours will be recalculated from this date.`)
+          alert(`Working Hours category will be effective from ${effectiveDate}. OT will use ${newMinDailyHours} hours from this date.`)
         } else if (effectiveDate !== null) {
           alert('Invalid date format. Please use YYYY-MM-DD format.')
           return
         }
       } else {
-        setEditForm(prev => ({ ...prev, workHours: newWorkHours }))
+        setEditForm(prev => ({ ...prev, minDailyHoursCategory: categoryName, minDailyHours: newMinDailyHours }))
       }
     } else {
-      // New employee form
-      setNewEmployee(prev => ({ ...prev, workHours: newWorkHours }))
-      setNewEmployeeOriginalWorkHours(newWorkHours)
+      setNewEmployee(prev => ({ ...prev, minDailyHoursCategory: categoryName, minDailyHours: newMinDailyHours }))
     }
   }
 
-  const recalculateAttendanceOT = async (employeeId, effectiveDate, newWorkHours) => {
+  const recalculateAttendanceOT = async (employeeId, effectiveDate, newMinDailyHours) => {
     try {
-      const updatedCount = await recalculateOTForEmployee(employeeId, effectiveDate, newWorkHours)
+      const updatedCount = await recalculateOTForEmployee(employeeId, effectiveDate, newMinDailyHours)
       console.log(`Recalculated OT for ${updatedCount} attendance records from ${effectiveDate}`)
       return updatedCount
     } catch (err) {
@@ -898,9 +866,10 @@ export default function SettingsTab() {
       // Prepare clean employee data - remove any undefined values and include orgId
       const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
       const mwhCategory = mwhList.find(m => m.name === editForm.minDailyHoursCategory)
+      const effectiveDateForOT = editForm.shiftEffectiveDate || ''
       
       // Destructure to separate Firestore-unfriendly objects
-      const { id, shift, ...baseEditForm } = editForm;
+      const { id, shift, ...baseEditForm } = editForm
 
       const cleanEditForm = {
         ...Object.fromEntries(
@@ -911,6 +880,7 @@ export default function SettingsTab() {
         status: normalizedNextStatus,
         minDailyHours: mwhCategory ? mwhCategory.hours : (editForm.minDailyHours || 8)
       }
+      delete cleanEditForm.shiftEffectiveDate
 
       let statusHistoryEntry = null
       if (statusTransition) {
@@ -1034,22 +1004,23 @@ export default function SettingsTab() {
         })
       }
 
-      // 3) Handle shift/workHours change and recalculate OT if effective date is present
-      if (editForm.shiftEffectiveDate && editForm.workHours) {
+      // 3) Recalculate OT for attendance history when Working Hours changes with an effective date
+      if (effectiveDateForOT && employeePayload.minDailyHours) {
         const recalcCount = await recalculateAttendanceOT(
           editingEmp, 
-          editForm.shiftEffectiveDate, 
-          editForm.workHours
+          effectiveDateForOT, 
+          employeePayload.minDailyHours
         )
         if (recalcCount > 0) {
           await logChange('EMPLOYEE_SHIFT_CHANGE', editingEmp, {
             name: editForm.name,
-            effectiveDate: editForm.shiftEffectiveDate,
-            newWorkHours: editForm.workHours,
+            effectiveDate: effectiveDateForOT,
+            minDailyHours: employeePayload.minDailyHours,
+            minDailyHoursCategory: editForm.minDailyHoursCategory || '',
             recordsAffected: recalcCount,
-            message: `Scheduled OT recalculation for ${recalcCount} attendance records from ${editForm.shiftEffectiveDate}`
+            message: `Scheduled OT recalculation for ${recalcCount} attendance records from ${effectiveDateForOT}`
           })
-          alert(`Employee updated! OT recalculation has been scheduled for ${recalcCount} attendance records from ${editForm.shiftEffectiveDate}.`)
+          alert(`Employee updated! OT recalculation has been scheduled for ${recalcCount} attendance records from ${effectiveDateForOT}.`)
         }
       }
 
@@ -3404,7 +3375,7 @@ export default function SettingsTab() {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours *</label>
                 <select
                   value={editForm.minDailyHoursCategory || (Array.isArray(minWorkHours) ? minWorkHours[0]?.name : '') || ''}
-                  onChange={e => setEditForm(s => ({ ...s, minDailyHoursCategory: e.target.value }))}
+                  onChange={e => handleMinDailyHoursCategoryChange(e.target.value, 'edit')}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
                   {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
@@ -3425,22 +3396,10 @@ export default function SettingsTab() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Daily Work Hours</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="24"
-                  step="0.5"
-                  value={editForm.workHours || 9}
-                  onChange={e => handleWorkHoursChange(parseFloat(e.target.value) || 9, 'edit')}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
               {editForm.shiftEffectiveDate && (
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold text-emerald-700 mb-1">
-                    Shift Change Effective From: {editForm.shiftEffectiveDate}
+                    Working Hours Effective From: {editForm.shiftEffectiveDate}
                   </label>
                   <p className="text-[10px] text-gray-500">OT calculations will use this date for historical recalculation</p>
                 </div>
@@ -3837,7 +3796,7 @@ export default function SettingsTab() {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours *</label>
                 <select
                   value={newEmployee.minDailyHoursCategory || (Array.isArray(minWorkHours) ? minWorkHours[0]?.name : '') || ''}
-                  onChange={e => setNewEmployee(s => ({ ...s, minDailyHoursCategory: e.target.value }))}
+                  onChange={e => handleMinDailyHoursCategoryChange(e.target.value, 'new')}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 >
                   {(Array.isArray(minWorkHours) ? minWorkHours : []).map(m => (
@@ -3858,26 +3817,6 @@ export default function SettingsTab() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Daily Work Hours</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="24"
-                  step="0.5"
-                  value={newEmployee.workHours || 9}
-                  onChange={e => handleWorkHoursChange(parseFloat(e.target.value) || 9, 'new')}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
-              </div>
-              {newEmployee.shiftEffectiveDate && (
-                <div className="col-span-2">
-                  <label className="block text-[11px] font-bold text-emerald-700 mb-1">
-                    Shift Change Effective From: {newEmployee.shiftEffectiveDate}
-                  </label>
-                  <p className="text-[10px] text-gray-500">OT calculations will use this date for historical recalculation</p>
-                </div>
-              )}
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
                 <select value={newEmployee.bloodGroup} onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))}
@@ -4454,36 +4393,10 @@ export default function SettingsTab() {
 
                         <div className="flex gap-2">
                           <button 
-                            onClick={async () => { 
-                              const mwhList = Array.isArray(minWorkHours) ? minWorkHours : []
-                              const mwhCategory = mwhList.find(m => m.hours === emp.minDailyHours) || mwhList.find(m => m.name === emp.minDailyHours)
-                              const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
-                              
-                              // Use emp.id here to fix the r.indexOf error
-                              setEditingEmp(emp.id); 
-                              setEditForm({ 
-                                ...emp, 
-                                loginEnabled: emp.loginEnabled || false,
-                                tempPassword: '',
-                                minDailyHoursCategory: mwhCategory?.name || defaultCategory || emp.minDailyHours || '' 
-                              }); 
-                              
-                              // Fetch additional login info safely using query
-                              try {
-                                if (emp.email) {
-                                  const uSnap = await getDocs(query(collection(db, 'users'), where('orgId', '==', user.orgId), where('email', '==', emp.email.toLowerCase().trim())))
-                                  if (!uSnap.empty) {
-                                    const userData = uSnap.docs[0].data()
-                                    setEditForm(prev => ({ ...prev, loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true }))
-                                  }
-                                }
-                              } catch (e) {
-
-                                console.warn('Could not fetch user login status:', e)
-                              }
-
-                              setShowInvitePage(false); 
-                              setActiveSubTab('employee');
+                            onClick={async () => {
+                              await openEmployeeEditor(emp)
+                              setShowInvitePage(false)
+                              setActiveSubTab('employee')
                             }}
                             className="flex-1 h-9 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-sm flex items-center justify-center gap-2"
                           >

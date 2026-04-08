@@ -118,7 +118,7 @@ export function useAttendance(orgId) {
     }
   }, [orgId])
 
-  const recalculateOTForEmployee = useCallback(async (employeeId, effectiveDate, workHours) => {
+  const recalculateOTForEmployee = useCallback(async (employeeId, effectiveDate, minDailyHours) => {
     if (!orgId || !employeeId || !effectiveDate) return 0
     setLoading(true)
     try {
@@ -134,12 +134,13 @@ export function useAttendance(orgId) {
         const data = d.data()
         // Only recalculate if we have both in and out times
         if (data.inTime && data.outTime) {
-          const newOTHours = calcOT(data.inTime, data.outTime, data.date, data.outDate || data.date, workHours)
+          const newOTHours = calcOT(data.inTime, data.outTime, data.date, data.outDate || data.date, minDailyHours)
           updatedCount++
           return setDoc(attendanceDoc(orgId, data.date, employeeId), {
             ...data,
             otHours: newOTHours,
-            recalcWorkHours: workHours,
+            recalcWorkHours: minDailyHours,
+            recalcMinDailyHours: minDailyHours,
             recalculatedAt: serverTimestamp(),
             recalculatedBy: user?.uid || 'system'
           }, { merge: true })

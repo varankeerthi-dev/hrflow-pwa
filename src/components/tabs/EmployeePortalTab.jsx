@@ -737,7 +737,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                       { label: 'Employment Type', value: employee?.employmentType },
                       { label: 'Work Location / Site', value: employee?.site },
                       { label: 'System Role', value: employee?.role },
-                      { label: 'Shift Schedule', value: `${employee?.workHours || 9} Hours Daily` },
+                      { label: 'Working Hours', value: `${employee?.minDailyHours || 8} Hours Daily` },
                       { label: 'Reporting To', value: employee?.reportingManager },
                     ].map(item => (
                       <div key={item.label}>
