@@ -1884,19 +1884,25 @@ export default function TasksTab() {
         }
       `}</style>
 
-      <div className="bg-white border-b border-slate-200 px-8 py-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shrink-0">
+      <div className="bg-gradient-to-b from-white to-slate-50/80 border-b border-slate-200/90 px-8 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shrink-0">
         <div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3 leading-none uppercase">
-            Tasks <span className="text-slate-200 font-thin">/</span> <span className="text-indigo-600 tracking-tighter">{TABS.find(t => t.id === activeTab)?.label}</span>
+          <h1
+            className="text-2xl md:text-[27px] font-extrabold text-slate-900 tracking-[-0.02em] flex items-center gap-3 leading-none uppercase"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Tasks <span className="text-slate-300 font-light">/</span> <span className="text-blue-600 tracking-[-0.03em]">{TABS.find(t => t.id === activeTab)?.label}</span>
           </h1>
-          <div className="flex items-center gap-1 mt-2.5">
+          <div className="flex items-center gap-1.5 mt-3">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold transition-all ${
-                  activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-400 hover:bg-slate-50'
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-semibold transition-all border ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 border-blue-500 text-white shadow-[0_10px_24px_-14px_rgba(37,99,235,0.95)]'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-white hover:border-slate-200'
                 }`}
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               >
                 {tab.icon} {tab.label}
               </button>
@@ -1904,8 +1910,8 @@ export default function TasksTab() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100/85 p-1 rounded-xl border border-slate-200 shadow-inner">
             {[
               { id: 'board', icon: <Layout size={14} />, label: 'Board' },
               { id: 'table', icon: <Table size={14} />, label: 'Table' },
@@ -1915,15 +1921,22 @@ export default function TasksTab() {
               <button
                 key={m.id}
                 onClick={() => setViewMode(m.id)}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
-                  viewMode === m.id ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold uppercase tracking-[0.08em] transition-all ${
+                  viewMode === m.id
+                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                    : 'text-slate-500 hover:text-slate-700'
                 }`}
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               >
                 {m.icon} {m.label}
               </button>
             ))}
           </div>
-          <button onClick={() => setShowAddModal(true)} className="h-10 px-6 bg-indigo-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg active:scale-95">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="h-11 px-6 bg-blue-600 text-white rounded-xl text-[12px] font-semibold uppercase tracking-[0.08em] flex items-center gap-2 hover:bg-blue-700 transition-all shadow-[0_10px_24px_-14px_rgba(37,99,235,0.95)] active:scale-95"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
             <Plus size={16} /> New Task
           </button>
         </div>
