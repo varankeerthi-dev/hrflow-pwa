@@ -199,8 +199,8 @@ export default function SalarySlabSettings() {
                   <th className={headCellClassName}>Payroll</th>
                   <th className={headCellClassName}>Employee</th>
                   <th className={headCellClassName}>Gross CTC</th>
-                  <th className={headCellClassName}>E (B% / H%)</th>
-                  <th className={headCellClassName}>D (T% / P% / E%)</th>
+                  <th className={headCellClassName}>Earnings (Basic % / HRA %)</th>
+                  <th className={headCellClassName}>Deductions (Tax % / PF % / ESI %)</th>
                   <th className={`${headCellClassName} text-right`}>Save</th>
                 </tr>
               </thead>
@@ -236,7 +236,7 @@ export default function SalarySlabSettings() {
                       <td className={bodyCellClassName}>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">B</p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">Basic</p>
                             <input
                               type="number"
                               max="999"
@@ -246,7 +246,7 @@ export default function SalarySlabSettings() {
                             />
                           </div>
                           <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">H</p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">HRA</p>
                             <input
                               type="number"
                               max="999"
@@ -260,7 +260,7 @@ export default function SalarySlabSettings() {
                       <td className={bodyCellClassName}>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">T</p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">Tax</p>
                             <input
                               type="number"
                               max="999"
@@ -270,7 +270,7 @@ export default function SalarySlabSettings() {
                             />
                           </div>
                           <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">P</p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">PF</p>
                             <input
                               type="number"
                               max="999"
@@ -280,7 +280,7 @@ export default function SalarySlabSettings() {
                             />
                           </div>
                           <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">E</p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">ESI</p>
                             <input
                               type="number"
                               max="999"
