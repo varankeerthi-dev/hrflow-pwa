@@ -582,11 +582,11 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
             <div className="text-center py-20 bg-gray-50"><Spinner /></div>
           ) : (
             <div className="overflow-x-auto max-h-[calc(100vh-280px)] flex-1 overflow-y-auto bg-white">
-              <table id="monthly-pivot-table" className="border-collapse text-sm font-inter" style={{ width: 'auto', minWidth: '100%' }}>
+              <table id="monthly-pivot-table" className="border-collapse text-sm font-inter table-fixed" style={{ width: 'auto', minWidth: '100%' }}>
                 <thead className="sticky top-0 z-30">
                   <tr>
-                    <th className="px-3 py-3 text-center font-bold text-gray-700 border-r border-b border-gray-200 bg-gray-100 sticky left-0 z-40" rowSpan={2} style={{ minWidth: '60px' }}>
-                      <div className="text-xs uppercase tracking-wider text-gray-500">Date</div>
+                    <th className="px-3 py-3 text-center font-bold text-gray-700 border-r border-b border-gray-200 bg-gray-100 sticky left-0 z-40" rowSpan={2} style={{ width: '65px', minWidth: '65px' }}>
+                      <div className="text-[10px] uppercase tracking-wider text-gray-500">Date</div>
                     </th>
                     {monthlyViewData.employees?.map((emp, idx) => {
                       let colSpan = 0;
@@ -601,11 +601,11 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                       return (
                         <th 
                           key={emp.id} 
-                          className={`px-3 py-3 text-center font-bold text-white border-r border-b ${colorScheme.border} ${colorScheme.bg} text-sm whitespace-nowrap`}
+                          className={`px-3 py-3 text-center font-bold text-white border-r border-b ${colorScheme.border} ${colorScheme.bg} text-sm whitespace-nowrap overflow-hidden text-ellipsis`}
                           colSpan={colSpan}
-                          style={{ minWidth: `${Math.max(120, emp.name.length * 12 + 40)}px` }}
+                          style={{ width: '145px', minWidth: '145px', maxWidth: '145px' }}
                         >
-                          <div className="font-semibold tracking-wide">{emp.name}</div>
+                          <div className="font-semibold tracking-wide truncate">{emp.name}</div>
                         </th>
                       )
                     })}
@@ -613,11 +613,11 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                   <tr className="bg-white">
                     {monthlyViewData.employees?.map((emp, idx) => (
                       <React.Fragment key={emp.id}>
-                        {columnSettings.inTime && <th className="px-2 py-2 text-xs font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">IN</th>}
-                        {columnSettings.outTime && <th className="px-2 py-2 text-xs font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">OUT</th>}
-                        {columnSettings.ot && <th className="px-2 py-2 text-xs font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">OT</th>}
-                        {columnSettings.remarks && <th className="px-2 py-2 text-xs font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider" style={{ minWidth: '100px' }}>{remarksLabel}</th>}
-                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-2 py-2 border-r border-b border-gray-300 bg-white">-</th>}
+                        {columnSettings.inTime && <th className="px-1 py-2 text-[10px] font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">IN</th>}
+                        {columnSettings.outTime && <th className="px-1 py-2 text-[10px] font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">OUT</th>}
+                        {columnSettings.ot && <th className="px-1 py-2 text-[10px] font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider">OT</th>}
+                        {columnSettings.remarks && <th className="px-1 py-2 text-[10px] font-bold border-r border-b border-gray-200 text-center bg-white text-gray-600 uppercase tracking-wider truncate" title={remarksLabel}>{remarksLabel}</th>}
+                        {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-1 py-2 border-r border-b border-gray-300 bg-white">-</th>}
                       </React.Fragment>
                     ))}
                   </tr>
@@ -636,10 +636,10 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                     const dateClass = isSunday ? 'bg-red-50 text-red-700' : (isHoliday ? 'bg-amber-50 text-amber-700' : (isWeekend ? 'bg-violet-50 text-violet-700' : 'bg-gray-50 text-gray-900'))
                     
                     return (
-                      <tr key={day} className="hover:bg-gray-50 transition-colors">
-                        <td className={`px-3 py-2 text-center font-bold sticky left-0 z-20 border-r border-b border-gray-200 ${dateClass}`} style={{ minWidth: '60px' }}>
+                      <tr key={day} className="hover:bg-gray-50 transition-colors h-[50px]">
+                        <td className={`px-2 py-1 text-center font-bold sticky left-0 z-20 border-r border-b border-gray-200 ${dateClass}`} style={{ width: '65px', minWidth: '65px' }}>
                           <div className="text-sm leading-none">{String(day).padStart(2, '0')}</div>
-                          <div className="text-xs text-gray-500 mt-0.5 font-medium">{dayName}</div>
+                          <div className="text-[10px] text-gray-500 mt-0.5 font-medium">{dayName}</div>
                         </td>
                         {monthlyViewData.employees?.map(emp => {
                           const [empYear, empMonth] = selectedMonth.split('-').map(Number)
@@ -660,20 +660,20 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                           return (
                             <React.Fragment key={emp.id}>
                               {isAbsentOrNonWorking ? (
-                                <td colSpan={colSpan} className={`px-2 py-2 text-center border-r border-b border-gray-200 ${isBeforeStart ? 'bg-gray-50' : status.bg} transition-colors`}>
-                                  <span className={`text-sm font-semibold ${isBeforeStart ? 'text-gray-400' : status.color}`}>
+                                <td colSpan={colSpan} className={`px-1 py-1 text-center border-r border-b border-gray-200 ${isBeforeStart ? 'bg-gray-50' : status.bg} transition-colors`}>
+                                  <span className={`text-[11px] font-semibold ${isBeforeStart ? 'text-gray-400' : status.color}`}>
                                     {isBeforeStart ? '—' : status.text}
                                   </span>
                                 </td>
                               ) : (
                                 <>
                                   {columnSettings.inTime && (
-                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 text-sm text-gray-800 bg-white whitespace-nowrap">
+                                    <td className="px-1 py-1 text-center border-r border-b border-gray-200 text-[11px] text-gray-800 bg-white whitespace-nowrap">
                                       {isBeforeStart ? '—' : formatTimeTo12Hour(att?.inTime) || '—'}
                                     </td>
                                   )}
                                   {columnSettings.outTime && (
-                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 text-sm text-gray-800 bg-white whitespace-nowrap">
+                                    <td className="px-1 py-1 text-center border-r border-b border-gray-200 text-[11px] text-gray-800 bg-white whitespace-nowrap">
                                       {(() => {
                                         if (isBeforeStart) return '—'
                                         const time = formatTimeTo12Hour(att?.outTime)
@@ -686,7 +686,7 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                                           return (
                                             <div className="flex flex-col items-center leading-none">
                                               <span>{time}</span>
-                                              <span className="text-xs text-red-500 font-semibold mt-0.5">
+                                              <span className="text-[9px] text-red-500 font-semibold mt-0.5">
                                                 → {shortDate}
                                               </span>
                                             </div>
@@ -697,17 +697,17 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                                     </td>
                                   )}
                                   {columnSettings.ot && (
-                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 text-sm font-semibold text-indigo-600 bg-white">
+                                    <td className="px-1 py-1 text-center border-r border-b border-gray-200 text-[11px] font-semibold text-indigo-600 bg-white">
                                       {isBeforeStart ? '—' : formatOTHours(att?.otHours)}
                                     </td>
                                   )}
                                   {columnSettings.remarks && (
-                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 text-xs font-normal text-gray-500 bg-white italic" style={{ minWidth: '100px' }}>
+                                    <td className="px-1 py-1 text-center border-r border-b border-gray-200 text-[10px] font-normal text-gray-500 bg-white italic truncate" title={att?.remarks}>
                                       {isBeforeStart ? '—' : (att?.remarks || '—')}
                                     </td>
                                   )}
                                   {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && (
-                                    <td className="px-2 py-2 text-center border-r border-b border-gray-200 bg-white">—</td>
+                                    <td className="px-1 py-1 text-center border-r border-b border-gray-200 bg-white">—</td>
                                   )}
                                 </>
                               )}
