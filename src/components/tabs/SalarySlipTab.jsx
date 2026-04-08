@@ -587,7 +587,7 @@ export default function SalarySlipTab() {
       {/* Horizontal Sub-tabs at top */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 shrink-0 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mr-4">Payroll Engine</div>
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mr-4">Payroll</div>
           <nav className="flex items-center gap-2">
             {[
               {id:'salary-slip', icon:<Banknote size={16}/>, label:'Slip'}, 

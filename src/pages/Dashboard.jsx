@@ -302,7 +302,7 @@ export default function Dashboard() {
   
   const featuresTabs = ['correction', 'leave', 'letters', 'vehicles', 'documents', 'summary', 'fines', 'engage', 'chat', 'shift-planning']
 
-  const renderMenuItem = (tab, isActive, onClick) => (
+  const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
     <button 
       key={tab.id} 
       onClick={onClick} 
@@ -312,7 +312,7 @@ export default function Dashboard() {
         {React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
       </span>
       {!isCollapsed && (
-        <span className={`text-[12px] font-semibold truncate leading-none ${isActive ? 'text-white' : ''}`}>
+        <span className={`font-semibold truncate leading-none ${isActive ? 'text-white' : ''}`} style={{ fontSize }}>
           {tab.label}
         </span>
       )}
@@ -328,10 +328,10 @@ export default function Dashboard() {
     return (
       <>
         {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
-        
+
         {featuresItems.length > 0 && (
           <div className="mt-2">
-            <button 
+            <button
               onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
               className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
             >
@@ -339,16 +339,16 @@ export default function Dashboard() {
                 <Sparkles size={18} strokeWidth={2} />
               </span>
               {!isCollapsed && (
-                <span className="text-[12px] font-semibold truncate leading-none flex-1 text-left">Features</span>
+                <span className="text-[14px] font-semibold truncate leading-none flex-1 text-left">Features</span>
               )}
               {!isCollapsed && (
                 <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
               )}
             </button>
-            
+
             {isFeaturesExpanded && (
               <div className="ml-3 pl-3 border-l-2 border-gray-100 space-y-0.5">
-                {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
+                {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }, '12px'))}
               </div>
             )}
           </div>
@@ -368,7 +368,6 @@ export default function Dashboard() {
       </>
     )
   }
-
   const renderTabContent = () => {
     // RBAC: Check if user has permission to view this tab
     if (!isAdmin && activeTab !== 'home' && activeTab !== 'portal') {
