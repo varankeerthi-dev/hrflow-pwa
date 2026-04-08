@@ -7,6 +7,7 @@ import {
   getDocs,
   query,
   serverTimestamp,
+  writeBatch,
   updateDoc,
   where,
 } from 'firebase/firestore'
@@ -145,7 +146,14 @@ export const checklistService = {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
-      return docRef.id
+      return {
+        id: docRef.id,
+        userId: parsed.userId,
+        templateId: parsed.templateId,
+        date: parsed.date,
+        status: parsed.status,
+        note: parsed.note ?? null,
+      }
     }
 
     const docId = existingDoc.id
@@ -155,7 +163,87 @@ export const checklistService = {
       note: parsed.note ?? null,
       updatedAt: serverTimestamp(),
     })
-    return docId
+    return {
+      id: docId,
+      userId: parsed.userId,
+      templateId: parsed.templateId,
+      date: parsed.date,
+      status: parsed.status,
+      note: parsed.note ?? null,
+    }
+  },
+
+  async upsertLogsBulk(
+    userId: string,
+    entries: Array<{
+      templateId: string
+      date: string
+      status: ChecklistLogStatus
+      note?: string | null
+    }>
+  ) {
+    if (!userId || !entries.length) return []
+    const parsedEntries = entries.map((entry) =>
+      logUpsertSchema.parse({
+        userId,
+        templateId: entry.templateId,
+        date: entry.date,
+        status: entry.status,
+        note: entry.note ?? null,
+      })
+    )
+
+    const q = query(collection(db, COLLECTION_LOGS), where('userId', '==', userId))
+    const snap = await getDocs(q)
+    const existingByKey = new Map<string, string>()
+    snap.docs.forEach((docSnap) => {
+      const data = docSnap.data()
+      existingByKey.set(`${data.templateId}_${data.date}`, docSnap.id)
+    })
+
+    const batch = writeBatch(db)
+    const result = parsedEntries.map((entry) => {
+      const key = `${entry.templateId}_${entry.date}`
+      const existingId = existingByKey.get(key)
+      if (existingId) {
+        const docRef = doc(db, COLLECTION_LOGS, existingId)
+        batch.update(docRef, {
+          status: entry.status,
+          note: entry.note ?? null,
+          updatedAt: serverTimestamp(),
+        })
+        return {
+          id: existingId,
+          userId: entry.userId,
+          templateId: entry.templateId,
+          date: entry.date,
+          status: entry.status,
+          note: entry.note ?? null,
+        }
+      }
+
+      const docRef = doc(collection(db, COLLECTION_LOGS))
+      batch.set(docRef, {
+        userId: entry.userId,
+        templateId: entry.templateId,
+        date: entry.date,
+        status: entry.status,
+        note: entry.note ?? null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+      return {
+        id: docRef.id,
+        userId: entry.userId,
+        templateId: entry.templateId,
+        date: entry.date,
+        status: entry.status,
+        note: entry.note ?? null,
+      }
+    })
+
+    await batch.commit()
+    return result
   },
 
   async deleteLog(logId: string) {

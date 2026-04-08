@@ -262,7 +262,14 @@ export default function ChecklistView({ user }) {
     setActionError('')
     try {
       const targetDates = columns.filter((c) => !c.isFuture).map((c) => c.id)
-      await Promise.all(targetDates.map((date) => logsApi.upsertLog({ templateId, date, status: 'done', note: byCell[`${templateId}_${date}`]?.note || null })))
+      await logsApi.bulkUpsertLogs(
+        targetDates.map((date) => ({
+          templateId,
+          date,
+          status: 'done',
+          note: byCell[`${templateId}_${date}`]?.note || null,
+        }))
+      )
     } catch (error) {
       setActionError(error?.message || 'Bulk action failed')
     }
@@ -442,7 +449,7 @@ export default function ChecklistView({ user }) {
           <label className="block text-[11px] text-slate-500 mb-1">Note (optional)</label>
           <textarea value={draftNote} onChange={(e) => setDraftNote(e.target.value)} className="w-full min-h-[72px] resize-none px-2.5 py-2 border border-slate-300 rounded-md text-[12px] outline-none focus:ring-2 focus:ring-slate-200" placeholder="Add a short note" />
           <div className="mt-3 flex items-center gap-2">
-            <button onClick={saveCell} disabled={savingCell || logsApi.isUpserting} className="h-8 px-3 rounded-md bg-slate-800 text-white text-[12px] font-semibold disabled:opacity-50">Save</button>
+            <button onClick={saveCell} disabled={savingCell || logsApi.isUpserting || logsApi.isBulkUpserting} className="h-8 px-3 rounded-md bg-slate-800 text-white text-[12px] font-semibold disabled:opacity-50">Save</button>
             <button onClick={() => setPopover(null)} className="h-8 px-3 rounded-md border border-slate-300 text-slate-600 text-[12px] font-semibold">Cancel</button>
           </div>
         </div>
