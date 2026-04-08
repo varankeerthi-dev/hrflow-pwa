@@ -302,7 +302,7 @@ function BulkCorrectionPanel({ isOpen, onClose, selectedRows, onBulkSave, saving
 }
 
 // ── EDIT DRAWER COMPONENT ─────────────────────────────────────────────
-function EditDrawer({ isOpen, onClose, row, onSave, saving }) {
+function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
   // Initialize form from row - only runs when drawer opens with new row
   const initialForm = (() => {
     if (!row) return {
@@ -393,9 +393,19 @@ function EditDrawer({ isOpen, onClose, row, onSave, saving }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-[10px] font-bold text-gray-400 uppercase">Employee</p>
-          <p className="text-sm font-black text-gray-800">{row.name}</p>
+        <div className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase">Employee</p>
+            <p className="text-sm font-black text-gray-800">{row.name}</p>
+          </div>
+          <button 
+            onClick={() => onDelete(row)}
+            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors group flex items-center gap-1.5"
+            title="Delete Entry"
+          >
+            <Trash2 size={16} />
+            <span className="text-[10px] font-bold uppercase">Delete</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -552,7 +562,7 @@ export default function CorrectionTab() {
   
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
-  const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
+  const { fetchByDate, upsertAttendance, deleteIndividualAttendance } = useAttendance(user?.orgId)
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [results, setResults] = useState([])
@@ -830,6 +840,34 @@ export default function CorrectionTab() {
       await handleRefresh()
       setShowEditDrawer(false)
       setDrawerRow(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteEntry = async (row) => {
+    if (!window.confirm(`Are you sure you want to delete the attendance entry for ${row.name} on ${formatDateShort(row.date)}? This will reset the data to zero.`)) return
+    
+    setSaving(true)
+    try {
+      const oldVals = {
+        inDate: row.inDate,
+        inTime: row.in,
+        outDate: row.outDate,
+        outTime: row.out,
+        otHours: row.ot,
+        site: row.site,
+        status: row.status,
+      }
+      
+      await deleteIndividualAttendance(row.date, row.id)
+      await logCorrection(row.id, row.name, row.date, oldVals, { deleted: true }, 'Delete Entry', 'Attendance record completely removed')
+      
+      await handleRefresh()
+      setShowEditDrawer(false)
+      setDrawerRow(null)
+    } catch (err) {
+      alert('Failed to delete attendance: ' + err.message)
     } finally {
       setSaving(false)
     }
@@ -1150,6 +1188,13 @@ export default function CorrectionTab() {
                           >
                             <FileText size={12} />
                           </button>
+                          <button
+                            onClick={() => handleDeleteEntry(row)}
+                            className="p-1.5 rounded-md text-red-500 hover:bg-red-50"
+                            title="Delete Entry"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
                       )}
                     </td>
@@ -1176,6 +1221,7 @@ export default function CorrectionTab() {
         onClose={() => { setShowEditDrawer(false); setDrawerRow(null) }}
         row={drawerRow}
         onSave={handleDrawerSave}
+        onDelete={handleDeleteEntry}
         saving={saving}
       />
     </div>

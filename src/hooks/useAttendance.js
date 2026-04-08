@@ -86,6 +86,19 @@ export function useAttendance(orgId) {
     }
   }, [orgId])
 
+  const deleteIndividualAttendance = useCallback(async (date, employeeId) => {
+    if (!orgId || !date || !employeeId) return
+    setLoading(true)
+    try {
+      await deleteDoc(attendanceDoc(orgId, date, employeeId))
+    } catch (e) {
+      setError(e.message)
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [orgId])
+
   const fetchRange = useCallback(async (startDate, endDate) => {
     if (!orgId || !startDate || !endDate) return []
     setLoading(true)
