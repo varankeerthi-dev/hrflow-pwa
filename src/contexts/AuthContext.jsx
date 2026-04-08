@@ -75,7 +75,10 @@ async function readUserDoc(uid, targetOrgId = null) {
         const rolesSnap = await getDocs(rolesQuery)
         const roleDoc = rolesSnap.docs.find(d => d.data().name.toLowerCase() === currentRole.toLowerCase())
         
-        if (roleDoc) {
+        if (userData.permissions && Object.keys(userData.permissions).length > 0) {
+          // Use permissions directly from user doc if available
+          console.log('readUserDoc: Using permissions from user doc')
+        } else if (roleDoc) {
           userData.permissions = roleDoc.data().permissions || defaultPermissions
         } else if (currentRole.toLowerCase() === 'admin') {
           userData.permissions = defaultPermissions

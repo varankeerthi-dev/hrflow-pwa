@@ -969,16 +969,47 @@ export default function SettingsTab() {
         } else {
           // User doc exists, just update loginEnabled and other fields
           const userDoc = uSnap.docs[0]
+          const userData = userDoc.data()
+          const uid = userDoc.id
+          
+          // Update memberships if they exist
+          let memberships = userData.memberships || []
+          const orgIndex = memberships.findIndex(m => m.orgId === user.orgId)
+          if (orgIndex !== -1) {
+            memberships[orgIndex].role = selectedRoleName
+          } else {
+            // If they are a legacy user without memberships, migrate them
+            memberships.push({ orgId: user.orgId, role: selectedRoleName, orgName: user.orgName || 'My Organisation' })
+          }
+
           await updateDoc(userDoc.ref, {
             loginEnabled: true,
             role: selectedRoleName,
             permissions: selectedRolePerms,
+            memberships,
             name: employeePayload.name,
             empCode: employeePayload.empCode || '',
             department: employeePayload.department || '',
             updatedAt: serverTimestamp()
           })
-          console.log('Updated existing user doc during employee save')
+
+          // Sync adminUids in organisation doc
+          const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+          if (orgSnap.exists()) {
+            const orgData = orgSnap.data()
+            let adminUids = orgData.adminUids || []
+            const isCurrentlyAdmin = adminUids.includes(uid)
+            const isNewAdmin = selectedRoleName.toLowerCase() === 'admin'
+
+            if (isNewAdmin && !isCurrentlyAdmin) {
+              adminUids.push(uid)
+              await updateDoc(doc(db, 'organisations', user.orgId), { adminUids })
+            } else if (!isNewAdmin && isCurrentlyAdmin) {
+              adminUids = adminUids.filter(id => id !== uid)
+              await updateDoc(doc(db, 'organisations', user.orgId), { adminUids })
+            }
+          }
+          console.log('Updated existing user doc and org admin list during employee save')
         }
       } else if (!employeePayload.loginEnabled && employeePayload.email) {
         // If login is disabled, update the user doc if it exists
@@ -1172,20 +1203,35 @@ export default function SettingsTab() {
           // No user doc found
           if (userUid) {
             // New auth account was created, create the user doc
-            await setDoc(doc(db, 'users', userUid), {
+            const newUserData = {
               email: normalizedEmail,
               name: employeeDoc.name,
               orgId: user.orgId,
               role: roleName,
               permissions: rolePermissions,
+              memberships: [{ orgId: user.orgId, role: roleName, orgName: user.orgName || 'My Organisation' }],
               employeeId: empId,
               empCode,
               department: employeeDoc.department || '',
               reportingManager: employeeDoc.reportingManager || '',
               createdAt: serverTimestamp(),
               loginEnabled: true,
-            })
-            console.log('Created new user doc for new auth account')
+            }
+            await setDoc(doc(db, 'users', userUid), newUserData)
+
+            // Sync adminUids in organisation doc if new user is Admin
+            if (roleName.toLowerCase() === 'admin') {
+              const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+              if (orgSnap.exists()) {
+                const orgData = orgSnap.data()
+                let adminUids = orgData.adminUids || []
+                if (!adminUids.includes(userUid)) {
+                  adminUids.push(userUid)
+                  await updateDoc(doc(db, 'organisations', user.orgId), { adminUids })
+                }
+              }
+            }
+            console.log('Created new user doc and synced admin list for new auth account')
           } else {
             // Auth account exists but no user doc found in Firestore
             alert('A login account with this email already exists but is not linked to any user record. Please use a different email or contact support.')
