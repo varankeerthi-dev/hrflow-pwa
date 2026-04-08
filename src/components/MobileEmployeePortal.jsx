@@ -10,6 +10,9 @@ import { attendanceCol } from '../lib/firestore'
 import { formatTimeTo12Hour } from '../lib/salaryUtils'
 import Modal from './ui/Modal'
 import TimePicker from './ui/TimePicker'
+import SelfieCaptureModal from './ui/SelfieCaptureModal'
+import { getAttendancePortalBadge, ATTENDANCE_EVENT_IN, ATTENDANCE_EVENT_OUT, ATTENDANCE_STATUS_REJECTED } from '../lib/attendanceWorkflow'
+import { compressSelfieBlob, evaluateSiteProximity, getCurrentPositionOnce, getOrgSites, resolveTargetSite, submitPendingAttendanceEvent, uploadTempSelfie } from '../lib/geoAttendanceService'
 import { z } from 'zod'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -86,7 +89,7 @@ const advanceSchema = z.object({
 export default function MobileEmployeePortal() {
   const { user, logout } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
-  const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
+  const { fetchByDate } = useAttendance(user?.orgId)
   const { applyLeave } = useLeaves(user?.orgId)
 
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -96,6 +99,21 @@ export default function MobileEmployeePortal() {
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [todayRecord, setTodayRecord] = useState(null)
   const [attendanceRows, setAttendanceRows] = useState([])
+  const [portalAttendanceLogs, setPortalAttendanceLogs] = useState([])
+  const [showSelfieCaptureModal, setShowSelfieCaptureModal] = useState(false)
+  const [captureEventType, setCaptureEventType] = useState(ATTENDANCE_EVENT_IN)
+  const [geoContext, setGeoContext] = useState({
+    currentCoordinates: null,
+    targetSite: null,
+    targetCoordinates: null,
+    distanceMeters: null,
+    radiusMeters: 500,
+    withinRange: false,
+    locationError: '',
+  })
+  const [showExceptionModal, setShowExceptionModal] = useState(false)
+  const [exceptionForm, setExceptionForm] = useState({ reason: '', file: null })
+  const [submittingAttendance, setSubmittingAttendance] = useState(false)
   const [month, setMonth] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -166,6 +184,7 @@ export default function MobileEmployeePortal() {
   useEffect(() => {
     if (!user?.orgId || empLoading || !employeeId) return
     fetchRequests()
+    fetchPortalAttendanceLogs()
     loadToday()
   }, [user?.orgId, employeeId, empLoading])
 
@@ -240,28 +259,137 @@ export default function MobileEmployeePortal() {
     }
   }
 
-  const handleCheckIn = async () => {
-    const now = new Date()
-    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-    await upsertAttendance({
-      employeeId,
-      date: now.toISOString().split('T')[0],
-      inTime: time,
-      shiftType: 'Day'
-    })
-    loadToday()
+  const fetchPortalAttendanceLogs = async () => {
+    if (!user?.orgId || !employeeId) return
+    try {
+      const logsQuery = query(
+        collection(db, 'organisations', user.orgId, 'employee_portal', employeeId, 'attendance_logs'),
+        orderBy('eventDate', 'desc')
+      )
+      const snapshot = await getDocs(logsQuery)
+      setPortalAttendanceLogs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+    } catch (error) {
+      console.error('Failed to fetch mobile portal attendance logs:', error)
+    }
   }
 
-  const handleCheckOut = async () => {
-    const now = new Date()
-    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-    await upsertAttendance({
-      employeeId,
-      date: now.toISOString().split('T')[0],
-      outTime: time,
-      outDate: now.toISOString().split('T')[0]
+  const todayDateKey = new Date().toISOString().split('T')[0]
+  const todayLogs = portalAttendanceLogs.filter(log => log.eventDate === todayDateKey)
+  const getLatestLogByType = (logs, type) =>
+    logs
+      .filter(log => log.type === type)
+      .sort((a, b) => {
+        const aTs = a.clientTimestamp ? new Date(a.clientTimestamp).getTime() : 0
+        const bTs = b.clientTimestamp ? new Date(b.clientTimestamp).getTime() : 0
+        return bTs - aTs
+      })[0] || null
+
+  const latestTodayInLog = getLatestLogByType(todayLogs, ATTENDANCE_EVENT_IN)
+  const latestTodayOutLog = getLatestLogByType(todayLogs, ATTENDANCE_EVENT_OUT)
+  const validInLog = latestTodayInLog && latestTodayInLog.status !== ATTENDANCE_STATUS_REJECTED
+  const validOutLog = latestTodayOutLog && latestTodayOutLog.status !== ATTENDANCE_STATUS_REJECTED
+  const latestTodayLog = validOutLog || validInLog || null
+  const todayBadge = latestTodayLog ? getAttendancePortalBadge(latestTodayLog.status) : null
+  const todayInTime = validInLog?.eventTime || todayRecord?.inTime || ''
+  const todayOutTime = validOutLog?.eventTime || todayRecord?.outTime || ''
+
+  const openGeoAttendanceCapture = async (type) => {
+    if (!employeeId || !employee || !user?.orgId) return
+    setCaptureEventType(type)
+    setGeoContext({
+      currentCoordinates: null,
+      targetSite: null,
+      targetCoordinates: null,
+      distanceMeters: null,
+      radiusMeters: 500,
+      withinRange: false,
+      locationError: '',
     })
-    loadToday()
+
+    try {
+      const currentCoordinates = await getCurrentPositionOnce()
+      const sites = await getOrgSites(user.orgId)
+      const targetSite = resolveTargetSite(employee, sites)
+      const proximity = evaluateSiteProximity({ currentCoordinates, targetSite })
+      const nextGeoContext = {
+        currentCoordinates,
+        targetSite,
+        targetCoordinates: proximity.targetCoordinates,
+        distanceMeters: proximity.distanceMeters,
+        radiusMeters: proximity.radiusMeters,
+        withinRange: proximity.withinRange,
+        locationError: '',
+      }
+      setGeoContext(nextGeoContext)
+      if (proximity.withinRange) {
+        setShowSelfieCaptureModal(true)
+      } else {
+        setExceptionForm({ reason: '', file: null })
+        setShowExceptionModal(true)
+      }
+    } catch (error) {
+      setGeoContext(prev => ({ ...prev, locationError: error.message || 'Location fetch failed.' }))
+      alert(error.message || 'Failed to fetch location.')
+    }
+  }
+
+  const submitGeoAttendance = async ({ imageBlob, isException, exceptionReason }) => {
+    if (!user?.orgId || !employee) return
+    setSubmittingAttendance(true)
+    try {
+      const timestamp = Date.now()
+      const compressed = await compressSelfieBlob(imageBlob, 100)
+      const { photoUrl, photoPath } = await uploadTempSelfie({
+        orgId: user.orgId,
+        userId: employee.id || user.uid,
+        timestamp,
+        fileBlob: compressed,
+      })
+
+      await submitPendingAttendanceEvent({
+        orgId: user.orgId,
+        user,
+        employee,
+        type: captureEventType,
+        site: geoContext.targetSite,
+        targetCoordinates: geoContext.targetCoordinates,
+        currentCoordinates: geoContext.currentCoordinates,
+        distanceMeters: geoContext.distanceMeters,
+        radiusMeters: geoContext.radiusMeters,
+        photoUrl,
+        photoPath,
+        isException,
+        exceptionReason,
+      })
+
+      setShowSelfieCaptureModal(false)
+      setShowExceptionModal(false)
+      await fetchPortalAttendanceLogs()
+      alert(isException ? 'Exception request submitted to HR.' : 'Attendance submitted for HR approval.')
+    } catch (error) {
+      alert(error.message || 'Failed to submit attendance.')
+    } finally {
+      setSubmittingAttendance(false)
+    }
+  }
+
+  const handleCheckIn = async () => openGeoAttendanceCapture(ATTENDANCE_EVENT_IN)
+  const handleCheckOut = async () => openGeoAttendanceCapture(ATTENDANCE_EVENT_OUT)
+
+  const handleExceptionSubmit = async () => {
+    if (!exceptionForm.file) {
+      alert('Selfie is required for exception request.')
+      return
+    }
+    if (!exceptionForm.reason.trim()) {
+      alert('Please provide reason for out-of-site request.')
+      return
+    }
+    await submitGeoAttendance({
+      imageBlob: exceptionForm.file,
+      isException: true,
+      exceptionReason: exceptionForm.reason.trim(),
+    })
   }
 
   const handleWithdraw = async (reqId, source) => {
@@ -507,8 +635,17 @@ export default function MobileEmployeePortal() {
   }
 
   // Dashboard View
-  const renderDashboard = () => (
-    <div className="space-y-4">
+  const renderDashboard = () => {
+    const dashboardRecord = todayRecord || {
+      inTime: todayInTime || '',
+      outTime: todayOutTime || '',
+      date: todayDateKey,
+      outDate: todayDateKey,
+      minDailyHours: employee?.minDailyHours || 8,
+    }
+
+    return (
+      <div className="space-y-4">
       {/* Welcome Card */}
       <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 text-white shadow-lg">
         <div className="flex items-center justify-between mb-4">
@@ -523,14 +660,14 @@ export default function MobileEmployeePortal() {
         
         {/* Quick Actions */}
         <div className="flex gap-2">
-          {!todayRecord?.inTime ? (
+          {!(validInLog || todayRecord?.inTime) ? (
             <button
               onClick={handleCheckIn}
               className="flex-1 bg-white text-indigo-600 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg"
             >
               <Play size={16} fill="currentColor" /> Check In
             </button>
-          ) : !todayRecord?.outTime ? (
+          ) : !(validOutLog || todayRecord?.outTime) ? (
             <button
               onClick={handleCheckOut}
               className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg"
@@ -543,36 +680,49 @@ export default function MobileEmployeePortal() {
             </div>
           )}
         </div>
+        {geoContext.distanceMeters != null && (
+          <p className="text-indigo-100 text-xs mt-3">
+            You are <span className="font-bold">{geoContext.distanceMeters}m</span> from {geoContext.targetSite?.siteName || employee?.site || 'assigned site'}.
+          </p>
+        )}
+        {geoContext.locationError && (
+          <p className="text-rose-100 text-xs mt-2">{geoContext.locationError}</p>
+        )}
       </div>
 
       {/* Today's Status */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-900">Today's Status</h3>
-          <span className={`text-sm font-medium ${getStatusColor(todayRecord)}`}>
-            {getStatusLabel(todayRecord)}
+          <span className={`text-sm font-medium ${latestTodayLog ? 'text-indigo-600' : getStatusColor(todayRecord)}`}>
+            {latestTodayLog ? (validOutLog ? 'Check-out Submitted' : 'Check-in Submitted') : getStatusLabel(todayRecord)}
           </span>
         </div>
         
-        {todayRecord ? (
+        {(todayRecord || latestTodayLog) ? (
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
               <p className="text-xs text-gray-500 mb-1">Check In</p>
+              {todayBadge && (
+                <span className={`inline-flex mb-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${todayBadge.className}`}>
+                  {todayBadge.label}
+                </span>
+              )}
               <p className="font-semibold text-gray-900">
-                {todayRecord.inTime ? formatTimeTo12Hour(todayRecord.inTime) : '—'}
+                {dashboardRecord.inTime ? formatTimeTo12Hour(dashboardRecord.inTime) : '—'}
               </p>
             </div>
             <div className="text-center border-x border-gray-100">
               <p className="text-xs text-gray-500 mb-1">Check Out</p>
               <p className="font-semibold text-gray-900">
-                {todayRecord.outTime ? formatTimeTo12Hour(todayRecord.outTime) : '—'}
+                {dashboardRecord.outTime ? formatTimeTo12Hour(dashboardRecord.outTime) : '—'}
               </p>
             </div>
             <div className="text-center">
               <p className="text-xs text-gray-500 mb-1">Duration</p>
               <p className="font-semibold text-gray-900">
-                {todayRecord.inTime && todayRecord.outTime 
-                  ? calcOT(todayRecord.inTime, todayRecord.outTime, todayRecord.date, todayRecord.outDate || todayRecord.date, todayRecord.minDailyHours || 8)
+                {dashboardRecord.inTime && dashboardRecord.outTime 
+                  ? calcOT(dashboardRecord.inTime, dashboardRecord.outTime, dashboardRecord.date, dashboardRecord.outDate || dashboardRecord.date, dashboardRecord.minDailyHours || 8)
                   : '—'}
               </p>
             </div>
@@ -700,8 +850,9 @@ export default function MobileEmployeePortal() {
           <p className="text-xs text-gray-500 mt-1">View details</p>
         </button>
       </div>
-    </div>
-  )
+      </div>
+    )
+  }
 
   // Attendance View
   const renderAttendance = () => (
@@ -1612,6 +1763,81 @@ export default function MobileEmployeePortal() {
 
       {/* Request Modal */}
       {renderRequestModal()}
+
+      <SelfieCaptureModal
+        isOpen={showSelfieCaptureModal}
+        onClose={() => setShowSelfieCaptureModal(false)}
+        title={captureEventType === ATTENDANCE_EVENT_IN ? 'Check-In Selfie' : 'Check-Out Selfie'}
+        helperText={
+          geoContext.distanceMeters != null
+            ? `You are ${geoContext.distanceMeters}m from ${geoContext.targetSite?.siteName || employee?.site || 'assigned site'}. Capture selfie to submit for HR approval.`
+            : 'Capture selfie to submit attendance for HR approval.'
+        }
+        allowCapture={geoContext.withinRange}
+        confirmLabel={submittingAttendance ? 'Submitting...' : 'Submit For Approval'}
+        onConfirm={async (blob) => {
+          await submitGeoAttendance({ imageBlob: blob, isException: false, exceptionReason: '' })
+        }}
+      />
+
+      <Modal
+        isOpen={showExceptionModal}
+        onClose={() => setShowExceptionModal(false)}
+        title="Out of Site - Exception Request"
+        size="lg"
+      >
+        <div className="p-5 space-y-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800">
+            {geoContext.distanceMeters != null ? (
+              <span>
+                You are <strong>{geoContext.distanceMeters}m</strong> away from the configured site radius of <strong>{geoContext.radiusMeters}m</strong>.
+              </span>
+            ) : (
+              <span>Configured site is unavailable or you are outside allowed range.</span>
+            )}
+            <div className="mt-1 text-[11px]">Direct attendance is blocked. You can submit an exception request to HR.</div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-700 mb-1">Selfie (required)</label>
+            <input
+              type="file"
+              accept="image/*"
+              capture="user"
+              onChange={(e) => setExceptionForm(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
+              className="w-full text-sm border border-gray-200 rounded-lg p-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-700 mb-1">Reason (required)</label>
+            <textarea
+              value={exceptionForm.reason}
+              onChange={(e) => setExceptionForm(prev => ({ ...prev, reason: e.target.value }))}
+              className="w-full min-h-[90px] text-sm border border-gray-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              placeholder="Explain site visit / field movement context..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowExceptionModal(false)}
+              className="h-10 px-4 rounded-lg border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={submittingAttendance}
+              onClick={handleExceptionSubmit}
+              className="h-10 px-4 rounded-lg bg-amber-600 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-700 disabled:opacity-50"
+            >
+              {submittingAttendance ? 'Submitting...' : 'Submit Exception'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

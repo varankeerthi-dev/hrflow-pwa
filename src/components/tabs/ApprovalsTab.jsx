@@ -17,6 +17,7 @@ import {
   getDoc
 } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
+import AttendanceApprovalQueue from './AttendanceApprovalQueue'
 import { formatINR } from '../../lib/salaryUtils'
 import { logActivity } from '../../hooks/useActivityLog'
 import { 
@@ -140,7 +141,7 @@ export default function ApprovalsTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   
-  const [activeSubTab, setActiveSubTab] = useState('advance-expense') // 'advance-expense', 'leave-permission', or 'payment-queue'
+  const [activeSubTab, setActiveSubTab] = useState('advance-expense') // 'advance-expense', 'leave-permission', 'attendance-queue', or 'payment-queue'
   const [loading, setLoading] = useState(false)
   const [successStatus, setSuccessStatus] = useState({}) // { [id]: 'Success message' }
   const [errorStatus, setErrorStatus] = useState({}) // { [id]: 'Error message' }
@@ -182,6 +183,7 @@ export default function ApprovalsTab() {
   const isAccountant = isAdmin || user?.role?.toLowerCase() === 'accountant' || user?.permissions?.isAccountant === true
   const isMD = isAdmin || user?.role?.toLowerCase() === 'md'
   const isHR = isAdmin || user?.role?.toLowerCase() === 'hr'
+  const canManageAttendance = isAdmin || isHR || canApprove
 
   const handleToggleSelect = (id) => {
     setSelectedIds(prev => 
@@ -291,6 +293,9 @@ export default function ApprovalsTab() {
   const fetchData = async () => {
     setLoading(true)
     try {
+      if (activeSubTab === 'attendance-queue') {
+        return
+      }
       if (activeSubTab === 'advance-expense' || activeSubTab === 'payment-queue') {
         const q = query(
           collection(db, 'organisations', user.orgId, 'advances_expenses'),
@@ -881,6 +886,14 @@ export default function ApprovalsTab() {
               </span>
             )}
           </button>
+          {canManageAttendance && (
+            <button
+              onClick={() => setActiveSubTab('attendance-queue')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${activeSubTab === 'attendance-queue' ? 'bg-sky-600 text-white shadow-xl shadow-sky-100 translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600 hover:bg-white/50'}`}
+            >
+              Attendance Queue
+            </button>
+          )}
           {isAccountant && (
             <button 
               onClick={() => setActiveSubTab('payment-queue')}
@@ -897,7 +910,9 @@ export default function ApprovalsTab() {
         </div>
       </div>
 
-      {loading ? (
+      {activeSubTab === 'attendance-queue' ? (
+        <AttendanceApprovalQueue user={user} canManage={canManageAttendance} />
+      ) : loading ? (
         <div className="py-20 flex justify-center"><Spinner /></div>
       ) : activeSubTab === 'payment-queue' ? (
         <>

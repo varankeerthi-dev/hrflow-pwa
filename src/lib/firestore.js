@@ -16,10 +16,40 @@ export const shiftsCol = (orgId) =>
 export const attendanceCol = (orgId) =>
   collection(db, 'organisations', orgId, 'attendance')
 
+export const attendanceFinalCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'attendance_final')
+
 export const attendanceDocId = (date, empId) => `${date}_${empId}`
 
 export const attendanceDoc = (orgId, date, empId) =>
   doc(db, 'organisations', orgId, 'attendance', `${date}_${empId}`)
+
+export const attendanceFinalDoc = (orgId, date, empId) =>
+  doc(db, 'organisations', orgId, 'attendance_final', `${date}_${empId}`)
+
+export const sitesCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'sites')
+
+export const siteDoc = (orgId, siteId) =>
+  doc(db, 'organisations', orgId, 'sites', siteId)
+
+export const pendingAttendanceCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'pending_attendance')
+
+export const pendingAttendanceDoc = (orgId, pendingId) =>
+  doc(db, 'organisations', orgId, 'pending_attendance', pendingId)
+
+export const employeePortalCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'employee_portal')
+
+export const employeePortalDoc = (orgId, employeeId) =>
+  doc(db, 'organisations', orgId, 'employee_portal', employeeId)
+
+export const employeePortalAttendanceLogsCol = (orgId, employeeId) =>
+  collection(db, 'organisations', orgId, 'employee_portal', employeeId, 'attendance_logs')
+
+export const employeePortalAttendanceLogDoc = (orgId, employeeId, logId) =>
+  doc(db, 'organisations', orgId, 'employee_portal', employeeId, 'attendance_logs', logId)
 
 export const correctionsCol = (orgId) =>
   collection(db, 'organisations', orgId, 'corrections')

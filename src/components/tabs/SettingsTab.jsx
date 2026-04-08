@@ -6,7 +6,7 @@ import { db, storage, auth, secondaryAuth } from '../../lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp, deleteDoc, where, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check, Search, AtSign, AlertCircle } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check, Search, AtSign, AlertCircle, MapPin, Crosshair } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -190,6 +190,12 @@ const settingsSubTabMeta = {
     kicker: 'Calendar',
     pill: 'Time off',
   },
+  site_geofence: {
+    title: 'Site Geofencing',
+    description: 'Configure site coordinates and proximity radius to control where attendance can be captured.',
+    kicker: 'Location control',
+    pill: 'Geofence',
+  },
   approval_settings: {
     title: 'Approval Workflows',
     description: 'Tune request approvals with clearer staging, stronger hierarchy, and easier decision visibility.',
@@ -249,6 +255,7 @@ export default function SettingsTab() {
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
     { id: 'advance_cat', label: 'Advance Cats', module: 'AdvanceExpense' },
     { id: 'holidays', label: 'Holidays', module: 'Settings' },
+    { id: 'site_geofence', label: 'Site Geofence', module: 'Settings' },
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' }
   ]
   
@@ -276,6 +283,16 @@ export default function SettingsTab() {
     name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: '', code: '', shiftStrategy: 'Day', logoURL: '',
     advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
     holidays: []
+  })
+  const [sites, setSites] = useState([])
+  const [editingSiteId, setEditingSiteId] = useState(null)
+  const [siteForm, setSiteForm] = useState({
+    siteName: '',
+    latitude: '',
+    longitude: '',
+    radiusMeters: 500,
+    notes: '',
+    active: true,
   })
   const [newAdvanceCategory, setNewAdvanceCategory] = useState('')
   const [newHoliday, setNewHoliday] = useState({ name: '', date: '' })
@@ -1446,6 +1463,15 @@ export default function SettingsTab() {
     return () => unsubscribe()
   }, [user?.orgId])
 
+  useEffect(() => {
+    if (!user?.orgId) return
+    const q = query(collection(db, 'organisations', user.orgId, 'sites'), orderBy('siteName', 'asc'))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setSites(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+    return () => unsubscribe()
+  }, [user?.orgId])
+
   const handleSaveApproval = async () => {
     if (!user?.orgId) return
     try {
@@ -1503,6 +1529,244 @@ export default function SettingsTab() {
       console.error('Delete approval error:', err)
       alert('Failed to delete.')
     }
+  }
+
+  const resetSiteForm = () => {
+    setEditingSiteId(null)
+    setSiteForm({
+      siteName: '',
+      latitude: '',
+      longitude: '',
+      radiusMeters: 500,
+      notes: '',
+      active: true,
+    })
+  }
+
+  const handleSaveSite = async () => {
+    if (!user?.orgId) return
+    const siteName = siteForm.siteName.trim()
+    const latitude = Number(siteForm.latitude)
+    const longitude = Number(siteForm.longitude)
+    const radiusMeters = Number(siteForm.radiusMeters) || 500
+
+    if (!siteName) {
+      alert('Site name is required.')
+      return
+    }
+    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+      alert('Please provide valid latitude and longitude values.')
+      return
+    }
+    if (radiusMeters < 50 || radiusMeters > 5000) {
+      alert('Radius must be between 50m and 5000m.')
+      return
+    }
+
+    const payload = {
+      siteName,
+      latitude,
+      longitude,
+      radiusMeters,
+      notes: siteForm.notes?.trim() || '',
+      active: siteForm.active !== false,
+      updatedAt: serverTimestamp(),
+      updatedBy: user.uid,
+    }
+
+    try {
+      if (editingSiteId) {
+        await updateDoc(doc(db, 'organisations', user.orgId, 'sites', editingSiteId), payload)
+      } else {
+        await addDoc(collection(db, 'organisations', user.orgId, 'sites'), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid,
+        })
+      }
+      resetSiteForm()
+    } catch (error) {
+      alert(`Failed to save site: ${error.message}`)
+    }
+  }
+
+  const handleEditSite = (site) => {
+    setEditingSiteId(site.id)
+    setSiteForm({
+      siteName: site.siteName || '',
+      latitude: site.latitude ?? '',
+      longitude: site.longitude ?? '',
+      radiusMeters: site.radiusMeters ?? 500,
+      notes: site.notes || '',
+      active: site.active !== false,
+    })
+  }
+
+  const handleDeleteSite = async (siteId) => {
+    if (!user?.orgId) return
+    if (!confirm('Delete this site geofence configuration?')) return
+    try {
+      await deleteDoc(doc(db, 'organisations', user.orgId, 'sites', siteId))
+      if (editingSiteId === siteId) resetSiteForm()
+    } catch (error) {
+      alert(`Failed to delete site: ${error.message}`)
+    }
+  }
+
+  const renderSiteGeofenceSettings = () => {
+    return (
+      <div className="space-y-6 no-print">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 space-y-6">
+          <div>
+            <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest">Site Geofence Configuration</h2>
+            <p className="text-xs text-gray-400 font-medium mt-1">
+              Define site coordinates and radius used for attendance check-in and check-out validation.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="lg:col-span-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Site Name</label>
+              <input
+                type="text"
+                value={siteForm.siteName}
+                onChange={e => setSiteForm(prev => ({ ...prev, siteName: e.target.value }))}
+                placeholder="Ex: Chennai Warehouse"
+                className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Latitude</label>
+              <input
+                type="number"
+                step="any"
+                value={siteForm.latitude}
+                onChange={e => setSiteForm(prev => ({ ...prev, latitude: e.target.value }))}
+                placeholder="12.9716"
+                className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Longitude</label>
+              <input
+                type="number"
+                step="any"
+                value={siteForm.longitude}
+                onChange={e => setSiteForm(prev => ({ ...prev, longitude: e.target.value }))}
+                placeholder="80.2206"
+                className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Radius (meters)</label>
+              <input
+                type="number"
+                min="50"
+                max="5000"
+                value={siteForm.radiusMeters}
+                onChange={e => setSiteForm(prev => ({ ...prev, radiusMeters: e.target.value }))}
+                className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+            <div className="lg:col-span-3">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Notes</label>
+              <input
+                type="text"
+                value={siteForm.notes}
+                onChange={e => setSiteForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Optional notes (route, shift constraints, etc.)"
+                className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+            <div className="flex items-end">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700 font-medium">
+                <input
+                  type="checkbox"
+                  checked={siteForm.active !== false}
+                  onChange={e => setSiteForm(prev => ({ ...prev, active: e.target.checked }))}
+                />
+                Active site
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleSaveSite}
+              className="h-11 px-5 rounded-xl bg-indigo-600 text-white text-xs font-black uppercase tracking-[0.14em] hover:bg-indigo-700 transition-all flex items-center gap-2"
+            >
+              <Save size={14} /> {editingSiteId ? 'Update Site' : 'Save Site'}
+            </button>
+            {editingSiteId && (
+              <button
+                onClick={resetSiteForm}
+                className="h-11 px-5 rounded-xl bg-gray-100 text-gray-600 text-xs font-black uppercase tracking-[0.14em] hover:bg-gray-200 transition-all"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+            <MapPin size={16} className="text-indigo-500" />
+            <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">Configured Sites</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px]">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Site</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Coordinates</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Radius</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</th>
+                  <th className="px-4 py-3 text-right text-[10px] font-black text-gray-500 uppercase tracking-widest">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {sites.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400 uppercase tracking-widest">No sites configured yet</td>
+                  </tr>
+                ) : sites.map(site => (
+                  <tr key={site.id} className="hover:bg-gray-50/70">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Crosshair size={14} className="text-indigo-500" />
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">{site.siteName || 'Site'}</p>
+                          {site.notes ? <p className="text-[11px] text-gray-500">{site.notes}</p> : null}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {Number(site.latitude).toFixed(6)}, {Number(site.longitude).toFixed(6)}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-700">{site.radiusMeters || 500}m</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${site.active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {site.active !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleEditSite(site)} className="h-8 px-3 rounded-lg border border-gray-200 text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDeleteSite(site.id)} className="h-8 px-3 rounded-lg border border-rose-200 text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-50">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const renderApprovalSettings = () => {
@@ -2219,6 +2483,8 @@ export default function SettingsTab() {
             </div>
           </div>
         )}
+
+        {activeSubTab === 'site_geofence' && renderSiteGeofenceSettings()}
 
         {activeSubTab === 'approval_settings' && renderApprovalSettings()}
 

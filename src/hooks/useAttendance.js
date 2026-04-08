@@ -119,40 +119,50 @@ export function useAttendance(orgId) {
   }, [orgId])
 
   const recalculateOTForEmployee = useCallback(async (employeeId, effectiveDate, minDailyHours) => {
-    if (!orgId || !employeeId || !effectiveDate) return 0
+    if (!orgId || !employeeId || !effectiveDate) {
+      return { matchedCount: 0, recalculatedCount: 0 }
+    }
     setLoading(true)
     try {
       const q = query(
         attendanceCol(orgId),
-        where('employeeId', '==', employeeId),
-        where('date', '>=', effectiveDate)
+        where('employeeId', '==', employeeId)
       )
       const snapshot = await getDocs(q)
-      
-      let updatedCount = 0
-      const batch = snapshot.docs.map(d => {
+
+      const recordsFromEffectiveDate = snapshot.docs.filter(d => {
+        const recordDate = d.data()?.date
+        return typeof recordDate === 'string' && recordDate >= effectiveDate
+      })
+
+      let recalculatedCount = 0
+      const batch = recordsFromEffectiveDate.map(d => {
         const data = d.data()
-        // Only recalculate if we have both in and out times
-        if (data.inTime && data.outTime) {
-          const newOTHours = calcOT(data.inTime, data.outTime, data.date, data.outDate || data.date, minDailyHours)
-          updatedCount++
-          return setDoc(attendanceDoc(orgId, data.date, employeeId), {
-            ...data,
-            otHours: newOTHours,
-            recalcWorkHours: minDailyHours,
-            recalcMinDailyHours: minDailyHours,
-            recalculatedAt: serverTimestamp(),
-            recalculatedBy: user?.uid || 'system'
-          }, { merge: true })
+        const nextPayload = {
+          ...data,
+          minDailyHours,
+          recalcWorkHours: minDailyHours,
+          recalcMinDailyHours: minDailyHours,
+          recalculatedAt: serverTimestamp(),
+          recalculatedBy: user?.uid || 'system'
         }
-        return Promise.resolve()
+
+        if (data.inTime && data.outTime) {
+          nextPayload.otHours = calcOT(data.inTime, data.outTime, data.date, data.outDate || data.date, minDailyHours)
+          recalculatedCount++
+        }
+
+        return setDoc(attendanceDoc(orgId, data.date, employeeId), nextPayload, { merge: true })
       })
       
       await Promise.all(batch)
-      return updatedCount
+      return {
+        matchedCount: recordsFromEffectiveDate.length,
+        recalculatedCount
+      }
     } catch (e) {
       setError(e.message)
-      return 0
+      return { matchedCount: 0, recalculatedCount: 0 }
     } finally {
       setLoading(false)
     }

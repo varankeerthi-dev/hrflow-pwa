@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
-import { useAttendance, calcOT } from '../../hooks/useAttendance'
+import { useAttendance } from '../../hooks/useAttendance'
 import { attendanceCol } from '../../lib/firestore'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, deleteDoc, doc } from 'firebase/firestore'
@@ -9,10 +9,13 @@ import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
 import TimePicker from '../ui/TimePicker'
+import SelfieCaptureModal from '../ui/SelfieCaptureModal'
 import { useLeaves } from '../../hooks/useLeaves'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
+import { getAttendancePortalBadge, ATTENDANCE_EVENT_IN, ATTENDANCE_EVENT_OUT, ATTENDANCE_STATUS_REJECTED } from '../../lib/attendanceWorkflow'
+import { compressSelfieBlob, evaluateSiteProximity, getCurrentPositionOnce, getOrgSites, resolveTargetSite, submitPendingAttendanceEvent, uploadTempSelfie } from '../../lib/geoAttendanceService'
 import { 
   User, 
   Calendar, 
@@ -47,7 +50,7 @@ import {
 export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashboard' }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId)
-  const { fetchByDate, upsertAttendance } = useAttendance(user?.orgId)
+  const { fetchByDate } = useAttendance(user?.orgId)
   const { applyLeave } = useLeaves(user?.orgId)
 
   const employee = useMemo(() => {
@@ -141,11 +144,27 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const [attendanceRows, setAttendanceRows] = useState([])
   const [todayRecord, setTodayRecord] = useState(null)
   const [viewerState, setViewerState] = useState(null) // { docs, index }
+  const [portalAttendanceLogs, setPortalAttendanceLogs] = useState([])
+  const [showSelfieCaptureModal, setShowSelfieCaptureModal] = useState(false)
+  const [captureEventType, setCaptureEventType] = useState(ATTENDANCE_EVENT_IN)
+  const [geoContext, setGeoContext] = useState({
+    currentCoordinates: null,
+    targetSite: null,
+    targetCoordinates: null,
+    distanceMeters: null,
+    radiusMeters: 500,
+    withinRange: false,
+    locationError: '',
+  })
+  const [submittingAttendance, setSubmittingAttendance] = useState(false)
+  const [showExceptionModal, setShowExceptionModal] = useState(false)
+  const [exceptionForm, setExceptionForm] = useState({ reason: '', file: null })
 
   useEffect(() => {
     if (!user?.orgId || empLoading || !user?.email) return
     if (employeeId) {
       fetchRequests()
+      fetchPortalAttendanceLogs()
     }
   }, [user?.orgId, employeeId, empLoading, user?.email])
 
@@ -225,6 +244,37 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
       setLoading(false)
     }
   }
+
+  const fetchPortalAttendanceLogs = async () => {
+    if (!user?.orgId || !employeeId) return
+    try {
+      const logQuery = query(
+        collection(db, 'organisations', user.orgId, 'employee_portal', employeeId, 'attendance_logs'),
+        orderBy('eventDate', 'desc')
+      )
+      const snapshot = await getDocs(logQuery)
+      setPortalAttendanceLogs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+    } catch (error) {
+      console.error('Failed to fetch portal attendance logs:', error)
+    }
+  }
+
+  const todayDateKey = new Date().toISOString().split('T')[0]
+  const todayLogs = portalAttendanceLogs.filter(log => log.eventDate === todayDateKey)
+  const getLatestLogByType = (logs, type) => {
+    return logs
+      .filter(log => log.type === type)
+      .sort((a, b) => {
+        const aTs = a.clientTimestamp ? new Date(a.clientTimestamp).getTime() : 0
+        const bTs = b.clientTimestamp ? new Date(b.clientTimestamp).getTime() : 0
+        return bTs - aTs
+      })[0] || null
+  }
+
+  const latestTodayInLog = getLatestLogByType(todayLogs, ATTENDANCE_EVENT_IN)
+  const latestTodayOutLog = getLatestLogByType(todayLogs, ATTENDANCE_EVENT_OUT)
+  const validInLog = latestTodayInLog && latestTodayInLog.status !== ATTENDANCE_STATUS_REJECTED
+  const validOutLog = latestTodayOutLog && latestTodayOutLog.status !== ATTENDANCE_STATUS_REJECTED
 
   const handleWithdraw = async (reqId, source) => {
     if (!window.confirm('Are you sure you want to withdraw this request?')) return
@@ -367,49 +417,107 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     }
   }
 
-  const handleCheckIn = async () => {
-    if (!employeeId) return
-    const today = new Date().toISOString().split('T')[0]
-    const now = new Date()
-    const timeStr = now.toTimeString().slice(0, 5)
+  const openGeoAttendanceCapture = async (type) => {
+    if (!employeeId || !employee) return
+    if (!user?.orgId) return
 
-    const records = await fetchByDate(today)
-    const mine = records.find(r => r.employeeId === employeeId)
+    setCaptureEventType(type)
+    setGeoContext({
+      currentCoordinates: null,
+      targetSite: null,
+      targetCoordinates: null,
+      distanceMeters: null,
+      radiusMeters: 500,
+      withinRange: false,
+      locationError: '',
+    })
 
-    const row = mine || {
-      employeeId,
-      name: employee?.name || user.name,
-      date: today,
-      inDate: today,
-      outDate: today,
-      outTime: '',
-      otHours: '00:00',
-      isAbsent: false,
-      sundayWorked: false,
-      sundayHoliday: false,
-      status: 'Present',
-    }
+    try {
+      const currentCoordinates = await getCurrentPositionOnce()
+      const sites = await getOrgSites(user.orgId)
+      const targetSite = resolveTargetSite(employee, sites)
+      const proximity = evaluateSiteProximity({ currentCoordinates, targetSite })
 
-    if (!row.inTime) {
-      row.inTime = timeStr
-      await upsertAttendance([row])
-      setTodayRecord(row)
+      const nextGeoContext = {
+        currentCoordinates,
+        targetSite,
+        targetCoordinates: proximity.targetCoordinates,
+        distanceMeters: proximity.distanceMeters,
+        radiusMeters: proximity.radiusMeters,
+        withinRange: proximity.withinRange,
+        locationError: '',
+      }
+      setGeoContext(nextGeoContext)
+
+      if (proximity.withinRange) {
+        setShowSelfieCaptureModal(true)
+      } else {
+        setExceptionForm({ reason: '', file: null })
+        setShowExceptionModal(true)
+      }
+    } catch (error) {
+      setGeoContext(prev => ({ ...prev, locationError: error.message || 'Location fetch failed.' }))
+      alert(error.message || 'Failed to fetch location.')
     }
   }
 
-  const handleCheckOut = async () => {
-    if (!employeeId) return
-    const today = new Date().toISOString().split('T')[0]
-    const now = new Date()
-    const timeStr = now.toTimeString().slice(0, 5)
-    const records = await fetchByDate(today)
-    const mine = records.find(r => r.employeeId === employeeId)
-    if (!mine) return
+  const submitGeoAttendance = async ({ imageBlob, isException, exceptionReason }) => {
+    if (!user?.orgId || !employee) return
+    setSubmittingAttendance(true)
+    try {
+      const timestamp = Date.now()
+      const compressed = await compressSelfieBlob(imageBlob, 100)
+      const { photoPath, photoUrl } = await uploadTempSelfie({
+        orgId: user.orgId,
+        userId: employee.id || user.uid,
+        timestamp,
+        fileBlob: compressed,
+      })
 
-    mine.outTime = timeStr
-    mine.otHours = calcOT(mine.inTime, mine.outTime, mine.inDate, mine.outDate, mine.minDailyHours || 8)
-    await upsertAttendance([mine])
-    setTodayRecord(mine)
+      await submitPendingAttendanceEvent({
+        orgId: user.orgId,
+        user,
+        employee,
+        type: captureEventType,
+        site: geoContext.targetSite,
+        targetCoordinates: geoContext.targetCoordinates,
+        currentCoordinates: geoContext.currentCoordinates,
+        distanceMeters: geoContext.distanceMeters,
+        radiusMeters: geoContext.radiusMeters,
+        photoUrl,
+        photoPath,
+        isException,
+        exceptionReason,
+      })
+
+      setShowSelfieCaptureModal(false)
+      setShowExceptionModal(false)
+      await fetchPortalAttendanceLogs()
+      alert(isException ? 'Exception request submitted to HR.' : 'Attendance submitted for HR approval.')
+    } catch (error) {
+      alert(error.message || 'Failed to submit attendance.')
+    } finally {
+      setSubmittingAttendance(false)
+    }
+  }
+
+  const handleCheckIn = async () => openGeoAttendanceCapture(ATTENDANCE_EVENT_IN)
+  const handleCheckOut = async () => openGeoAttendanceCapture(ATTENDANCE_EVENT_OUT)
+
+  const handleExceptionSubmit = async () => {
+    if (!exceptionForm.file) {
+      alert('Please capture/upload a selfie for exception request.')
+      return
+    }
+    if (!exceptionForm.reason.trim()) {
+      alert('Please provide reason for out-of-site attendance request.')
+      return
+    }
+    await submitGeoAttendance({
+      imageBlob: exceptionForm.file,
+      isException: true,
+      exceptionReason: exceptionForm.reason.trim(),
+    })
   }
 
   const getStatusLabel = (rec) => {
@@ -559,14 +667,14 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
-                {!todayRecord?.inTime ? (
+                {!(validInLog || todayRecord?.inTime) ? (
                   <button
                     onClick={handleCheckIn}
                     className="h-[46px] px-8 rounded-xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/10 hover:bg-emerald-700 transition-all active:scale-95"
                   >
                     <Play size={18} fill="currentColor" /> Check-In
                   </button>
-                ) : !todayRecord?.outTime ? (
+                ) : !(validOutLog || todayRecord?.outTime) ? (
                   <button
                     onClick={handleCheckOut}
                     className="h-[46px] px-8 rounded-xl bg-rose-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl shadow-rose-900/10 hover:bg-rose-700 transition-all active:scale-95"
@@ -585,6 +693,16 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                   <Plus size={18} strokeWidth={3} /> Apply Leave
                 </button>
               </div>
+              {geoContext.distanceMeters != null && (
+                <div className="mt-3 text-[11px] font-semibold text-gray-600">
+                  You are <span className="text-indigo-600 font-black">{geoContext.distanceMeters}m</span> from {geoContext.targetSite?.siteName || employee?.site || 'assigned site'}.
+                </div>
+              )}
+              {geoContext.locationError && (
+                <div className="mt-2 text-[11px] text-rose-600 font-medium">
+                  {geoContext.locationError}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -592,17 +710,30 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                   Today&apos;s Attendance
                 </p>
-                {todayRecord ? (
+                {(todayRecord || validInLog || validOutLog) ? (
                   <div className="space-y-2 text-[13px]">
                     <p className="font-semibold text-gray-800">
-                      Status: {getStatusLabel(todayRecord)}
+                      Status: {validOutLog ? 'Checkout Submitted' : validInLog ? 'Check-in Submitted' : getStatusLabel(todayRecord)}
                     </p>
                     <p className="text-gray-500">
-                      In: {todayRecord.inTime ? formatTimeTo12Hour(todayRecord.inTime) : '—'}
+                      In: {validInLog?.eventTime ? formatTimeTo12Hour(validInLog.eventTime) : todayRecord?.inTime ? formatTimeTo12Hour(todayRecord.inTime) : '—'}
                     </p>
                     <p className="text-gray-500">
-                      Out: {todayRecord.outTime ? formatTimeTo12Hour(todayRecord.outTime) : '—'}
+                      Out: {validOutLog?.eventTime ? formatTimeTo12Hour(validOutLog.eventTime) : todayRecord?.outTime ? formatTimeTo12Hour(todayRecord.outTime) : '—'}
                     </p>
+                    {(validOutLog || validInLog) && (
+                      <div>
+                        {(() => {
+                          const latestLog = validOutLog || validInLog
+                          const badge = getAttendancePortalBadge(latestLog.status)
+                          return (
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${badge.className}`}>
+                              {badge.label}
+                            </span>
+                          )
+                        })()}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-[13px] text-gray-400">No record yet for today.</p>
@@ -940,6 +1071,16 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                     const rec = r.record
                     const d = new Date(r.date)
                     const dayOfWeek = d.getDay()
+                    const dayLogs = portalAttendanceLogs
+                      .filter(log => log.eventDate === r.date)
+                      .sort((a, b) => {
+                        const aTs = a.clientTimestamp ? new Date(a.clientTimestamp).getTime() : 0
+                        const bTs = b.clientTimestamp ? new Date(b.clientTimestamp).getTime() : 0
+                        return bTs - aTs
+                      })
+                    const inLog = dayLogs.find(log => log.type === ATTENDANCE_EVENT_IN)
+                    const outLog = dayLogs.find(log => log.type === ATTENDANCE_EVENT_OUT)
+                    const latestPortalStatus = dayLogs[0]?.status
                     const label = d.toLocaleDateString(undefined, {
                       day: '2-digit',
                       month: 'short',
@@ -952,7 +1093,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                           {dayOfWeek === 0 && <span className="ml-2 text-[9px] font-bold text-orange-500 uppercase">Sun</span>}
                         </td>
                         <td className="px-4 text-[12px] text-center text-gray-800">
-                          {rec?.inTime ? formatTimeTo12Hour(rec.inTime) : '—'}
+                          {rec?.inTime ? formatTimeTo12Hour(rec.inTime) : inLog?.eventTime ? formatTimeTo12Hour(inLog.eventTime) : '—'}
                         </td>
                         <td className="px-4 text-[12px] text-center text-gray-800">
                           {rec?.outTime ? (
@@ -960,7 +1101,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                               {isOvernight && <span className="text-[10px] text-indigo-500">→</span>}
                               {formatTimeTo12Hour(rec.outTime)}
                             </span>
-                          ) : '—'}
+                          ) : outLog?.eventTime ? formatTimeTo12Hour(outLog.eventTime) : '—'}
                         </td>
                         <td className="px-4 text-[12px] text-center text-gray-900 font-mono">
                           {rec?.otHours || '00:00'}
@@ -969,7 +1110,16 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                           {rec?.advanceAmount ? `₹${rec.advanceAmount}` : '—'}
                         </td>
                         <td className="px-4 text-[11px] text-center">
-                          {rec?.sundayWorked ? (
+                          {latestPortalStatus ? (
+                            (() => {
+                              const badge = getAttendancePortalBadge(latestPortalStatus)
+                              return (
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${badge.className}`}>
+                                  {badge.label}
+                                </span>
+                              )
+                            })()
+                          ) : rec?.sundayWorked ? (
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-100 text-amber-700">
                               Sun Worked
                             </span>
@@ -1461,6 +1611,81 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
             </button>
           </div>
         </form>
+      </Modal>
+
+      <SelfieCaptureModal
+        isOpen={showSelfieCaptureModal}
+        onClose={() => setShowSelfieCaptureModal(false)}
+        title={captureEventType === ATTENDANCE_EVENT_IN ? 'Check-In Selfie' : 'Check-Out Selfie'}
+        helperText={
+          geoContext.distanceMeters != null
+            ? `You are ${geoContext.distanceMeters}m from ${geoContext.targetSite?.siteName || employee?.site || 'assigned site'}. Capture selfie to submit for HR approval.`
+            : 'Capture selfie to submit attendance for HR approval.'
+        }
+        allowCapture={geoContext.withinRange}
+        confirmLabel={submittingAttendance ? 'Submitting...' : 'Submit For Approval'}
+        onConfirm={async (blob) => {
+          await submitGeoAttendance({ imageBlob: blob, isException: false, exceptionReason: '' })
+        }}
+      />
+
+      <Modal
+        isOpen={showExceptionModal}
+        onClose={() => setShowExceptionModal(false)}
+        title="Out of Site - Exception Request"
+        size="lg"
+      >
+        <div className="p-5 space-y-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800">
+            {geoContext.distanceMeters != null ? (
+              <span>
+                You are <strong>{geoContext.distanceMeters}m</strong> away from the configured site radius of <strong>{geoContext.radiusMeters}m</strong>.
+              </span>
+            ) : (
+              <span>Configured site is unavailable or you are outside allowed range.</span>
+            )}
+            <div className="mt-1 text-[11px]">Direct attendance is blocked. You can submit an exception request to HR.</div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-700 mb-1">Selfie (required)</label>
+            <input
+              type="file"
+              accept="image/*"
+              capture="user"
+              onChange={(e) => setExceptionForm(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
+              className="w-full text-sm border border-gray-200 rounded-lg p-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-700 mb-1">Reason (required)</label>
+            <textarea
+              value={exceptionForm.reason}
+              onChange={(e) => setExceptionForm(prev => ({ ...prev, reason: e.target.value }))}
+              className="w-full min-h-[90px] text-sm border border-gray-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              placeholder="Explain site visit / field movement context..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowExceptionModal(false)}
+              className="h-10 px-4 rounded-lg border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={submittingAttendance}
+              onClick={handleExceptionSubmit}
+              className="h-10 px-4 rounded-lg bg-amber-600 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-700 disabled:opacity-50"
+            >
+              {submittingAttendance ? 'Submitting...' : 'Submit Exception'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

@@ -315,8 +315,25 @@ export default function SalarySlipTab() {
     return [...advRows, ...expRows].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
   }
 
+  const configuredHolidayDates = useMemo(() => {
+    const holidayList = Array.isArray(orgData?.holidays) ? orgData.holidays : []
+    return new Set(
+      holidayList
+        .map(h => (typeof h?.date === 'string' ? h.date : ''))
+        .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    )
+  }, [orgData?.holidays])
+
+  const isWorkedAttendanceRecord = (record) => {
+    if (!record || record.isAbsent) return false
+    if (record.sundayHoliday) return false
+    const status = String(record.status || '').toLowerCase()
+    if (status === 'absent' || status === 'sunholiday') return false
+    return true
+  }
+
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
-    queryKey: ['attendanceSummary', user?.orgId, summaryMonth, orgData?.employeeRowOrder],
+    queryKey: ['attendanceSummary', user?.orgId, summaryMonth, orgData?.employeeRowOrder, orgData?.holidays],
     queryFn: async () => {
       if (!user?.orgId || !sortedEmployees.length) return []
       const [y, m] = summaryMonth.split('-').map(Number)
@@ -339,12 +356,48 @@ export default function SalarySlipTab() {
       
       return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) => {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
+        const attendanceByDate = new Map(empAtt.map(a => [a.date, a]))
         let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunW = 0, holW = 0
         for (let i = 1; i <= daysInMonth; i++) {
-          const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isSunday = d.getDay() === 0, r = empAtt.find(a => a.date === dateStr)
+          const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`
+          const d = new Date(y, m - 1, i)
+          const isSunday = d.getDay() === 0
+          const isConfiguredHoliday = configuredHolidayDates.has(dateStr) && !isSunday
+          const isHoliday = isSunday || isConfiguredHoliday
+          const r = attendanceByDate.get(dateStr)
+
           if (isSunday) sun++
-          if (r) { if (r.isAbsent) lop++; else if (r.sundayWorked) { sunW++; worked++ } else if (r.holidayWorked) { holW++; worked++ } else if (r.sundayHoliday) hol++; else worked++; if (r.otHours) { const [h, mi] = r.otHours.split(':').map(Number); otH += (h || 0) + (mi || 0) / 60 } }
-          else if (!isSunday) lop++
+          if (isConfiguredHoliday) hol++
+
+          const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
+          const saturdayWorkedSupport = isSunday && isWorkedAttendanceRecord(attendanceByDate.get(prevDate))
+          const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
+          const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
+          const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
+          const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
+
+          if (r?.isAbsent) {
+            lop++
+          } else if (isHoliday) {
+            if (isSunday) {
+              if (sundayWorked) {
+                sunW++
+                if (sundayWorkedFromRecord) worked++
+              }
+            } else if (holidayWorked) {
+              holW++
+              worked++
+            }
+          } else if (r) {
+            worked++
+          } else {
+            lop++
+          }
+
+          if (r?.otHours) {
+            const [h, mi] = r.otHours.split(':').map(Number)
+            otH += (h || 0) + (mi || 0) / 60
+          }
         }
         const slab = allIncrements.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, esiPercent: 0 }
         const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8, paidDays = daysInMonth - lop
@@ -465,14 +518,58 @@ export default function SalarySlipTab() {
       const [y, m] = selectedMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${selectedMonth}-01`, ed = `${selectedMonth}-${end}`
       const aDataSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp)));
       const aData = aDataSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed);
+      const attendanceByDate = new Map(aData.map(a => [a.date, a]))
       const slab = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
       const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8
-      let paid = 0, lop = 0, aOT = 0, sun = 0, sunW = 0, holW = 0, grid = []
+      let paid = 0, lop = 0, aOT = 0, sun = 0, hol = 0, sunW = 0, holW = 0, grid = []
       for (let i = 1; i <= end; i++) {
-        const d = new Date(y, m - 1, i), ds = d.toISOString().split('T')[0], isS = d.getDay() === 0, r = aData.find(a => a.date === ds);
-        let t = isS ? 'Sunday' : 'Absent'; if (isS) sun++
-        if (r) { if (r.isAbsent) t = 'Absent'; else if (r.sundayWorked) { t = 'Sunday Working'; sunW++ } else if (r.sundayHoliday) { t = 'Sunday Holiday'; holW++ } else t = 'Working'; if (r.otHours) { const [h, mi] = r.otHours.split(':').map(Number); aOT += (h || 0) + (mi || 0) / 60 } }
-        if (t === 'Absent') lop++; else paid++; grid.push({ date: i, type: t, ds })
+        const d = new Date(y, m - 1, i)
+        const ds = d.toISOString().split('T')[0]
+        const isS = d.getDay() === 0
+        const isConfiguredHoliday = configuredHolidayDates.has(ds) && !isS
+        const isHoliday = isS || isConfiguredHoliday
+        const r = attendanceByDate.get(ds)
+
+        if (isS) sun++
+        if (isConfiguredHoliday) hol++
+
+        const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
+        const saturdayWorkedSupport = isS && isWorkedAttendanceRecord(attendanceByDate.get(prevDate))
+        const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
+        const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
+        const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
+        const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
+
+        let t = isHoliday ? (isS ? 'Sunday' : 'Holiday') : 'Absent'
+
+        if (r?.isAbsent) {
+          t = 'Absent'
+          lop++
+        } else if (isHoliday) {
+          if (isS && sundayWorked) {
+            t = sundayWorkedFromRecord ? 'Sunday Working' : 'Sunday Working (Sat)'
+            sunW++
+          } else if (!isS && holidayWorked) {
+            t = 'Holiday Working'
+            holW++
+          } else if (isS && r?.sundayHoliday) {
+            t = 'Sunday Holiday'
+          }
+          paid++
+        } else if (r) {
+          t = 'Working'
+          paid++
+        } else {
+          t = 'Absent'
+          lop++
+        }
+
+        if (r?.otHours) {
+          const [h, mi] = r.otHours.split(':').map(Number)
+          aOT += (h || 0) + (mi || 0) / 60
+        }
+
+        grid.push({ date: i, type: t, ds })
       }
       const [otSRes, advSnap, loanSnap, fSnapRes, requestSnap, deletedAdvSnap] = await Promise.all([
         getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp))),
@@ -500,7 +597,7 @@ export default function SalarySlipTab() {
       }).reduce((s, c) => s + Number(c.partialAmount || c.amount), 0)
       const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100)
       const de = p + adv + emi + fineA, g = b + h + otP + reimb + sunP
-      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: aOT, otPay: otP, basic: b, hra: h, basicFull: ts * (slab.basicPercent / 100), hraFull: ts * (slab.hraPercent / 100), expenseReimbursement: reimb, sundayPay: sunP, grossEarnings: g, pf: p, esi: 0, it: 0, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun, sundayWorkedCount: sunW, holidayWorkedCount: holW, workedDaysCount: paid - sun, totalMonthDays: end })    
+      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: aOT, otPay: otP, basic: b, hra: h, basicFull: ts * (slab.basicPercent / 100), hraFull: ts * (slab.hraPercent / 100), expenseReimbursement: reimb, sundayPay: sunP, grossEarnings: g, pf: p, esi: 0, it: 0, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun + hol, sundayWorkedCount: sunW, holidayWorkedCount: holW, workedDaysCount: paid - (sun + hol), totalMonthDays: end })    
     } catch (e) { alert('Generation failed: ' + e.message); } finally { setLoading(false) }
   }
 
@@ -557,17 +654,17 @@ export default function SalarySlipTab() {
                         <div className="text-right"><h2 className="text-lg font-black text-slate-900 uppercase font-google-sans tracking-tight italic">Statement</h2><p className="text-[9px] font-black text-slate-500 mt-1 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase tracking-widest">{formatMonthDisplay(slipData.month)}</p></div>
                       </div>
                       <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-8 relative z-10 px-2">
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Name of the Employee</span><span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.name}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No.of Working Days</span><span className="text-[9px] font-bold text-slate-900">{slipData.workedDaysCount}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Employee N0</span><span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.empCode}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Worked Holidays</span><span className="text-[9px] font-bold text-slate-900">{slipData.holidayWorkedCount || 0}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Designation</span><span className="text-[9px] font-bold text-slate-900 uppercase">{slipData.employee?.designation || '-'}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No.of Holidays</span><span className="text-[9px] font-bold text-slate-900">{slipData.sundayCount}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">DOB</span><span className="text-[9px] font-bold text-slate-900">{formatDateDDMMYYYY(slipData.employee?.dob) || '-'}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No. of Leave Taken</span><span className="text-[9px] font-bold text-slate-900">{slipData.lopDays}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">DOJ</span><span className="text-[9px] font-bold text-slate-900">{formatDateDDMMYYYY(slipData.employee?.doj) || '-'}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">No. of days Paid</span><span className="text-[9px] font-bold text-slate-900">{slipData.paidDays}</span></div>
-                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Total No. of Days</span><span className="text-[9px] font-bold text-slate-900">{slipData.totalMonthDays}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">Name of the Employee</span><span className="text-[12px] font-bold text-slate-900 uppercase">{slipData.employee?.name}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">No.of Working Days</span><span className="text-[12px] font-bold text-slate-900">{slipData.workedDaysCount}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">Employee N0</span><span className="text-[12px] font-bold text-slate-900 uppercase">{slipData.employee?.empCode}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">Worked Holidays</span><span className="text-[12px] font-bold text-slate-900">{slipData.holidayWorkedCount || 0}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">Designation</span><span className="text-[12px] font-bold text-slate-900 uppercase">{slipData.employee?.designation || '-'}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">No.of Holidays</span><span className="text-[12px] font-bold text-slate-900">{slipData.sundayCount}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">DOB</span><span className="text-[12px] font-bold text-slate-900">{formatDateDDMMYYYY(slipData.employee?.dob) || '-'}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">No. of Leave Taken</span><span className="text-[12px] font-bold text-slate-900">{slipData.lopDays}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">DOJ</span><span className="text-[12px] font-bold text-slate-900">{formatDateDDMMYYYY(slipData.employee?.doj) || '-'}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">No. of days Paid</span><span className="text-[12px] font-bold text-slate-900">{slipData.paidDays}</span></div>
+                        <div className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">Total No. of Days</span><span className="text-[12px] font-bold text-slate-900">{slipData.totalMonthDays}</span></div>
                       </div>
                       <div className="flex justify-center gap-16 mb-6 py-4 bg-slate-50 rounded-xl px-4">
                         <div className="text-center"><p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Basic</p><p className="text-base font-black text-slate-900">{formatINR(slipData.basicFull)}</p></div>
