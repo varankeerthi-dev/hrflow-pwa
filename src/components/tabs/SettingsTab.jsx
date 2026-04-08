@@ -294,6 +294,9 @@ export default function SettingsTab() {
     notes: '',
     active: true,
   })
+  const [siteSearchQuery, setSiteSearchQuery] = useState('')
+  const [siteSearchResults, setSiteSearchResults] = useState([])
+  const [siteSearchLoading, setSiteSearchLoading] = useState(false)
   const [newAdvanceCategory, setNewAdvanceCategory] = useState('')
   const [newHoliday, setNewHoliday] = useState({ name: '', date: '' })
 
@@ -1533,6 +1536,8 @@ export default function SettingsTab() {
 
   const resetSiteForm = () => {
     setEditingSiteId(null)
+    setSiteSearchQuery('')
+    setSiteSearchResults([])
     setSiteForm({
       siteName: '',
       latitude: '',
@@ -1541,6 +1546,51 @@ export default function SettingsTab() {
       notes: '',
       active: true,
     })
+  }
+
+  const handleSiteLocationSearch = async () => {
+    const lookupValue = (siteSearchQuery || siteForm.siteName || '').trim()
+    if (lookupValue.length < 3) {
+      alert('Please enter at least 3 characters to search location.')
+      return
+    }
+    setSiteSearchLoading(true)
+    setSiteSearchResults([])
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(lookupValue)}`
+      )
+      if (!response.ok) {
+        throw new Error('Location search failed.')
+      }
+      const results = await response.json()
+      if (!Array.isArray(results) || results.length === 0) {
+        alert('No location results found. Try a more specific place name.')
+        return
+      }
+      setSiteSearchResults(results)
+    } catch (error) {
+      alert(`Unable to search location: ${error.message}`)
+    } finally {
+      setSiteSearchLoading(false)
+    }
+  }
+
+  const handleSelectSiteLocation = (result) => {
+    const latitude = Number(result?.lat)
+    const longitude = Number(result?.lon)
+    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+      alert('Selected location has invalid coordinates. Please try another result.')
+      return
+    }
+    setSiteForm(prev => ({
+      ...prev,
+      latitude: latitude.toFixed(6),
+      longitude: longitude.toFixed(6),
+      siteName: prev.siteName || String(result?.name || result?.display_name || '').split(',')[0].trim(),
+    }))
+    setSiteSearchQuery(result?.display_name || '')
+    setSiteSearchResults([])
   }
 
   const handleSaveSite = async () => {
@@ -1555,7 +1605,7 @@ export default function SettingsTab() {
       return
     }
     if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-      alert('Please provide valid latitude and longitude values.')
+      alert('Please search and select a valid map location before saving.')
       return
     }
     if (radiusMeters < 50 || radiusMeters > 5000) {
@@ -1592,6 +1642,8 @@ export default function SettingsTab() {
 
   const handleEditSite = (site) => {
     setEditingSiteId(site.id)
+    setSiteSearchResults([])
+    setSiteSearchQuery(site.siteName || '')
     setSiteForm({
       siteName: site.siteName || '',
       latitude: site.latitude ?? '',
@@ -1620,7 +1672,7 @@ export default function SettingsTab() {
           <div>
             <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest">Site Geofence Configuration</h2>
             <p className="text-xs text-gray-400 font-medium mt-1">
-              Define site coordinates and radius used for attendance check-in and check-out validation.
+              Search location on map, pick coordinates, and set geofence radius for attendance validation.
             </p>
           </div>
 
@@ -1635,27 +1687,61 @@ export default function SettingsTab() {
                 className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Latitude</label>
-              <input
-                type="number"
-                step="any"
-                value={siteForm.latitude}
-                onChange={e => setSiteForm(prev => ({ ...prev, latitude: e.target.value }))}
-                placeholder="12.9716"
-                className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Longitude</label>
-              <input
-                type="number"
-                step="any"
-                value={siteForm.longitude}
-                onChange={e => setSiteForm(prev => ({ ...prev, longitude: e.target.value }))}
-                placeholder="80.2206"
-                className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
+            <div className="lg:col-span-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Map Search</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={siteSearchQuery}
+                  onChange={e => setSiteSearchQuery(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleSiteLocationSearch()
+                    }
+                  }}
+                  placeholder="Search address, area, or landmark"
+                  className="flex-1 h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleSiteLocationSearch}
+                  className="h-11 px-4 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-[0.14em] hover:bg-indigo-100 transition-all flex items-center gap-2"
+                >
+                  <Search size={13} />
+                  {siteSearchLoading ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+              {(siteForm.latitude && siteForm.longitude) && (
+                <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[11px] text-gray-600">
+                  Selected: <span className="font-semibold">{Number(siteForm.latitude).toFixed(6)}, {Number(siteForm.longitude).toFixed(6)}</span>
+                  <a
+                    href={`https://www.google.com/maps?q=${siteForm.latitude},${siteForm.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-2 text-indigo-600 font-semibold hover:underline"
+                  >
+                    Open in map
+                  </a>
+                </div>
+              )}
+              {siteSearchResults.length > 0 && (
+                <div className="mt-2 rounded-xl border border-gray-200 bg-white shadow-sm max-h-56 overflow-y-auto">
+                  {siteSearchResults.map(result => (
+                    <button
+                      key={`${result.place_id}-${result.lat}-${result.lon}`}
+                      type="button"
+                      onClick={() => handleSelectSiteLocation(result)}
+                      className="w-full text-left px-3 py-2.5 border-b border-gray-100 last:border-b-0 hover:bg-indigo-50/50 transition-colors"
+                    >
+                      <p className="text-[12px] font-semibold text-gray-800 line-clamp-1">{result.display_name}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        {Number(result.lat).toFixed(6)}, {Number(result.lon).toFixed(6)}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Radius (meters)</label>
