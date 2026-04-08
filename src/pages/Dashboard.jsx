@@ -201,7 +201,15 @@ export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
-  const [isFeaturesExpanded, setIsFeaturesExpanded] = useState(true)
+  const [isFeaturesExpanded, setIsFeaturesExpanded] = useState(() => {
+    const saved = localStorage.getItem('isFeaturesExpanded')
+    return saved === 'true'
+  })
+
+  // Persist Features expansion state
+  useEffect(() => {
+    localStorage.setItem('isFeaturesExpanded', isFeaturesExpanded)
+  }, [isFeaturesExpanded])
 
   // Load Plus Jakarta Sans font (Enterprise SaaS design system)
   useEffect(() => {
