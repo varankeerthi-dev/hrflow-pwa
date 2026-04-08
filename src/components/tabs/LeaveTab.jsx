@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useLeaves } from '../../hooks/useLeaves'
+import { db } from '../../lib/firebase'
+import { collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore'
 import { 
   LayoutDashboard, 
   FileText, 
@@ -109,19 +111,27 @@ export default function LeaveTab() {
     
     try {
       const emp = employees.find(e => e.id === form.employeeId)
+      const approvalType = approvalSetting?.type || 'single'
+      const isNoApproval = approvalType === 'none'
       
       const payload = {
         ...form,
         employeeName: emp?.name || 'Unknown',
         orgId: user.orgId,
-        approvalType: approvalSetting?.type || 'single',
+        approvalType,
         currentStage: 0, // Start at stage 0
-        totalStages: approvalSetting?.type === 'multi' ? approvalSetting.stages.length : 1,
+        totalStages: approvalType === 'multi' ? approvalSetting.stages.length : 1,
         // deptHeadId is set to the first approver in the list if multi
-        deptHeadId: approvalSetting?.type === 'multi' ? form.approverIds[0] : (form.deptHeadId || ''),
-        deptHeadName: approvalSetting?.type === 'multi' 
+        deptHeadId: approvalType === 'multi' ? form.approverIds[0] : (form.deptHeadId || ''),
+        deptHeadName: approvalType === 'multi' 
           ? (employees.find(e => e.id === form.approverIds[0])?.name || 'Unknown')
-          : (employees.find(e => e.id === form.deptHeadId)?.name || 'Unknown')
+          : (employees.find(e => e.id === form.deptHeadId)?.name || 'Unknown'),
+        status: isNoApproval ? 'Approved' : 'Pending',
+        hrApproval: isNoApproval ? 'Approved' : 'Pending',
+        deptHeadApproval: isNoApproval ? 'Approved' : 'Pending',
+        mdApproval: isNoApproval ? 'Approved' : 'Pending',
+        approvedBy: isNoApproval ? user.uid : null,
+        approvedAt: isNoApproval ? serverTimestamp() : null
       }
 
       await applyLeave(payload)
@@ -282,6 +292,13 @@ export default function LeaveTab() {
                             </div>
                           ))}
                         </>
+                      )}
+
+                      {approvalSetting?.type === 'none' && (
+                        <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 flex items-start gap-2">
+                          <AlertCircle size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-emerald-700 font-medium">This leave request will be auto-approved because No Approval is configured.</p>
+                        </div>
                       )}
 
                       {(!approvalSetting || approvalSetting.type === 'single') && (

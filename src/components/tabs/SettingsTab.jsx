@@ -814,12 +814,20 @@ export default function SettingsTab() {
 
   const recalculateAttendanceOT = async (employeeId, effectiveDate, newMinDailyHours) => {
     try {
-      const updatedCount = await recalculateOTForEmployee(employeeId, effectiveDate, newMinDailyHours)
-      console.log(`Recalculated OT for ${updatedCount} attendance records from ${effectiveDate}`)
-      return updatedCount
+      const recalcResult = await recalculateOTForEmployee(employeeId, effectiveDate, newMinDailyHours)
+      const normalized = typeof recalcResult === 'number'
+        ? { matchedCount: recalcResult, recalculatedCount: recalcResult }
+        : {
+            matchedCount: Number(recalcResult?.matchedCount) || 0,
+            recalculatedCount: Number(recalcResult?.recalculatedCount) || 0
+          }
+      console.log(
+        `Applied working-hours baseline to ${normalized.matchedCount} records and recalculated OT for ${normalized.recalculatedCount} records from ${effectiveDate}`
+      )
+      return normalized
     } catch (err) {
       console.error('Error recalculating OT:', err)
-      return 0
+      return { matchedCount: 0, recalculatedCount: 0 }
     }
   }
 
@@ -1004,31 +1012,46 @@ export default function SettingsTab() {
         })
       }
 
+      let recalcResult = null
+
       // 3) Recalculate OT for attendance history when Working Hours changes with an effective date
       if (effectiveDateForOT && employeePayload.minDailyHours) {
-        const recalcCount = await recalculateAttendanceOT(
+        recalcResult = await recalculateAttendanceOT(
           editingEmp, 
           effectiveDateForOT, 
           employeePayload.minDailyHours
         )
-        if (recalcCount > 0) {
-          await logChange('EMPLOYEE_SHIFT_CHANGE', editingEmp, {
-            name: editForm.name,
-            effectiveDate: effectiveDateForOT,
-            minDailyHours: employeePayload.minDailyHours,
-            minDailyHoursCategory: editForm.minDailyHoursCategory || '',
-            recordsAffected: recalcCount,
-            message: `Scheduled OT recalculation for ${recalcCount} attendance records from ${effectiveDateForOT}`
-          })
-          alert(`Employee updated! OT recalculation has been scheduled for ${recalcCount} attendance records from ${effectiveDateForOT}.`)
-        }
+
+        await logChange('EMPLOYEE_SHIFT_CHANGE', editingEmp, {
+          name: editForm.name,
+          effectiveDate: effectiveDateForOT,
+          minDailyHours: employeePayload.minDailyHours,
+          minDailyHoursCategory: editForm.minDailyHoursCategory || '',
+          recordsAffected: recalcResult.matchedCount,
+          otRecalculatedRecords: recalcResult.recalculatedCount,
+          message: `Applied working-hours baseline to ${recalcResult.matchedCount} records and recalculated OT for ${recalcResult.recalculatedCount} records from ${effectiveDateForOT}`
+        })
       }
 
       setEditingEmp(null)
       setEditForm({})
       setEditOriginalStatus(EMPLOYEE_STATUS_ACTIVE)
       setEditStatusTransition(null)
-      alert('Employee details updated successfully!')
+      if (recalcResult) {
+        if (recalcResult.matchedCount > 0) {
+          alert(
+            `Employee updated! Working Hours will apply from ${effectiveDateForOT}.\n` +
+            `Updated ${recalcResult.matchedCount} attendance records and recalculated OT for ${recalcResult.recalculatedCount} records.`
+          )
+        } else {
+          alert(
+            `Employee updated! Working Hours will apply from ${effectiveDateForOT}.\n` +
+            'No attendance records found from that date yet, so OT recalculation was skipped.'
+          )
+        }
+      } else {
+        alert('Employee details updated successfully!')
+      }
     } catch (err) {
       console.error('Error saving employee:', err)
       alert('Failed to save employee: ' + err.message + ' | Stack: ' + err.stack)
@@ -1439,6 +1462,10 @@ export default function SettingsTab() {
 
       const payload = {
         ...newApproval,
+        approvers: newApproval.type === 'single' ? (newApproval.approvers || []) : [],
+        stages: newApproval.type === 'multi'
+          ? (newApproval.stages?.length ? newApproval.stages : [{ role: '', amountLimit: '' }])
+          : [],
         updatedAt: serverTimestamp()
       }
 
@@ -1480,10 +1507,15 @@ export default function SettingsTab() {
 
   const renderApprovalSettings = () => {
     const modules = [
-      { id: 'Leave', label: 'Leave & Permission' },
+      { id: 'Leave', label: 'Leave' },
+      { id: 'Permission', label: 'Permission' },
       { id: 'Advance', label: 'Salary Advance' },
-      { id: 'Expense', label: 'Expense Reimbursement' }
     ]
+    const approvalTypeLabels = {
+      none: 'No Approval',
+      single: 'Single Approval',
+      multi: 'Multi-Stage'
+    }
 
     return (
       <div className="space-y-6 no-print">
@@ -1504,7 +1536,7 @@ export default function SettingsTab() {
                       <div className="flex items-center gap-2 mt-1">
                         <div className={`w-1.5 h-1.5 rounded-full ${current ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {current ? `${current.type} Approval` : 'Not Configured'}
+                          {current ? (approvalTypeLabels[current.type] || 'Configured') : 'Not Configured'}
                         </span>
                       </div>
                     </div>
@@ -1518,7 +1550,12 @@ export default function SettingsTab() {
                       onClick={() => {
                         if (current) {
                           setEditingApproval(current)
-                          setNewApproval(current)
+                          setNewApproval({
+                            ...current,
+                            type: current.type || 'single',
+                            approvers: current.approvers || [],
+                            stages: current.stages?.length ? current.stages : [{ role: '', amountLimit: '' }]
+                          })
                         } else {
                           setEditingApproval(null)
                           setNewApproval({ moduleName: mod.id, type: 'single', approvers: [], stages: [{ role: '', amountLimit: '' }] })
@@ -1544,7 +1581,19 @@ export default function SettingsTab() {
           >
             <div className="space-y-8 p-1">
               {/* Policy Selection Cards */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  onClick={() => setNewApproval({ ...newApproval, type: 'none' })}
+                  className={`relative p-5 rounded-2xl border-2 text-left transition-all ${newApproval.type === 'none' ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-100 hover:border-gray-200'}`}
+                >
+                  <div className={`w-10 h-10 rounded-xl mb-4 flex items-center justify-center ${newApproval.type === 'none' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                    <X size={20} />
+                  </div>
+                  <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">No Approval</h4>
+                  <p className="text-[10px] text-gray-400 font-medium mt-1 leading-relaxed">Requests are auto-approved immediately after submission.</p>
+                  {newApproval.type === 'none' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
+                </button>
+
                 <button
                   onClick={() => setNewApproval({ ...newApproval, type: 'single' })}
                   className={`relative p-5 rounded-2xl border-2 text-left transition-all ${newApproval.type === 'single' ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-100 hover:border-gray-200'}`}
@@ -1570,7 +1619,13 @@ export default function SettingsTab() {
                 </button>
               </div>
 
-              {newApproval.type === 'single' ? (
+              {newApproval.type === 'none' ? (
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+                  <p className="text-[11px] font-bold text-emerald-700">
+                    Requests in this module will skip approval queues and be marked approved right away.
+                  </p>
+                </div>
+              ) : newApproval.type === 'single' ? (
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4">Select Authorized Roles</label>

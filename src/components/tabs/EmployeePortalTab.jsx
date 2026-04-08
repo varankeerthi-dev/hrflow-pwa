@@ -93,7 +93,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const [requests, setRequests] = useState([])
   const [expandedMonths, setExpandedMonths] = useState({}) // Track which months are expanded
   const [showRequestModal, setShowRequestModal] = useState(false)
-  const [approvalSetting, setApprovalSetting] = useState(null)
+  const [approvalSettingsByModule, setApprovalSettingsByModule] = useState({})
   const [requestForm, setRequestForm] = useState({
     type: 'Leave',
     leaveType: 'Casual',
@@ -109,14 +109,30 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   useEffect(() => {
     if (!user?.orgId) return
     const fetchSettings = async () => {
-      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'), where('moduleName', '==', 'Leave'))
+      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'))
       const snap = await getDocs(q)
-      if (!snap.empty) {
-        setApprovalSetting(snap.docs[0].data())
-      }
+      const nextSettings = {}
+      snap.docs.forEach((docSnap) => {
+        const data = docSnap.data() || {}
+        if (data.moduleName) {
+          nextSettings[data.moduleName] = data
+        }
+      })
+      setApprovalSettingsByModule(nextSettings)
     }
     fetchSettings()
   }, [user?.orgId])
+
+  const getModuleNameForRequestType = (type) => {
+    if (type === 'Permission') return 'Permission'
+    if (type === 'Advance') return 'Advance'
+    return 'Leave'
+  }
+
+  const getApprovalSettingForType = (type) => {
+    const moduleName = getModuleNameForRequestType(type)
+    return approvalSettingsByModule[moduleName] || { type: 'single', approvers: [], stages: [] }
+  }
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [month, setMonth] = useState(() => {
     const d = new Date()
@@ -247,6 +263,11 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
 
     setLoading(true)
     try {
+      const approvalSetting = getApprovalSettingForType(requestForm.type)
+      const approvalType = approvalSetting?.type || 'single'
+      const totalStages = approvalType === 'multi' ? (approvalSetting?.stages?.length || 1) : 1
+      const isNoApproval = approvalType === 'none'
+
       if (requestForm.type === 'Leave') {
         const payload = {
           employeeId,
@@ -256,44 +277,74 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           toDate: requestForm.toDate || requestForm.fromDate,
           reason: requestForm.reason,
           orgId: user.orgId,
-          approvalType: approvalSetting?.type || 'single',
+          approvalType,
           currentStage: 0,
-          totalStages: approvalSetting?.type === 'multi' ? approvalSetting.stages.length : 1,
+          totalStages,
           approverIds: requestForm.approverIds || [],
-          deptHeadId: approvalSetting?.type === 'multi' ? (requestForm.approverIds?.[0] || '') : '',
-          deptHeadName: approvalSetting?.type === 'multi' 
+          deptHeadId: approvalType === 'multi' ? (requestForm.approverIds?.[0] || '') : '',
+          deptHeadName: approvalType === 'multi' 
             ? (employees.find(e => e.id === requestForm.approverIds?.[0])?.name || 'Unknown')
-            : 'Unknown'
+            : 'Unknown',
+          status: isNoApproval ? 'Approved' : 'Pending',
+          hrApproval: isNoApproval ? 'Approved' : 'Pending',
+          deptHeadApproval: isNoApproval ? 'Approved' : 'Pending',
+          mdApproval: isNoApproval ? 'Approved' : 'Pending',
+          approvedBy: isNoApproval ? user.uid : null,
+          approvedAt: isNoApproval ? serverTimestamp() : null
         }
         await applyLeave(payload)
-      } else {
+      } else if (requestForm.type === 'Permission') {
         const base = {
           employeeId,
           employeeName: employee?.name || user.name,
           type: requestForm.type,
-          status: 'Pending',
+          status: isNoApproval ? 'Approved' : 'Pending',
           createdAt: serverTimestamp(),
           reason: requestForm.reason,
-          hrApproval: 'Pending',
-          mdApproval: 'Pending',
+          hrApproval: isNoApproval ? 'Approved' : 'Pending',
+          deptHeadApproval: isNoApproval ? 'Approved' : 'Pending',
+          mdApproval: isNoApproval ? 'Approved' : 'Pending',
+          approvalType,
+          currentStage: 0,
+          totalStages,
+          approverIds: requestForm.approverIds || [],
+          orgId: user.orgId,
+          approvedBy: isNoApproval ? user.uid : null,
+          approvedAt: isNoApproval ? serverTimestamp() : null
+        }
+
+        const payload = {
+          ...base,
+          permissionDate: requestForm.date,
+          permissionTime: requestForm.time,
+        }
+        await addDoc(collection(db, 'organisations', user.orgId, 'requests'), payload)
+      } else {
+        const today = new Date().toISOString().split('T')[0]
+        const payload = {
+          employeeId,
+          employeeName: employee?.name || user.name,
+          type: 'Advance',
+          category: 'Salary Advance',
+          amount: Number(requestForm.amount || 0),
+          date: today,
+          reason: requestForm.reason,
+          requestType: 'Advance',
+          payoutMethod: 'Immediate',
+          status: isNoApproval ? 'Approved' : 'Pending',
+          hrApproval: isNoApproval ? 'Approved' : 'Pending',
+          mdApproval: isNoApproval ? 'Approved' : 'Pending',
+          approvalType,
+          currentStage: 0,
+          totalStages,
+          approverIds: requestForm.approverIds || [],
+          approvedBy: isNoApproval ? user.uid : null,
+          approvedAt: isNoApproval ? serverTimestamp() : null,
+          createdAt: serverTimestamp(),
           orgId: user.orgId
         }
 
-        let payload = base
-        if (requestForm.type === 'Permission') {
-          payload = {
-            ...base,
-            permissionDate: requestForm.date,
-            permissionTime: requestForm.time,
-          }
-        } else if (requestForm.type === 'Advance') {
-          payload = {
-            ...base,
-            amount: Number(requestForm.amount || 0),
-          }
-        }
-
-        await addDoc(collection(db, 'organisations', user.orgId, 'requests'), payload)
+        await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), payload)
       }
       
       setShowRequestModal(false)
@@ -306,6 +357,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         time: '',
         amount: '',
         reason: '',
+        approverIds: [],
       })
       fetchRequests()
     } catch (err) {
@@ -1272,7 +1324,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                 </div>
                 
                 {/* Dynamic Approver logic */}
-                {approvalSetting?.type === 'multi' && approvalSetting.stages?.length > 1 && (
+                {getApprovalSettingForType('Leave')?.type === 'multi' && getApprovalSettingForType('Leave')?.stages?.length > 1 && (
                   <div>
                     <label className="block text-[12px] font-semibold text-gray-700 mb-2">
                       Approver

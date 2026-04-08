@@ -4,7 +4,7 @@ import { useEmployees } from '../hooks/useEmployees'
 import { useAttendance, calcOT } from '../hooks/useAttendance'
 import { useLeaves } from '../hooks/useLeaves'
 import { db, storage } from '../lib/firebase'
-import { collection, query, where, getDocs, deleteDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, query, where, getDocs, deleteDoc, doc, addDoc, serverTimestamp, orderBy } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { attendanceCol } from '../lib/firestore'
 import { formatTimeTo12Hour } from '../lib/salaryUtils'
@@ -133,6 +133,35 @@ export default function MobileEmployeePortal() {
   const [validationErrors, setValidationErrors] = useState({})
   const [submitSuccess, setSubmitSuccess] = useState('')
   const [fileUploading, setFileUploading] = useState(false)
+  const [approvalSettingsByModule, setApprovalSettingsByModule] = useState({})
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const fetchSettings = async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'))
+      const snap = await getDocs(q)
+      const nextSettings = {}
+      snap.docs.forEach((docSnap) => {
+        const data = docSnap.data() || {}
+        if (data.moduleName) {
+          nextSettings[data.moduleName] = data
+        }
+      })
+      setApprovalSettingsByModule(nextSettings)
+    }
+    fetchSettings()
+  }, [user?.orgId])
+
+  const getModuleNameForRequestType = (type) => {
+    if (type === 'Permission') return 'Permission'
+    if (type === 'Advance') return 'Advance'
+    return 'Leave'
+  }
+
+  const getApprovalSettingForType = (type) => {
+    const moduleName = getModuleNameForRequestType(type)
+    return approvalSettingsByModule[moduleName] || { type: 'single', approvers: [], stages: [] }
+  }
 
   useEffect(() => {
     if (!user?.orgId || empLoading || !employeeId) return
@@ -299,6 +328,11 @@ export default function MobileEmployeePortal() {
         setFileUploading(false)
       }
 
+      const approvalSetting = getApprovalSettingForType(requestForm.type)
+      const approvalType = approvalSetting?.type || 'single'
+      const totalStages = approvalType === 'multi' ? (approvalSetting?.stages?.length || 1) : 1
+      const isNoApproval = approvalType === 'none'
+
       if (requestForm.type === 'Leave') {
         await applyLeave({
           employeeId,
@@ -309,19 +343,37 @@ export default function MobileEmployeePortal() {
           toDate: requestForm.toDate,
           reason: requestForm.reason,
           attachmentUrl,
-          createdBy: user.uid
+          createdBy: user.uid,
+          approvalType,
+          currentStage: 0,
+          totalStages,
+          status: isNoApproval ? 'Approved' : 'Pending',
+          hrApproval: isNoApproval ? 'Approved' : 'Pending',
+          deptHeadApproval: isNoApproval ? 'Approved' : 'Pending',
+          mdApproval: isNoApproval ? 'Approved' : 'Pending',
+          approvedBy: isNoApproval ? user.uid : null,
+          approvedAt: isNoApproval ? serverTimestamp() : null
         })
       } else if (requestForm.type === 'Permission') {
         await addDoc(collection(db, 'organisations', user.orgId, 'requests'), {
           employeeId,
           employeeName: employee?.name || user?.name,
           type: 'Permission',
-          date: requestForm.date,
+          permissionDate: requestForm.date,
           fromTime: requestForm.fromTime,
           toTime: requestForm.toTime,
           reason: requestForm.reason,
           attachmentUrl,
-          status: 'Pending',
+          status: isNoApproval ? 'Approved' : 'Pending',
+          hrApproval: isNoApproval ? 'Approved' : 'Pending',
+          deptHeadApproval: isNoApproval ? 'Approved' : 'Pending',
+          mdApproval: isNoApproval ? 'Approved' : 'Pending',
+          approvalType,
+          currentStage: 0,
+          totalStages,
+          approverIds: [],
+          approvedBy: isNoApproval ? user.uid : null,
+          approvedAt: isNoApproval ? serverTimestamp() : null,
           createdAt: serverTimestamp(),
           createdBy: user.uid,
         })
@@ -336,7 +388,15 @@ export default function MobileEmployeePortal() {
           date: requestForm.requestDate,
           reason: requestForm.reason,
           attachmentUrl,
-          status: 'Pending',
+          status: isNoApproval ? 'Approved' : 'Pending',
+          hrApproval: isNoApproval ? 'Approved' : 'Pending',
+          mdApproval: isNoApproval ? 'Approved' : 'Pending',
+          approvalType,
+          currentStage: 0,
+          totalStages,
+          approverIds: [],
+          approvedBy: isNoApproval ? user.uid : null,
+          approvedAt: isNoApproval ? serverTimestamp() : null,
           requestType: 'Advance',
           payoutMethod: 'Immediate',
           createdAt: serverTimestamp(),

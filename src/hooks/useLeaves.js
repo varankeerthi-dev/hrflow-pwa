@@ -52,19 +52,33 @@ export function useLeaves(orgId) {
     setLoading(true)
     try {
       const duration = calculateDuration(leaveData.fromDate, leaveData.toDate)
+      const status = leaveData.status || 'Pending'
+      const isApprovedAtCreation = status === 'Approved'
       const payload = {
         ...leaveData,
         type: 'Leave',
         duration,
-        status: 'Pending',
-        hrApproval: 'Pending',
-        deptHeadApproval: 'Pending',
-        mdApproval: 'Pending',
+        status,
+        hrApproval: leaveData.hrApproval || (isApprovedAtCreation ? 'Approved' : 'Pending'),
+        deptHeadApproval: leaveData.deptHeadApproval || (isApprovedAtCreation ? 'Approved' : 'Pending'),
+        mdApproval: leaveData.mdApproval || (isApprovedAtCreation ? 'Approved' : 'Pending'),
         createdAt: serverTimestamp(),
         createdBy: user.uid,
         updatedAt: serverTimestamp()
       }
       const docRef = await addDoc(collection(db, 'organisations', orgId, 'requests'), payload)
+
+      if (isApprovedAtCreation && payload.employeeId && payload.duration) {
+        const empRef = doc(db, 'organisations', orgId, 'employees', payload.employeeId)
+        const empSnap = await getDoc(empRef)
+        const empData = empSnap.data()
+        if (empData) {
+          const currentBalance = empData.leaveBalance || 0
+          const newBalance = Math.max(0, currentBalance - payload.duration)
+          await updateDoc(empRef, { leaveBalance: newBalance })
+        }
+      }
+
       return docRef.id
     } catch (err) {
       console.error('Error applying leave:', err)
