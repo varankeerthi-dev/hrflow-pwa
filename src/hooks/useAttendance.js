@@ -157,7 +157,7 @@ export function useAttendance(orgId) {
     }
   }, [orgId, user])
 
-  return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary, deleteByDate, fetchRange, recalculateOTForEmployee }
+  return { attendance, loading, error, fetchByDate, upsertAttendance, fetchMonthlySummary, deleteByDate, deleteIndividualAttendance, fetchRange, recalculateOTForEmployee }
 }
 
 export function calcOT(inTime, outTime, inDate, outDate, workHours) {
