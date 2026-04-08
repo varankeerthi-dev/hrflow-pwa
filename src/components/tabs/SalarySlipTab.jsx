@@ -920,76 +920,76 @@ export default function SalarySlipTab() {
                     <span className="text-[9px] text-gray-500">Comprehensive Payroll Breakdown</span>
                   </div>
                   <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0" style={{ fontFamily: 'Roboto, sans-serif' }}>
-                    <div className="overflow-auto flex-1">
-                      <table className="border-collapse text-[11px] min-w-max">
+                    <div className="flex-1 overflow-hidden">
+                      <table className="w-full border-collapse text-[11px]">
                         <thead className="sticky top-0 z-10">
-                          <tr style={{ height: '21px' }} className="bg-white">
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '40px' }}>S.No</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Emp No</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '120px' }}>Name</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-left bg-white" style={{ fontSize: '10px', minWidth: '100px' }}>Designation</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Basic</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>HRA</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Salary</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>Days</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>Worked</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Sun+Hol<br/>Work</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Holidays</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>Leave</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>Paid</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Basic</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>HRA</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '80px' }}>Salary</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>Sunday</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>OT</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '90px' }}>Total<br/>Earnings</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>PF</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '50px' }}>ESI</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>Loan/<br/>Advance</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '60px' }}>VR Adv</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '70px' }}>Other<br/>Ded</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '90px' }}>Total<br/>Deduction</th>
-                            <th className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-right bg-white" style={{ fontSize: '10px', minWidth: '90px' }}>Net Pay</th>
+                          <tr style={{ height: '28px' }} className="bg-gray-50">
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase tracking-wider">S.No</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase tracking-wider">Emp No</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase tracking-wider">Name</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase tracking-wider">Desig</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Basic</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">HRA</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Sal</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase tracking-wider">Days</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase tracking-wider">Wrk</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase tracking-wider">Sun</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase tracking-wider">Hol</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase tracking-wider">Lve</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase tracking-wider">Paid</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Basic</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">HRA</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Sal</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Sun</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">OT</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Earn</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">PF</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">ESI</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Adv</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">VR</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Ded</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Tot Ded</th>
+                            <th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase tracking-wider">Net</th>
                           </tr>
                         </thead>
                         <tbody>
                           {isAttendanceLoading ? (
-                            <tr><td colSpan={27} className="p-4 text-center"><Spinner /></td></tr>
+                            <tr><td colSpan={25} className="p-4 text-center"><Spinner /></td></tr>
                           ) : attendanceSummaryData.length === 0 ? (
-                            <tr><td colSpan={27} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>
+                            <tr><td colSpan={25} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>
                           ) : (
                             attendanceSummaryData.map((emp, idx) => {
                               const otherDeductions = emp.fine || 0
                               const it = emp.salary.deductions.find(d => d.label === 'IT')?.value || 0
                               
                               return (
-                                <tr key={emp.id} style={{ height: '21px' }} className={`hover:bg-gray-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-white'}`}>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.sno}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-[11px] font-roboto">{emp.empId}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 font-medium text-[11px] truncate max-w-[120px] font-roboto">{emp.name}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-600 text-[11px] font-roboto">{emp.designation}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.fullBasic).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.fullHra).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.totalDays}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.worked}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.sunW + emp.holW}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.totalHolidays}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.leave}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-center text-[11px] font-roboto">{emp.totalWorkingDays}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-gray-800 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-amber-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-blue-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-emerald-600 font-semibold text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">-</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-purple-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 text-right text-[11px] tabular-nums font-roboto">₹{Math.round(otherDeductions).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 border border-gray-200 text-red-600 font-semibold text-right text-[11px] tabular-nums font-roboto">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td>
-                                  <td className="px-2 py-0.5 font-roboto py-0.5 border border-gray-200 text-emerald-700 font-bold text-right text-[11px] tabular-nums">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td>
+                                <tr key={emp.id} style={{ height: '24px' }} className={`hover:bg-indigo-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-600 text-center text-[10px] font-medium">{emp.sno}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-600 text-[10px] font-mono">{emp.empId}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-900 font-semibold text-[10px] truncate max-w-[80px]">{emp.name}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-500 text-[10px] truncate max-w-[60px]">{emp.designation}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-right text-[10px] tabular-nums font-medium">₹{(emp.fullBasic/1000).toFixed(1)}k</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-right text-[10px] tabular-nums font-medium">₹{(emp.fullHra/1000).toFixed(1)}k</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-900 text-right text-[10px] tabular-nums font-bold">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-center text-[10px] font-medium">{emp.totalDays}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-center text-[10px] font-medium">{emp.worked}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-center text-[10px] font-medium">{emp.sunW}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-center text-[10px] font-medium">{emp.holW}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-center text-[10px] font-medium">{emp.leave}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-center text-[10px] font-medium">{emp.totalWorkingDays}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-right text-[10px] tabular-nums font-medium">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-700 text-right text-[10px] tabular-nums font-medium">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-900 text-right text-[10px] tabular-nums font-bold">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-amber-600 text-right text-[10px] tabular-nums font-medium">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-blue-600 text-right text-[10px] tabular-nums font-medium">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-emerald-600 font-semibold text-right text-[10px] tabular-nums font-bold">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-red-600 text-right text-[10px] tabular-nums font-medium">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-gray-400 text-right text-[10px] tabular-nums">-</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-red-600 text-right text-[10px] tabular-nums font-medium">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-purple-600 text-right text-[10px] tabular-nums font-medium">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-red-600 text-right text-[10px] tabular-nums font-medium">₹{Math.round(otherDeductions).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-red-600 font-semibold text-right text-[10px] tabular-nums font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td>
+                                  <td className="px-1.5 py-0.5 border-b border-gray-100 text-emerald-700 font-bold text-right text-[10px] tabular-nums font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td>
                                 </tr>
                               )
                             })

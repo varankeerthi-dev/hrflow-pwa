@@ -241,6 +241,7 @@ export default function SettingsTab() {
   })
 
   const isAdmin = true // RBAC removed - simplicity first
+  const userPermissions = useMemo(() => user?.permissions || {}, [user?.permissions])
   const allSubTabs = [
     { id: 'organization', label: 'Organization', module: 'Settings' },
     { id: 'employee', label: 'Employees', module: 'Employees' },
@@ -3097,7 +3098,7 @@ export default function SettingsTab() {
                                   >
                                     <MenuItem value="">No Role</MenuItem>
                                     {roles.map(r => <MenuItem key={r.id} value={r.name}>{r.name}</MenuItem>)}
-                                    {!roles.find(r => r.name.toLowerCase() === 'admin') && <MenuItem value="admin">Admin</MenuItem>}
+                                    {!roles.find(r => r.name.toLowerCase() === 'admin') && <MenuItem value="Admin">Admin</MenuItem>}
                                   </MuiSelect>
                                 </FormControl>
                               </TableCell>
@@ -3443,6 +3444,18 @@ export default function SettingsTab() {
                   onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">System Role</label>
+                <select 
+                  value={editForm.role || 'Employee'} 
+                  onChange={e => setEditForm(s => ({ ...s, role: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                >
+                  <option value="Employee">Employee</option>
+                  {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                  {!roles.find(r => r.name.toLowerCase() === 'admin') && <option value="Admin">Admin</option>}
+                </select>
               </div>
               <div className="col-span-2">
                 <label className="block text-[11px] font-bold text-gray-700 mb-2">Status</label>
@@ -3899,6 +3912,19 @@ export default function SettingsTab() {
                 onChange={e => setNewEmployee(s => ({ ...s, email: e.target.value }))}
                 className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
               />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">System Role</label>
+              <select 
+                value={newEmployee.role || 'Employee'} 
+                onChange={e => setNewEmployee(s => ({ ...s, role: e.target.value }))}
+                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              >
+                <option value="Employee">Employee</option>
+                {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                {!roles.find(r => r.name.toLowerCase() === 'admin') && <option value="Admin">Admin</option>}
+              </select>
             </div>
 
             {/* Login Enabled Toggle */}
