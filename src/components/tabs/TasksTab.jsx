@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { formatDistanceToNow, format } from 'date-fns'
+import { useSearchParams } from 'react-router-dom'
 import { 
   CheckCircle2, 
   Circle, 
@@ -32,7 +33,8 @@ import {
   Download,
   List,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CheckSquare
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
@@ -42,6 +44,7 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
+import ChecklistView from '../../modules/checklist/components/ChecklistView'
 
 const STATUSES = [
   { id: 'To Do', label: 'To Do', icon: <Circle size={14} className="text-slate-400" /> },
@@ -61,10 +64,12 @@ const TABS = [
   { id: 'team', label: 'Team', icon: <Layout size={14} /> },
   { id: 'personal', label: 'Personal', icon: <User size={14} /> },
   { id: 'idea', label: 'Ideas', icon: <Lightbulb size={14} /> },
-  { id: 'reminders', label: 'Announcements', icon: <Bell size={14} /> }
+  { id: 'reminders', label: 'Announcements', icon: <Bell size={14} /> },
+  { id: 'checklist', label: 'Checklist', icon: <CheckSquare size={14} /> }
 ]
 
 export default function TasksTab() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const { tasks, loading: tasksLoading, addTask, updateTask, deleteTask } = useTasks(user?.orgId)
@@ -185,6 +190,33 @@ export default function TasksTab() {
     keywords: []
   })
   const [clientFilter, setClientFilter] = useState('all')
+
+  const normalizeTasksSubTab = (value) => {
+    const v = (value || '').toLowerCase().trim()
+    if (!v) return null
+    if (v === 'announcements') return 'reminders'
+    if (['team', 'personal', 'idea', 'reminders', 'checklist'].includes(v)) return v
+    return null
+  }
+
+  const encodeTasksSubTab = (tabId) => (tabId === 'reminders' ? 'announcements' : tabId)
+
+  useEffect(() => {
+    const desired = normalizeTasksSubTab(searchParams.get('tasksTab'))
+    if (!desired) return
+    setActiveTab((prev) => (prev === desired ? prev : desired))
+  }, [searchParams])
+
+  useEffect(() => {
+    const encoded = encodeTasksSubTab(activeTab)
+    const currentEncoded = (searchParams.get('tasksTab') || '').toLowerCase().trim()
+    if (currentEncoded === encoded) return
+
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', 'tasks')
+    next.set('tasksTab', encoded)
+    setSearchParams(next, { replace: true })
+  }, [activeTab, searchParams, setSearchParams])
 
   const filteredTasks = useMemo(() => {
     let tasksToFilter = tasks
@@ -1898,7 +1930,9 @@ export default function TasksTab() {
       </div>
 
       <div className="flex-1 overflow-auto p-2.5">
-        {activeTab === 'reminders' ? (
+        {activeTab === 'checklist' ? (
+          <ChecklistView user={user} />
+        ) : activeTab === 'reminders' ? (
           <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {reminders.map(r => (
               <div key={r.id} className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm hover:border-indigo-300 transition-all cursor-pointer group" onClick={() => setSelectedReminder(r)}>

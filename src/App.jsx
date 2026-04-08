@@ -82,6 +82,22 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/tasks/checklist"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/?tab=tasks&tasksTab=checklist" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tasks"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/?tab=tasks" replace />
+            </ProtectedRoute>
+          }
+        />
         <Route 
           path="/" 
           element={
