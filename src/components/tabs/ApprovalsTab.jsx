@@ -1196,16 +1196,60 @@ export default function ApprovalsTab() {
                                     <>
                                       {(!item.hrApproval || item.hrApproval === 'Pending') ? (
                                         <div className="flex items-center gap-1">
-                                          {/* Approve Button - Default Action */}
-                                          <button
-                                            type="button"
-                                            onClick={() => handleHrAdvExpenseSubmit(item.id)}
-                                            className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
-                                            title="Approve"
-                                          >
-                                            <Check size={12} strokeWidth={3} />
-                                            Approve
-                                          </button>
+                                          {/* Dynamic Action Button - Shows selected action */}
+                                          {(() => {
+                                            const selectedAction = rowState.hrPick
+                                            if (selectedAction === 'Rejected') {
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleHrAdvExpenseSubmit(item.id)}
+                                                  className="h-7 px-3 bg-rose-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all flex items-center gap-1"
+                                                  title="Click to Reject"
+                                                >
+                                                  <XCircle size={12} strokeWidth={3} />
+                                                  Reject
+                                                </button>
+                                              )
+                                            } else if (selectedAction === 'Hold') {
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleHrAdvExpenseSubmit(item.id)}
+                                                  className="h-7 px-3 bg-amber-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all flex items-center gap-1"
+                                                  title="Click to Hold"
+                                                >
+                                                  <PauseCircle size={12} strokeWidth={3} />
+                                                  Hold
+                                                </button>
+                                              )
+                                            } else if (selectedAction === 'Partial') {
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleHrAdvExpenseSubmit(item.id)}
+                                                  className="h-7 px-3 bg-indigo-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-1"
+                                                  title="Click to Approve Partially"
+                                                >
+                                                  <AlertCircle size={12} strokeWidth={3} />
+                                                  Partial
+                                                </button>
+                                              )
+                                            } else {
+                                              // Default Approve button
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleHrAdvExpenseSubmit(item.id)}
+                                                  className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
+                                                  title="Approve"
+                                                >
+                                                  <Check size={12} strokeWidth={3} />
+                                                  Approve
+                                                </button>
+                                              )
+                                            }
+                                          })()}
                                           
                                           {/* Actions Dropdown Toggle */}
                                           <button

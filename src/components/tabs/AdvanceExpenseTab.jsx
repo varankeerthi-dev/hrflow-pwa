@@ -1047,6 +1047,26 @@ export default function AdvanceExpenseTab() {
     }
   })
 
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const itemRef = doc(db, 'organisations', user.orgId, 'deleted_advances_expenses', id)
+      await deleteDoc(itemRef)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['deleted_advances_expenses', user?.orgId])
+    }
+  })
+
+  const handlePermanentDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to PERMANENTLY DELETE this record? This action cannot be undone.')) return
+    try {
+      await permanentDeleteMutation.mutateAsync(id)
+      alert('Record permanently deleted')
+    } catch (err) {
+      alert('Failed to delete')
+    }
+  }
+
   // Add state for delete confirmation modal
   const [deletingItem, setDeletingItem] = useState(null)
 
@@ -1670,13 +1690,22 @@ export default function AdvanceExpenseTab() {
                         <td className="px-4 text-[13px] font-bold text-zinc-800 border-r border-zinc-50">{item.employeeName}</td>
                         <td className="px-4 text-[13px] font-black text-zinc-900 text-right border-r border-zinc-50 tabular-nums">{formatINR(item.amount)}</td>
                         <td className="px-4 text-right">
-                          <button 
-                            onClick={() => handleRestore(item.id)}
-                            disabled={restoreMutation.isPending}
-                            className="h-8 px-4 bg-indigo-50 text-indigo-600 font-black rounded-lg text-[9px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2 ml-auto shadow-sm"
-                          >
-                            <RotateCcw size={14} /> Revoke
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => handleRestore(item.id)}
+                              disabled={restoreMutation.isPending}
+                              className="h-8 px-4 bg-indigo-50 text-indigo-600 font-black rounded-lg text-[9px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2 shadow-sm"
+                            >
+                              <RotateCcw size={14} /> Revoke
+                            </button>
+                            <button 
+                              onClick={() => handlePermanentDelete(item.id)}
+                              disabled={permanentDeleteMutation.isPending}
+                              className="h-8 px-4 bg-rose-50 text-rose-600 font-black rounded-lg text-[9px] uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all flex items-center gap-2 shadow-sm"
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
