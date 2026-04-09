@@ -32,6 +32,7 @@ import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
 import TimePicker from '../ui/TimePicker'
+import MapLocationPicker from '../ui/MapLocationPicker'
 
 import SalarySlabSettings from './SalarySlabSettings'
 import {
@@ -1557,20 +1558,69 @@ export default function SettingsTab() {
     setSiteSearchLoading(true)
     setSiteSearchResults([])
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(lookupValue)}`
-      )
-      if (!response.ok) {
-        throw new Error('Location search failed.')
+      const providers = [
+        {
+          fetcher: () => fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(lookupValue)}`),
+          parser: async (response) => {
+            const rows = await response.json()
+            if (!Array.isArray(rows)) return []
+            return rows.map((row) => ({
+              id: `nominatim-${row.place_id}-${row.lat}-${row.lon}`,
+              label: row.display_name || row.name || 'Unknown location',
+              lat: Number(row.lat),
+              lng: Number(row.lon),
+              shortName: String(row.name || row.display_name || '').split(',')[0].trim(),
+            }))
+          },
+        },
+        {
+          fetcher: () => fetch(`https://photon.komoot.io/api/?limit=6&q=${encodeURIComponent(lookupValue)}`),
+          parser: async (response) => {
+            const payload = await response.json()
+            const rows = payload?.features || []
+            return rows.map((row) => {
+              const [lng, lat] = row.geometry?.coordinates || []
+              const parts = [
+                row.properties?.name,
+                row.properties?.city,
+                row.properties?.state,
+                row.properties?.country,
+              ].filter(Boolean)
+              return {
+                id: `photon-${row.properties?.osm_id || 'unknown'}-${lat}-${lng}`,
+                label: parts.join(', ') || 'Unknown location',
+                lat: Number(lat),
+                lng: Number(lng),
+                shortName: row.properties?.name || parts[0] || '',
+              }
+            })
+          },
+        },
+      ]
+
+      let normalizedResults = []
+      for (const provider of providers) {
+        try {
+          const response = await provider.fetcher()
+          if (!response.ok) continue
+          const parsed = await provider.parser(response)
+          const valid = parsed.filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lng))
+          if (valid.length) {
+            normalizedResults = valid
+            break
+          }
+        } catch {
+          // Try next provider
+        }
       }
-      const results = await response.json()
-      if (!Array.isArray(results) || results.length === 0) {
-        alert('No location results found. Try a more specific place name.')
+
+      if (!normalizedResults.length) {
+        alert('Search didn\'t return results. Use the map below and tap the exact site location.')
         return
       }
-      setSiteSearchResults(results)
+      setSiteSearchResults(normalizedResults)
     } catch (error) {
-      alert(`Unable to search location: ${error.message}`)
+      alert(`Unable to search location: ${error.message}. You can still pick location from the map.`)
     } finally {
       setSiteSearchLoading(false)
     }
@@ -1578,7 +1628,7 @@ export default function SettingsTab() {
 
   const handleSelectSiteLocation = (result) => {
     const latitude = Number(result?.lat)
-    const longitude = Number(result?.lon)
+    const longitude = Number(result?.lng)
     if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
       alert('Selected location has invalid coordinates. Please try another result.')
       return
@@ -1587,10 +1637,19 @@ export default function SettingsTab() {
       ...prev,
       latitude: latitude.toFixed(6),
       longitude: longitude.toFixed(6),
-      siteName: prev.siteName || String(result?.name || result?.display_name || '').split(',')[0].trim(),
+      siteName: prev.siteName || String(result?.shortName || result?.label || '').split(',')[0].trim(),
     }))
-    setSiteSearchQuery(result?.display_name || '')
+    setSiteSearchQuery(result?.label || '')
     setSiteSearchResults([])
+  }
+
+  const handlePickLocationFromMap = ({ lat, lng }) => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    setSiteForm(prev => ({
+      ...prev,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6),
+    }))
   }
 
   const handleSaveSite = async () => {
@@ -1729,19 +1788,29 @@ export default function SettingsTab() {
                 <div className="mt-2 rounded-xl border border-gray-200 bg-white shadow-sm max-h-56 overflow-y-auto">
                   {siteSearchResults.map(result => (
                     <button
-                      key={`${result.place_id}-${result.lat}-${result.lon}`}
+                      key={result.id}
                       type="button"
                       onClick={() => handleSelectSiteLocation(result)}
                       className="w-full text-left px-3 py-2.5 border-b border-gray-100 last:border-b-0 hover:bg-indigo-50/50 transition-colors"
                     >
-                      <p className="text-[12px] font-semibold text-gray-800 line-clamp-1">{result.display_name}</p>
+                      <p className="text-[12px] font-semibold text-gray-800 line-clamp-1">{result.label}</p>
                       <p className="text-[10px] text-gray-500 mt-0.5">
-                        {Number(result.lat).toFixed(6)}, {Number(result.lon).toFixed(6)}
+                        {Number(result.lat).toFixed(6)}, {Number(result.lng).toFixed(6)}
                       </p>
                     </button>
                   ))}
                 </div>
               )}
+            </div>
+            <div className="lg:col-span-4">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
+                Pick location on map (click or drag marker)
+              </label>
+              <MapLocationPicker
+                latitude={siteForm.latitude}
+                longitude={siteForm.longitude}
+                onChange={handlePickLocationFromMap}
+              />
             </div>
             <div>
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Radius (meters)</label>
