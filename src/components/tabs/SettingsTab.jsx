@@ -298,6 +298,7 @@ export default function SettingsTab() {
   const [siteSearchQuery, setSiteSearchQuery] = useState('')
   const [siteSearchResults, setSiteSearchResults] = useState([])
   const [siteSearchLoading, setSiteSearchLoading] = useState(false)
+  const [siteGeoLocating, setSiteGeoLocating] = useState(false)
   const [newAdvanceCategory, setNewAdvanceCategory] = useState('')
   const [newHoliday, setNewHoliday] = useState({ name: '', date: '' })
 
@@ -1652,6 +1653,40 @@ export default function SettingsTab() {
     }))
   }
 
+  const handleUseCurrentLocation = () => {
+    if (!navigator?.geolocation) {
+      alert('Geolocation is not supported in this browser.')
+      return
+    }
+    setSiteGeoLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = Number(position.coords.latitude)
+        const lng = Number(position.coords.longitude)
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          alert('Could not read current location coordinates.')
+          setSiteGeoLocating(false)
+          return
+        }
+        setSiteForm(prev => ({
+          ...prev,
+          latitude: lat.toFixed(6),
+          longitude: lng.toFixed(6),
+        }))
+        setSiteGeoLocating(false)
+      },
+      (error) => {
+        alert(`Unable to fetch current location: ${error.message}`)
+        setSiteGeoLocating(false)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
+      }
+    )
+  }
+
   const handleSaveSite = async () => {
     if (!user?.orgId) return
     const siteName = siteForm.siteName.trim()
@@ -1769,6 +1804,13 @@ export default function SettingsTab() {
                 >
                   <Search size={13} />
                   {siteSearchLoading ? 'Searching...' : 'Search'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  className="h-11 px-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-[0.14em] hover:bg-emerald-100 transition-all"
+                >
+                  {siteGeoLocating ? 'Locating...' : 'Use My Location'}
                 </button>
               </div>
               {(siteForm.latitude && siteForm.longitude) && (

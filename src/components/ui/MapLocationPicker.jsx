@@ -33,15 +33,22 @@ function MapClickController({ onPick }) {
 }
 
 export default function MapLocationPicker({ latitude, longitude, onChange }) {
-  const hasCoordinates = Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))
+  const parsedLatitude = typeof latitude === 'string' ? latitude.trim() : latitude
+  const parsedLongitude = typeof longitude === 'string' ? longitude.trim() : longitude
+  const hasCoordinates =
+    parsedLatitude !== '' &&
+    parsedLongitude !== '' &&
+    Number.isFinite(Number(parsedLatitude)) &&
+    Number.isFinite(Number(parsedLongitude))
+
   const center = useMemo(() => {
     if (hasCoordinates) {
-      return [Number(latitude), Number(longitude)]
+      return [Number(parsedLatitude), Number(parsedLongitude)]
     }
-    return [13.0827, 80.2707]
-  }, [hasCoordinates, latitude, longitude])
+    return [20.5937, 78.9629]
+  }, [hasCoordinates, parsedLatitude, parsedLongitude])
 
-  const markerPosition = hasCoordinates ? [Number(latitude), Number(longitude)] : center
+  const markerPosition = hasCoordinates ? [Number(parsedLatitude), Number(parsedLongitude)] : center
 
   return (
     <div className="w-full h-[300px] rounded-xl overflow-hidden border border-gray-200">
