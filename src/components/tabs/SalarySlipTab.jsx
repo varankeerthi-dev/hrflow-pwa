@@ -44,6 +44,35 @@ const formatMonthDisplay = (monthStr) => {
   return monthStr;
 };
 
+const DETAILED_SUMMARY_COLUMNS = [
+  { id: 'sno', label: 'S.No', index: 1 },
+  { id: 'empNo', label: 'Emp No', index: 2 },
+  { id: 'name', label: 'Name', index: 3, mandatory: true },
+  { id: 'designation', label: 'Designation', index: 4, mandatory: true },
+  { id: 'basicCtc', label: 'Basic (CTC)', index: 5, mandatory: true },
+  { id: 'hraCtc', label: 'HRA (CTC)', index: 6, mandatory: true },
+  { id: 'salaryCtc', label: 'Salary (CTC)', index: 7, mandatory: true },
+  { id: 'days', label: 'Days', index: 8 },
+  { id: 'worked', label: 'Worked', index: 9 },
+  { id: 'sunWorked', label: 'Sun Worked', index: 10 },
+  { id: 'holidayWorked', label: 'Holiday Worked', index: 11 },
+  { id: 'leave', label: 'Leave', index: 12 },
+  { id: 'paidDays', label: 'Paid', index: 13 },
+  { id: 'basicPaid', label: 'Basic (Paid)', index: 14 },
+  { id: 'hraPaid', label: 'HRA (Paid)', index: 15 },
+  { id: 'salaryPaid', label: 'Salary (Paid)', index: 16 },
+  { id: 'sundayPay', label: 'Sun Pay', index: 17 },
+  { id: 'otPay', label: 'OT', index: 18 },
+  { id: 'earnings', label: 'Earn', index: 19 },
+  { id: 'pf', label: 'PF', index: 20 },
+  { id: 'esi', label: 'ESI', index: 21 },
+  { id: 'advance', label: 'Adv', index: 22 },
+  { id: 'vr', label: 'VR', index: 23 },
+  { id: 'ded', label: 'Ded', index: 24 },
+  { id: 'totalDed', label: 'Tot Ded', index: 25 },
+  { id: 'net', label: 'Net', index: 26 },
+]
+
 const s = StyleSheet.create({
   p: { padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' },
   h: { borderBottomWidth: 2, borderBottomColor: '#4f46e5', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
@@ -258,6 +287,8 @@ export default function SalarySlipTab() {
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false)
   const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
   const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
+  const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map((column) => column.id))
+  const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
   const monthInputRef = useRef(null)
 
   const sortedEmployees = useMemo(() => {
@@ -276,6 +307,32 @@ export default function SalarySlipTab() {
   }, [employees, orgData])
   
   const [loanActiveModule, setLoanActiveModule] = useState('Active Schedules')
+  const mandatoryDetailedColumnIds = useMemo(
+    () => DETAILED_SUMMARY_COLUMNS.filter((column) => column.mandatory).map((column) => column.id),
+    []
+  )
+  const visibleDetailedSummaryColumns = useMemo(() => {
+    const selectedSet = new Set([...selectedDetailedColumns, ...mandatoryDetailedColumnIds])
+    return DETAILED_SUMMARY_COLUMNS.filter((column) => selectedSet.has(column.id))
+  }, [selectedDetailedColumns, mandatoryDetailedColumnIds])
+  const hiddenDetailedSummaryColumnIndexes = useMemo(() => {
+    const visibleSet = new Set(visibleDetailedSummaryColumns.map((column) => column.id))
+    return DETAILED_SUMMARY_COLUMNS.filter((column) => !visibleSet.has(column.id)).map((column) => column.index)
+  }, [visibleDetailedSummaryColumns])
+  const detailedSummaryColumnStyles = useMemo(() => (
+    hiddenDetailedSummaryColumnIndexes
+      .map((index) => `.detailed-summary-table th:nth-child(${index}), .detailed-summary-table td:nth-child(${index}) { display: none; }`)
+      .join('\n')
+  ), [hiddenDetailedSummaryColumnIndexes])
+
+  const toggleDetailedSummaryColumn = (columnId) => {
+    if (mandatoryDetailedColumnIds.includes(columnId)) return
+    setSelectedDetailedColumns((currentColumns) => (
+      currentColumns.includes(columnId)
+        ? currentColumns.filter((id) => id !== columnId)
+        : [...currentColumns, columnId]
+    ))
+  }
 
   const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0 || l.startMonth > m) return 0; const o = l.monthOverrides?.[m]; if (o) return o.skip ? 0 : Math.min(o.amount, l.remainingAmount); return Math.min(l.emiAmount, l.remainingAmount) }
 
@@ -735,19 +792,43 @@ export default function SalarySlipTab() {
                   </div></div>
                 </div>
                 <div className="flex flex-col h-1/2 min-h-0 space-y-1">
-                  <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0">
+                  <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0 relative">
                     <div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white"><Wallet size={10} /></div><p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Detailed Salary Summary</p><button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf || attendanceSummaryData.length === 0} className="ml-2 p-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 disabled:opacity-50 transition-colors" title="Download Detailed Summary PDF"><Download size={12} /></button></div>
-                    <span className="text-[9px] text-gray-500">Comprehensive Payroll Breakdown</span>
+                    <div className="flex items-center gap-2"><button onClick={() => setShowDetailedColumnPicker(v => !v)} className="h-6 px-2.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-colors">Columns</button><span className="text-[9px] text-gray-500">Comprehensive Payroll Breakdown</span></div>
+                    {showDetailedColumnPicker && (
+                      <div className="absolute right-2 top-9 z-20 w-[290px] max-h-[320px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
+                        <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-gray-600">Visible Columns</p>
+                          <p className="text-[9px] text-gray-500 mt-0.5">Name, Designation, Basic, HRA and Salary are mandatory.</p>
+                        </div>
+                        <div className="p-2 max-h-[250px] overflow-auto space-y-1">
+                          {DETAILED_SUMMARY_COLUMNS.map((column) => {
+                            const isMandatory = Boolean(column.mandatory)
+                            const isChecked = visibleDetailedSummaryColumns.some((visibleColumn) => visibleColumn.id === column.id)
+                            return (
+                              <label key={column.id} className={`flex items-center justify-between rounded px-2 py-1.5 border ${isMandatory ? 'border-emerald-200 bg-emerald-50/70' : 'border-gray-200 hover:bg-gray-50'} cursor-pointer`}>
+                                <div className="flex items-center gap-2">
+                                  <input type="checkbox" checked={isChecked} disabled={isMandatory} onChange={() => toggleDetailedSummaryColumn(column.id)} className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-60" />
+                                  <span className="text-[10px] font-semibold text-gray-700 uppercase tracking-wide">{column.label}</span>
+                                </div>
+                                {isMandatory && <span className="text-[8px] font-black uppercase tracking-wider text-emerald-700">Must</span>}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 flex" style={{ fontFamily: 'Roboto, sans-serif' }}>
                     <div className="flex-1 overflow-auto">
-                      <table className="w-full border-collapse text-[11px]">
+                      <style>{detailedSummaryColumnStyles}</style>
+                      <table className="detailed-summary-table w-full border-collapse text-[11px] table-auto">
                         <thead className="sticky top-0 z-10"><tr style={{ height: '28px' }} className="bg-gray-50"><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">S.No</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase">Emp No</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase">Name</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase">Desig</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Basic</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">HRA</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Sal</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Days</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Wrk</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Sun</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Hol</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Lve</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Paid</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Basic</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">HRA</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Sal</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Sun</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">OT</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Earn</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">PF</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">ESI</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Adv</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">VR</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Ded</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Tot Ded</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Net</th></tr></thead>
                         <tbody>
-                          {isAttendanceLoading ? (<tr><td colSpan={26} className="p-4 text-center"><Spinner /></td></tr>) : attendanceSummaryData.length === 0 ? (<tr><td colSpan={26} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>) : (
+                          {isAttendanceLoading ? (<tr><td colSpan={visibleDetailedSummaryColumns.length} className="p-4 text-center"><Spinner /></td></tr>) : attendanceSummaryData.length === 0 ? (<tr><td colSpan={visibleDetailedSummaryColumns.length} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>) : (
                             <>
                               {attendanceSummaryData.map((emp, idx) => (<tr key={emp.id} style={{ height: '24px' }} className={`hover:bg-indigo-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}><td className="px-1.5 border-b text-center">{emp.sno}</td><td className="px-1.5 border-b font-mono">{emp.empId}</td><td className="px-1.5 border-b font-semibold truncate max-w-[80px]">{emp.name}</td><td className="px-1.5 border-b text-gray-500 truncate max-w-[60px]">{emp.designation}</td><td className="px-1.5 border-b text-right tabular-nums">₹{(emp.fullBasic/1000).toFixed(1)}k</td><td className="px-1.5 border-b text-right tabular-nums">₹{(emp.fullHra/1000).toFixed(1)}k</td><td className="px-1.5 border-b text-right tabular-nums font-bold">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-center">{emp.totalDays}</td><td className="px-1.5 border-b text-center">{emp.worked}</td><td className="px-1.5 border-b text-center">{emp.sunW}</td><td className="px-1.5 border-b text-center">{emp.holW}</td><td className="px-1.5 border-b text-center">{emp.leave}</td><td className="px-1.5 border-b text-center">{emp.totalWorkingDays}</td><td className="px-1.5 border-b text-right tabular-nums">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-right tabular-nums">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-right tabular-nums font-bold">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-amber-600 text-right tabular-nums">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-blue-600 text-right tabular-nums">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-gray-400 text-right">-</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-purple-600 text-right tabular-nums">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
-                              <tr className="bg-red-600 text-white font-black h-[28px]"><td colSpan={25} className="px-4 py-1 text-right text-[10px] uppercase tracking-widest border-t-2 border-red-700">Grand Total Net Payout</td><td className="px-1.5 py-1 text-right text-[11px] tabular-nums border-t-2 border-red-700">₹{Math.round(attendanceSummaryData.reduce((sum, emp) => sum + emp.salary.net, 0)).toLocaleString('en-IN')}</td></tr>
+                              <tr className="bg-red-600 text-white font-black h-[28px]"><td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-1 text-right text-[10px] uppercase tracking-widest border-t-2 border-red-700">Grand Total Net Payout: {formatSummaryCurrency(attendanceSummaryData.reduce((sum, emp) => sum + (Number(emp.salary?.net) || 0), 0))}</td></tr>
                             </>
                           )}
                         </tbody>
