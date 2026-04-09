@@ -44,6 +44,8 @@ const formatMonthDisplay = (monthStr) => {
   return monthStr;
 };
 
+const formatSummaryCurrency = (value) => `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`
+
 const DETAILED_SUMMARY_COLUMNS = [
   { id: 'sno', label: 'S.No', index: 1 },
   { id: 'empNo', label: 'Emp No', index: 2 },
