@@ -427,38 +427,59 @@ export default function SalarySlipTab() {
           const isSunday = dayOfWeek === 0
           const isSaturday = dayOfWeek === 6
           const isConfiguredHoliday = configuredHolidayDates.has(dateStr) && !isSunday
-          const isHoliday = isSunday || isConfiguredHoliday || (isSaturday && isSaturdayHoliday)
+          const isSaturdayConfiguredHoliday = isSaturday && isConfiguredHoliday
+          const isHoliday = isSunday || isConfiguredHoliday
           const r = attendanceByDate.get(dateStr)
 
+          // Count total Sundays and configured holidays (not including Saturday as holiday when it's working day)
           if (isSunday) sun++
           if (isConfiguredHoliday) hol++
-          if (isSaturday && isSaturdayHoliday) hol++
 
+          // Check if worked on Saturday (only counts if Saturday is holiday type and has worked attendance)
+          const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
+          
+          // Check Sunday worked - either directly marked or Saturday support (Saturday workers working Sunday)
+          const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
           const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
           const saturdayWorkedSupport = isSunday && isWorkedAttendanceRecord(attendanceByDate.get(prevDate))
-          const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
           const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
           const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
+          
+          // Check configured holiday worked (not including Saturday - handled separately)
           const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
-          const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
 
           if (r?.isAbsent) {
+            // Absent counts as LOP
             lop++
-          } else if (isHoliday) {
-            if (isSunday) {
-              if (sundayWorked) {
-                sunW++
-                if (sundayWorkedFromRecord) worked++
-              }
-            } else if (holidayWorked || saturdayWorked) {
+          } else if (isSunday) {
+            // Sunday handling
+            if (sundayWorked) {
+              // Sunday worked - either marked as Sunday worked or Saturday workers support
+              sunW++
+              worked++
+            }
+            // If not worked on Sunday, doesn't count as worked (but not LOP for holiday)
+          } else if (isConfiguredHoliday) {
+            // Configured holiday (not Sunday)
+            if (holidayWorked) {
+              holW++
+              worked++
+            }
+            // If not worked on holiday, doesn't count as worked
+          } else if (isSaturday && isSaturdayHoliday) {
+            // Saturday as holiday type
+            if (saturdayWorked) {
               holW++
               worked++
             }
           } else if (r) {
+            // Regular working day with attendance
             worked++
-          } else {
+          } else if (!isSunday && !isConfiguredHoliday && !(isSaturday && isSaturdayHoliday)) {
+            // Regular day with no attendance = LOP
             lop++
           }
+          // Note: Sundays and holidays without attendance are NOT counted as LOP
 
           if (r?.otHours) {
             const [h, mi] = r.otHours.split(':').map(Number)
@@ -598,41 +619,60 @@ export default function SalarySlipTab() {
         const isS = dayOfWeek === 0
         const isSaturday = dayOfWeek === 6
         const isConfiguredHoliday = configuredHolidayDates.has(ds) && !isS
-        const isHoliday = isS || isConfiguredHoliday || (isSaturday && isSaturdayHoliday)
+        const isConfiguredHolidayOrSunday = isS || isConfiguredHoliday
         const r = attendanceByDate.get(ds)
 
         if (isS) sun++
         if (isConfiguredHoliday) hol++
-        if (isSaturday && isSaturdayHoliday) hol++
 
+        // Saturday worked check (only for holiday type)
+        const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
+        
+        // Sunday worked logic
+        const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
         const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
         const saturdayWorkedSupport = isS && isWorkedAttendanceRecord(attendanceByDate.get(prevDate))
-        const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
         const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
         const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
+        
+        // Holiday worked (excluding Saturday - handled separately)
         const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
-        const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
 
-        let t = isHoliday ? (isS ? 'Sunday' : isSaturday ? 'Saturday' : 'Holiday') : 'Absent'
+        let t = isConfiguredHolidayOrSunday ? (isS ? 'Sunday' : 'Holiday') : (isSaturday && isSaturdayHoliday ? 'Saturday' : 'Absent')
 
         if (r?.isAbsent) {
           t = 'Absent'
           lop++
-        } else if (isHoliday) {
-          if (isS && sundayWorked) {
+        } else if (isS) {
+          // Sunday handling
+          if (sundayWorked) {
             t = sundayWorkedFromRecord ? 'Sunday Working' : 'Sunday Working (Sat)'
             sunW++
-          } else if ((!isS && holidayWorked) || (isSaturday && saturdayWorked)) {
-            t = isSaturday ? 'Saturday Working' : 'Holiday Working'
-            holW++
-          } else if (isS && r?.sundayHoliday) {
+            paid++
+          } else if (r?.sundayHoliday) {
             t = 'Sunday Holiday'
+            paid++
           }
-          paid++
+        } else if (isConfiguredHoliday) {
+          // Configured holiday
+          if (holidayWorked) {
+            t = 'Holiday Working'
+            holW++
+            paid++
+          }
+        } else if (isSaturday && isSaturdayHoliday) {
+          // Saturday as holiday
+          if (saturdayWorked) {
+            t = 'Saturday Working'
+            holW++
+            paid++
+          }
         } else if (r) {
+          // Regular working day
           t = 'Working'
           paid++
         } else {
+          // No attendance on regular day
           t = 'Absent'
           lop++
         }
