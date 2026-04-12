@@ -945,14 +945,14 @@ export default function CorrectionTab() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
           {loading ? (
             <div className="flex justify-center py-20"><Spinner /></div>
           ) : (
-            <table className="w-full text-left border-collapse print-table font-['Roboto',sans-serif]">
-              <thead className="sticky top-0 bg-gray-50/95 backdrop-blur z-10 border-b border-gray-200">
-                <tr className="h-[36px]">
-                  <th className="w-[40px] px-3 border-r border-gray-200 no-print">
+            <table className="w-full caption-bottom text-sm border-collapse">
+              <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+                <tr className="border-b border-zinc-200">
+                  <th className="w-[40px] px-3 py-2 text-center align-middle text-xs font-medium text-zinc-500 no-print">
                     <input
                       type="checkbox"
                       checked={selectedRows.length === results.length && results.length > 0}
@@ -960,18 +960,18 @@ export default function CorrectionTab() {
                       className="w-4 h-4 rounded text-indigo-600"
                     />
                   </th>
-                  <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="w-[140px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider">Employee Name</th>
-                  <th className="w-[70px] px-2 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">Shift</th>
-                  <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">In Time</th>
-                  <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">Out Time</th>
-                  <th className="w-[60px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">OT</th>
-                  <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider">Site</th>
-                  <th className="w-[80px] px-3 border-r border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">Status</th>
-                  <th className="w-[80px] px-3 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center no-print">Actions</th>
+                  <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
+                  <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Employee Name</th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Shift</th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">In Time</th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Out Time</th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">OT</th>
+                  <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Site</th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Status</th>
+                  <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500 min-w-[100px] no-print">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="[&_tr:last-child]:border-0">
                 {results.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="text-center py-16 text-gray-300 italic text-xs font-medium">
@@ -979,9 +979,9 @@ export default function CorrectionTab() {
                     </td>
                   </tr>
                 ) : results.map((row, idx) => (
-                  <tr key={idx} className={`h-[34px] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-amber-50/30'}`}>
+                  <tr key={idx} className="border-b border-zinc-200 hover:bg-zinc-50/80 transition-colors group">
                     {/* Checkbox */}
-                    <td className="px-3 border-r border-gray-100 no-print">
+                    <td className="px-3 py-1.5 align-middle no-print">
                       <input
                         type="checkbox"
                         checked={selectedRows.includes(row.id)}
@@ -991,17 +991,17 @@ export default function CorrectionTab() {
                     </td>
                     
                     {/* Date */}
-                    <td className="px-3 border-r border-gray-100 text-[10px] font-bold text-gray-500" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                    <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
                       {formatDateShort(row.date)}
                     </td>
                     
                     {/* Employee Name */}
-                    <td className="px-3 border-r border-gray-100 text-[11px] font-black text-gray-800 uppercase truncate" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                    <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-700 uppercase truncate">
                       {row.name}
                     </td>
                     
                     {/* Shift Type - Toggle */}
-                    <td className="px-2 border-r border-gray-100 text-center no-print">
+                    <td className="px-3 py-1.5 align-middle text-center no-print">
                       {inlineEditRow === row.id ? (
                         <button
                           onClick={() => {
@@ -1018,26 +1018,25 @@ export default function CorrectionTab() {
                           }}
                           className={`w-[60px] h-5 rounded-full p-[1px] flex items-center transition-all ${inlineForm.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-100'}`}
                         >
-                          <span className={`text-[7px] font-bold ${inlineForm.shiftType === 'Night' ? 'text-slate-300 ml-1' : 'text-emerald-700 mr-1'}`} style={{ fontFamily: "'Roboto', sans-serif" }}>
+                          <span className={`text-[7px] font-bold ${inlineForm.shiftType === 'Night' ? 'text-slate-300 ml-1' : 'text-emerald-700 mr-1'}`}>
                             {inlineForm.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
                           </span>
                           <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-all ${inlineForm.shiftType === 'Night' ? 'ml-auto' : 'mr-auto'}`} />
                         </button>
                       ) : (
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold ${row.shiftType === 'Night' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'}`} style={{ fontFamily: "'Roboto', sans-serif" }}>
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold ${row.shiftType === 'Night' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'}`}>
                           {row.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
                         </div>
                       )}
                     </td>
                     
                     {/* In Time - Inline Edit */}
-                    <td className="px-2 border-r border-gray-100 text-center no-print">
+                    <td className="px-3 py-1.5 align-middle text-center no-print">
                       {inlineEditRow === row.id ? (
                         <div className="relative">
                           <button
                             onClick={() => setShowInlineInTimePicker(!showInlineInTimePicker)}
                             className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold text-left"
-                            style={{ fontFamily: "'Roboto', sans-serif" }}
                           >
                             {inlineForm.inTime ? (() => {
                               const [h, m] = inlineForm.inTime.split(':').map(Number)
@@ -1055,20 +1054,19 @@ export default function CorrectionTab() {
                           )}
                         </div>
                       ) : (
-                        <span className="text-[10px] font-semibold text-gray-700" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                        <span className="text-[12px] font-medium text-zinc-600">
                           {row.in === '-' ? '-' : formatTimeTo12Hour(row.in)}
                         </span>
                       )}
                     </td>
                     
                     {/* Out Time - Inline Edit */}
-                    <td className="px-2 border-r border-gray-100 text-center no-print">
+                    <td className="px-3 py-1.5 align-middle text-center no-print">
                       {inlineEditRow === row.id ? (
                         <div className="relative">
                           <button
                             onClick={() => setShowInlineOutTimePicker(!showInlineOutTimePicker)}
                             className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold text-left"
-                            style={{ fontFamily: "'Roboto', sans-serif" }}
                           >
                             {inlineForm.outTime ? (() => {
                               const [h, m] = inlineForm.outTime.split(':').map(Number)
@@ -1084,24 +1082,22 @@ export default function CorrectionTab() {
                               onClose={() => setShowInlineOutTimePicker(false)}
                             />
                           )}
-                          {/* Overnight indicator for Night shift */}
                           {inlineForm.shiftType === 'Night' && inlineForm.outDate && (
                             <div className="flex items-center justify-center gap-1 mt-0.5">
                               <ArrowRightIcon size={10} className="text-slate-400" />
-                              <span className="text-[8px] text-slate-500" style={{ fontFamily: "'Roboto', sans-serif" }}>{displayShortDate(inlineForm.outDate)}</span>
+                              <span className="text-[8px] text-slate-500">{displayShortDate(inlineForm.outDate)}</span>
                             </div>
                           )}
                         </div>
                       ) : (
                         <div>
-                          <span className="text-[10px] font-semibold text-gray-700" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                          <span className="text-[12px] font-medium text-zinc-600">
                             {row.out === '-' ? '-' : formatTimeTo12Hour(row.out)}
                           </span>
-                          {/* Overnight indicator for Night shift */}
                           {row.shiftType === 'Night' && row.outDate && (
                             <div className="flex items-center justify-center gap-1 mt-0.5">
                               <ArrowRightIcon size={10} className="text-slate-400" />
-                              <span className="text-[8px] text-slate-500" style={{ fontFamily: "'Roboto', sans-serif" }}>{displayShortDate(row.outDate)}</span>
+                              <span className="text-[8px] text-slate-500">{displayShortDate(row.outDate)}</span>
                             </div>
                           )}
                         </div>
@@ -1109,55 +1105,55 @@ export default function CorrectionTab() {
                     </td>
                     
                     {/* OT */}
-                    <td className="px-3 border-r border-gray-100 text-center">
-                      <span className="text-[10px] font-black text-indigo-600" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                    <td className="px-3 py-1.5 align-middle text-center">
+                      <span className="text-[12px] font-medium text-indigo-600">
                         {row.ot === '-' ? '-' : formatOTDisplay(row.ot)}
                       </span>
                     </td>
                     
                     {/* Site - Inline Edit */}
-                    <td className="px-2 border-r border-gray-100 no-print">
+                    <td className="px-3 py-1.5 align-middle whitespace-nowrap no-print">
                       {inlineEditRow === row.id ? (
                         <input
                           type="text"
                           value={inlineForm.site}
                           onChange={e => setInlineForm(f => ({ ...f, site: e.target.value }))}
                           className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold"
-                          style={{ fontFamily: "'Roboto', sans-serif" }}
                           placeholder="Site"
                         />
                       ) : (
-                        <span className="text-[10px] font-semibold text-gray-500 uppercase truncate" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                        <span className="text-[12px] font-medium text-zinc-500 uppercase truncate">
                           {row.site === '-' ? '-' : row.site}
                         </span>
                       )}
                     </td>
                     
                     {/* Status - Inline Edit */}
-                    <td className="px-2 border-r border-gray-100 text-center no-print">
+                    <td className="px-3 py-1.5 align-middle text-center no-print">
                       {inlineEditRow === row.id ? (
                         <select
                           value={inlineForm.status}
                           onChange={e => setInlineForm(f => ({ ...f, status: e.target.value }))}
                           className="w-full h-7 text-[10px] border border-indigo-300 rounded px-1 font-semibold"
-                          style={{ fontFamily: "'Roboto', sans-serif" }}
                         >
                           <option value="Present">Present</option>
                           <option value="Absent">Absent</option>
+                          <option value="Holiday">Holiday</option>
                         </select>
                       ) : (
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
                           row.status === 'PRESENT' ? 'bg-green-100 text-green-600' :
                           row.status === 'ABSENT' ? 'bg-red-100 text-red-500' :
+                          row.status === 'SUNDAY' || row.status === 'SUNWORKED' ? 'bg-amber-100 text-amber-600' :
                           'bg-gray-100 text-gray-400'
-                        }`} style={{ fontFamily: "'Roboto', sans-serif" }}>
+                        }`}>
                           {row.status}
                         </span>
                       )}
                     </td>
                     
                     {/* Actions */}
-                    <td className="px-2 text-center no-print">
+                    <td className="px-3 py-1.5 align-middle text-center no-print">
                       {inlineEditRow === row.id ? (
                         <div className="flex items-center justify-center gap-1">
                           <button
