@@ -482,7 +482,7 @@ export default function Dashboard() {
             return (
               <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200/80">
                 {quickActions.map(item => (
-                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab) }} className={`flex items-center gap-1.5 px-4 h-9 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === item.tab ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'bg-white border border-gray-200/80 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'}`}>
+                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab) }} className={`flex items-center gap-1.5 px-4 h-9 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === item.tab ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'bg-white border border-gray-200/80 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'}`}>
                     <span>{item.icon}</span> <span>{item.label}</span>
                   </button>
                 ))}
