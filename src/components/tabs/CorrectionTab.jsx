@@ -99,7 +99,7 @@ function AttendanceFilterBar({ selectedDate, setSelectedDate, onRefresh, onViewD
 // ── SUMMARY CARDS COMPONENT ───────────────────────────────────────────
 function AttendanceSummaryCards({ results }) {
   const stats = useMemo(() => {
-    const present = results.filter(r => r.status === 'PRESENT' || r.status === 'SUNDAY').length
+    const present = results.filter(r => r.status === 'PRESENT' || r.status === 'SUNDAY' || r.status === 'SUNWORKED').length
     const absent = results.filter(r => r.status === 'ABSENT').length
     const noData = results.filter(r => r.status === 'NO DATA').length
     const totalOT = results.reduce((sum, r) => sum + parseOT(r.ot), 0)
@@ -588,7 +588,7 @@ export default function CorrectionTab() {
     setLoading(true)
     try {
       const data = await fetchByDate(selectedDate)
-      const recordsWithData = data.filter(r => r.inTime || r.outTime || r.isAbsent || r.sundayHoliday)
+      const recordsWithData = data.filter(r => r.inTime || r.outTime || r.isAbsent || r.sundayHoliday || r.sundayWorked)
       
       if (recordsWithData.length === 0) {
         setResults([])
@@ -611,14 +611,15 @@ export default function CorrectionTab() {
           name: emp?.name || record.employeeName || 'Unknown',
           date: selectedDate,
           inDate: record?.inDate || selectedDate,
-          in: record?.inTime || (record.sundayHoliday ? 'SUNDAY' : '-'),
+          in: record?.inTime || (record.sundayHoliday ? 'SUNDAY' : record.sundayWorked ? 'WORKED' : '-'),
           outDate: record?.outDate || selectedDate,
-          out: record?.outTime || (record.sundayHoliday ? 'HOLIDAY' : '-'),
+          out: record?.outTime || (record.sundayHoliday ? 'HOLIDAY' : record.sundayWorked ? 'WORKED' : '-'),
           ot: record?.otHours || '-',
           site: record?.remarks || '-',
-          status: record.isAbsent ? 'ABSENT' : record.sundayHoliday ? 'SUNDAY' : 'PRESENT',
+          status: record.isAbsent ? 'ABSENT' : record.sundayHoliday ? 'SUNDAY' : record.sundayWorked ? 'SUNWORKED' : 'PRESENT',
           isAbsent: record?.isAbsent || false,
           sundayHoliday: record?.sundayHoliday || false,
+          sundayWorked: record?.sundayWorked || false,
           clockStatus,
           minDailyHours: emp?.minDailyHours || 8,
           shiftType: record?.shiftType || 'Day',

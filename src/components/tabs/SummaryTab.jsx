@@ -190,6 +190,9 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
     const isSunday = dayOfWeek === 0
     const isHoliday = holidays.some(h => h.date === dateStr)
     
+    if (att.sundayWorked) {
+      return { bg: 'bg-amber-50', text: 'SW', color: 'text-amber-600', type: 'sunworked' }
+    }
     if (att.isAbsent || isHoliday || isSunday) {
       let label = 'Absent'
       if (isHoliday && !att.isAbsent) label = 'Holiday'
