@@ -99,7 +99,7 @@ function AttendanceFilterBar({ selectedDate, setSelectedDate, onRefresh, onViewD
 // ── SUMMARY CARDS COMPONENT ───────────────────────────────────────────
 function AttendanceSummaryCards({ results }) {
   const stats = useMemo(() => {
-    const present = results.filter(r => r.status === 'PRESENT').length
+    const present = results.filter(r => r.status === 'PRESENT' || r.status === 'SUNDAY').length
     const absent = results.filter(r => r.status === 'ABSENT').length
     const noData = results.filter(r => r.status === 'NO DATA').length
     const totalOT = results.reduce((sum, r) => sum + parseOT(r.ot), 0)
@@ -322,7 +322,7 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
       outTime: row.out || '',
       otHours: row.ot || '00:00',
       site: row.site || '',
-      status: row.status === 'PRESENT' ? 'Present' : row.status === 'ABSENT' ? 'Absent' : 'Present',
+      status: row.status === 'PRESENT' ? 'Present' : row.status === 'ABSENT' ? 'Absent' : row.status === 'SUNDAY' ? 'Holiday' : 'Present',
       notes: '',
     }
   })()
@@ -588,7 +588,7 @@ export default function CorrectionTab() {
     setLoading(true)
     try {
       const data = await fetchByDate(selectedDate)
-      const recordsWithData = data.filter(r => r.inTime || r.outTime || r.isAbsent)
+      const recordsWithData = data.filter(r => r.inTime || r.outTime || r.isAbsent || r.sundayHoliday)
       
       if (recordsWithData.length === 0) {
         setResults([])
@@ -611,13 +611,14 @@ export default function CorrectionTab() {
           name: emp?.name || record.employeeName || 'Unknown',
           date: selectedDate,
           inDate: record?.inDate || selectedDate,
-          in: record?.inTime || '-',
+          in: record?.inTime || (record.sundayHoliday ? 'SUNDAY' : '-'),
           outDate: record?.outDate || selectedDate,
-          out: record?.outTime || '-',
+          out: record?.outTime || (record.sundayHoliday ? 'HOLIDAY' : '-'),
           ot: record?.otHours || '-',
           site: record?.remarks || '-',
-          status: record.isAbsent ? 'ABSENT' : 'PRESENT',
+          status: record.isAbsent ? 'ABSENT' : record.sundayHoliday ? 'SUNDAY' : 'PRESENT',
           isAbsent: record?.isAbsent || false,
+          sundayHoliday: record?.sundayHoliday || false,
           clockStatus,
           minDailyHours: emp?.minDailyHours || 8,
           shiftType: record?.shiftType || 'Day',
@@ -685,7 +686,7 @@ export default function CorrectionTab() {
       outTime: row.out === '-' ? '' : row.out,
       ot: row.ot === '-' ? '00:00' : row.ot,
       site: row.site === '-' ? '' : row.site,
-      status: row.status === 'ABSENT' ? 'Absent' : row.status === 'NO DATA' ? 'Present' : 'Present',
+      status: row.status === 'ABSENT' ? 'Absent' : row.status === 'SUNDAY' ? 'Holiday' : 'Present',
       shiftType: row.shiftType || 'Day',
       minDailyHours: row.minDailyHours || 8,
     })
@@ -725,7 +726,7 @@ export default function CorrectionTab() {
         isAbsent,
         status: isAbsent ? 'Absent' : 'Present',
         sundayWorked: false,
-        sundayHoliday: false,
+        sundayHoliday: inlineForm.status === 'Holiday',
       }]
       
       await upsertAttendance(rows)
