@@ -417,16 +417,22 @@ export default function SalarySlipTab() {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
         const attendanceByDate = new Map(empAtt.map(a => [a.date, a]))
         let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunW = 0, holW = 0
+        const saturdayType = orgData?.saturdayType || 'working'
+        const isSaturdayHoliday = ['holiday1x', 'holiday2x', 'alternative'].includes(saturdayType)
+        
         for (let i = 1; i <= daysInMonth; i++) {
           const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`
           const d = new Date(y, m - 1, i)
-          const isSunday = d.getDay() === 0
+          const dayOfWeek = d.getDay()
+          const isSunday = dayOfWeek === 0
+          const isSaturday = dayOfWeek === 6
           const isConfiguredHoliday = configuredHolidayDates.has(dateStr) && !isSunday
-          const isHoliday = isSunday || isConfiguredHoliday
+          const isHoliday = isSunday || isConfiguredHoliday || (isSaturday && isSaturdayHoliday)
           const r = attendanceByDate.get(dateStr)
 
           if (isSunday) sun++
           if (isConfiguredHoliday) hol++
+          if (isSaturday && isSaturdayHoliday) hol++
 
           const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
           const saturdayWorkedSupport = isSunday && isWorkedAttendanceRecord(attendanceByDate.get(prevDate))
@@ -434,6 +440,7 @@ export default function SalarySlipTab() {
           const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
           const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
           const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
+          const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
 
           if (r?.isAbsent) {
             lop++
@@ -443,7 +450,7 @@ export default function SalarySlipTab() {
                 sunW++
                 if (sundayWorkedFromRecord) worked++
               }
-            } else if (holidayWorked) {
+            } else if (holidayWorked || saturdayWorked) {
               holW++
               worked++
             }
@@ -463,6 +470,7 @@ export default function SalarySlipTab() {
         const dailyRate = ts / daysInMonth
         const fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
         const basic = fullBasic * (paidDays / daysInMonth), hra = fullHra * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), esi = 0, otPay = otH * (dailyRate / minH)
+        const satPayMultiplier = saturdayType === 'holiday2x' || saturdayType === 'alternative' ? 2 : 1
         const sunPay = sunW * dailyRate * 1, holPay = holW * dailyRate * 2
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const earnings = [{ label: 'Basic', value: basic }, { label: 'HRA', value: hra }, { label: 'Sun Pay', value: sunPay }, { label: 'Hol Pay', value: holPay }, { label: 'OT Est.', value: otPay }, { label: 'Reimb.', value: reimb }].filter(e => e.value > 0)
@@ -581,16 +589,21 @@ export default function SalarySlipTab() {
       const slab = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
       const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8
       let paid = 0, lop = 0, aOT = 0, sun = 0, hol = 0, sunW = 0, holW = 0, grid = []
+      const saturdayType = orgData?.saturdayType || 'working'
+      const isSaturdayHoliday = ['holiday1x', 'holiday2x', 'alternative'].includes(saturdayType)
       for (let i = 1; i <= end; i++) {
         const d = new Date(y, m - 1, i)
         const ds = d.toISOString().split('T')[0]
-        const isS = d.getDay() === 0
+        const dayOfWeek = d.getDay()
+        const isS = dayOfWeek === 0
+        const isSaturday = dayOfWeek === 6
         const isConfiguredHoliday = configuredHolidayDates.has(ds) && !isS
-        const isHoliday = isS || isConfiguredHoliday
+        const isHoliday = isS || isConfiguredHoliday || (isSaturday && isSaturdayHoliday)
         const r = attendanceByDate.get(ds)
 
         if (isS) sun++
         if (isConfiguredHoliday) hol++
+        if (isSaturday && isSaturdayHoliday) hol++
 
         const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
         const saturdayWorkedSupport = isS && isWorkedAttendanceRecord(attendanceByDate.get(prevDate))
@@ -598,8 +611,9 @@ export default function SalarySlipTab() {
         const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
         const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
         const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
+        const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
 
-        let t = isHoliday ? (isS ? 'Sunday' : 'Holiday') : 'Absent'
+        let t = isHoliday ? (isS ? 'Sunday' : isSaturday ? 'Saturday' : 'Holiday') : 'Absent'
 
         if (r?.isAbsent) {
           t = 'Absent'
@@ -608,8 +622,8 @@ export default function SalarySlipTab() {
           if (isS && sundayWorked) {
             t = sundayWorkedFromRecord ? 'Sunday Working' : 'Sunday Working (Sat)'
             sunW++
-          } else if (!isS && holidayWorked) {
-            t = 'Holiday Working'
+          } else if ((!isS && holidayWorked) || (isSaturday && saturdayWorked)) {
+            t = isSaturday ? 'Saturday Working' : 'Holiday Working'
             holW++
           } else if (isS && r?.sundayHoliday) {
             t = 'Sunday Holiday'

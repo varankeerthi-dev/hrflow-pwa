@@ -283,7 +283,8 @@ export default function SettingsTab() {
   const [orgSettings, setOrgSettings] = useState({
     name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: '', code: '', shiftStrategy: 'Day', logoURL: '',
     advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
-    holidays: []
+    holidays: [],
+    saturdayType: 'working' // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
   })
   const [sites, setSites] = useState([])
   const [editingSiteId, setEditingSiteId] = useState(null)
@@ -2619,6 +2620,31 @@ export default function SettingsTab() {
                   <Plus size={14} />
                   Add Holiday
                 </button>
+              </div>
+
+              {/* Saturday Working Status */}
+              <div className="border-t border-slate-200 px-6 py-5">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Saturday Configuration</p>
+                      <h4 className="mt-1 text-[14px] font-bold text-slate-950">Configure Saturday as working day</h4>
+                    </div>
+                  </div>
+                  <select
+                    value={orgSettings.saturdayType || 'working'}
+                    onChange={e => setOrgSettings(s => ({ ...s, saturdayType: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-semibold text-slate-700"
+                  >
+                    <option value="working">Working Day (Regular pay)</option>
+                    <option value="holiday1x">Holiday (1x Pay)</option>
+                    <option value="holiday2x">Holiday (2x Pay - Double)</option>
+                    <option value="alternative">Alternative Holiday (2x Pay)</option>
+                  </select>
+                  <p className="mt-2 text-[10px] text-slate-500">
+                    This setting affects salary calculation. Old records will be recalculated when you save.
+                  </p>
+                </div>
               </div>
             </div>
 
