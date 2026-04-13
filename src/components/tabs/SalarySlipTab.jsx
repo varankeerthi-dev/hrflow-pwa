@@ -873,7 +873,7 @@ export default function SalarySlipTab() {
                                 {row.getVisibleCells().map(cell => (
                                   <td 
                                     key={cell.id} 
-                                    className="px-4 py-3 border-r border-gray-200 text-center text-gray-900 transition-colors duration-200"
+                                    className="px-4 py-2 border-r border-gray-200 text-center text-gray-900 transition-colors duration-200"
                                   >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                   </td>
@@ -975,25 +975,25 @@ export default function SalarySlipTab() {
                                       : 'bg-gray-50 hover:bg-gray-100'
                                   }`}
                                 >
-                                  <td className="px-3 py-3 text-center text-gray-900 font-medium">{emp.sno}</td>
-                                  <td className="px-3 py-3 font-mono text-gray-700">{emp.empId}</td>
-                                  <td className="px-3 py-3 font-medium text-gray-900 truncate max-w-xs" title={emp.name}>{emp.name}</td>
-                                  <td className="px-3 py-3 text-gray-600 truncate max-w-xs" title={emp.designation}>{emp.designation}</td>
-                                  <td className="px-3 py-3 text-right font-medium text-gray-900">₹{(emp.fullBasic/1000).toFixed(1)}k</td>
-                                  <td className="px-3 py-3 text-right font-medium text-gray-900">₹{(emp.fullHra/1000).toFixed(1)}k</td>
-                                  <td className="px-3 py-3 text-right font-semibold text-blue-600">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.totalDays}</td>
-                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.worked}</td>
-                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.sunW}</td>
-                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.holW}</td>
-                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.leave}</td>
-                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.totalWorkingDays}</td>
-                                  <td className="px-3 py-3 text-right font-medium text-gray-900">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-3 text-right font-medium text-gray-900">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-3 text-right font-semibold text-green-600">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-3 text-right font-medium text-amber-600">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-3 text-right font-medium text-blue-600">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-3 text-right font-semibold text-green-600">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-gray-400 text-right">-</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-purple-600 text-right tabular-nums">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
+                                  <td className="px-3 py-2 text-center text-gray-900 font-medium">{emp.sno}</td>
+                                  <td className="px-3 py-2 font-mono text-gray-700">{emp.empId}</td>
+                                  <td className="px-3 py-2 font-medium text-gray-900 truncate max-w-xs" title={emp.name}>{emp.name}</td>
+                                  <td className="px-3 py-2 text-gray-600 truncate max-w-xs" title={emp.designation}>{emp.designation}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900">₹{(emp.fullBasic/1000).toFixed(1)}k</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900">₹{(emp.fullHra/1000).toFixed(1)}k</td>
+                                  <td className="px-3 py-2 text-right font-semibold text-blue-600">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.totalDays}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.worked}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.sunW}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.holW}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.leave}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.totalWorkingDays}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-semibold text-green-600">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-amber-600">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-blue-600">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-semibold text-green-600">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-gray-400 text-right">-</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-purple-600 text-right tabular-nums">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
                               <tr className="bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold">
                                 <td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-between">
