@@ -508,36 +508,36 @@ export default function SalarySlipTab() {
     { 
       header: 'Basic Info',
       columns: [
-        { accessorKey: 'sno', header: 'S.No', size: 15, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
-        { accessorKey: 'name', header: 'Employee Name', size: 150, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-semibold text-indigo-600 hover:text-indigo-800 px-1 truncate w-full text-[11px] block font-roboto">{info.getValue()}</button> },
-        { accessorKey: 'worked', header: 'Worked', size: 20, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'sno', header: 'S.No', size: 60, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-blue-50 transition-colors duration-200">{info.getValue()}</div> },
+        { accessorKey: 'name', header: 'Employee Name', size: 200, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-2 truncate w-full text-sm transition-all duration-200 rounded-md group">{info.getValue()}</button> },
+        { accessorKey: 'worked', header: 'Worked', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
       ]
     },
-    { accessorKey: 'totalDays', header: 'Total\nDays', size: 18, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+    { accessorKey: 'totalDays', header: 'Total Days', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
     { 
       header: 'Holiday',
       columns: [
-        { accessorKey: 'sunday', header: 'Sunday', size: 30, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
-        { accessorKey: 'holidays', header: 'Holiday', size: 30, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
-        { accessorKey: 'totalHolidays', header: 'Tot', size: 22, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'sunday', header: 'Sunday', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
+        { accessorKey: 'holidays', header: 'Holiday', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
+        { accessorKey: 'totalHolidays', header: 'Total', size: 80, cell: info => <div className="text-center text-sm font-semibold text-gray-900 py-2 px-1 bg-blue-50">{info.getValue()}</div> },
       ]
     },
     { 
-      header: 'LEAVE',
+      header: 'Leave',
       columns: [
-        { accessorKey: 'leave', header: 'Approved', size: 30, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
-        { accessorKey: 'lop', header: 'Loss-of-pay', size: 25, cell: info => <div className="text-center text-[10px] text-red-600 font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'leave', header: 'Approved', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
+        { accessorKey: 'lop', header: 'Loss of Pay', size: 100, cell: info => <div className="text-center text-sm font-medium text-red-600 py-2 px-1 bg-red-50 hover:bg-red-100 transition-colors duration-200 font-semibold">{info.getValue()}</div> },
       ]
     },
-    { accessorKey: 'ot', header: 'OT', size: 25, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+    { accessorKey: 'ot', header: 'OT Hours', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
     { 
-      header: 'Holiday worked',
+      header: 'Holiday Worked',
       columns: [
-        { accessorKey: 'sunW', header: 'SUN', size: 28, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
-        { accessorKey: 'holW', header: 'HOL', size: 28, cell: info => <div className="text-center text-[10px] font-roboto">{info.getValue()}</div> },
+        { accessorKey: 'sunW', header: 'Sunday', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
+        { accessorKey: 'holW', header: 'Holiday', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
       ]
     },
-    { accessorKey: 'totalWorkingDays', header: 'PAY DAYS', size: 30, cell: info => <div className="text-center font-bold text-[10px] text-emerald-600 font-roboto">{info.getValue()}</div> },
+    { accessorKey: 'totalWorkingDays', header: 'Pay Days', size: 80, cell: info => <div className="text-center text-sm font-semibold text-green-700 py-2 px-1 bg-green-50 hover:bg-green-100 transition-colors duration-200">{info.getValue()}</div> },
   ], [])
 
   const table = useReactTable({ 
@@ -830,21 +830,59 @@ export default function SalarySlipTab() {
                     <div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center text-white"><Clock size={10} /></div><p className="text-[8px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Summary</p></div>
                     <div className="flex items-center gap-1"><button onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)} className={`p-0.5 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`}><Info size={10} /></button></div>
                   </div>
-                  <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 flex" style={{ fontFamily: 'Roboto, sans-serif' }}><div className="overflow-auto flex-1">
-                    <table className="w-full border-collapse text-[11px] table-auto">
-                      <thead className="sticky top-0 z-10">
-                        {table.getHeaderGroups().map((headerGroup) => (
-                          <tr key={headerGroup.id} className="bg-white">
-                            {headerGroup.headers.map(header => (<th key={header.id} colSpan={header.colSpan} className="px-2 py-1 border border-gray-300 text-gray-700 font-semibold text-center bg-white" style={{ fontSize: '10px' }}>{flexRender(header.column.columnDef.header, header.getContext())}</th>))}
-                          </tr>
-                        ))}
-                      </thead>
-                      <tbody>
-                        {isAttendanceLoading ? (<tr><td colSpan={13} className="p-10 text-center"><Spinner /></td></tr>) : (
-                          table.getRowModel().rows.map(row => (<tr key={row.id} style={{ height: '21px' }} className={`hover:bg-gray-50 ${summaryEmpDetail?.id === row.original.id ? 'bg-gray-100' : 'bg-white'}`}>{row.getVisibleCells().map(cell => (<td key={cell.id} className="px-1 py-0.5 border border-gray-200 text-gray-800 text-center whitespace-nowrap">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>))}</tr>))
-                        )}
-                      </tbody>
-                    </table>
+                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden flex-col flex-1 min-h-0 shadow-sm">
+                    <div className="overflow-auto flex-1">
+                      <table className="w-full border-collapse text-sm">
+                        <thead className="sticky top-0 z-10 bg-gray-50">
+                          {table.getHeaderGroups().map((headerGroup) => (
+                            <tr key={headerGroup.id} className="border-b border-gray-200">
+                              {headerGroup.headers.map(header => (
+                                <th 
+                                  key={header.id} 
+                                  colSpan={header.colSpan} 
+                                  className="px-4 py-3 border-r border-gray-200 text-left font-semibold text-gray-900 bg-gray-50 text-xs uppercase tracking-wider transition-colors hover:bg-gray-100"
+                                >
+                                  {flexRender(header.column.columnDef.header, header.getContext())}
+                                </th>
+                              ))}
+                            </tr>
+                          ))}
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {isAttendanceLoading ? (
+                            <tr>
+                              <td colSpan={13} className="p-8 text-center text-gray-500">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Spinner size="sm" />
+                                  <span className="text-sm">Loading data...</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            table.getRowModel().rows.map((row, index) => (
+                              <tr 
+                                key={row.id} 
+                                className={`border-b border-gray-100 transition-all duration-200 ${
+                                  summaryEmpDetail?.id === row.original.id 
+                                    ? 'bg-blue-50 border-blue-200' 
+                                    : index % 2 === 0 
+                                    ? 'bg-white hover:bg-gray-50' 
+                                    : 'bg-gray-50 hover:bg-gray-100'
+                                }`}
+                              >
+                                {row.getVisibleCells().map(cell => (
+                                  <td 
+                                    key={cell.id} 
+                                    className="px-4 py-3 border-r border-gray-200 text-center text-gray-900 transition-colors duration-200"
+                                  >
+                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
                   </div></div>
                 </div>
                 <div className="flex flex-col h-1/2 min-h-0 space-y-1">
@@ -879,12 +917,91 @@ export default function SalarySlipTab() {
                     <div className="flex-1 overflow-auto">
                       <style>{detailedSummaryColumnStyles}</style>
                       <table className="detailed-summary-table w-full border-collapse text-[11px] table-auto">
-                        <thead className="sticky top-0 z-10"><tr style={{ height: '28px' }} className="bg-gray-50"><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">S.No</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase">Emp No</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase">Name</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-left bg-gray-100 uppercase">Desig</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Basic</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">HRA</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Sal</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Days</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Wrk</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Sun</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Hol</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Lve</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-center bg-gray-100 uppercase">Paid</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Basic</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">HRA</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Sal</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Sun</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">OT</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Earn</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">PF</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">ESI</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Adv</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">VR</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Ded</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Tot Ded</th><th className="px-1.5 py-1.5 border-b-2 border-gray-300 text-gray-700 font-bold text-[9px] text-right bg-gray-100 uppercase">Net</th></tr></thead>
+                        <thead className="sticky top-0 z-10">
+                          <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
+                            <th className="px-3 py-3 border-r border-gray-300 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider">S.No</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider">Emp No</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider">Name</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider">Designation</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Basic</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">HRA</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">CTC</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Days</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Worked</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Sunday</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Holiday</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Leave</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Paid</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Basic</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">HRA</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Earned</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">PF</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Advance</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Loan</th>
+                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Total Ded</th>
+                            <th className="px-3 py-3 border-r-0 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Net</th>
+                          </tr>
+                        </thead>
                         <tbody>
-                          {isAttendanceLoading ? (<tr><td colSpan={visibleDetailedSummaryColumns.length} className="p-4 text-center"><Spinner /></td></tr>) : attendanceSummaryData.length === 0 ? (<tr><td colSpan={visibleDetailedSummaryColumns.length} className="py-8 text-center text-gray-400 text-[11px]">No data available</td></tr>) : (
+                          {isAttendanceLoading ? (
+                            <tr>
+                              <td colSpan={visibleDetailedSummaryColumns.length} className="p-8 text-center text-gray-500">
+                                <div className="flex items-center justify-center gap-3">
+                                  <Spinner size="md" />
+                                  <span className="text-sm font-medium">Loading payroll data...</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : attendanceSummaryData.length === 0 ? (
+                            <tr>
+                              <td colSpan={visibleDetailedSummaryColumns.length} className="py-12 text-center text-gray-500">
+                                <div className="flex flex-col items-center gap-3">
+                                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                                    <FileText size={24} className="text-gray-400" />
+                                  </div>
+                                  <p className="text-lg font-medium text-gray-600">No payroll data available</p>
+                                  <p className="text-sm text-gray-400">Select a month to view detailed summary</p>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
                             <>
-                              {attendanceSummaryData.map((emp, idx) => (<tr key={emp.id} style={{ height: '24px' }} className={`hover:bg-indigo-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}><td className="px-1.5 border-b text-center">{emp.sno}</td><td className="px-1.5 border-b font-mono">{emp.empId}</td><td className="px-1.5 border-b font-semibold truncate max-w-[80px]">{emp.name}</td><td className="px-1.5 border-b text-gray-500 truncate max-w-[60px]">{emp.designation}</td><td className="px-1.5 border-b text-right tabular-nums">₹{(emp.fullBasic/1000).toFixed(1)}k</td><td className="px-1.5 border-b text-right tabular-nums">₹{(emp.fullHra/1000).toFixed(1)}k</td><td className="px-1.5 border-b text-right tabular-nums font-bold">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-center">{emp.totalDays}</td><td className="px-1.5 border-b text-center">{emp.worked}</td><td className="px-1.5 border-b text-center">{emp.sunW}</td><td className="px-1.5 border-b text-center">{emp.holW}</td><td className="px-1.5 border-b text-center">{emp.leave}</td><td className="px-1.5 border-b text-center">{emp.totalWorkingDays}</td><td className="px-1.5 border-b text-right tabular-nums">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-right tabular-nums">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-right tabular-nums font-bold">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-amber-600 text-right tabular-nums">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-blue-600 text-right tabular-nums">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-gray-400 text-right">-</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-purple-600 text-right tabular-nums">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
-                              <tr className="bg-red-600 text-white font-black h-[28px]"><td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-1 text-right text-[10px] uppercase tracking-widest border-t-2 border-red-700">Grand Total Net Payout: {formatSummaryCurrency(attendanceSummaryData.reduce((sum, emp) => sum + (Number(emp.salary?.net) || 0), 0))}</td></tr>
+                              {attendanceSummaryData.map((emp, idx) => (
+                                <tr 
+                                  key={emp.id} 
+                                  className={`border-b border-gray-100 transition-all duration-200 ${
+                                    idx % 2 === 0 
+                                      ? 'bg-white hover:bg-blue-50' 
+                                      : 'bg-gray-50 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  <td className="px-3 py-3 text-center text-gray-900 font-medium">{emp.sno}</td>
+                                  <td className="px-3 py-3 font-mono text-gray-700">{emp.empId}</td>
+                                  <td className="px-3 py-3 font-medium text-gray-900 truncate max-w-xs" title={emp.name}>{emp.name}</td>
+                                  <td className="px-3 py-3 text-gray-600 truncate max-w-xs" title={emp.designation}>{emp.designation}</td>
+                                  <td className="px-3 py-3 text-right font-medium text-gray-900">₹{(emp.fullBasic/1000).toFixed(1)}k</td>
+                                  <td className="px-3 py-3 text-right font-medium text-gray-900">₹{(emp.fullHra/1000).toFixed(1)}k</td>
+                                  <td className="px-3 py-3 text-right font-semibold text-blue-600">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.totalDays}</td>
+                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.worked}</td>
+                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.sunW}</td>
+                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.holW}</td>
+                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.leave}</td>
+                                  <td className="px-3 py-3 text-center font-medium text-gray-900">{emp.totalWorkingDays}</td>
+                                  <td className="px-3 py-3 text-right font-medium text-gray-900">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-3 text-right font-medium text-gray-900">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-3 text-right font-semibold text-green-600">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-3 text-right font-medium text-amber-600">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-3 text-right font-medium text-blue-600">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-3 text-right font-semibold text-green-600">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-gray-400 text-right">-</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-purple-600 text-right tabular-nums">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
+                              <tr className="bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold">
+                                <td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-3 text-right">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm uppercase tracking-wider">Grand Total Net Payout:</span>
+                                    <span className="text-lg font-bold">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, emp) => sum + (Number(emp.salary?.net) || 0), 0))}</span>
+                                  </div>
+                                </td>
+                              </tr>
                             </>
                           )}
                         </tbody>
@@ -915,7 +1032,71 @@ export default function SalarySlipTab() {
                 <div className="space-y-6 animate-in fade-in duration-500"><div className="bg-white rounded-[32px] border border-gray-200 shadow-xl overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-left border-collapse font-inter"><thead><tr className="bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-600 h-14 border-b border-slate-200"><th className="px-8 border-r border-slate-200">Employee</th><th className="px-8 border-r border-slate-200 text-right">Remaining Principal</th><th className="px-8 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{loans.length === 0 ? (<tr><td colSpan={3} className="px-8 py-20 text-center text-slate-300 font-black uppercase tracking-widest italic opacity-50">No active recovery schedules</td></tr>) : loans.map(l => (<tr key={l.id} className="hover:bg-slate-50/50 transition-colors h-16 group"><td className="px-8 border-r border-slate-50 font-black text-slate-900 text-sm uppercase">{l.employeeName}</td><td className="px-8 border-r border-slate-50 text-right font-black text-emerald-600 text-base tabular-nums">{formatINR(l.remainingAmount)}</td><td className="px-8 text-right"><div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all"><button onClick={() => handleEditLoan(l)} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm" title="Edit Schedule"><Edit2 size={16}/></button><button onClick={() => setSelectedLoan(l)} className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm" title="Manual Override"><RefreshCw size={16}/></button><button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm" title="Delete Plan"><Trash2 size={16}/></button></div></td></tr>))}</tbody></table></div></div>{selectedLoan && (<div className="bg-white rounded-[32px] border-2 border-amber-400 p-8 shadow-2xl animate-in slide-in-from-top-4 duration-500 max-w-4xl mx-auto"><div className="flex justify-between items-center mb-6"><div className="flex items-center gap-3"><div className="p-3 bg-amber-100 rounded-2xl text-amber-700"><Info size={24}/></div><div><h3 className="font-black text-slate-900 uppercase font-google-sans tracking-tight">Manual Override</h3><p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">Adjusting: {selectedLoan.employeeName}</p></div></div><button onClick={() => setSelectedLoan(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all"><X size={20}/></button></div><div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end"><div className="space-y-1.5"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Month</label><input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-12 border border-slate-200 rounded-2xl px-4 font-black text-slate-800 bg-slate-50 focus:ring-2 focus:ring-amber-500 outline-none"/></div><div className="space-y-1.5"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Override EMI (₹)</label><input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-12 border border-slate-200 rounded-2xl px-4 font-black text-indigo-600 bg-slate-50 focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-50"/></div><div className="flex items-center gap-3 h-12 bg-amber-50 px-4 rounded-2xl border border-amber-100"><input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-5 h-5 rounded-lg text-amber-600 border-amber-300 focus:ring-amber-500 transition-all"/><label htmlFor="skipEMI" className="text-[11px] font-black text-amber-700 uppercase cursor-pointer">Skip EMI</label></div><button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-12 bg-amber-600 text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-lg shadow-amber-600/20 hover:bg-amber-700 active:scale-95 transition-all">Apply Adjustment</button></div></div>)}</div>
               )}
               {loanActiveModule === 'Activity' && (
-                <div className="max-w-3xl mx-auto space-y-4 animate-in fade-in duration-500"><div className="bg-white rounded-[32px] border border-gray-200 shadow-xl overflow-hidden p-8"><div className="flex items-center gap-3 mb-8"><div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600"><History size={24}/></div><h3 className="text-xl font-black text-slate-900 uppercase font-google-sans tracking-tight">Recent Activity</h3></div><div className="space-y-6 relative"><div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100"></div>{loanActivities.map((act, i) => (<div key={act.id} className="relative pl-10"><div className={`absolute left-2.5 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm transition-colors ${act.action === 'Deleted' ? 'bg-rose-500' : act.action === 'Updated' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div><div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 hover:border-indigo-200 transition-all"><div className="flex justify-between items-start gap-4"><span className="text-[13px] font-bold text-slate-800 leading-relaxed">{act.detail}</span><span className="text-[9px] font-black text-slate-400 uppercase whitespace-nowrap bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">{act.timestamp?.toDate ? act.timestamp.toDate().toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) : 'Just now'}</span></div></div></div>))}</div></div></div>
+                <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in duration-500">
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+                    <div className="p-6 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                            <History size={20} className="text-white" />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 tracking-tight">Recent Activity</h3>
+                        </div>
+                        <div className="text-sm text-gray-500 font-medium">Latest loan management actions</div>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <div className="space-y-4 relative">
+                        {loanActivities.length === 0 ? (
+                          <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                              <History size={24} className="text-gray-400" />
+                            </div>
+                            <div>
+                              <p className="text-lg font-medium text-gray-600">No recent activity</p>
+                              <p className="text-sm text-gray-400">Loan activities will appear here</p>
+                            </div>
+                          </div>
+                        ) : (
+                          loanActivities.map((act, i) => (
+                            <div key={act.id} className="relative pl-10 group">
+                              <div className={`absolute left-3 top-2 w-4 h-4 rounded-full border-2 border-white shadow-sm transition-all duration-200 ${
+                                act.action === 'Deleted' ? 'bg-red-500' : 
+                                act.action === 'Updated' ? 'bg-amber-500' : 
+                                'bg-emerald-500'
+                              }`}>
+                                <div className="w-2 h-2 rounded-full bg-white"></div>
+                              </div>
+                              <div className="bg-white rounded-lg border border-gray-200 p-4 ml-8 hover:shadow-md transition-all duration-200 group-hover:border-indigo-300">
+                                <div className="flex justify-between items-start gap-4">
+                                  <div className="flex-1">
+                                    <p className="text-sm font-semibold text-gray-900 leading-relaxed">{act.detail}</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      {act.action === 'Deleted' && 'Loan schedule removed'}
+                                      {act.action === 'Updated' && 'Loan details modified'}
+                                      {act.action === 'Created' && 'New loan schedule created'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-400 whitespace-nowrap bg-gray-100 px-2 py-1 rounded-md border border-gray-200">
+                                    {act.timestamp?.toDate ? act.timestamp.toDate().toLocaleDateString('en-US', { 
+                                      day: '2-digit', 
+                                      month: 'short', 
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    }) : 'Just now'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
