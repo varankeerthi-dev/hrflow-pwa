@@ -291,6 +291,7 @@ export default function SalarySlipTab() {
   const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
   const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map((column) => column.id))
   const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false)
   const monthInputRef = useRef(null)
 
   const sortedEmployees = useMemo(() => {
@@ -334,6 +335,26 @@ export default function SalarySlipTab() {
         ? currentColumns.filter((id) => id !== columnId)
         : [...currentColumns, columnId]
     ))
+  }
+
+  const handleSaveColumnPreferences = async () => {
+    if (!user?.orgId) return
+    
+    setIsSavingPreferences(true)
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId), {
+        salarySummaryColumnPreferences: selectedDetailedColumns,
+        updatedAt: serverTimestamp()
+      })
+      
+      // Show success feedback
+      alert('Column preferences saved successfully!')
+    } catch (error) {
+      console.error('Error saving column preferences:', error)
+      alert('Failed to save column preferences. Please try again.')
+    } finally {
+      setIsSavingPreferences(false)
+    }
   }
 
   const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0 || l.startMonth > m) return 0; const o = l.monthOverrides?.[m]; if (o) return o.skip ? 0 : Math.min(o.amount, l.remainingAmount); return Math.min(l.emiAmount, l.remainingAmount) }
@@ -509,7 +530,7 @@ export default function SalarySlipTab() {
       header: 'Basic Info',
       columns: [
         { accessorKey: 'sno', header: 'S.No', size: 60, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-blue-50 transition-colors duration-200">{info.getValue()}</div> },
-        { accessorKey: 'name', header: 'Employee Name', size: 200, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-2 truncate w-full text-sm transition-all duration-200 rounded-md group">{info.getValue()}</button> },
+        { accessorKey: 'name', header: 'Employee Name', size: 200, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); setIsAttendanceSummaryOpen(false); }} className="text-left font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-2 truncate w-full text-sm transition-all duration-200 rounded-md group">{info.getValue()}</button> },
         { accessorKey: 'worked', header: 'Worked', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
       ]
     },
@@ -553,6 +574,17 @@ export default function SalarySlipTab() {
         const data = snap.data();
         setOrgData(data);
         setOrgLogo(data.logoURL || '');
+        
+        // Load saved column preferences
+        if (data.salarySummaryColumnPreferences && Array.isArray(data.salarySummaryColumnPreferences)) {
+          // Ensure all mandatory columns are included
+          const savedColumns = data.salarySummaryColumnPreferences.filter(id => 
+            DETAILED_SUMMARY_COLUMNS.some(col => col.id === id)
+          );
+          const mandatoryColumns = DETAILED_SUMMARY_COLUMNS.filter(col => col.mandatory).map(col => col.id);
+          const finalColumns = [...new Set([...mandatoryColumns, ...savedColumns])];
+          setSelectedDetailedColumns(finalColumns);
+        }
       }
     }); 
     fetchLoans() 
@@ -824,8 +856,8 @@ export default function SalarySlipTab() {
               <div className="text-right pr-2"><h1 className="text-[9px] font-black text-gray-900 font-google-sans tracking-tight uppercase leading-none">Salary Summary</h1><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Analytics Engine</p></div>
             </div>
             <div className="flex gap-2 flex-1 min-h-0 items-start overflow-hidden relative">
-              <div className="flex-1 min-w-0 flex flex-col gap-2 h-full overflow-hidden">
-                <div className="flex flex-col h-1/2 min-h-0 space-y-1">
+              <div className={`${isAttendanceSummaryOpen ? 'flex-1 min-w-0' : 'w-0 overflow-hidden'} flex flex-col gap-2 h-full overflow-hidden transition-all duration-300`}>
+                <div className={`${isAttendanceSummaryOpen ? 'flex flex-col h-1/2 min-h-0' : 'hidden'} space-y-1`}>
                   <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0">
                     <div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center text-white"><Clock size={10} /></div><p className="text-[8px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Summary</p></div>
                     <div className="flex items-center gap-1"><button onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)} className={`p-0.5 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`}><Info size={10} /></button></div>
@@ -885,15 +917,39 @@ export default function SalarySlipTab() {
                       </table>
                   </div></div>
                 </div>
-                <div className="flex flex-col h-1/2 min-h-0 space-y-1">
+                <div className={`${isAttendanceSummaryOpen ? 'flex flex-col h-1/2 min-h-0' : 'flex flex-col h-full'} space-y-1 transition-all duration-300`}>
                   <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0 relative">
-                    <div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white"><Wallet size={10} /></div><p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Detailed Salary Summary</p><button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf || attendanceSummaryData.length === 0} className="ml-2 p-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 disabled:opacity-50 transition-colors" title="Download Detailed Summary PDF"><Download size={12} /></button></div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white"><Wallet size={10} /></div>
+                      <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Detailed Salary Summary</p>
+                      <button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf || attendanceSummaryData.length === 0} className="ml-2 p-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 disabled:opacity-50 transition-colors" title="Download Detailed Summary PDF"><Download size={12} /></button>
+                      {!isAttendanceSummaryOpen && (
+                        <button 
+                          onClick={() => setIsAttendanceSummaryOpen(true)}
+                          className="ml-2 p-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                          title="Show Attendance Summary"
+                        >
+                          <ChevronLeft size={12} />
+                        </button>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2"><button onClick={() => setShowDetailedColumnPicker(v => !v)} className="h-6 px-2.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-colors">Columns</button><span className="text-[9px] text-gray-500">Comprehensive Payroll Breakdown</span></div>
                     {showDetailedColumnPicker && (
                       <div className="absolute right-2 top-9 z-20 w-[290px] max-h-[320px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
                         <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-gray-600">Visible Columns</p>
-                          <p className="text-[9px] text-gray-500 mt-0.5">Name, Designation, Basic, HRA and Salary are mandatory.</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-wider text-gray-600">Visible Columns</p>
+                              <p className="text-[9px] text-gray-500 mt-0.5">Name, Designation, Basic, HRA and Salary are mandatory.</p>
+                            </div>
+                            <button 
+                              onClick={handleSaveColumnPreferences}
+                              disabled={isSavingPreferences}
+                              className="px-3 py-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-wider rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                            >
+                              {isSavingPreferences ? 'Saving...' : 'Save Default'}
+                            </button>
+                          </div>
                         </div>
                         <div className="p-2 max-h-[250px] overflow-auto space-y-1">
                           {DETAILED_SUMMARY_COLUMNS.map((column) => {
@@ -916,30 +972,71 @@ export default function SalarySlipTab() {
                   <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 flex" style={{ fontFamily: 'Roboto, sans-serif' }}>
                     <div className="flex-1 overflow-auto">
                       <style>{detailedSummaryColumnStyles}</style>
-                      <table className="detailed-summary-table w-full border-collapse text-[11px] table-auto">
+                      <table className="detailed-summary-table w-full border-collapse text-sm">
                         <thead className="sticky top-0 z-10">
                           <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
-                            <th className="px-3 py-3 border-r border-gray-300 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider">S.No</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider">Emp No</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider">Name</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider">Designation</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Basic</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">HRA</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">CTC</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Days</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Worked</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Sunday</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Holiday</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Leave</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider">Paid</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Basic</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">HRA</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Earned</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">PF</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Advance</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Loan</th>
-                            <th className="px-3 py-3 border-r border-gray-300 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Total Ded</th>
-                            <th className="px-3 py-3 border-r-0 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider">Net</th>
+                            {/* Basic Info Column Group */}
+                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50">
+                              <div className="flex items-center gap-1">
+                                <div className="w-1 h-4 bg-blue-500 rounded"></div>
+                                S.No
+                              </div>
+                            </th>
+                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50">Emp No</th>
+                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50">Name</th>
+                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50">Designation</th>
+                            
+                            {/* Salary Structure Column Group */}
+                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50">
+                              <div className="flex items-center justify-end gap-1">
+                                Basic
+                                <div className="w-1 h-4 bg-purple-500 rounded"></div>
+                              </div>
+                            </th>
+                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50">HRA</th>
+                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50">CTC</th>
+                            
+                            {/* Attendance Column Group */}
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">
+                              <div className="flex items-center justify-center gap-1">
+                                <div className="w-1 h-4 bg-green-500 rounded"></div>
+                                Days
+                              </div>
+                            </th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Worked</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Sunday</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Holiday</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Leave</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Paid</th>
+                            
+                            {/* Earnings Column Group */}
+                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50">
+                              <div className="flex items-center justify-end gap-1">
+                                Basic
+                                <div className="w-1 h-4 bg-emerald-500 rounded"></div>
+                              </div>
+                            </th>
+                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50">HRA</th>
+                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50">Earned</th>
+                            
+                            {/* Deductions Column Group */}
+                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50">
+                              <div className="flex items-center justify-end gap-1">
+                                PF
+                                <div className="w-1 h-4 bg-red-500 rounded"></div>
+                              </div>
+                            </th>
+                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50">Advance</th>
+                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50">Loan</th>
+                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50">Total Ded</th>
+                            
+                            {/* Net Pay Column */}
+                            <th className="px-3 py-3 text-r-0 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-gradient-to-r from-green-600 to-green-700 text-white">
+                              <div className="flex items-center justify-end gap-1">
+                                Net
+                                <div className="w-1 h-4 bg-white rounded"></div>
+                              </div>
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -975,25 +1072,25 @@ export default function SalarySlipTab() {
                                       : 'bg-gray-50 hover:bg-gray-100'
                                   }`}
                                 >
-                                  <td className="px-3 py-2 text-center text-gray-900 font-medium">{emp.sno}</td>
-                                  <td className="px-3 py-2 font-mono text-gray-700">{emp.empId}</td>
-                                  <td className="px-3 py-2 font-medium text-gray-900 truncate max-w-xs" title={emp.name}>{emp.name}</td>
-                                  <td className="px-3 py-2 text-gray-600 truncate max-w-xs" title={emp.designation}>{emp.designation}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-900">₹{(emp.fullBasic/1000).toFixed(1)}k</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-900">₹{(emp.fullHra/1000).toFixed(1)}k</td>
-                                  <td className="px-3 py-2 text-right font-semibold text-blue-600">₹{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.totalDays}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.worked}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.sunW}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.holW}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.leave}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900">{emp.totalWorkingDays}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-900">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-900">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-semibold text-green-600">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-amber-600">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-blue-600">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-semibold text-green-600">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-gray-400 text-right">-</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-purple-600 text-right tabular-nums">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
+                                  <td className="px-3 py-2 text-center text-gray-900 font-medium border-r-2 border-blue-100 bg-blue-50/30">{emp.sno}</td>
+                                  <td className="px-3 py-2 font-mono text-gray-700 border-r-2 border-blue-100 bg-blue-50/30">{emp.empId}</td>
+                                  <td className="px-3 py-2 font-medium text-gray-900 truncate max-w-xs border-r-2 border-blue-100 bg-blue-50/30" title={emp.name}>{emp.name}</td>
+                                  <td className="px-3 py-2 text-gray-600 truncate max-w-xs border-r-2 border-blue-100 bg-blue-50/30" title={emp.designation}>{emp.designation}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-purple-100 bg-purple-50/30">{(emp.fullBasic/1000).toFixed(1)}k</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-purple-100 bg-purple-50/30">{(emp.fullHra/1000).toFixed(1)}k</td>
+                                  <td className="px-3 py-2 text-right font-semibold text-blue-600 border-r-2 border-purple-100 bg-purple-50/30">{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.totalDays}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.worked}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.sunW}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.holW}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.leave}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.totalWorkingDays}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-semibold text-green-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-amber-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-blue-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-semibold text-green-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-gray-400 text-right">-</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-purple-600 text-right tabular-nums">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
                               <tr className="bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold">
                                 <td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-between">
