@@ -357,6 +357,129 @@ export default function SalarySlipTab() {
     }
   }
 
+  const handleRecalculateHistoricalData = async () => {
+    if (!user?.orgId || !isAdmin) {
+      alert('Only administrators can recalculate historical data.')
+      return
+    }
+
+    const confirmed = confirm(
+      'This will recalculate all historical payroll data with the corrected Sunday work logic.\n\n' +
+      'This action cannot be undone and may affect financial records.\n\n' +
+      'Are you sure you want to proceed?'
+    )
+
+    if (!confirmed) return
+
+    setLoading(true)
+    try {
+      // Get all attendance records
+      const attendanceSnap = await getDocs(collection(db, 'organisations', user.orgId, 'attendance'))
+      const allAttendance = attendanceSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+      // Get all salary records that need recalculation
+      const salaryRecordsSnap = await getDocs(collection(db, 'organisations', user.orgId, 'salaryRecords'))
+      const salaryRecords = salaryRecordsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+      let updatedCount = 0
+      const errors = []
+
+      for (const salaryRecord of salaryRecords) {
+        try {
+          const { month, employeeId } = salaryRecord
+          if (!month || !employeeId) continue
+
+          // Recalculate using the corrected logic
+          const [y, m] = month.split('-').map(Number)
+          const daysInMonth = new Date(y, m, 0).getDate()
+          const sd = `${month}-01`, ed = `${month}-${daysInMonth}`
+
+          // Get attendance for this employee and month
+          const empAttendance = allAttendance.filter(a => 
+            a.employeeId === employeeId && a.date >= sd && a.date <= ed
+          )
+          const attendanceByDate = new Map(empAttendance.map(a => [a.date, a]))
+
+          // Apply corrected Sunday work calculation
+          let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0
+          const saturdayType = orgData?.saturdayType || 'working'
+          const isSaturdayHoliday = ['holiday1x', 'holiday2x', 'alternative'].includes(saturdayType)
+          const configuredHolidayDates = new Set(orgData?.holidays || [])
+
+          for (let i = 1; i <= daysInMonth; i++) {
+            const dateStr = `${month}-${String(i).padStart(2, '0')}`
+            const d = new Date(y, m - 1, i)
+            const dayOfWeek = d.getDay()
+            const isSunday = dayOfWeek === 0
+            const isSaturday = dayOfWeek === 6
+            const isConfiguredHoliday = configuredHolidayDates.has(dateStr) && !isSunday
+            const r = attendanceByDate.get(dateStr)
+
+            // Apply corrected Sunday work logic
+            const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
+            const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
+            const prevDayRecord = attendanceByDate.get(prevDate)
+            const prevDayIsSaturday = new Date(y, m - 1, i - 1).getDay() === 6
+            const saturdayWorkedSupport = isSunday && prevDayIsSaturday && isWorkedAttendanceRecord(prevDayRecord)
+            const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
+            const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
+
+            // Recalculate counts
+            if (r?.isAbsent) {
+              lop++
+            } else if (isSunday) {
+              if (sundayWorked) {
+                sunW++
+                worked++
+              }
+            } else if (isConfiguredHoliday) {
+              const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
+              if (holidayWorked) {
+                holW++
+                worked++
+              }
+            } else if (r) {
+              worked++
+            } else if (!isSunday && !isConfiguredHoliday) {
+              lop++
+            }
+          }
+
+          // Update the salary record with corrected values
+          const updatedSalary = {
+            ...salaryRecord,
+            sundayWorked: sunW,
+            holidayWorked: holW,
+            workedDays: worked,
+            recalculatedAt: serverTimestamp(),
+            recalculationReason: 'Sunday work logic correction'
+          }
+
+          await updateDoc(doc(db, 'organisations', user.orgId, 'salaryRecords', salaryRecord.id), updatedSalary)
+          updatedCount++
+
+        } catch (error) {
+          errors.push(`Failed to update record for ${salaryRecord.employeeId} - ${salaryRecord.month}: ${error.message}`)
+        }
+      }
+
+      alert(
+        `Recalculation completed!\n\n` +
+        `Updated: ${updatedCount} records\n` +
+        `Errors: ${errors.length} records\n` +
+        (errors.length > 0 ? `\nErrors:\n${errors.slice(0, 3).join('\n')}` : '')
+      )
+
+    } catch (error) {
+      console.error('Error recalculation historical data:', error)
+      alert('Failed to recalculate historical data. Please check console for details.')
+    } finally {
+      setLoading(false)
+      // Refresh the data
+      refetchSummary()
+    }
+  }
+
   const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0 || l.startMonth > m) return 0; const o = l.monthOverrides?.[m]; if (o) return o.skip ? 0 : Math.min(o.amount, l.remainingAmount); return Math.min(l.emiAmount, l.remainingAmount) }
 
   const computeAdvExpRows = ({ activeRequests, advDocs, selectedMonth, y, m }) => {
@@ -462,7 +585,9 @@ export default function SalarySlipTab() {
           // Check Sunday worked - either directly marked or Saturday support (Saturday workers working Sunday)
           const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
           const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
-          const saturdayWorkedSupport = isSunday && isWorkedAttendanceRecord(attendanceByDate.get(prevDate))
+          const prevDayRecord = attendanceByDate.get(prevDate)
+          const prevDayIsSaturday = new Date(y, m - 1, i - 1).getDay() === 6
+          const saturdayWorkedSupport = isSunday && prevDayIsSaturday && isWorkedAttendanceRecord(prevDayRecord)
           const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
           const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
           
@@ -852,6 +977,20 @@ export default function SalarySlipTab() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center bg-gray-100 rounded-md p-1.5"><button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button><div className="px-2 py-0.5 font-bold text-gray-900 text-[11px] min-w-[100px] text-center uppercase tracking-tighter">{new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div><button onClick={() => monthInputRef.current?.showPicker()} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-indigo-600 relative"><CalendarIcon size={14} /><input ref={monthInputRef} type="month" value={summaryMonth} onChange={e => setSummaryMonth(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none" /></button><button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronRight size={14} /></button></div>
                 <div className="h-4 w-px bg-gray-200 mx-0.5" /><button onClick={() => refetchSummary()} className="h-8 px-4 bg-gray-900 text-white font-bold rounded text-[8px] uppercase tracking-widest shadow hover:bg-black transition-all active:scale-95">Submit</button>
+                {isAdmin && (
+                  <>
+                    <div className="h-4 w-px bg-gray-200 mx-0.5" />
+                    <button 
+                      onClick={handleRecalculateHistoricalData}
+                      disabled={loading}
+                      className="h-8 px-3 bg-amber-600 text-white font-bold rounded text-[8px] uppercase tracking-widest shadow hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center gap-1"
+                      title="Recalculate all historical payroll data with corrected Sunday work logic"
+                    >
+                      <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
+                      Fix History
+                    </button>
+                  </>
+                )}
               </div>
               <div className="text-right pr-2"><h1 className="text-[9px] font-black text-gray-900 font-google-sans tracking-tight uppercase leading-none">Salary Summary</h1><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Analytics Engine</p></div>
             </div>
@@ -917,22 +1056,9 @@ export default function SalarySlipTab() {
                       </table>
                   </div></div>
                 </div>
-                <div className={`${isAttendanceSummaryOpen ? 'flex flex-col h-1/2 min-h-0' : 'flex flex-col h-full'} space-y-1 transition-all duration-300`}>
+                <div className={`${isAttendanceSummaryOpen ? 'flex-1 min-w-0' : 'flex-1'} flex flex-col h-1/2 min-h-0 space-y-1 transition-all duration-300`}>
                   <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0 relative">
-                    <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white"><Wallet size={10} /></div>
-                      <p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Detailed Salary Summary</p>
-                      <button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf || attendanceSummaryData.length === 0} className="ml-2 p-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 disabled:opacity-50 transition-colors" title="Download Detailed Summary PDF"><Download size={12} /></button>
-                      {!isAttendanceSummaryOpen && (
-                        <button 
-                          onClick={() => setIsAttendanceSummaryOpen(true)}
-                          className="ml-2 p-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors"
-                          title="Show Attendance Summary"
-                        >
-                          <ChevronLeft size={12} />
-                        </button>
-                      )}
-                    </div>
+                    <div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white"><Wallet size={10} /></div><p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Detailed Salary Summary</p><button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf || attendanceSummaryData.length === 0} className="ml-2 p-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 disabled:opacity-50 transition-colors" title="Download Detailed Summary PDF"><Download size={12} /></button></div>
                     <div className="flex items-center gap-2"><button onClick={() => setShowDetailedColumnPicker(v => !v)} className="h-6 px-2.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-colors">Columns</button><span className="text-[9px] text-gray-500">Comprehensive Payroll Breakdown</span></div>
                     {showDetailedColumnPicker && (
                       <div className="absolute right-2 top-9 z-20 w-[290px] max-h-[320px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
@@ -1108,7 +1234,7 @@ export default function SalarySlipTab() {
                 </div>
               </div>
               {isDetailPanelOpen && (
-                <div className="w-[200px] bg-white rounded-lg border border-gray-200 shadow-xl flex flex-col shrink-0 overflow-hidden h-full animate-in slide-in-from-right duration-300">
+                <div className="w-[200px] bg-white rounded-lg border border-gray-200 shadow-xl flex flex-col shrink-0 overflow-hidden h-1/2 animate-in slide-in-from-right duration-300">
                   <div className="p-2.5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">{summaryEmpDetail ? (<div><h3 className="font-black text-gray-900 uppercase font-google-sans text-[9px] tracking-tight truncate w-[140px]">{summaryEmpDetail.name}</h3><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">{summaryEmpDetail.empId}</p></div>) : (<div><h3 className="font-black text-gray-300 uppercase font-google-sans text-[9px] tracking-tight">Details</h3><p className="text-[7px] text-gray-300 font-bold uppercase tracking-widest">No Selection</p></div>)}<button onClick={() => setIsDetailPanelOpen(false)} className="p-1 hover:bg-gray-200 rounded-full transition-all text-gray-400"><X size={10} /></button></div>
                   <div className="p-2.5 font-inter flex-1 overflow-hidden flex flex-col">{!summaryEmpDetail ? (<div className="h-full flex flex-col items-center justify-center space-y-2 opacity-10 py-10"><FileText size={32} strokeWidth={1} /><p className="text-[7px] font-bold uppercase tracking-widest text-center px-4">Select record</p></div>) : (
                     <div className="space-y-3 flex-1 flex flex-col"><div className="space-y-3 flex-1 overflow-auto"><div className="space-y-1.5"><div className="flex items-center gap-1 text-indigo-600 font-black uppercase text-[7px] tracking-widest"><FileText size={8} /> Earnings</div><div className="bg-indigo-50/30 rounded border border-indigo-100 p-2 space-y-1">{summaryEmpDetail.salary.earnings.map((e, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{e.label} <span className="font-bold text-gray-900">{formatINR(e.value)}</span></div>))}</div></div><div className="space-y-1.5"><div className="flex items-center gap-1 text-red-600 font-black uppercase text-[7px] tracking-widest"><AlertCircle size={8} /> Deductions</div><div className="bg-red-50/30 rounded border border-red-100 p-2 space-y-1">{summaryEmpDetail.salary.deductions.map((d, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{d.label} <span className="font-bold text-gray-900">{formatINR(d.value)}</span></div>))}</div></div></div><div className="pt-2 border-t border-dashed border-gray-200 shrink-0"><div className="bg-gray-900 text-white rounded-lg p-2.5 text-center shadow-lg"><p className="text-[6px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Net Payout (Est.)</p><p className="text-base font-black font-google-sans tracking-tighter">{formatINR(summaryEmpDetail.salary.net)}</p></div><button onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }} className="w-full mt-2 py-1.5 bg-indigo-50 text-indigo-700 font-black rounded text-[7px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">Go to Generator</button></div></div>
