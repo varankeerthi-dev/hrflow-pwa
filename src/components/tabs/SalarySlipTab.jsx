@@ -289,6 +289,7 @@ export default function SalarySlipTab() {
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false)
   const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
   const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
+  const [exportingAllPdfs, setExportingAllPdfs] = useState(false)
   const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map((column) => column.id))
   const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
   const [isSavingPreferences, setIsSavingPreferences] = useState(false)
@@ -364,119 +365,37 @@ export default function SalarySlipTab() {
     }
 
     const confirmed = confirm(
-      'This will recalculate all historical payroll data with the corrected Sunday work logic.\n\n' +
-      'This action cannot be undone and may affect financial records.\n\n' +
-      'Are you sure you want to proceed?'
+      'The corrected Sunday and holiday work logic has been applied.\n\n' +
+      'This will refresh the salary summary data to show the corrected calculations.\n\n' +
+      'The corrected logic will:\n' +
+      '· Fix false Sunday work counts\n' +
+      '· Fix false holiday work counts\n' +
+      '· Apply proper validation for work records\n\n' +
+      'Continue to refresh the data?'
     )
 
     if (!confirmed) return
 
     setLoading(true)
     try {
-      // Get all attendance records
-      const attendanceSnap = await getDocs(collection(db, 'organisations', user.orgId, 'attendance'))
-      const allAttendance = attendanceSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-
-      // Get all salary records that need recalculation
-      const salaryRecordsSnap = await getDocs(collection(db, 'organisations', user.orgId, 'salaryRecords'))
-      const salaryRecords = salaryRecordsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-
-      let updatedCount = 0
-      const errors = []
-
-      for (const salaryRecord of salaryRecords) {
-        try {
-          const { month, employeeId } = salaryRecord
-          if (!month || !employeeId) continue
-
-          // Recalculate using the corrected logic
-          const [y, m] = month.split('-').map(Number)
-          const daysInMonth = new Date(y, m, 0).getDate()
-          const sd = `${month}-01`, ed = `${month}-${daysInMonth}`
-
-          // Get attendance for this employee and month
-          const empAttendance = allAttendance.filter(a => 
-            a.employeeId === employeeId && a.date >= sd && a.date <= ed
-          )
-          const attendanceByDate = new Map(empAttendance.map(a => [a.date, a]))
-
-          // Apply corrected Sunday work calculation
-          let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0
-          const saturdayType = orgData?.saturdayType || 'working'
-          const isSaturdayHoliday = ['holiday1x', 'holiday2x', 'alternative'].includes(saturdayType)
-          const configuredHolidayDates = new Set(orgData?.holidays || [])
-
-          for (let i = 1; i <= daysInMonth; i++) {
-            const dateStr = `${month}-${String(i).padStart(2, '0')}`
-            const d = new Date(y, m - 1, i)
-            const dayOfWeek = d.getDay()
-            const isSunday = dayOfWeek === 0
-            const isSaturday = dayOfWeek === 6
-            const isConfiguredHoliday = configuredHolidayDates.has(dateStr) && !isSunday
-            const r = attendanceByDate.get(dateStr)
-
-            // Apply corrected Sunday work logic
-            const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
-            const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
-            const prevDayRecord = attendanceByDate.get(prevDate)
-            const prevDayIsSaturday = new Date(y, m - 1, i - 1).getDay() === 6
-            const saturdayWorkedSupport = isSunday && prevDayIsSaturday && isWorkedAttendanceRecord(prevDayRecord)
-            const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
-            const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
-
-            // Recalculate counts
-            if (r?.isAbsent) {
-              lop++
-            } else if (isSunday) {
-              if (sundayWorked) {
-                sunW++
-                worked++
-              }
-            } else if (isConfiguredHoliday) {
-              const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
-              if (holidayWorked) {
-                holW++
-                worked++
-              }
-            } else if (r) {
-              worked++
-            } else if (!isSunday && !isConfiguredHoliday) {
-              lop++
-            }
-          }
-
-          // Update the salary record with corrected values
-          const updatedSalary = {
-            ...salaryRecord,
-            sundayWorked: sunW,
-            holidayWorked: holW,
-            workedDays: worked,
-            recalculatedAt: serverTimestamp(),
-            recalculationReason: 'Sunday work logic correction'
-          }
-
-          await updateDoc(doc(db, 'organisations', user.orgId, 'salaryRecords', salaryRecord.id), updatedSalary)
-          updatedCount++
-
-        } catch (error) {
-          errors.push(`Failed to update record for ${salaryRecord.employeeId} - ${salaryRecord.month}: ${error.message}`)
-        }
-      }
-
+      // Clear any cached data to force recalculation
+      await refetchSummary()
+      
       alert(
-        `Recalculation completed!\n\n` +
-        `Updated: ${updatedCount} records\n` +
-        `Errors: ${errors.length} records\n` +
-        (errors.length > 0 ? `\nErrors:\n${errors.slice(0, 3).join('\n')}` : '')
+        `Data refresh completed!\n\n` +
+        `The salary summary has been recalculated with the corrected logic.\n\n` +
+        `Fixed issues:\n` +
+        `· Sunday work counts no longer show false positives\n` +
+        `· Holiday work counts are now accurate\n` +
+        `· Only actual work records are counted\n\n` +
+        `Please review the summary table for the corrected values.`
       )
 
     } catch (error) {
-      console.error('Error recalculation historical data:', error)
-      alert('Failed to recalculate historical data. Please check console for details.')
+      console.error('Error refreshing data:', error)
+      alert('Failed to refresh data. Please check console for details.')
     } finally {
       setLoading(false)
-      // Refresh the data
-      refetchSummary()
     }
   }
 
@@ -592,7 +511,7 @@ export default function SalarySlipTab() {
           const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
           
           // Check configured holiday worked (not including Saturday - handled separately)
-          const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
+          const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && r.status !== 'absent' && r.status !== 'sunholiday')
 
           if (r?.isAbsent) {
             // Absent counts as LOP
@@ -655,7 +574,7 @@ export default function SalarySlipTab() {
       header: 'Basic Info',
       columns: [
         { accessorKey: 'sno', header: 'S.No', size: 60, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-blue-50 transition-colors duration-200">{info.getValue()}</div> },
-        { accessorKey: 'name', header: 'Employee Name', size: 200, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); setIsAttendanceSummaryOpen(false); }} className="text-left font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-2 truncate w-full text-sm transition-all duration-200 rounded-md group">{info.getValue()}</button> },
+        { accessorKey: 'name', header: 'Employee Name', size: 200, cell: info => <button onClick={() => { setSummaryEmpDetail(info.row.original); setIsDetailPanelOpen(true); }} className="text-left font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-2 truncate w-full text-sm transition-all duration-200 rounded-md group">{info.getValue()}</button> },
         { accessorKey: 'worked', header: 'Worked', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
       ]
     },
@@ -751,6 +670,111 @@ export default function SalarySlipTab() {
       alert('Failed to export PDF: ' + error.message)
     } finally {
       setExportingDetailedPdf(false)
+    }
+  }
+
+  const handleExportAllPdfs = async () => {
+    if (!attendanceSummaryData.length || exportingAllPdfs) return
+    
+    const confirmed = confirm(
+      `This will generate ${attendanceSummaryData.length} individual salary slips for ${new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.\n\n` +
+      'All PDFs will be packaged into a single zip file for download.\n\n' +
+      'This may take a few moments for large organizations. Continue?'
+    )
+    
+    if (!confirmed) return
+    
+    setExportingAllPdfs(true)
+    try {
+      // Import JSZip dynamically
+      const JSZip = (await import('jszip')).default
+      const zip = new JSZip()
+      
+      let successCount = 0
+      let errorCount = 0
+      const errors = []
+      
+      // Generate PDF for each employee
+      for (const emp of attendanceSummaryData) {
+        try {
+          const salaryData = {
+            ...emp,
+            month: summaryMonth,
+            employee: {
+              name: emp.name,
+              empId: emp.empId,
+              designation: emp.designation
+            },
+            // Add required fields for SalarySlipPDF
+            totalMonthDays: emp.totalDays,
+            workedDaysCount: emp.worked,
+            holidayWorkedCount: emp.holW,
+            sundayCount: emp.sun,
+            lopDays: emp.leave,
+            paidDays: emp.totalWorkingDays,
+            grossEarnings: emp.totalEarnings,
+            totalDeductions: emp.totalDeductions,
+            netPay: emp.salary.net,
+            basic: emp.basic,
+            hra: emp.hra,
+            sundayPay: emp.sunPay,
+            holPay: emp.holPay,
+            otPay: emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0,
+            expenseReimbursement: emp.expenseAmount || 0,
+            pf: emp.pf,
+            esi: 0,
+            loanEMI: emp.loanE,
+            advanceDeduction: emp.advanceAmount,
+            fineAmount: emp.fine || 0
+          }
+          
+          // Generate PDF blob
+          let blob
+          try {
+            blob = await pdf(<SalarySlipPDF data={salaryData} orgName={user?.orgName || 'Organization'} orgLogo={orgLogo} />).toBlob()
+          } catch (logoError) {
+            blob = await pdf(<SalarySlipPDF data={salaryData} orgName={user?.orgName || 'Organization'} orgLogo="" />).toBlob()
+          }
+          
+          // Add to zip with clean filename
+          const cleanName = emp.name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_')
+          const fileName = `SalarySlip_${cleanName}_${emp.empId}_${summaryMonth}.pdf`
+          zip.file(fileName, blob)
+          
+          successCount++
+          
+          // Update progress every 10 employees
+          if (successCount % 10 === 0) {
+            console.log(`Generated ${successCount}/${attendanceSummaryData.length} PDFs...`)
+          }
+          
+        } catch (error) {
+          errorCount++
+          errors.push(`${emp.name} (${emp.empId}): ${error.message}`)
+        }
+      }
+      
+      // Generate zip file
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      
+      // Download zip file
+      const zipFileName = `All_Salary_Slips_${summaryMonth.replace(/-/g, '_')}.zip`
+      downloadPdfBlob(zipBlob, zipFileName)
+      
+      // Show completion message
+      alert(
+        `Bulk PDF generation completed!\n\n` +
+        `Successfully generated: ${successCount} PDFs\n` +
+        `Failed: ${errorCount} PDFs\n` +
+        `Total: ${attendanceSummaryData.length} employees\n\n` +
+        (errorCount > 0 ? `Errors:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? `\n... and ${errors.length - 3} more` : ''}` : '')
+      )
+      
+    } catch (error) {
+      console.error('Error generating bulk PDFs:', error)
+      alert('Failed to generate bulk PDFs. Please check console for details.')
+    } finally {
+      setExportingAllPdfs(false)
     }
   }
 
@@ -913,6 +937,10 @@ export default function SalarySlipTab() {
                     <div className="flex justify-end gap-2 p-3 bg-slate-50 border-b border-slate-100 no-print shrink-0">
                       <button onClick={() => window.print()} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"><Download size={12} /> Print</button>
                       <button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-8 bg-white border border-slate-200 text-slate-700 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60"><Download size={12} /> {exportingSlipPdf ? 'Preparing...' : 'Export PDF'}</button>
+                      <button onClick={handleExportAllPdfs} disabled={exportingAllPdfs || !attendanceSummaryData.length} className="h-8 bg-green-600 text-white px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-green-700 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed" title={`Download all ${attendanceSummaryData.length} salary slips as zip`}>
+                        <Download size={12} className={exportingAllPdfs ? 'animate-pulse' : ''} />
+                        {exportingAllPdfs ? 'Generating...' : 'Download All'}
+                      </button>
                       <button onClick={handleFinalizeSlip} className="h-8 bg-indigo-600 text-white px-4 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all"><CheckCircle2 size={12} /> Finalize</button>
                     </div>
                     <div className="p-8 bg-white relative overflow-auto flex-1">
@@ -995,8 +1023,8 @@ export default function SalarySlipTab() {
               <div className="text-right pr-2"><h1 className="text-[9px] font-black text-gray-900 font-google-sans tracking-tight uppercase leading-none">Salary Summary</h1><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Analytics Engine</p></div>
             </div>
             <div className="flex gap-2 flex-1 min-h-0 items-start overflow-hidden relative">
-              <div className={`${isAttendanceSummaryOpen ? 'flex-1 min-w-0' : 'w-0 overflow-hidden'} flex flex-col gap-2 h-full overflow-hidden transition-all duration-300`}>
-                <div className={`${isAttendanceSummaryOpen ? 'flex flex-col h-1/2 min-h-0' : 'hidden'} space-y-1`}>
+              <div className="flex-1 min-w-0 flex flex-col gap-2 h-full overflow-hidden">
+                <div className="flex flex-col h-1/2 min-h-0 space-y-1">
                   <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0">
                     <div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center text-white"><Clock size={10} /></div><p className="text-[8px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Summary</p></div>
                     <div className="flex items-center gap-1"><button onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)} className={`p-0.5 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`}><Info size={10} /></button></div>
@@ -1098,66 +1126,83 @@ export default function SalarySlipTab() {
                   <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 flex" style={{ fontFamily: 'Roboto, sans-serif' }}>
                     <div className="flex-1 overflow-auto">
                       <style>{detailedSummaryColumnStyles}</style>
+                      <style>{`
+                        .detailed-summary-table {
+                          table-layout: fixed;
+                          width: 100%;
+                          border-collapse: collapse;
+                        }
+                        .detailed-summary-table th,
+                        .detailed-summary-table td {
+                          overflow: hidden;
+                          text-overflow: ellipsis;
+                          white-space: nowrap;
+                        }
+                        .detailed-summary-table th[data-hidden],
+                        .detailed-summary-table td[data-hidden] {
+                          display: none;
+                        }
+                      `}</style>
                       <table className="detailed-summary-table w-full border-collapse text-sm">
                         <thead className="sticky top-0 z-10">
                           <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
                             {/* Basic Info Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50">
-                              <div className="flex items-center gap-1">
+                            <th className="px-2 py-3 border-r-2 border-blue-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-12">
+                              <div className="flex items-center justify-center gap-1">
                                 <div className="w-1 h-4 bg-blue-500 rounded"></div>
                                 S.No
                               </div>
                             </th>
-                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50">Emp No</th>
-                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50">Name</th>
-                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50">Designation</th>
+                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-20">Emp No</th>
+                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-32">Name</th>
+                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-36">Designation</th>
                             
                             {/* Salary Structure Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50">
+                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-24">
                               <div className="flex items-center justify-end gap-1">
                                 Basic
                                 <div className="w-1 h-4 bg-purple-500 rounded"></div>
                               </div>
                             </th>
-                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50">HRA</th>
-                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50">CTC</th>
+                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-20">HRA</th>
+                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-20">CTC</th>
                             
                             {/* Attendance Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-16">
                               <div className="flex items-center justify-center gap-1">
                                 <div className="w-1 h-4 bg-green-500 rounded"></div>
                                 Days
                               </div>
                             </th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Worked</th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Sunday</th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Holiday</th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Leave</th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50">Paid</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-16">Worked</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-16">Sunday</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-16">Holiday</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-12">Leave</th>
+                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-12">Paid</th>
                             
                             {/* Earnings Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50">
+                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-24">
                               <div className="flex items-center justify-end gap-1">
                                 Basic
                                 <div className="w-1 h-4 bg-emerald-500 rounded"></div>
                               </div>
                             </th>
-                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50">HRA</th>
-                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50">Earned</th>
+                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-20">HRA</th>
+                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-20">Earned</th>
                             
                             {/* Deductions Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50">
+                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">
                               <div className="flex items-center justify-end gap-1">
                                 PF
                                 <div className="w-1 h-4 bg-red-500 rounded"></div>
                               </div>
                             </th>
-                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50">Advance</th>
-                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50">Loan</th>
-                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50">Total Ded</th>
+                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">Advance</th>
+                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-16">Loan</th>
+                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">Total Ded</th>
                             
                             {/* Net Pay Column */}
-                            <th className="px-3 py-3 text-r-0 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-gradient-to-r from-green-600 to-green-700 text-white">
+                            <th className="px-3 py-3 text-r-0 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-gradient-to-r from-green-600 to-green-700 text-white w-24">
                               <div className="flex items-center justify-end gap-1">
                                 Net
                                 <div className="w-1 h-4 bg-white rounded"></div>
@@ -1198,7 +1243,7 @@ export default function SalarySlipTab() {
                                       : 'bg-gray-50 hover:bg-gray-100'
                                   }`}
                                 >
-                                  <td className="px-3 py-2 text-center text-gray-900 font-medium border-r-2 border-blue-100 bg-blue-50/30">{emp.sno}</td>
+                                  <td className="px-2 py-2 text-center text-gray-900 font-medium border-r-2 border-blue-100 bg-blue-50/30">{emp.sno}</td>
                                   <td className="px-3 py-2 font-mono text-gray-700 border-r-2 border-blue-100 bg-blue-50/30">{emp.empId}</td>
                                   <td className="px-3 py-2 font-medium text-gray-900 truncate max-w-xs border-r-2 border-blue-100 bg-blue-50/30" title={emp.name}>{emp.name}</td>
                                   <td className="px-3 py-2 text-gray-600 truncate max-w-xs border-r-2 border-blue-100 bg-blue-50/30" title={emp.designation}>{emp.designation}</td>
@@ -1234,7 +1279,7 @@ export default function SalarySlipTab() {
                 </div>
               </div>
               {isDetailPanelOpen && (
-                <div className="w-[200px] bg-white rounded-lg border border-gray-200 shadow-xl flex flex-col shrink-0 overflow-hidden h-1/2 animate-in slide-in-from-right duration-300">
+                <div className="absolute right-0 top-0 w-[200px] bg-white rounded-lg border border-gray-200 shadow-xl flex flex-col overflow-hidden h-1/2 animate-in slide-in-from-right duration-300 z-20">
                   <div className="p-2.5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">{summaryEmpDetail ? (<div><h3 className="font-black text-gray-900 uppercase font-google-sans text-[9px] tracking-tight truncate w-[140px]">{summaryEmpDetail.name}</h3><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">{summaryEmpDetail.empId}</p></div>) : (<div><h3 className="font-black text-gray-300 uppercase font-google-sans text-[9px] tracking-tight">Details</h3><p className="text-[7px] text-gray-300 font-bold uppercase tracking-widest">No Selection</p></div>)}<button onClick={() => setIsDetailPanelOpen(false)} className="p-1 hover:bg-gray-200 rounded-full transition-all text-gray-400"><X size={10} /></button></div>
                   <div className="p-2.5 font-inter flex-1 overflow-hidden flex flex-col">{!summaryEmpDetail ? (<div className="h-full flex flex-col items-center justify-center space-y-2 opacity-10 py-10"><FileText size={32} strokeWidth={1} /><p className="text-[7px] font-bold uppercase tracking-widest text-center px-4">Select record</p></div>) : (
                     <div className="space-y-3 flex-1 flex flex-col"><div className="space-y-3 flex-1 overflow-auto"><div className="space-y-1.5"><div className="flex items-center gap-1 text-indigo-600 font-black uppercase text-[7px] tracking-widest"><FileText size={8} /> Earnings</div><div className="bg-indigo-50/30 rounded border border-indigo-100 p-2 space-y-1">{summaryEmpDetail.salary.earnings.map((e, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{e.label} <span className="font-bold text-gray-900">{formatINR(e.value)}</span></div>))}</div></div><div className="space-y-1.5"><div className="flex items-center gap-1 text-red-600 font-black uppercase text-[7px] tracking-widest"><AlertCircle size={8} /> Deductions</div><div className="bg-red-50/30 rounded border border-red-100 p-2 space-y-1">{summaryEmpDetail.salary.deductions.map((d, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{d.label} <span className="font-bold text-gray-900">{formatINR(d.value)}</span></div>))}</div></div></div><div className="pt-2 border-t border-dashed border-gray-200 shrink-0"><div className="bg-gray-900 text-white rounded-lg p-2.5 text-center shadow-lg"><p className="text-[6px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Net Payout (Est.)</p><p className="text-base font-black font-google-sans tracking-tighter">{formatINR(summaryEmpDetail.salary.net)}</p></div><button onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }} className="w-full mt-2 py-1.5 bg-indigo-50 text-indigo-700 font-black rounded text-[7px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">Go to Generator</button></div></div>
