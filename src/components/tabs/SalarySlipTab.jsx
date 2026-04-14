@@ -519,7 +519,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
           const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
           
           // Check configured holiday worked (2x pay) or not worked but still has 1x pay
-          const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && r.status !== 'absent' && r.status !== 'sunholiday' && r.status !== 'Holiday' && r.status !== 'Worked')
+          const holidayWorked = Boolean(r?.holidayWorked) || r?.status === 'Worked' || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && r.status !== 'absent' && r.status !== 'sunholiday' && r.status !== 'Holiday')
           const holidayNotWorked = isConfiguredHoliday && r && (r.status === 'Holiday' || r.status === 'SunHoliday')
           
           // Check Sunday not worked but still has 1x pay
