@@ -450,8 +450,16 @@ export default function SalarySlipTab() {
     if (!record || record.isAbsent) return false
     if (record.sundayHoliday) return false
     const status = String(record.status || '').toLowerCase()
-    if (status === 'absent' || status === 'sunholiday') return false
+    if (status === 'absent' || status === 'sunholiday' || status === 'holiday') return false
+    // Check for holiday worked status
+    if (status === 'worked' || record.holidayWorked) return true
     return true
+  }
+
+  const isNotWorkedHoliday = (record) => {
+    if (!record) return false
+    const status = String(record.status || '')
+    return status === 'Holiday' || status === 'SunHoliday'
   }
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
@@ -476,10 +484,10 @@ export default function SalarySlipTab() {
       const allAdvExp = advSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
       const allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed)
       
-      return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) => {
+return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) => {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
         const attendanceByDate = new Map(empAtt.map(a => [a.date, a]))
-        let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunW = 0, holW = 0
+        let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunW = 0, holW = 0, sunNotWorked = 0, holNotWorked = 0
         const saturdayType = orgData?.saturdayType || 'working'
         const isSaturdayHoliday = ['holiday1x', 'holiday2x', 'alternative'].includes(saturdayType)
         
@@ -494,14 +502,14 @@ export default function SalarySlipTab() {
           const isHoliday = isSunday || isConfiguredHoliday
           const r = attendanceByDate.get(dateStr)
 
-          // Count total Sundays and configured holidays (not including Saturday as holiday when it's working day)
+          // Count total Sundays and configured holidays
           if (isSunday) sun++
           if (isConfiguredHoliday) hol++
 
-          // Check if worked on Saturday (only counts if Saturday is holiday type and has worked attendance)
+          // Check if worked on Saturday (only counts if holiday type and has worked attendance)
           const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
           
-          // Check Sunday worked - either directly marked or Saturday support (Saturday workers working Sunday)
+          // Check Sunday worked - either directly marked or Saturday support
           const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
           const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
           const prevDayRecord = attendanceByDate.get(prevDate)
@@ -510,41 +518,41 @@ export default function SalarySlipTab() {
           const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
           const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
           
-          // Check configured holiday worked (not including Saturday - handled separately)
-          const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && r.status !== 'absent' && r.status !== 'sunholiday')
+          // Check configured holiday worked (2x pay) or not worked but still has 1x pay
+          const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && r.status !== 'absent' && r.status !== 'sunholiday' && r.status !== 'Holiday' && r.status !== 'Worked')
+          const holidayNotWorked = isConfiguredHoliday && r && (r.status === 'Holiday' || r.status === 'SunHoliday')
+          
+          // Check Sunday not worked but still has 1x pay
+          const sundayNotWorked = isSunday && !sundayWorked && r && (r.status === 'SunHoliday' || r.sundayHoliday)
 
           if (r?.isAbsent) {
-            // Absent counts as LOP
             lop++
           } else if (isSunday) {
-            // Sunday handling
             if (sundayWorked) {
-              // Sunday worked - either marked as Sunday worked or Saturday workers support
               sunW++
               worked++
+            } else if (sundayNotWorked) {
+              // Sunday not worked but marked as SunHoliday = 1x pay
+              sunNotWorked++
             }
-            // If not worked on Sunday, doesn't count as worked (but not LOP for holiday)
           } else if (isConfiguredHoliday) {
-            // Configured holiday (not Sunday)
             if (holidayWorked) {
               holW++
               worked++
+            } else if (holidayNotWorked) {
+              // Holiday not worked but marked as Holiday = 1x pay
+              holNotWorked++
             }
-            // If not worked on holiday, doesn't count as worked
           } else if (isSaturday && isSaturdayHoliday) {
-            // Saturday as holiday type
             if (saturdayWorked) {
               holW++
               worked++
             }
           } else if (r) {
-            // Regular working day with attendance
             worked++
           } else if (!isSunday && !isConfiguredHoliday && !(isSaturday && isSaturdayHoliday)) {
-            // Regular day with no attendance = LOP
             lop++
           }
-          // Note: Sundays and holidays without attendance are NOT counted as LOP
 
           if (r?.otHours) {
             const [h, mi] = r.otHours.split(':').map(Number)
@@ -557,7 +565,8 @@ export default function SalarySlipTab() {
         const fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
         const basic = fullBasic * (paidDays / daysInMonth), hra = fullHra * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), esi = 0, otPay = otH * (dailyRate / minH)
         const satPayMultiplier = saturdayType === 'holiday2x' || saturdayType === 'alternative' ? 2 : 1
-        const sunPay = sunW * dailyRate * 1, holPay = holW * dailyRate * 2
+        // Pay: Sunday worked = regular + 1x (total 2x), Holiday worked = regular + 1x (total 2x), not worked = regular + 1x (total 2x)
+        const sunPay = (sunW + sunNotWorked) * dailyRate, holPay = (holW + holNotWorked) * dailyRate
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const earnings = [{ label: 'Basic', value: basic }, { label: 'HRA', value: hra }, { label: 'Sun Pay', value: sunPay }, { label: 'Hol Pay', value: holPay }, { label: 'OT Est.', value: otPay }, { label: 'Reimb.', value: reimb }].filter(e => e.value > 0)
         const deductions = [{ label: 'PF', value: pf }, { label: 'IT', value: it }, { label: 'ESI', value: esi }, { label: 'Loan', value: loanE }, { label: 'Adv.', value: adv }, { label: 'Fine', value: fine }].filter(d => d.value > 0)
@@ -1145,69 +1154,62 @@ export default function SalarySlipTab() {
                       `}</style>
                       <table className="detailed-summary-table w-full border-collapse text-sm">
                         <thead className="sticky top-0 z-10">
+                          {/* First Header Row - Group Headers */}
                           <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
-                            {/* Basic Info Column Group */}
-                            <th className="px-2 py-3 border-r-2 border-blue-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-12">
-                              <div className="flex items-center justify-center gap-1">
-                                <div className="w-1 h-4 bg-blue-500 rounded"></div>
-                                S.No
+                            <th colSpan="4" className="px-3 py-2 border-r-2 border-blue-300 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-blue-100">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-2 h-2 bg-blue-500 rounded"></div>
+                                Basic Info
                               </div>
                             </th>
-                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-20">Emp No</th>
-                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-32">Name</th>
-                            <th className="px-3 py-3 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-36">Designation</th>
+                            <th colSpan="3" className="px-3 py-2 border-r-2 border-purple-300 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-purple-100">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-2 h-2 bg-purple-500 rounded"></div>
+                                Salary Structure
+                              </div>
+                            </th>
+                            <th colSpan="3" className="px-3 py-2 border-r-2 border-emerald-300 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-emerald-100">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-2 h-2 bg-emerald-500 rounded"></div>
+                                Earnings
+                              </div>
+                            </th>
+                            <th colSpan="4" className="px-3 py-2 border-r-2 border-red-300 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-red-100">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-2 h-2 bg-red-500 rounded"></div>
+                                Deductions
+                              </div>
+                            </th>
+                            <th className="px-3 py-2 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-gradient-to-r from-green-600 to-green-700 text-white">
+                              Net Pay
+                            </th>
+                          </tr>
+                          {/* Second Header Row - Individual Column Headers */}
+                          <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
+                            {/* Basic Info Columns */}
+                            <th className="px-2 py-2 border-r-2 border-blue-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-12">S.No</th>
+                            <th className="px-3 py-2 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-20">Emp No</th>
+                            <th className="px-3 py-2 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-32">Name</th>
+                            <th className="px-3 py-2 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-36">Designation</th>
                             
-                            {/* Salary Structure Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-24">
-                              <div className="flex items-center justify-end gap-1">
-                                Basic
-                                <div className="w-1 h-4 bg-purple-500 rounded"></div>
-                              </div>
-                            </th>
-                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-20">HRA</th>
-                            <th className="px-3 py-3 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-20">CTC</th>
+                            {/* Salary Structure Columns */}
+                            <th className="px-3 py-2 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-24">Basic</th>
+                            <th className="px-3 py-2 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-20">HRA</th>
+                            <th className="px-3 py-2 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-20">CTC</th>
                             
-                            {/* Attendance Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-16">
-                              <div className="flex items-center justify-center gap-1">
-                                <div className="w-1 h-4 bg-green-500 rounded"></div>
-                                Days
-                              </div>
-                            </th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-16">Worked</th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-16">Sunday</th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-16">Holiday</th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-12">Leave</th>
-                            <th className="px-3 py-3 border-r-2 border-green-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-green-50 w-12">Paid</th>
+                            {/* Earnings Columns */}
+                            <th className="px-3 py-2 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-24">Basic</th>
+                            <th className="px-3 py-2 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-20">HRA</th>
+                            <th className="px-3 py-2 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-20">Earned</th>
                             
-                            {/* Earnings Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-24">
-                              <div className="flex items-center justify-end gap-1">
-                                Basic
-                                <div className="w-1 h-4 bg-emerald-500 rounded"></div>
-                              </div>
-                            </th>
-                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-20">HRA</th>
-                            <th className="px-3 py-3 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-20">Earned</th>
-                            
-                            {/* Deductions Column Group */}
-                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">
-                              <div className="flex items-center justify-end gap-1">
-                                PF
-                                <div className="w-1 h-4 bg-red-500 rounded"></div>
-                              </div>
-                            </th>
-                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">Advance</th>
-                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-16">Loan</th>
-                            <th className="px-3 py-3 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">Total Ded</th>
+                            {/* Deductions Columns */}
+                            <th className="px-3 py-2 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">PF</th>
+                            <th className="px-3 py-2 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">Advance</th>
+                            <th className="px-3 py-2 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-16">Loan</th>
+                            <th className="px-3 py-2 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">Total Ded</th>
                             
                             {/* Net Pay Column */}
-                            <th className="px-3 py-3 text-r-0 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-gradient-to-r from-green-600 to-green-700 text-white w-24">
-                              <div className="flex items-center justify-end gap-1">
-                                Net
-                                <div className="w-1 h-4 bg-white rounded"></div>
-                              </div>
-                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-gradient-to-r from-green-600 to-green-700 text-white w-24">Net</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1250,18 +1252,15 @@ export default function SalarySlipTab() {
                                   <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-purple-100 bg-purple-50/30">{(emp.fullBasic/1000).toFixed(1)}k</td>
                                   <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-purple-100 bg-purple-50/30">{(emp.fullHra/1000).toFixed(1)}k</td>
                                   <td className="px-3 py-2 text-right font-semibold text-blue-600 border-r-2 border-purple-100 bg-purple-50/30">{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.totalDays}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.worked}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.sunW}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.holW}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.leave}</td>
-                                  <td className="px-3 py-2 text-center font-medium text-gray-900 border-r-2 border-green-100 bg-green-50/30">{emp.totalWorkingDays}</td>
                                   <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
                                   <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
                                   <td className="px-3 py-2 text-right font-semibold text-green-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-amber-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.sunPay + emp.holPay).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-blue-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-semibold text-green-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.totalEarnings).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-gray-400 text-right">-</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.loanE + emp.advanceAmount).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-purple-600 text-right tabular-nums">₹{Math.round(emp.vrAdvance).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right tabular-nums">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-red-600 text-right font-bold">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td><td className="px-1.5 border-b text-emerald-700 text-right font-bold">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
+                                  <td className="px-3 py-2 text-right font-medium text-red-600 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-400 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.advanceAmount).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-400 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.loanE).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-gray-400 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-semibold text-red-600 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td>
+                                  <td className="px-3 py-2 text-right font-bold text-emerald-700 bg-gradient-to-r from-green-600 to-green-700 text-white">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
                               <tr className="bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold">
                                 <td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-between">

@@ -504,6 +504,18 @@ export default function AttendanceTab() {
   const activeEmployees = useMemo(() => sortedEmployees, [sortedEmployees])
   const isSunday = new Date(selectedDate).getDay() === 0
   const isDayShift = orgData?.shiftStrategy === 'Day'
+  
+  // Check if selected date is a configured holiday from settings
+  const configuredHolidays = useMemo(() => {
+    const holidayList = Array.isArray(orgData?.holidays) ? orgData.holidays : []
+    return new Set(
+      holidayList
+        .map(h => (typeof h?.date === 'string' ? h.date : ''))
+        .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    )
+  }, [orgData?.holidays])
+  const isConfiguredHoliday = configuredHolidays.has(selectedDate) && !isSunday
+  const dayTypeLabel = isSunday ? 'Sunday' : isConfiguredHoliday ? 'Holiday' : ''
 
   useEffect(() => {
     if (!user?.orgId || !selectedDate) return
@@ -706,8 +718,9 @@ export default function AttendanceTab() {
       const updated = { ...r, status: newStatus }
       updated.isAbsent = newStatus === 'Absent'
       updated.sundayWorked = newStatus === 'SunWorked'
-      updated.sundayHoliday = newStatus === 'SunHoliday'
-      if (updated.isAbsent || updated.sundayHoliday) {
+      updated.sundayHoliday = newStatus === 'SunHoliday' || newStatus === 'Holiday'
+      updated.holidayWorked = newStatus === 'Worked'
+      if (updated.isAbsent || updated.sundayHoliday || updated.holidayWorked === false) {
         updated.inTime = ''; updated.outTime = ''; updated.otHours = '00:00'
       }
       return updated
@@ -717,10 +730,10 @@ export default function AttendanceTab() {
   const handleSubmit = async () => {
     if (!rows.length) return
 
-    // Validation: At least one time (In or Out) is mandatory for 'Present' or 'SunWorked' status
+    // Validation: At least one time (In or Out) is mandatory for 'Present', 'SunWorked', or 'Worked' status
     const newErrors = {}
     rows.forEach(r => {
-      if ((r.status === 'Present' || r.status === 'SunWorked') && !r.inTime && !r.outTime) {
+      if ((r.status === 'Present' || r.status === 'SunWorked' || r.status === 'Worked') && !r.inTime && !r.outTime) {
         newErrors[r.employeeId] = 'In or Out time is mandatory'
       }
     })
@@ -875,7 +888,11 @@ export default function AttendanceTab() {
                   <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
                   <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
                 </span>
-                {isSunday && <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide flex items-center gap-1">Sunday Routine</span>}
+                {(isSunday || isConfiguredHoliday) && (
+                  <span className={`text-xs font-semibold uppercase tracking-wide flex items-center gap-1 ${isSunday ? 'text-orange-600' : 'text-purple-600'}`}>
+                    {isSunday ? '★ Sunday' : '★ Holiday'}
+                  </span>
+                )}
               </div>
             </div>
             
@@ -1073,8 +1090,12 @@ export default function AttendanceTab() {
                               { id: 'Present', label: 'Present', color: 'green' },
                               { id: 'Absent', label: 'Absent', color: 'red' },
                               ...(isSunday ? [
-                                { id: 'SunWorked', label: 'Worked', color: 'amber' },
+                                { id: 'SunWorked', label: 'Worked (1x)', color: 'amber' },
                                 { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }
+                              ] : []),
+                              ...(isConfiguredHoliday ? [
+                                { id: 'Worked', label: 'Worked (2x)', color: 'amber' },
+                                { id: 'Holiday', label: 'Holiday', color: 'indigo' }
                               ] : [])
                             ].map(st => (
                               <button

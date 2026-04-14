@@ -687,7 +687,7 @@ export default function CorrectionTab() {
       outTime: row.out === '-' ? '' : row.out,
       ot: row.ot === '-' ? '00:00' : row.ot,
       site: row.site === '-' ? '' : row.site,
-      status: row.status === 'ABSENT' ? 'Absent' : row.status === 'SUNDAY' ? 'Holiday' : 'Present',
+      status: row.status === 'ABSENT' ? 'Absent' : row.status === 'SUNDAY' || row.status === 'SUNWORKED' ? 'SunWorked' : row.status === 'SUNHOLIDAY' ? 'SunHoliday' : row.status === 'WORKED' ? 'Worked' : row.status === 'HOLIDAY' ? 'Holiday' : 'Present',
       shiftType: row.shiftType || 'Day',
       minDailyHours: row.minDailyHours || 8,
     })
@@ -712,6 +712,10 @@ export default function CorrectionTab() {
       }
       
       const isAbsent = inlineForm.status === 'Absent'
+      const isSunWorked = inlineForm.status === 'SunWorked'
+      const isSunHoliday = inlineForm.status === 'SunHoliday'
+      const isWorked = inlineForm.status === 'Worked'  // Holiday worked (2x)
+      const isNotWorkedHoliday = inlineForm.status === 'Holiday'  // Holiday not worked (1x)
       const otHours = isAbsent ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, row.minDailyHours || inlineForm.minDailyHours || 8)
       
       const rows = [{
@@ -719,15 +723,16 @@ export default function CorrectionTab() {
         name: row.name,
         date: row.date,
         inDate: inlineForm.inDate,
-        inTime: isAbsent ? '' : inlineForm.inTime,
+        inTime: (isAbsent || isSunHoliday || isNotWorkedHoliday) ? '' : inlineForm.inTime,
         outDate: inlineForm.outDate,
-        outTime: isAbsent ? '' : inlineForm.outTime,
+        outTime: (isAbsent || isSunHoliday || isNotWorkedHoliday) ? '' : inlineForm.outTime,
         otHours,
         remarks: inlineForm.site,
         isAbsent,
-        status: isAbsent ? 'Absent' : 'Present',
-        sundayWorked: false,
-        sundayHoliday: inlineForm.status === 'Holiday',
+        status: isAbsent ? 'Absent' : (isSunWorked ? 'SunWorked' : (isSunHoliday ? 'SunHoliday' : (isWorked ? 'Worked' : (isNotWorkedHoliday ? 'Holiday' : 'Present')))),
+        sundayWorked: isSunWorked,
+        sundayHoliday: isSunHoliday,
+        holidayWorked: isWorked,
       }]
       
       await upsertAttendance(rows)
@@ -1138,13 +1143,17 @@ export default function CorrectionTab() {
                         >
                           <option value="Present">Present</option>
                           <option value="Absent">Absent</option>
-                          <option value="Holiday">Holiday</option>
+                          <option value="SunWorked">SunWorked (1x)</option>
+                          <option value="SunHoliday">SunHoliday (1x)</option>
+                          <option value="Worked">Worked (2x)</option>
+                          <option value="Holiday">Holiday (1x)</option>
                         </select>
                       ) : (
                         <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
                           row.status === 'PRESENT' ? 'bg-green-100 text-green-600' :
                           row.status === 'ABSENT' ? 'bg-red-100 text-red-500' :
-                          row.status === 'SUNDAY' || row.status === 'SUNWORKED' ? 'bg-amber-100 text-amber-600' :
+                          row.status === 'SUNWORKED' ? 'bg-amber-100 text-amber-600' :
+                          row.status === 'WORKED' ? 'bg-purple-100 text-purple-600' :
                           'bg-gray-100 text-gray-400'
                         }`}>
                           {row.status}
