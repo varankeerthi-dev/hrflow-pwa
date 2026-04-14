@@ -826,7 +826,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
         
         // Holiday worked (excluding Saturday - handled separately)
-        const holidayWorked = Boolean(r?.holidayWorked) || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
+        const holidayWorked = Boolean(r?.holidayWorked) || r?.status === 'Worked' || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
 
         let t = isConfiguredHolidayOrSunday ? (isS ? 'Sunday' : 'Holiday') : (isSaturday && isSaturdayHoliday ? 'Saturday' : 'Absent')
 
@@ -890,7 +890,8 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
       setAdvExpRows(advExpRowsComputed)
       const adv = advDocs.reduce((s, c) => s + Number(c.amount), 0)
       const emi = loanSnap.docs.map(d => d.data()).filter(l => !l.deleted && !l.isDeleted).reduce((s, l) => s + calcEMI(l, selectedMonth), 0)
-      const sunP = sunW * (ts / end)
+      const sunP = sunW * (ts / end)  // 2x (includes regular already in basic)
+      const holP = holW * (ts / end)  // 2x (includes regular already in basic)
       const fineA = fSnapRes.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).filter(f => !f.deleted && !f.isDeleted).reduce((s, d) => s + Number(d.amount || 0), 0)
       const otP = aOT * ((ts / end) / minH)
       const reimb = activeRequests.filter(i => i.type === 'Expense' && !deletedIds.has(i.id)).filter(i => {
@@ -899,8 +900,8 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         return isPaidThisMonth || isWithSalaryApproved
       }).reduce((s, c) => s + Number(c.partialAmount || c.amount), 0)
       const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100)
-      const de = p + adv + emi + fineA, g = b + h + otP + reimb + sunP
-      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: aOT, otPay: otP, basic: b, hra: h, basicFull: ts * (slab.basicPercent / 100), hraFull: ts * (slab.hraPercent / 100), expenseReimbursement: reimb, sundayPay: sunP, grossEarnings: g, pf: p, esi: 0, it: 0, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun + hol, sundayWorkedCount: sunW, holidayWorkedCount: holW, workedDaysCount: paid - (sun + hol), totalMonthDays: end })    
+      const de = p + adv + emi + fineA, g = b + h + otP + reimb + sunP + holP
+      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: aOT, otPay: otP, basic: b, hra: h, basicFull: ts * (slab.basicPercent / 100), hraFull: ts * (slab.hraPercent / 100), expenseReimbursement: reimb, sundayPay: sunP, holidayPay: holP, grossEarnings: g, pf: p, esi: 0, it: 0, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun + hol, sundayWorkedCount: sunW, holidayWorkedCount: holW, workedDaysCount: paid - (sun + hol), totalMonthDays: end })    
     } catch (e) { alert('Generation failed: ' + e.message); } finally { setLoading(false) }
   }
 
@@ -986,6 +987,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
                             <div className="flex justify-between p-2.5 text-[11px]">Allowances (HRA)<span className="font-bold">{formatINR(slipData.hra)}</span></div>
                             <div className="flex justify-between p-2.5 text-[11px]">Expense<span className="font-bold">{dashIfZero(slipData.expenseReimbursement)}</span></div>
                             <div className="flex justify-between p-2.5 text-[11px]">Sunday Worked<span className="font-bold">{dashIfZero(slipData.sundayPay)}</span></div>
+                            <div className="flex justify-between p-2.5 text-[11px]">Holiday Worked<span className="font-bold">{dashIfZero(slipData.holidayPay)}</span></div>
                             <div className="flex justify-between p-2.5 text-[11px]">OT<span className="font-bold">{dashIfZero(slipData.otPay)}</span></div>
                           </div>
                           <div className="p-1 space-y-0.5">
