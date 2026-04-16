@@ -549,10 +549,10 @@ export default function AttendanceTab() {
 
         const sortedRecords = [...(enrichedRecords || [])].sort((a, b) => {
           if (!a || !b) return 0
-          if (!Array.isArray(rowOrder) || !rowOrder.length) return (a.name || '').localeCompare(b.name || '')
+          if (!Array.isArray(rowOrder) || !rowOrder.length) return String(a.name || '').localeCompare(String(b.name || ''))
           const idxA = rowOrder.indexOf(a.employeeId)
           const idxB = rowOrder.indexOf(b.employeeId)
-          if (idxA === -1 && idxB === -1) return (a.name || '').localeCompare(b.name || '')
+          if (idxA === -1 && idxB === -1) return String(a.name || '').localeCompare(String(b.name || ''))
           if (idxA === -1) return 1
           if (idxB === -1) return -1
           return idxA - idxB
@@ -604,10 +604,10 @@ export default function AttendanceTab() {
       
       const sortedRecords = [...(enrichedRecords || [])].sort((a, b) => {
         if (!a || !b) return 0
-        if (!Array.isArray(rowOrder) || !rowOrder.length) return (a.name || '').localeCompare(b.name || '')
+        if (!Array.isArray(rowOrder) || !rowOrder.length) return String(a.name || '').localeCompare(String(b.name || ''))
         const idxA = rowOrder.indexOf(a.employeeId)
         const idxB = rowOrder.indexOf(b.employeeId)
-        if (idxA === -1 && idxB === -1) return (a.name || '').localeCompare(b.name || '')
+        if (idxA === -1 && idxB === -1) return String(a.name || '').localeCompare(String(b.name || ''))
         if (idxA === -1) return 1
         if (idxB === -1) return -1
         return idxA - idxB
@@ -776,10 +776,10 @@ export default function AttendanceTab() {
       // Re-sort the enriched updated records
       const sortedUpdated = [...(enrichedUpdated || [])].sort((a, b) => {
         if (!a || !b) return 0
-        if (!Array.isArray(rowOrder) || !rowOrder.length) return (a.name || '').localeCompare(b.name || '')
+        if (!Array.isArray(rowOrder) || !rowOrder.length) return String(a.name || '').localeCompare(String(b.name || ''))
         const idxA = rowOrder.indexOf(a.employeeId)
         const idxB = rowOrder.indexOf(b.employeeId)
-        if (idxA === -1 && idxB === -1) return (a.name || '').localeCompare(b.name || '')
+        if (idxA === -1 && idxB === -1) return String(a.name || '').localeCompare(String(b.name || ''))
         if (idxA === -1) return 1
         if (idxB === -1) return -1
         return idxA - idxB
