@@ -152,55 +152,55 @@ const settingsSubTabMeta = {
   organization: {
     title: 'Organization Control Center',
     description: 'Maintain company identity, hierarchy, banking details, and invite access from one polished workspace.',
-    kicker: 'Company setup',
+    kicker: '',
     pill: 'Core profile',
   },
   employee: {
     title: 'Employee Directory',
     description: 'Search, review, and maintain your workforce records with a cleaner management surface.',
-    kicker: 'People records',
+    kicker: '',
     pill: 'Directory',
   },
   user_roles: {
     title: 'Users & Roles',
     description: 'Control product access, assign ownership, and manage linked user identities without friction.',
-    kicker: 'Access control',
+    kicker: '',
     pill: 'Security',
   },
   shift: {
     title: 'Shifts & Work Rules',
     description: 'Keep attendance logic clear with readable shift tables and minimum-hour definitions.',
-    kicker: 'Attendance rules',
+    kicker: '',
     pill: 'Scheduling',
   },
   salary: {
     title: 'Salary Slab Settings',
     description: 'Configure payroll structures, increment history, and release windows in a focused flow.',
-    kicker: 'Payroll rules',
+    kicker: '',
     pill: 'Compensation',
   },
   advance_cat: {
     title: 'Advance Categories',
     description: 'Organize request types with quick inline editing instead of interruptive prompts.',
-    kicker: 'Expense setup',
+    kicker: '',
     pill: 'Categories',
   },
   holidays: {
     title: 'Holiday Calendar',
     description: 'Manage annual holidays with a simple, legible layout that is easy to update and review.',
-    kicker: 'Calendar',
+    kicker: '',
     pill: 'Time off',
   },
   site_geofence: {
     title: 'Site Geofencing',
     description: 'Configure site coordinates and proximity radius to control where attendance can be captured.',
-    kicker: 'Location control',
+    kicker: '',
     pill: 'Geofence',
   },
   approval_settings: {
     title: 'Approval Workflows',
     description: 'Tune request approvals with clearer staging, stronger hierarchy, and easier decision visibility.',
-    kicker: 'Governance',
+    kicker: '',
     pill: 'Approvals',
   },
 }
@@ -2261,11 +2261,12 @@ export default function SettingsTab() {
         <div className="px-4 py-3 md:px-6 md:py-4">
           <div className="flex flex-col gap-3">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 shadow-sm">
-                <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                {currentSettingsMeta.kicker}
-              </div>
-              <h1 className="mt-2 text-[24px] font-black tracking-[-0.04em] text-slate-950 md:text-[28px]">
+              {currentSettingsMeta.kicker && (
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 shadow-sm">
+                  {currentSettingsMeta.kicker}
+                </div>
+              )}
+              <h1 className="mt-1 text-[24px] font-black tracking-[-0.04em] text-slate-950 md:text-[28px]">
                 {currentSettingsMeta.title}
               </h1>
             </div>
@@ -2283,7 +2284,7 @@ export default function SettingsTab() {
                   aria-pressed={isActive}
                   className={`rounded-[22px] border px-3 py-2.5 text-left transition-all ${
                     isActive
-                      ? 'border-indigo-500 bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
+                      ? 'border-emerald-500 bg-emerald-600 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
                       : 'border-slate-200 bg-white/88 text-slate-700 hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-lg'
                   }`}
                 >
@@ -2292,7 +2293,7 @@ export default function SettingsTab() {
                       {tab.label}
                     </span>
                     <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] ${
-                      isActive ? 'bg-white/14 text-indigo-100' : 'bg-indigo-50 text-indigo-600'
+                      isActive ? 'bg-white/20 text-emerald-100' : 'bg-emerald-50 text-emerald-600'
                     }`}>
                       {meta.pill || 'Settings'}
                     </span>
