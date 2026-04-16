@@ -559,7 +559,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
             otH += (h || 0) + (mi || 0) / 60
           }
         }
-        const slab = allIncrements.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, esiPercent: 0 }
+        const slab = allIncrements.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0, esiPercent: 0 }
         const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8, paidDays = daysInMonth - lop
         const dailyRate = ts / daysInMonth
         const fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
@@ -797,7 +797,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
       const aDataSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp)));
       const aData = aDataSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed);
       const attendanceByDate = new Map(aData.map(a => [a.date, a]))
-      const slab = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
+      const slab = increments.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, incomeTaxPercent: 0, pfPercent: 0 }
       const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8
       let paid = 0, lop = 0, aOT = 0, sun = 0, hol = 0, sunW = 0, holW = 0, grid = []
       const saturdayType = orgData?.saturdayType || 'working'

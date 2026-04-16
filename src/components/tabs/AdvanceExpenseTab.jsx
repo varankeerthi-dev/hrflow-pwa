@@ -2906,7 +2906,7 @@ export default function AdvanceExpenseTab() {
                         </tr>
                       ) : (
                         Object.entries(summary.byStatus)
-                          .sort(([a], [b]) => a.localeCompare(b))
+                          .sort(([a], [b]) => (a || '').localeCompare(b || ''))
                           .map(([st, { count, sum }]) => (
                             <tr key={st} className="h-12 border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
                               <td className="px-4 border-r border-zinc-50">

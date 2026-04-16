@@ -1384,7 +1384,7 @@ export default function ShiftPlanningTab() {
         else if (section === 'night') map[date].night += 1
       })
     })
-    return Object.values(map).sort((a,b) => a.date.localeCompare(b.date))
+    return Object.values(map).sort((a,b) => (a.date || '').localeCompare(b.date || ''))
   }, [plannings])
 
   return (
