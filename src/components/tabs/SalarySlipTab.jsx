@@ -7,10 +7,10 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
+import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font, pdf } from '@react-pdf/renderer'
 import { logActivity } from '../../hooks/useActivityLog'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
 
 // Use standard fonts for maximum compatibility
@@ -45,6 +45,111 @@ const formatMonthDisplay = (monthStr) => {
 };
 
 const formatSummaryCurrency = (value) => `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`
+
+const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustments, orgId }) => {
+  const [adjustments, setAdjustments] = useState({});
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isOpen) {
+      setAdjustments(initialAdjustments || {});
+    }
+  }, [isOpen, initialAdjustments]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (data) => {
+      const batch = [];
+      for (const [empId, adjust] of Object.entries(data)) {
+        const docId = `${month}_${empId}`;
+        batch.push(setDoc(doc(db, 'organisations', orgId, 'otAdjustments', docId), {
+          employeeId: empId,
+          month: month,
+          adjustment: Number(adjust),
+          updatedAt: serverTimestamp()
+        }));
+      }
+      await Promise.all(batch);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['attendanceSummary']);
+      onClose();
+    }
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-100">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <div>
+            <h2 className="text-lg font-black uppercase font-google-sans tracking-tight text-gray-900">OT Escalation</h2>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Adjust Overtime Hours for {formatMonthDisplay(month)}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-all text-gray-400">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-auto p-5">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 bg-white z-10">
+              <tr className="border-b border-gray-200 text-[10px] font-black uppercase tracking-widest text-gray-400 h-10">
+                <th className="pb-2">Employee Name</th>
+                <th className="pb-2 text-center w-24">Actual OT</th>
+                <th className="pb-2 text-center w-32">Adjust (Hrs)</th>
+                <th className="pb-2 text-right w-24">Final OT</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {employees.map((emp) => {
+                const actual = Number(emp.ot) || 0;
+                const adjust = adjustments[emp.id] || 0;
+                const final = actual + Number(adjust);
+                
+                return (
+                  <tr key={emp.id} className="h-14 hover:bg-gray-50/50 transition-colors">
+                    <td className="py-2">
+                      <p className="text-sm font-bold text-gray-900 uppercase">{emp.name}</p>
+                      <p className="text-[10px] text-gray-400 font-medium">{emp.empId}</p>
+                    </td>
+                    <td className="py-2 text-center text-sm font-medium text-gray-600">
+                      {actual.toFixed(2)}
+                    </td>
+                    <td className="py-2 text-center">
+                      <input 
+                        type="number" 
+                        step="0.5"
+                        value={adjustments[emp.id] === undefined ? "" : adjustments[emp.id]} 
+                        onChange={(e) => setAdjustments({ ...adjustments, [emp.id]: e.target.value })}
+                        className="w-24 h-9 border border-gray-200 rounded-lg text-center font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        placeholder="0.00"
+                      />
+                    </td>
+                    <td className="py-2 text-right text-sm font-black text-gray-900">
+                      {final.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+          <button onClick={onClose} className="px-6 py-2.5 text-[11px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-100 rounded-xl transition-all">Cancel</button>
+          <button 
+            onClick={() => saveMutation.mutate(adjustments)} 
+            disabled={saveMutation.isLoading}
+            className="px-8 py-2.5 bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {saveMutation.isLoading ? 'Saving...' : 'Save Adjustments'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const DETAILED_SUMMARY_COLUMNS = [
   { id: 'sno', label: 'S.No', index: 1, width: 32 },
@@ -147,7 +252,15 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Expense</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.expenseReimbursement)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Sun Worked</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.sundayPay)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Holiday Worked</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.holidayPay)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{color:'#64748b'}}>OT</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.otPay)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}>
+            <View>
+              <Text style={{color:'#64748b'}}>OT</Text>
+              {Number(data.otAdjustment) !== 0 && (
+                <Text style={{fontSize:6, color:'#94a3b8'}}>{data.autoOTHours?.toFixed(2)} [{Number(data.otAdjustment) > 0 ? `+${data.otAdjustment}` : data.otAdjustment}]</Text>
+              )}
+            </View>
+            <Text style={{fontWeight:'bold'}}>{dashIfZero(data.otPay)}</Text>
+          </View>
         </View>
         <View style={{flex:1}}>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>PF</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.pf)}</Text></View>
@@ -297,6 +410,7 @@ export default function SalarySlipTab() {
   const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map((column) => column.id))
   const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
   const [isSavingPreferences, setIsSavingPreferences] = useState(false)
+  const [isOtModalOpen, setIsOtModalOpen] = useState(false)
   const monthInputRef = useRef(null)
 
   const sortedEmployees = useMemo(() => {
@@ -555,12 +669,13 @@ export default function SalarySlipTab() {
       const daysInMonth = new Date(y, m, 0).getDate()
       const sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${daysInMonth}`
       
-      const [aSnap, slabSnap, loanSnap, advSnap, fineSnap] = await Promise.all([
+      const [aSnap, slabSnap, loanSnap, advSnap, fineSnap, otAdjSnap] = await Promise.all([
         getDocs(collection(db, 'organisations', user.orgId, 'attendance')),
         getDocs(collection(db, 'organisations', user.orgId, 'salaryIncrements')),
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))),
         getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')),
-        getDocs(collection(db, 'organisations', user.orgId, 'fines'))
+        getDocs(collection(db, 'organisations', user.orgId, 'fines')),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth)))
       ])
       
       const allAttendance = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
@@ -568,6 +683,11 @@ export default function SalarySlipTab() {
       const allLoans = loanSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       const allAdvExp = advSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
       const allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed)
+      const otAdjustments = otAdjSnap.docs.reduce((acc, d) => {
+        const data = d.data()
+        acc[data.employeeId] = data.adjustment
+        return acc
+      }, {})
       
 return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) => {
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
@@ -646,7 +766,13 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         const ts = Number(slab.totalSalary) || 0, minH = Number(emp.minDailyHours) || 8, paidDays = daysInMonth - lop
         const dailyRate = ts / daysInMonth
         const fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
-        const basic = fullBasic * (paidDays / daysInMonth), hra = fullHra * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), esi = 0, otPay = otH * (dailyRate / minH)
+        const basic = fullBasic * (paidDays / daysInMonth), hra = fullHra * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), esi = 0
+        
+        // APPLY OT ADJUSTMENT
+        const otAdjustment = otAdjustments[emp.id] || 0
+        const finalOtH = otH + otAdjustment
+        const otPay = finalOtH * (dailyRate / minH)
+        
         const satPayMultiplier = saturdayType === 'holiday2x' || saturdayType === 'alternative' ? 2 : 1
         // Extra Pay (Worked): Only count days where actual work occurred on Sunday or Holiday
         const sunPay = sunW * dailyRate, holPay = holW * dailyRate
@@ -655,7 +781,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         const deductions = [{ label: 'PF', value: pf }, { label: 'IT', value: it }, { label: 'ESI', value: esi }, { label: 'Loan', value: loanE }, { label: 'Adv.', value: adv }, { label: 'Fine', value: fine }].filter(d => d.value > 0)
         const net = earnings.reduce((s, e) => s + e.value, 0) - deductions.reduce((s, d) => s + d.value, 0)
         const vrAdv = adv - reimb
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, otPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0), fullBasic, fullHra }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), otAdjustment, finalOt: finalOtH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, otPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0), fullBasic, fullHra }
       })
     },
     enabled: !!user?.orgId && employees.length > 0 && activeTab === 'salary-summary'
@@ -686,7 +812,23 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         { accessorKey: 'lop', header: 'Loss of Pay', size: 100, cell: info => <div className="text-center text-sm font-medium text-red-600 py-2 px-1 bg-red-50 hover:bg-red-100 transition-colors duration-200 font-semibold">{info.getValue()}</div> },
       ]
     },
-    { accessorKey: 'ot', header: 'OT Hours', size: 80, cell: info => <div className="text-center text-sm font-medium text-gray-900 py-2 px-1 hover:bg-gray-50 transition-colors duration-200">{info.getValue()}</div> },
+    { accessorKey: 'ot', header: 'OT Hours', size: 100, cell: info => {
+      const { ot, otAdjustment, finalOt } = info.row.original;
+      const adjust = Number(otAdjustment) || 0;
+      return (
+        <div className="text-center text-[11px] font-medium text-gray-900 py-1.5 px-1 hover:bg-gray-50 transition-colors duration-200">
+          <span className={adjust !== 0 ? 'text-gray-400 font-normal' : ''}>{ot}</span>
+          {adjust !== 0 && (
+            <span className="ml-1 text-emerald-600 font-bold">
+              [{adjust > 0 ? `+${adjust}` : adjust}]
+            </span>
+          )}
+          {adjust !== 0 && (
+            <div className="text-[10px] font-black text-indigo-600 mt-0.5">{finalOt}</div>
+          )}
+        </div>
+      );
+    }},
     { 
       header: 'Holiday Worked',
       columns: [
@@ -811,7 +953,9 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
             hra: emp.hra,
             sundayPay: emp.sunPay,
             holPay: emp.holPay,
-            otPay: emp.salary.earnings.find(e => e.label === 'OT Est.')?.value || 0,
+            otPay: emp.otPay,
+            otAdjustment: emp.otAdjustment,
+            finalOT: emp.finalOt,
             expenseReimbursement: emp.expenseAmount || 0,
             pf: emp.pf,
             esi: 0,
@@ -957,14 +1101,19 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
 
         grid.push({ date: i, type: t, ds })
       }
-      const [otSRes, advSnap, loanSnap, fSnapRes, requestSnap, deletedAdvSnap] = await Promise.all([
+      const [otSRes, advSnap, loanSnap, fSnapRes, requestSnap, deletedAdvSnap, otAdjSnap] = await Promise.all([
         getDocs(query(collection(db, 'organisations', user.orgId, 'otApprovals'), where('employeeId', '==', selectedEmp))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'advances'), where('employeeId', '==', selectedEmp))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))),
         getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'), where('employeeId', '==', selectedEmp)))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'deleted_advances_expenses'), where('employeeId', '==', selectedEmp))),
+        getDoc(doc(db, 'organisations', user.orgId, 'otAdjustments', `${selectedMonth}_${selectedEmp}`))
       ])
+      
+      const otAdjData = otAdjSnap.exists() ? otAdjSnap.data() : { adjustment: 0 }
+      const otAdjustment = Number(otAdjData.adjustment) || 0
+      
       const activeRequests = requestSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       const deletedIds = new Set([...deletedAdvSnap.docs.map(d => d.id)])
       const activeRequestIds = new Set(activeRequests.map(item => item.id))
@@ -976,7 +1125,10 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
       const sunP = sunW * (ts / end)  // 2x (includes regular already in basic)
       const holP = holW * (ts / end)  // 2x (includes regular already in basic)
       const fineA = fSnapRes.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).filter(f => !f.deleted && !f.isDeleted).reduce((s, d) => s + Number(d.amount || 0), 0)
-      const otP = aOT * ((ts / end) / minH)
+      
+      const finalOT = aOT + otAdjustment
+      const otP = finalOT * ((ts / end) / minH)
+      
       const reimb = activeRequests.filter(i => i.type === 'Expense' && !deletedIds.has(i.id)).filter(i => {
         const isPaidThisMonth = i.paymentStatus === 'Paid' && i.paidAt?.toDate && i.paidAt.toDate().getFullYear() === y && (i.paidAt.toDate().getMonth() + 1) === m
         const isWithSalaryApproved = i.payoutMethod === 'With Salary' && i.status === 'Approved' && i.paymentStatus !== 'Paid' && i.date?.startsWith(selectedMonth)
@@ -984,7 +1136,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
       }).reduce((s, c) => s + Number(c.partialAmount || c.amount), 0)
       const b = ts * (slab.basicPercent / 100) * (paid / end), h = ts * (slab.hraPercent / 100) * (paid / end), p = ts * (slab.pfPercent / 100)
       const de = p + adv + emi + fineA, g = b + h + otP + reimb + sunP + holP
-      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, finalOT: aOT, otPay: otP, basic: b, hra: h, basicFull: ts * (slab.basicPercent / 100), hraFull: ts * (slab.hraPercent / 100), expenseReimbursement: reimb, sundayPay: sunP, holidayPay: holP, grossEarnings: g, pf: p, esi: 0, it: 0, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun + hol, sundayWorkedCount: sunW, holidayWorkedCount: holW, workedDaysCount: paid - (sun + hol), totalMonthDays: end })    
+      setSlipData({ employee: emp, month: selectedMonth, slab, grid, paidDays: paid, lopDays: lop, autoOTHours: aOT, otAdjustment, finalOT: finalOT, otPay: otP, basic: b, hra: h, basicFull: ts * (slab.basicPercent / 100), hraFull: ts * (slab.hraPercent / 100), expenseReimbursement: reimb, sundayPay: sunP, holidayPay: holP, grossEarnings: g, pf: p, esi: 0, it: 0, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: de, netPay: Math.max(0, g - de), sundayCount: sun + hol, sundayWorkedCount: sunW, holidayWorkedCount: holW, workedDaysCount: paid - (sun + hol), totalMonthDays: end })    
     } catch (e) { alert('Generation failed: ' + e.message); } finally { setLoading(false) }
   }
 
@@ -1071,7 +1223,17 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
                             <div className="flex justify-between p-2.5 text-[11px]">Expense<span className="font-bold">{dashIfZero(slipData.expenseReimbursement)}</span></div>
                             <div className="flex justify-between p-2.5 text-[11px]">Sunday Worked<span className="font-bold">{dashIfZero(slipData.sundayPay)}</span></div>
                             <div className="flex justify-between p-2.5 text-[11px]">Holiday Worked<span className="font-bold">{dashIfZero(slipData.holidayPay)}</span></div>
-                            <div className="flex justify-between p-2.5 text-[11px]">OT<span className="font-bold">{dashIfZero(slipData.otPay)}</span></div>
+                            <div className="flex justify-between p-2.5 text-[11px]">
+                              <div className="flex flex-col">
+                                <span>OT</span>
+                                {Number(slipData.otAdjustment) !== 0 && (
+                                  <span className="text-[9px] text-gray-400 font-medium">
+                                    {slipData.autoOTHours?.toFixed(2)} [{Number(slipData.otAdjustment) > 0 ? `+${slipData.otAdjustment}` : slipData.otAdjustment}]
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-bold">{dashIfZero(slipData.otPay)}</span>
+                            </div>
                           </div>
                           <div className="p-1 space-y-0.5">
                             <div className="flex justify-between p-2.5 text-[11px]">PF<span className="font-bold">{dashIfZero(slipData.pf)}</span></div>
@@ -1113,6 +1275,14 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
                 <button onClick={() => refetchSummary()} className="h-8 px-4 bg-gray-900 text-white font-bold rounded text-[8px] uppercase tracking-widest shadow hover:bg-black transition-all active:scale-95">Submit</button>
                 {isAdmin && (
                   <>
+                    <div className="h-4 w-px bg-gray-200 mx-0.5" />
+                    <button 
+                      onClick={() => setIsOtModalOpen(true)}
+                      className="h-8 px-3 bg-indigo-100 text-indigo-700 font-bold rounded text-[8px] uppercase tracking-widest shadow-sm hover:bg-indigo-200 transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                      <ArrowUpRight size={12} />
+                      OT Escalation
+                    </button>
                     <div className="h-4 w-px bg-gray-200 mx-0.5" />
                     <button 
                       onClick={handleRecalculateHistoricalData}
@@ -1447,6 +1617,17 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
           </div>
         )}
       </div>
+      <OTEscalationModal 
+        isOpen={isOtModalOpen}
+        onClose={() => setIsOtModalOpen(false)}
+        month={summaryMonth}
+        orgId={user?.orgId}
+        employees={attendanceSummaryData}
+        initialAdjustments={attendanceSummaryData.reduce((acc, emp) => {
+          acc[emp.id] = emp.otAdjustment || 0;
+          return acc;
+        }, {})}
+      />
     </div>
   )
 }
