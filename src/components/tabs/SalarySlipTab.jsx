@@ -47,32 +47,34 @@ const formatMonthDisplay = (monthStr) => {
 const formatSummaryCurrency = (value) => `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`
 
 const DETAILED_SUMMARY_COLUMNS = [
-  { id: 'sno', label: 'S.No', index: 1 },
-  { id: 'empNo', label: 'Emp No', index: 2 },
-  { id: 'name', label: 'Name', index: 3, mandatory: true },
-  { id: 'designation', label: 'Designation', index: 4, mandatory: true },
-  { id: 'basicCtc', label: 'Basic (CTC)', index: 5, mandatory: true },
-  { id: 'hraCtc', label: 'HRA (CTC)', index: 6, mandatory: true },
-  { id: 'salaryCtc', label: 'Salary (CTC)', index: 7, mandatory: true },
-  { id: 'days', label: 'Days', index: 8 },
-  { id: 'worked', label: 'Worked', index: 9 },
-  { id: 'sunWorked', label: 'Sun Worked', index: 10 },
-  { id: 'holidayWorked', label: 'Holiday Worked', index: 11 },
-  { id: 'leave', label: 'Leave', index: 12 },
-  { id: 'paidDays', label: 'Paid', index: 13 },
-  { id: 'basicPaid', label: 'Basic (Paid)', index: 14 },
-  { id: 'hraPaid', label: 'HRA (Paid)', index: 15 },
-  { id: 'salaryPaid', label: 'Salary (Paid)', index: 16 },
-  { id: 'sundayPay', label: 'Sun Pay', index: 17 },
-  { id: 'otPay', label: 'OT', index: 18 },
-  { id: 'earnings', label: 'Earn', index: 19 },
-  { id: 'pf', label: 'PF', index: 20 },
-  { id: 'esi', label: 'ESI', index: 21 },
-  { id: 'advance', label: 'Adv', index: 22 },
-  { id: 'vr', label: 'VR', index: 23 },
-  { id: 'ded', label: 'Ded', index: 24 },
-  { id: 'totalDed', label: 'Tot Ded', index: 25 },
-  { id: 'net', label: 'Net', index: 26 },
+  { id: 'sno', label: 'S.No', index: 1, width: 32 },
+  { id: 'empNo', label: 'Emp No', index: 2, width: 60 },
+  { id: 'name', label: 'Name', index: 3, mandatory: true, width: 150 },
+  { id: 'designation', label: 'Designation', index: 4, mandatory: true, width: 120 },
+  { id: 'basicCtc', label: 'Basic', index: 5, mandatory: true, width: 80 },
+  { id: 'hraCtc', label: 'HRA', index: 6, mandatory: true, width: 80 },
+  { id: 'salaryCtc', label: 'Salary', index: 7, mandatory: true, width: 90 },
+  { id: 'days', label: 'Days', index: 8, width: 50 },
+  { id: 'worked', label: 'Worked', index: 9, width: 52 },
+  { id: 'sunWorked', label: 'Sun\nWorked', index: 10, width: 52 },
+  { id: 'holidayWorked', label: 'Hol\nWorked', index: 11, width: 52 },
+  { id: 'leave', label: 'Leave', index: 12, width: 52 },
+  { id: 'lop', label: 'LOP', index: 13, width: 52 },
+  { id: 'paidDays', label: 'Paid\nDays', index: 14, width: 15 },
+  { id: 'basicPaid', label: 'Basic', index: 15, width: 80 },
+  { id: 'hraPaid', label: 'HRA', index: 16, width: 80 },
+  { id: 'salaryPaid', label: 'Salary', index: 17, width: 90 },
+  { id: 'sundayPay', label: 'Sun Worked', index: 18, width: 70 },
+  { id: 'holidayPay', label: 'Holiday Worked', index: 19, width: 70 },
+  { id: 'otPay', label: 'OT', index: 20, width: 60 },
+  { id: 'earnings', label: 'Total\nEarn', index: 21, width: 90 },
+  { id: 'pf', label: 'PF', index: 22, width: 80 },
+  { id: 'esi', label: 'ESI', index: 23, width: 70 },
+  { id: 'advance', label: 'Adv', index: 24, width: 70 },
+  { id: 'vr', label: 'VR', index: 25, width: 70 },
+  { id: 'ded', label: 'Ded', index: 26, width: 70 },
+  { id: 'totalDed', label: 'Tot Ded', index: 27, width: 90 },
+  { id: 'net', label: 'Net', index: 28, width: 100 },
 ]
 
 const s = StyleSheet.create({
@@ -143,7 +145,8 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Basic Salary</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.basic)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>HRA</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.hra)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Expense</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.expenseReimbursement)}</Text></View>
-          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Sunday Worked</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.sundayPay)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Sun Worked</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.sundayPay)}</Text></View>
+          <View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{color:'#64748b'}}>Holiday Worked</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.holidayPay)}</Text></View>
           <View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{color:'#64748b'}}>OT</Text><Text style={{fontWeight:'bold'}}>{dashIfZero(data.otPay)}</Text></View>
         </View>
         <View style={{flex:1}}>
@@ -282,6 +285,7 @@ export default function SalarySlipTab() {
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const [activeTab, setActiveTab] = useState('salary-summary'), [selectedEmp, setSelectedEmp] = useState(''), [selectedMonth, setSelectedMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
   const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
+  const [summarySubTab, setSummarySubTab] = useState('overview')
   const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [advExpRows, setAdvExpRows] = useState([]), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState(''), [orgData, setOrgData] = useState(null)
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(true)
@@ -336,6 +340,87 @@ export default function SalarySlipTab() {
         ? currentColumns.filter((id) => id !== columnId)
         : [...currentColumns, columnId]
     ))
+  }
+
+  const visibleGroups = useMemo(() => {
+    const groups = [
+      { id: 'basic', label: 'Basic Info', color: 'blue', columns: ['sno', 'empNo', 'name', 'designation'] },
+      { id: 'structure', label: 'Salary Structure (CTC)', color: 'purple', columns: ['basicCtc', 'hraCtc', 'salaryCtc'] },
+      { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sunWorked', 'holidayWorked', 'leave', 'paidDays'] },
+      { id: 'earnings', label: 'Earnings (PAID)', color: 'emerald', columns: ['basicPaid', 'hraPaid', 'salaryPaid', 'sundayPay', 'holidayPay', 'otPay', 'earnings'] },
+      { id: 'deductions', label: 'Deductions', color: 'red', columns: ['pf', 'esi', 'advance', 'vr', 'ded', 'totalDed'] },
+      { id: 'net', label: 'Net Pay', color: 'green', columns: ['net'] }
+    ];
+    
+    return groups.map(g => ({
+      ...g,
+      visibleCount: visibleDetailedSummaryColumns.filter(c => g.columns.includes(c.id)).length
+    })).filter(g => g.visibleCount > 0);
+  }, [visibleDetailedSummaryColumns]);
+
+  const renderDetailedCell = (colId, emp) => {
+    switch (colId) {
+      case 'sno': return emp.sno;
+      case 'empNo': return <span className="font-mono text-[10px]">{emp.empId}</span>;
+      case 'name': return <span className="font-bold text-gray-900">{emp.name}</span>;
+      case 'designation': return emp.designation;
+      case 'basicCtc': return Math.round(emp.fullBasic).toLocaleString('en-IN');
+      case 'hraCtc': return Math.round(emp.fullHra).toLocaleString('en-IN');
+      case 'salaryCtc': return Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN');
+      case 'days': return emp.totalDays;
+      case 'worked': return emp.worked;
+      case 'sunWorked': return emp.sunW;
+      case 'holidayWorked': return emp.holW;
+      case 'leave': return emp.leave;
+      case 'lop': return emp.lop;
+      case 'paidDays': return emp.totalWorkingDays;
+      case 'basicPaid': return Math.round(emp.basic).toLocaleString('en-IN');
+      case 'hraPaid': return Math.round(emp.hra).toLocaleString('en-IN');
+      case 'salaryPaid': return Math.round(emp.basic + emp.hra).toLocaleString('en-IN');
+      case 'sundayPay': return Math.round(emp.sunPay).toLocaleString('en-IN');
+      case 'holidayPay': return Math.round(emp.holPay).toLocaleString('en-IN');
+      case 'otPay': return Math.round(emp.otPay || 0).toLocaleString('en-IN');
+      case 'earnings': return Math.round(emp.totalEarnings).toLocaleString('en-IN');
+      case 'pf': return Math.round(emp.pf).toLocaleString('en-IN');
+      case 'esi': return Math.round(emp.esi || 0).toLocaleString('en-IN');
+      case 'advance': return Math.round(emp.advanceAmount).toLocaleString('en-IN');
+      case 'vr': return Math.round(emp.vrAdvance).toLocaleString('en-IN');
+      case 'ded': return Math.round(emp.fine || 0).toLocaleString('en-IN');
+      case 'totalDed': return Math.round(emp.totalDeductions).toLocaleString('en-IN');
+      case 'net': return <span className="font-bold">{Math.round(emp.salary.net).toLocaleString('en-IN')}</span>;
+      default: return '-';
+    }
+  }
+
+  const getColumnColorClass = (colId, type = 'bg') => {
+    const group = visibleGroups.find(g => g.columns.includes(colId));
+    if (!group) return '';
+    const color = group.color;
+    if (type === 'bg') {
+      if (color === 'blue') return 'bg-blue-50/30';
+      if (color === 'purple') return 'bg-purple-50/30';
+      if (color === 'amber') return 'bg-amber-50/30';
+      if (color === 'emerald') return 'bg-emerald-50/30';
+      if (color === 'red') return 'bg-red-50/30';
+      if (color === 'green') return 'bg-green-600';
+      return '';
+    }
+    if (type === 'border') {
+      if (color === 'blue') return 'border-blue-100';
+      if (color === 'purple') return 'border-purple-100';
+      if (color === 'amber') return 'border-amber-100';
+      if (color === 'emerald') return 'border-emerald-100';
+      if (color === 'red') return 'border-red-100';
+      return 'border-gray-200';
+    }
+    if (type === 'text') {
+      if (color === 'green') return 'text-white';
+      if (color === 'emerald') return 'text-emerald-700';
+      if (color === 'red') return 'text-red-600';
+      if (color === 'purple') return 'text-purple-700';
+      return 'text-gray-900';
+    }
+    return '';
   }
 
   const handleSaveColumnPreferences = async () => {
@@ -501,6 +586,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
           const isSaturdayConfiguredHoliday = isSaturday && isConfiguredHoliday
           const isHoliday = isSunday || isConfiguredHoliday
           const r = attendanceByDate.get(dateStr)
+          const status = String(r?.status || '').toLowerCase()
 
           // Count total Sundays and configured holidays
           if (isSunday) sun++
@@ -513,14 +599,16 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
           const sundayWorked = Boolean(r?.sundayWorked)
           
           // Check configured holiday worked (2x pay) or not worked but still has 1x pay
-          const holidayWorked = Boolean(r?.holidayWorked) || r?.status === 'Worked' || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && r.status !== 'absent' && r.status !== 'sunholiday' && r.status !== 'Holiday')
-          const holidayNotWorked = isConfiguredHoliday && r && (r.status === 'Holiday' || r.status === 'SunHoliday')
+          const holidayWorked = Boolean(r?.holidayWorked) || status === 'worked' || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && status !== 'absent' && status !== 'sunholiday' && status !== 'holiday' && status !== 'leave')
+          const holidayNotWorked = isConfiguredHoliday && r && (status === 'holiday' || status === 'sunholiday')
           
           // Check Sunday not worked but still has 1x pay
-          const sundayNotWorked = isSunday && !sundayWorked && r && (r.status === 'SunHoliday' || r.sundayHoliday)
+          const sundayNotWorked = isSunday && !sundayWorked && r && (status === 'sunholiday' || r.sundayHoliday)
 
-          if (r?.isAbsent) {
+          if (r?.isAbsent || status === 'absent') {
             lop++
+          } else if (status === 'leave') {
+            leave++
           } else if (isSunday) {
             if (sundayWorked) {
               sunW++
@@ -542,9 +630,10 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
               holW++
               worked++
             }
-          } else if (r) {
+          } else if (r && (status === 'worked' || status === 'present' || r.checkIn)) {
             worked++
           } else if (!isSunday && !isConfiguredHoliday && !(isSaturday && isSaturdayHoliday)) {
+            // No record or unknown status on a regular working day
             lop++
           }
 
@@ -559,14 +648,14 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         const fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
         const basic = fullBasic * (paidDays / daysInMonth), hra = fullHra * (paidDays / daysInMonth), pf = ts * (slab.pfPercent / 100), it = ts * (slab.incomeTaxPercent / 100), esi = 0, otPay = otH * (dailyRate / minH)
         const satPayMultiplier = saturdayType === 'holiday2x' || saturdayType === 'alternative' ? 2 : 1
-        // Pay: Sunday worked = regular + 1x (total 2x), Holiday worked = regular + 1x (total 2x), not worked = regular + 1x (total 2x)
-        const sunPay = (sunW + sunNotWorked) * dailyRate, holPay = (holW + holNotWorked) * dailyRate
+        // Extra Pay (Worked): Only count days where actual work occurred on Sunday or Holiday
+        const sunPay = sunW * dailyRate, holPay = holW * dailyRate
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAdvExp.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
-        const earnings = [{ label: 'Basic', value: basic }, { label: 'HRA', value: hra }, { label: 'Sun Pay', value: sunPay }, { label: 'Hol Pay', value: holPay }, { label: 'OT Est.', value: otPay }, { label: 'Reimb.', value: reimb }].filter(e => e.value > 0)
+        const earnings = [{ label: 'Basic', value: basic }, { label: 'HRA', value: hra }, { label: 'Sun Worked', value: sunPay }, { label: 'Holiday Worked', value: holPay }, { label: 'OT Est.', value: otPay }, { label: 'Reimb.', value: reimb }].filter(e => e.value > 0)
         const deductions = [{ label: 'PF', value: pf }, { label: 'IT', value: it }, { label: 'ESI', value: esi }, { label: 'Loan', value: loanE }, { label: 'Adv.', value: adv }, { label: 'Fine', value: fine }].filter(d => d.value > 0)
         const net = earnings.reduce((s, e) => s + e.value, 0) - deductions.reduce((s, d) => s + d.value, 0)
         const vrAdv = adv - reimb
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0), fullBasic, fullHra }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, otPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0), fullBasic, fullHra }
       })
     },
     enabled: !!user?.orgId && employees.length > 0 && activeTab === 'salary-summary'
@@ -1005,11 +1094,23 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         )}
 
         {activeTab === 'salary-summary' && (
-          <div className="max-w-full space-y-4 flex flex-col h-full overflow-hidden">
-            <div className="flex justify-between items-center gap-4 bg-white p-2 rounded-lg border border-gray-200 shadow-sm shrink-0">
+          <div className="max-w-full space-y-1 flex flex-col h-full overflow-hidden">
+            {/* TOP HEADER - Moved from panel to top level row */}
+            <div className="flex justify-between items-center gap-4 bg-white p-[7px] border-b border-gray-200 shrink-0">        
               <div className="flex items-center gap-2">
-                <div className="flex items-center bg-gray-100 rounded-md p-1.5"><button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button><div className="px-2 py-0.5 font-bold text-gray-900 text-[11px] min-w-[100px] text-center uppercase tracking-tighter">{new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div><button onClick={() => monthInputRef.current?.showPicker()} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-indigo-600 relative"><CalendarIcon size={14} /><input ref={monthInputRef} type="month" value={summaryMonth} onChange={e => setSummaryMonth(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none" /></button><button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronRight size={14} /></button></div>
-                <div className="h-4 w-px bg-gray-200 mx-0.5" /><button onClick={() => refetchSummary()} className="h-8 px-4 bg-gray-900 text-white font-bold rounded text-[8px] uppercase tracking-widest shadow hover:bg-black transition-all active:scale-95">Submit</button>
+                <div className="flex items-center bg-gray-100 rounded-md p-1.5">
+                  <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
+                  <div className="px-2 py-0.5 font-bold text-gray-900 text-[11px] min-w-[120px] text-center uppercase tracking-tighter">
+                    {new Date(summaryMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </div>
+                  <button onClick={() => monthInputRef.current?.showPicker()} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-indigo-600 relative">
+                    <CalendarIcon size={14} />
+                    <input ref={monthInputRef} type="month" value={summaryMonth} onChange={e => setSummaryMonth(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none" />
+                  </button>
+                  <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1.5 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronRight size={14} /></button>
+                </div>
+                <div className="h-4 w-px bg-gray-200 mx-0.5" />
+                <button onClick={() => refetchSummary()} className="h-8 px-4 bg-gray-900 text-white font-bold rounded text-[8px] uppercase tracking-widest shadow hover:bg-black transition-all active:scale-95">Submit</button>
                 {isAdmin && (
                   <>
                     <div className="h-4 w-px bg-gray-200 mx-0.5" />
@@ -1025,81 +1126,115 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
                   </>
                 )}
               </div>
-              <div className="text-right pr-2"><h1 className="text-[9px] font-black text-gray-900 font-google-sans tracking-tight uppercase leading-none">Salary Summary</h1><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Analytics Engine</p></div>
+              <div className="text-right pr-2">
+                <h1 className="text-[10px] font-black text-gray-900 font-google-sans tracking-tight uppercase leading-none">Salary Summary</h1>
+                <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Payroll Engine</p>
+              </div>
             </div>
-            <div className="flex gap-2 flex-1 min-h-0 items-start overflow-hidden relative">
-              <div className="flex-1 min-w-0 flex flex-col gap-2 h-full overflow-hidden">
-                <div className="flex flex-col h-1/2 min-h-0 space-y-1">
-                  <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0">
-                    <div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center text-white"><Clock size={10} /></div><p className="text-[8px] font-bold text-gray-900 uppercase font-google-sans tracking-tight">Summary</p></div>
-                    <div className="flex items-center gap-1"><button onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)} className={`p-0.5 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`}><Info size={10} /></button></div>
+
+            {/* SUB-TABS NAVIGATION - In previous date filter area */}
+            <div className="bg-white px-[7px] py-1 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <div className="flex gap-2">
+                {[
+                  { id: 'overview', label: 'Summary', icon: <Clock size={10} /> },
+                  { id: 'detailed', label: 'Detailed Salary Summary', icon: <Wallet size={10} /> }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setSummarySubTab(tab.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-wider transition-all ${
+                      summarySubTab === tab.id 
+                        ? 'bg-indigo-600 text-white shadow-sm' 
+                        : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {summarySubTab === 'overview' ? (
+                   <button onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)} className={`p-1.5 rounded transition-all ${isDetailPanelOpen ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400'}`} title="Employee Details"><Info size={12} /></button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf || attendanceSummaryData.length === 0} className="p-1.5 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 disabled:opacity-50 transition-colors" title="Download Detailed Summary PDF"><Download size={12} /></button>
+                    <button onClick={() => setShowDetailedColumnPicker(v => !v)} className="h-6 px-2.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-colors">Columns</button>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden flex-col flex-1 min-h-0 shadow-sm">
-                    <div className="overflow-auto flex-1">
-                      <table className="w-full border-collapse text-sm">
-                        <thead className="sticky top-0 z-10 bg-gray-50">
-                          {table.getHeaderGroups().map((headerGroup) => (
-                            <tr key={headerGroup.id} className="border-b border-gray-200">
-                              {headerGroup.headers.map(header => (
-                                <th 
-                                  key={header.id} 
-                                  colSpan={header.colSpan} 
-                                  className="px-4 py-3 border-r border-gray-200 text-left font-semibold text-gray-900 bg-gray-50 text-xs uppercase tracking-wider transition-colors hover:bg-gray-100"
-                                >
-                                  {flexRender(header.column.columnDef.header, header.getContext())}
-                                </th>
-                              ))}
-                            </tr>
-                          ))}
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {isAttendanceLoading ? (
-                            <tr>
-                              <td colSpan={13} className="p-8 text-center text-gray-500">
-                                <div className="flex items-center justify-center gap-2">
-                                  <Spinner size="sm" />
-                                  <span className="text-sm">Loading data...</span>
-                                </div>
-                              </td>
-                            </tr>
-                          ) : (
-                            table.getRowModel().rows.map((row, index) => (
-                              <tr 
-                                key={row.id} 
-                                className={`border-b border-gray-100 transition-all duration-200 ${
-                                  summaryEmpDetail?.id === row.original.id 
-                                    ? 'bg-blue-50 border-blue-200' 
-                                    : index % 2 === 0 
-                                    ? 'bg-white hover:bg-gray-50' 
-                                    : 'bg-gray-50 hover:bg-gray-100'
-                                }`}
-                              >
-                                {row.getVisibleCells().map(cell => (
-                                  <td 
-                                    key={cell.id} 
-                                    className="px-4 py-2 border-r border-gray-200 text-center text-gray-900 transition-colors duration-200"
+                )}
+              </div>
+            </div>
+
+            {/* CONTENT AREA */}
+            <div className="flex-1 flex min-h-0 items-start overflow-hidden relative">
+              <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+                {summarySubTab === 'overview' ? (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="bg-white border-x border-b border-gray-200 overflow-hidden flex-col flex-1 min-h-0 shadow-sm">
+                      <div className="overflow-auto flex-1">
+                        <table className="w-full border-collapse text-sm">
+                          <thead className="sticky top-0 z-10 bg-gray-50">
+                            {table.getHeaderGroups().map((headerGroup) => (
+                              <tr key={headerGroup.id} className="border-b border-gray-200">
+                                {headerGroup.headers.map(header => (
+                                  <th 
+                                    key={header.id} 
+                                    colSpan={header.colSpan} 
+                                    className="px-4 py-3 border-r border-gray-200 text-left font-semibold text-gray-900 bg-gray-50 text-xs uppercase tracking-wider transition-colors hover:bg-gray-100"
                                   >
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                  </td>
+                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                  </th>
                                 ))}
                               </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                  </div></div>
-                </div>
-                <div className={`${isAttendanceSummaryOpen ? 'flex-1 min-w-0' : 'flex-1'} flex flex-col h-1/2 min-h-0 space-y-1 transition-all duration-300`}>
-                  <div className="flex justify-between items-center bg-white px-2 py-1 rounded border border-gray-200 shadow-sm shrink-0 relative">
-                    <div className="flex items-center gap-2"><div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center text-white"><Wallet size={10} /></div><p className="text-[10px] font-bold text-gray-900 uppercase tracking-tight">Detailed Salary Summary</p><button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf || attendanceSummaryData.length === 0} className="ml-2 p-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 disabled:opacity-50 transition-colors" title="Download Detailed Summary PDF"><Download size={12} /></button></div>
-                    <div className="flex items-center gap-2"><button onClick={() => setShowDetailedColumnPicker(v => !v)} className="h-6 px-2.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-colors">Columns</button><span className="text-[9px] text-gray-500">Comprehensive Payroll Breakdown</span></div>
+                            ))}
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {isAttendanceLoading ? (
+                              <tr>
+                                <td colSpan={13} className="p-8 text-center text-gray-500">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Spinner size="sm" />
+                                    <span className="text-sm">Loading data...</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : (
+                              table.getRowModel().rows.map((row, index) => (
+                                <tr 
+                                  key={row.id} 
+                                  className={`border-b border-gray-100 transition-all duration-200 h-10 ${
+                                    summaryEmpDetail?.id === row.original.id 
+                                      ? 'bg-blue-50 border-blue-200' 
+                                      : index % 2 === 0 
+                                      ? 'bg-white hover:bg-gray-50' 
+                                      : 'bg-gray-50 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {row.getVisibleCells().map(cell => (
+                                    <td 
+                                      key={cell.id} 
+                                      className="px-4 py-[7px] border-r border-gray-200 text-center text-gray-900 transition-colors duration-200"
+                                    >
+                                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col min-h-0 relative">
                     {showDetailedColumnPicker && (
-                      <div className="absolute right-2 top-9 z-20 w-[290px] max-h-[320px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
+                      <div className="absolute right-2 top-2 z-20 w-[290px] max-h-[320px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
                         <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-[9px] font-black uppercase tracking-wider text-gray-600">Visible Columns</p>
-                              <p className="text-[9px] text-gray-500 mt-0.5">Name, Designation, Basic, HRA and Salary are mandatory.</p>
                             </div>
                             <button 
                               onClick={handleSaveColumnPreferences}
@@ -1127,157 +1262,104 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
                         </div>
                       </div>
                     )}
-                  </div>
-                  <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 flex" style={{ fontFamily: 'Roboto, sans-serif' }}>
-                    <div className="flex-1 overflow-auto">
-                      <style>{detailedSummaryColumnStyles}</style>
-                      <style>{`
-                        .detailed-summary-table {
-                          table-layout: fixed;
-                          width: 100%;
-                          border-collapse: collapse;
-                        }
-                        .detailed-summary-table th,
-                        .detailed-summary-table td {
-                          overflow: hidden;
-                          text-overflow: ellipsis;
-                          white-space: nowrap;
-                        }
-                        .detailed-summary-table th[data-hidden],
-                        .detailed-summary-table td[data-hidden] {
-                          display: none;
-                        }
-                      `}</style>
-                      <table className="detailed-summary-table w-full border-collapse text-sm">
-                        <thead className="sticky top-0 z-10">
-                          {/* First Header Row - Group Headers */}
-                          <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
-                            <th colSpan="4" className="px-3 py-2 border-r-2 border-blue-300 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-blue-100">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-2 h-2 bg-blue-500 rounded"></div>
-                                Basic Info
-                              </div>
-                            </th>
-                            <th colSpan="3" className="px-3 py-2 border-r-2 border-purple-300 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-purple-100">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-2 h-2 bg-purple-500 rounded"></div>
-                                Salary Structure
-                              </div>
-                            </th>
-                            <th colSpan="3" className="px-3 py-2 border-r-2 border-emerald-300 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-emerald-100">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-2 h-2 bg-emerald-500 rounded"></div>
-                                Earnings
-                              </div>
-                            </th>
-                            <th colSpan="4" className="px-3 py-2 border-r-2 border-red-300 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-red-100">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-2 h-2 bg-red-500 rounded"></div>
-                                Deductions
-                              </div>
-                            </th>
-                            <th className="px-3 py-2 text-center font-bold text-gray-900 text-xs uppercase tracking-wider bg-gradient-to-r from-green-600 to-green-700 text-white">
-                              Net Pay
-                            </th>
-                          </tr>
-                          {/* Second Header Row - Individual Column Headers */}
-                          <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
-                            {/* Basic Info Columns */}
-                            <th className="px-2 py-2 border-r-2 border-blue-200 text-center font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-12">S.No</th>
-                            <th className="px-3 py-2 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-20">Emp No</th>
-                            <th className="px-3 py-2 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-32">Name</th>
-                            <th className="px-3 py-2 border-r-2 border-blue-200 text-left font-semibold text-gray-900 text-xs uppercase tracking-wider bg-blue-50 w-36">Designation</th>
-                            
-                            {/* Salary Structure Columns */}
-                            <th className="px-3 py-2 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-24">Basic</th>
-                            <th className="px-3 py-2 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-20">HRA</th>
-                            <th className="px-3 py-2 border-r-2 border-purple-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-purple-50 w-20">CTC</th>
-                            
-                            {/* Earnings Columns */}
-                            <th className="px-3 py-2 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-24">Basic</th>
-                            <th className="px-3 py-2 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-20">HRA</th>
-                            <th className="px-3 py-2 border-r-2 border-emerald-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-emerald-50 w-20">Earned</th>
-                            
-                            {/* Deductions Columns */}
-                            <th className="px-3 py-2 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">PF</th>
-                            <th className="px-3 py-2 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">Advance</th>
-                            <th className="px-3 py-2 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-16">Loan</th>
-                            <th className="px-3 py-2 border-r-2 border-red-200 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-red-50 w-20">Total Ded</th>
-                            
-                            {/* Net Pay Column */}
-                            <th className="px-3 py-2 text-right font-semibold text-gray-900 text-xs uppercase tracking-wider bg-gradient-to-r from-green-600 to-green-700 text-white w-24">Net</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {isAttendanceLoading ? (
-                            <tr>
-                              <td colSpan={visibleDetailedSummaryColumns.length} className="p-8 text-center text-gray-500">
-                                <div className="flex items-center justify-center gap-3">
-                                  <Spinner size="md" />
-                                  <span className="text-sm font-medium">Loading payroll data...</span>
-                                </div>
-                              </td>
-                            </tr>
-                          ) : attendanceSummaryData.length === 0 ? (
-                            <tr>
-                              <td colSpan={visibleDetailedSummaryColumns.length} className="py-12 text-center text-gray-500">
-                                <div className="flex flex-col items-center gap-3">
-                                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                                    <FileText size={24} className="text-gray-400" />
-                                  </div>
-                                  <p className="text-lg font-medium text-gray-600">No payroll data available</p>
-                                  <p className="text-sm text-gray-400">Select a month to view detailed summary</p>
-                                </div>
-                              </td>
-                            </tr>
-                          ) : (
-                            <>
-                              {attendanceSummaryData.map((emp, idx) => (
-                                <tr 
-                                  key={emp.id} 
-                                  className={`border-b border-gray-100 transition-all duration-200 ${
-                                    idx % 2 === 0 
-                                      ? 'bg-white hover:bg-blue-50' 
-                                      : 'bg-gray-50 hover:bg-gray-100'
+                    <div className="bg-white border border-gray-300 overflow-hidden flex-col flex-1 min-h-0 flex" style={{ fontFamily: 'Roboto, sans-serif' }}>
+                      <div className="flex-1 overflow-auto">
+                        <table className="w-full min-w-max border-collapse text-sm">
+                          <thead className="sticky top-0 z-10">
+                            {/* Group Headers */}
+                            <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
+                              {visibleGroups.map(group => (
+                                <th 
+                                  key={group.id}
+                                  colSpan={group.visibleCount} 
+                                  className={`px-3 py-[7px] border-r-2 ${getColumnColorClass(group.columns[0], 'border')} text-center font-bold text-gray-900 text-xs uppercase tracking-wider ${
+                                    group.color === 'blue' ? 'bg-blue-100' :
+                                    group.color === 'purple' ? 'bg-purple-100' :
+                                    group.color === 'amber' ? 'bg-amber-100' :
+                                    group.color === 'emerald' ? 'bg-emerald-100' :
+                                    group.color === 'red' ? 'bg-red-100' :
+                                    group.color === 'green' ? 'bg-green-600 text-white' : 'bg-gray-100'
                                   }`}
                                 >
-                                  <td className="px-2 py-2 text-center text-gray-900 font-medium border-r-2 border-blue-100 bg-blue-50/30">{emp.sno}</td>
-                                  <td className="px-3 py-2 font-mono text-gray-700 border-r-2 border-blue-100 bg-blue-50/30">{emp.empId}</td>
-                                  <td className="px-3 py-2 font-medium text-gray-900 truncate max-w-xs border-r-2 border-blue-100 bg-blue-50/30" title={emp.name}>{emp.name}</td>
-                                  <td className="px-3 py-2 text-gray-600 truncate max-w-xs border-r-2 border-blue-100 bg-blue-50/30" title={emp.designation}>{emp.designation}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-purple-100 bg-purple-50/30">{(emp.fullBasic/1000).toFixed(1)}k</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-purple-100 bg-purple-50/30">{(emp.fullHra/1000).toFixed(1)}k</td>
-                                  <td className="px-3 py-2 text-right font-semibold text-blue-600 border-r-2 border-purple-100 bg-purple-50/30">{Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.basic).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-900 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-semibold text-green-600 border-r-2 border-emerald-100 bg-emerald-50/30">₹{Math.round(emp.basic + emp.hra).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-red-600 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.pf).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-400 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.advanceAmount).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-400 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.loanE).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-medium text-gray-400 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.fine || 0).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-semibold text-red-600 border-r-2 border-red-100 bg-red-50/30">₹{Math.round(emp.totalDeductions).toLocaleString('en-IN')}</td>
-                                  <td className="px-3 py-2 text-right font-bold text-emerald-700 bg-gradient-to-r from-green-600 to-green-700 text-white">₹{Math.round(emp.salary.net).toLocaleString('en-IN')}</td></tr>))}
-                              <tr className="bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold">
-                                <td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-3 text-right">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm uppercase tracking-wider">Grand Total Net Payout:</span>
-                                    <span className="text-lg font-bold">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, emp) => sum + (Number(emp.salary?.net) || 0), 0))}</span>
-                                  </div>
+                                  {group.label}
+                                </th>
+                              ))}
+                            </tr>
+                            {/* Column Headers */}
+                            <tr className="bg-white border-b-2 border-gray-300">
+                              {visibleDetailedSummaryColumns.map(col => (
+                                <th 
+                                  key={col.id}
+                                  style={{ width: col.width ? `${col.width}px` : 'auto', minWidth: col.width ? `${col.width}px` : 'auto' }}
+                                  className={`px-3 py-[7px] border-r-2 ${getColumnColorClass(col.id, 'border')} text-center font-semibold text-gray-900 text-[10px] uppercase tracking-wider ${
+                                    visibleGroups.find(g => g.columns.includes(col.id))?.color === 'blue' ? 'bg-blue-50' :
+                                    visibleGroups.find(g => g.columns.includes(col.id))?.color === 'purple' ? 'bg-purple-50' :
+                                    visibleGroups.find(g => g.columns.includes(col.id))?.color === 'amber' ? 'bg-amber-50' :
+                                    visibleGroups.find(g => g.columns.includes(col.id))?.color === 'emerald' ? 'bg-emerald-50' :
+                                    visibleGroups.find(g => g.columns.includes(col.id))?.color === 'red' ? 'bg-red-50' :
+                                    visibleGroups.find(g => g.columns.includes(col.id))?.color === 'green' ? 'bg-green-500 text-white' : 'bg-gray-50'
+                                  }`}
+                                >
+                                  {col.label}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {isAttendanceLoading ? (
+                              <tr>
+                                <td colSpan={visibleDetailedSummaryColumns.length} className="p-8 text-center text-gray-500">
+                                  <div className="flex items-center justify-center gap-3"><Spinner size="md" /><span className="text-sm font-medium">Loading payroll data...</span></div>
                                 </td>
                               </tr>
-                            </>
-                          )}
-                        </tbody>
-                      </table>
+                            ) : attendanceSummaryData.length === 0 ? (
+                              <tr>
+                                <td colSpan={visibleDetailedSummaryColumns.length} className="py-12 text-center text-gray-500">
+                                  <div className="flex flex-col items-center gap-3"><div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3"><FileText size={24} className="text-gray-400" /></div><p className="text-lg font-medium text-gray-600">No payroll data available</p></div>
+                                </td>
+                              </tr>
+                            ) : (
+                              <>
+                                {attendanceSummaryData.map((emp, idx) => (
+                                  <tr key={emp.id} className={`border-b border-gray-100 transition-all duration-200 h-10 ${idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                    {visibleDetailedSummaryColumns.map(col => (
+                                      <td 
+                                        key={col.id}
+                                        style={{ width: col.width ? `${col.width}px` : 'auto', minWidth: col.width ? `${col.width}px` : 'auto' }}
+                                        className={`px-3 py-[7px] border-r-2 ${getColumnColorClass(col.id, 'border')} ${
+                                          ['sno', 'empNo', 'days', 'worked', 'sunWorked', 'holidayWorked', 'leave', 'paidDays'].includes(col.id) ? 'text-center' : 
+                                          ['name', 'designation'].includes(col.id) ? 'text-left' : 'text-right'
+                                        } ${getColumnColorClass(col.id, 'text')} ${
+                                          visibleGroups.find(g => g.columns.includes(col.id))?.color === 'green' ? 'bg-green-600 text-white' : ''
+                                        }`}
+                                      >
+                                        {renderDetailedCell(col.id, emp)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                                <tr className="bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold">
+                                  <td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-3 text-right">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm uppercase tracking-wider">Grand Total Net Payout:</span>
+                                      <span className="text-lg font-bold">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, emp) => sum + (Number(emp.salary?.net) || 0), 0))}</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
-              {isDetailPanelOpen && (
+              {isDetailPanelOpen && summarySubTab === 'overview' && (
                 <div className="absolute right-0 top-0 w-[200px] bg-white rounded-lg border border-gray-200 shadow-xl flex flex-col overflow-hidden h-1/2 animate-in slide-in-from-right duration-300 z-20">
                   <div className="p-2.5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">{summaryEmpDetail ? (<div><h3 className="font-black text-gray-900 uppercase font-google-sans text-[9px] tracking-tight truncate w-[140px]">{summaryEmpDetail.name}</h3><p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest">{summaryEmpDetail.empId}</p></div>) : (<div><h3 className="font-black text-gray-300 uppercase font-google-sans text-[9px] tracking-tight">Details</h3><p className="text-[7px] text-gray-300 font-bold uppercase tracking-widest">No Selection</p></div>)}<button onClick={() => setIsDetailPanelOpen(false)} className="p-1 hover:bg-gray-200 rounded-full transition-all text-gray-400"><X size={10} /></button></div>
                   <div className="p-2.5 font-inter flex-1 overflow-hidden flex flex-col">{!summaryEmpDetail ? (<div className="h-full flex flex-col items-center justify-center space-y-2 opacity-10 py-10"><FileText size={32} strokeWidth={1} /><p className="text-[7px] font-bold uppercase tracking-widest text-center px-4">Select record</p></div>) : (
-                    <div className="space-y-3 flex-1 flex flex-col"><div className="space-y-3 flex-1 overflow-auto"><div className="space-y-1.5"><div className="flex items-center gap-1 text-indigo-600 font-black uppercase text-[7px] tracking-widest"><FileText size={8} /> Earnings</div><div className="bg-indigo-50/30 rounded border border-indigo-100 p-2 space-y-1">{summaryEmpDetail.salary.earnings.map((e, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{e.label} <span className="font-bold text-gray-900">{formatINR(e.value)}</span></div>))}</div></div><div className="space-y-1.5"><div className="flex items-center gap-1 text-red-600 font-black uppercase text-[7px] tracking-widest"><AlertCircle size={8} /> Deductions</div><div className="bg-red-50/30 rounded border border-red-100 p-2 space-y-1">{summaryEmpDetail.salary.deductions.map((d, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{d.label} <span className="font-bold text-gray-900">{formatINR(d.value)}</span></div>))}</div></div></div><div className="pt-2 border-t border-dashed border-gray-200 shrink-0"><div className="bg-gray-900 text-white rounded-lg p-2.5 text-center shadow-lg"><p className="text-[6px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Net Payout (Est.)</p><p className="text-base font-black font-google-sans tracking-tighter">{formatINR(summaryEmpDetail.salary.net)}</p></div><button onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }} className="w-full mt-2 py-1.5 bg-indigo-50 text-indigo-700 font-black rounded text-[7px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">Go to Generator</button></div></div>
+                    <div className="space-y-3 flex-1 flex flex-col"><div className="space-y-3 flex-1 overflow-auto"><div className="space-y-1.5"><div className="flex items-center gap-1 text-indigo-600 font-black uppercase text-[7px] tracking-widest"><FileText size={8} /> Earnings</div><div className="bg-indigo-50/30 rounded border border-indigo-100 p-2 space-y-1">{summaryEmpDetail.salary.earnings.map((e, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{e.label} <span className="font-bold text-gray-900">{formatINR(e.value)}</span></div>))}</div></div><div className="space-y-1.5"><div className="flex items-center gap-1 text-red-600 font-black uppercase text-[7px] tracking-widest"><AlertCircle size={8} /> Deductions</div><div className="bg-red-50/30 rounded border border-red-100 p-2 space-y-1">{summaryEmpDetail.salary.deductions.map((d, i) => (<div key={i} className="flex justify-between text-[9px] font-medium text-gray-600">{d.label} <span className="font-bold text-gray-900">{formatINR(d.value)}</span></div>))}</div></div></div><div className="pt-2 border-t border-dashed border-gray-200 shrink-0"><div className="bg-gray-900 text-white rounded-lg p-2.5 text-center shadow-lg"><p className="text-[6px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Net Payout (Est.)</p><p className="text-base font-black font-google-sans tracking-tighter">{formatINR(summarySubTab === 'overview' ? summaryEmpDetail.salary.net : summaryEmpDetail.salary.net)}</p></div><button onClick={() => { setActiveTab('salary-slip'); setSelectedEmp(summaryEmpDetail.id); }} className="w-full mt-2 py-1.5 bg-indigo-50 text-indigo-700 font-black rounded text-[7px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm">Go to Generator</button></div></div>
                   )}</div>
                 </div>
               )}
