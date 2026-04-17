@@ -509,14 +509,8 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
           // Check if worked on Saturday (only counts if holiday type and has worked attendance)
           const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
           
-          // Check Sunday worked - either directly marked or Saturday support
-          const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
-          const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
-          const prevDayRecord = attendanceByDate.get(prevDate)
-          const prevDayIsSaturday = new Date(y, m - 1, i - 1).getDay() === 6
-          const saturdayWorkedSupport = isSunday && prevDayIsSaturday && isWorkedAttendanceRecord(prevDayRecord)
-          const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
-          const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
+          // Check Sunday worked - directly from record only
+          const sundayWorked = Boolean(r?.sundayWorked)
           
           // Check configured holiday worked (2x pay) or not worked but still has 1x pay
           const holidayWorked = Boolean(r?.holidayWorked) || r?.status === 'Worked' || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && r.status !== 'absent' && r.status !== 'sunholiday' && r.status !== 'Holiday')
