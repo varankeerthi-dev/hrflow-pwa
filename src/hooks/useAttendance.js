@@ -44,10 +44,14 @@ export function useAttendance(orgId) {
     if (!orgId || !yearMonth) return []
     setLoading(true)
     try {
-      const orgSnap = await getDoc(doc(db, 'organisations', orgId))
+      const [orgSnap, otAdjSnap] = await Promise.all([
+        getDoc(doc(db, 'organisations', orgId)),
+        getDocs(query(collection(db, 'organisations', orgId, 'otAdjustments'), where('month', '==', yearMonth)))
+      ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
+      const otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
 
       const q = query(attendanceCol(orgId), where('date', '>=', yearMonth), where('date', '<', yearMonth + '-31'))
       const snapshot = await getDocs(q)
@@ -56,7 +60,7 @@ export function useAttendance(orgId) {
       const summary = {}
       records.forEach(r => {
         if (!summary[r.employeeId]) {
-          summary[r.employeeId] = { present: 0, absent: 0, otHours: 0, holidayWorked: 0, holidayCount: 0, sunWorked: 0, sunCount: 0 }
+          summary[r.employeeId] = { present: 0, absent: 0, otHours: 0, holidayWorked: 0, holidayCount: 0, sunWorked: 0, sunCount: 0, otAdjustment: otAdjs[r.employeeId] || 0 }
         }
         const [y, m, day] = r.date.split('-').map(Number)
         const d = new Date(y, m - 1, day)

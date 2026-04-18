@@ -221,8 +221,9 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
 
 const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustments, orgId }) => {
   const [adjustments, setAdjustments] = useState({});
+  const [showSuccess, setShowSuccess] = useState(false);
   const queryClient = useQueryClient();
-  useEffect(() => { if (isOpen) setAdjustments(initialAdjustments || {}); }, [isOpen, initialAdjustments]);
+  useEffect(() => { if (isOpen) { setAdjustments(initialAdjustments || {}); setShowSuccess(false); } }, [isOpen, initialAdjustments]);
   const handleAdjust = (empId, delta) => { const current = Number(adjustments[empId]) || 0; setAdjustments({ ...adjustments, [empId]: current + delta }); };
   const saveMutation = useMutation({
     mutationFn: async (data) => {
@@ -233,10 +234,30 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
       }
       await Promise.all(batch);
     },
-    onSuccess: () => { queryClient.invalidateQueries(['attendanceSummary']); onClose(); }
+    onSuccess: () => { 
+      queryClient.invalidateQueries(['attendanceSummary']); 
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        onClose();
+      }, 1500);
+    }
   });
   if (!isOpen) return null;
-  return (<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden"><div className="px-6 py-4 border-b flex justify-between items-center"><div><h2 className="text-base font-bold">OT Escalation</h2><p className="text-[11px] text-slate-500">{formatMonthDisplay(month)}</p></div><button onClick={onClose}><X size={18} /></button></div><div className="flex-1 overflow-auto p-6"><table className="w-full text-sm"><thead><tr className="text-[10px] uppercase text-slate-400 border-b"><th className="pb-2 text-left">Employee</th><th className="pb-2 text-center">Actual</th><th className="pb-2 text-center">Adjustment</th><th className="pb-2 text-right">Final</th></tr></thead><tbody className="divide-y">{employees.map(emp => (<tr key={emp.id} className="h-14 hover:bg-slate-50"><td><p className="font-bold">{emp.name}</p></td><td className="text-center">{Number(emp.ot || 0).toFixed(2)}</td><td className="text-center flex items-center justify-center gap-2 py-2"><button onClick={()=>handleAdjust(emp.id, -1)} className="p-1 border rounded"><Minus size={14}/></button><input type="number" step="0.5" className="w-12 text-center font-bold border-0" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/><button onClick={()=>handleAdjust(emp.id, 1)} className="p-1 border rounded"><Plus size={14}/></button></td><td className="text-right font-black">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td></tr>))}</tbody></table></div><div className="p-4 border-t bg-slate-50 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-xs font-bold">Cancel</button><button onClick={() => saveMutation.mutate(adjustments)} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-lg">Save Changes</button></div></div></div>)
+  return (<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden relative">
+    {showSuccess && (
+      <div className="absolute inset-0 z-[110] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+        <div className="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4">
+          <CheckCircle2 size={40} />
+        </div>
+        <h3 className="text-xl font-bold text-slate-900">OT Escalation Saved!</h3>
+        <p className="text-slate-500 text-sm">Attendance records have been updated.</p>
+      </div>
+    )}
+    <div className="px-6 py-4 border-b flex justify-between items-center"><div><h2 className="text-base font-normal">OT Escalation</h2><p className="text-[11px] text-slate-500">{formatMonthDisplay(month)}</p></div><button onClick={onClose}><X size={18} /></button></div><div className="flex-1 overflow-auto p-6"><table className="w-full text-sm"><thead><tr className="text-[10px] uppercase text-slate-400 border-b"><th className="pb-2 text-left font-normal">Employee</th><th className="pb-2 text-center font-normal">Actual</th><th className="pb-2 text-center font-normal">Adjustment</th><th className="pb-2 text-right font-normal">Final</th></tr></thead><tbody className="divide-y">{employees.map(emp => (<tr key={emp.id} className="h-14 hover:bg-slate-50"><td><p className="font-normal">{emp.name}</p></td><td className="text-center font-normal">{Number(emp.ot || 0).toFixed(2)}</td><td className="text-center flex items-center justify-center gap-2 py-2"><button onClick={()=>handleAdjust(emp.id, -1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Minus size={10}/></button><input type="number" step="0.5" className="w-12 text-center font-normal border-0 focus:ring-0" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/><button onClick={()=>handleAdjust(emp.id, 1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Plus size={10}/></button></td><td className="text-right font-normal">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td></tr>))}</tbody></table></div><div className="p-4 border-t bg-slate-50 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-xs font-normal">Cancel</button><button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-normal shadow-lg flex items-center gap-2">
+      {saveMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : null}
+      {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+    </button></div></div></div>)
 }
 
 const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
@@ -582,7 +603,12 @@ export default function SalarySlipTab() {
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.worked}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-600">{e.leave}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600">{e.lop}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-mono text-[11px]">{Number(e.ot || 0).toFixed(2)}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-inter font-normal text-[11px]">
+                          {Number(e.ot || 0).toFixed(2)}
+                          {e.otAdjustment !== 0 && (
+                            <span className="text-emerald-600 ml-1 font-bold">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
+                          )}
+                        </td>
                         <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600 bg-emerald-50/5">{e.sunW}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5">{e.holW}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-black text-green-700 bg-green-50/20 text-[12px]">{e.paidDays}</td>

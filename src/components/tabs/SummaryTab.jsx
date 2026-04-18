@@ -271,7 +271,12 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                           <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-black">{row.present}D</span></td>
                           <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-[10px] font-black">{row.absent}D</span></td>
                           <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">{row.holidayWorked || 0}D</span></td>
-                          <td className="px-4 py-1 text-center border-r border-gray-200"><span className="font-mono font-black text-gray-700 text-[11px]">{row.otHours > 0 ? `${row.otHours.toFixed(2)}h` : '-'}</span></td>
+                          <td className="px-4 py-1 text-center border-r border-gray-200 font-inter font-normal text-[11px] text-gray-700">
+                            {Number(row.otHours || 0).toFixed(2)}
+                            {row.otAdjustment !== 0 && (
+                              <span className="text-green-600 ml-1 font-bold">({(Number(row.otHours || 0) + Number(row.otAdjustment || 0)).toFixed(2)})</span>
+                            )}
+                          </td>
                           <td className="px-4 py-1 text-right"><div className="flex flex-col items-end gap-0.5"><div className="w-20 h-1 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${pct > 80 ? 'bg-green-500' : pct > 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div></div><span className="text-[8px] font-bold text-gray-400">{pct}%</span></div></td>
                         </tr>
                       )
