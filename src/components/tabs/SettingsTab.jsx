@@ -303,6 +303,84 @@ export default function SettingsTab() {
   const [newAdvanceCategory, setNewAdvanceCategory] = useState('')
   const [newHoliday, setNewHoliday] = useState({ name: '', date: '' })
 
+  const [isJoinDateConfirmOpen, setIsJoinDateConfirmOpen] = useState(false)
+  const [pendingJoinDate, setPendingJoinDate] = useState('')
+  const [isJoinDateConfirmed, setIsJoinDateConfirmed] = useState(false)
+  const [joinDateContext, setJoinDateContext] = useState(null) // 'add' or 'edit'
+
+  const JoinDateConfirmationModal = () => {
+    if (!isJoinDateConfirmOpen) return null
+
+    return (
+      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+          <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+              <CalendarIcon size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">Confirm Joining Date</h3>
+              <p className="text-xs text-slate-500 font-medium">Critical payroll data verification</p>
+            </div>
+          </div>
+          
+          <div className="p-6 space-y-4">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                You have selected <span className="font-bold text-slate-900">{formatDateDDMMYYYY(pendingJoinDate)}</span> as the joining date. 
+                <br /><br />
+                <span className="font-semibold text-indigo-600">Why this matters:</span> The system will automatically skip paying Sundays and Holidays occurring <span className="underline italic">before</span> this date.
+              </p>
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <div className="mt-0.5">
+                <input 
+                  type="checkbox" 
+                  checked={isJoinDateConfirmed}
+                  onChange={(e) => setIsJoinDateConfirmed(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+              </div>
+              <span className="text-xs font-semibold text-slate-700 group-hover:text-slate-900 transition-colors">
+                I confirm that this joining date is accurate and understand its impact on payroll calculations.
+              </span>
+            </label>
+          </div>
+
+          <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <button 
+              onClick={() => {
+                setIsJoinDateConfirmOpen(false)
+                setIsJoinDateConfirmed(false)
+                setPendingJoinDate('')
+              }}
+              className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
+            >
+              Cancel
+            </button>
+            <button 
+              disabled={!isJoinDateConfirmed}
+              onClick={() => {
+                if (joinDateContext === 'add') {
+                  setNewEmployee(s => ({ ...s, joinedDate: pendingJoinDate }))
+                } else if (joinDateContext === 'edit') {
+                  setEditForm(s => ({ ...s, joinedDate: pendingJoinDate }))
+                }
+                setIsJoinDateConfirmOpen(false)
+                setIsJoinDateConfirmed(false)
+                setPendingJoinDate('')
+              }}
+              className="px-6 py-2 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-95"
+            >
+              Confirm & Save Date
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -3902,7 +3980,11 @@ export default function SettingsTab() {
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Date of Joining</label>
                 <input type="date" value={editForm.joinedDate || ''}
-                  onChange={e => setEditForm(s => ({ ...s, joinedDate: e.target.value }))}
+                  onChange={e => {
+                    setPendingJoinDate(e.target.value)
+                    setJoinDateContext('edit')
+                    setIsJoinDateConfirmOpen(true)
+                  }}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
               </div>
@@ -4323,7 +4405,11 @@ export default function SettingsTab() {
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Date of Joining</label>
                 <input type="date" value={newEmployee.joinedDate}
-                  onChange={e => setNewEmployee(s => ({ ...s, joinedDate: e.target.value }))}
+                  onChange={e => {
+                    setPendingJoinDate(e.target.value)
+                    setJoinDateContext('add')
+                    setIsJoinDateConfirmOpen(true)
+                  }}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
               </div>

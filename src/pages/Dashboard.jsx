@@ -1,3 +1,4 @@
+import AccountantTab from '../components/tabs/AccountantTab'
 import React, { useState, useEffect, useMemo, Component } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -13,6 +14,7 @@ import {
   CheckCircle2,
   BarChart3,
   Wallet,
+  Banknote,
   User,
   Settings,
   LogOut,
@@ -261,6 +263,7 @@ export default function Dashboard() {
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
+    { id: 'accountant', label: 'Accountant', icon: <Banknote size={18} strokeWidth={1.75} />, module: 'Finance' },
     { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
     { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
     { id: 'help', label: 'Help', icon: <LifeBuoy size={18} strokeWidth={1.75} />, module: 'Settings' },
@@ -313,16 +316,17 @@ export default function Dashboard() {
     <button 
       key={tab.id} 
       onClick={onClick} 
-      className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group ${isCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2.5'} ${isActive ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+      className={`w-full flex transition-all duration-200 group rounded-xl ${isCollapsed ? 'flex-col items-center justify-center py-2 gap-1' : 'items-center px-3 py-2.5 gap-3'} ${isActive ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
     >
       <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
         {React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
       </span>
-      {!isCollapsed && (
-        <span className={`font-semibold truncate leading-none ${isActive ? 'text-white' : ''}`} style={{ fontSize }}>
-          {tab.label}
-        </span>
-      )}
+      <span 
+        className={`font-semibold truncate transition-all duration-300 leading-none ${isActive ? 'text-white' : ''}`} 
+        style={{ fontSize: isCollapsed ? '8px' : fontSize }}
+      >
+        {tab.label}
+      </span>
     </button>
   )
 
@@ -368,12 +372,11 @@ export default function Dashboard() {
           </div>
         )}
 
-        {settingsItem && (
-          <div className="mt-auto pt-2 border-t border-gray-200/80">
-            {renderMenuItem(settingsItem, activeTab === 'settings', () => { setActiveTab('settings'); setTabSearchParams({ tab: 'settings' }); setIsMobileMenuOpen(false) })}
-            {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { setActiveTab('help'); setTabSearchParams({ tab: 'help' }); setIsMobileMenuOpen(false) })}
-          </div>
-        )}
+        <div className="mt-auto pt-2 border-t border-gray-200/80 space-y-0.5">
+          {visibleTabs.find(t => t.id === 'accountant') && renderMenuItem(visibleTabs.find(t => t.id === 'accountant'), activeTab === 'accountant', () => { setActiveTab('accountant'); setTabSearchParams({ tab: 'accountant' }); setIsMobileMenuOpen(false) })}
+          {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { setActiveTab('settings'); setTabSearchParams({ tab: 'settings' }); setIsMobileMenuOpen(false) })}
+          {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { setActiveTab('help'); setTabSearchParams({ tab: 'help' }); setIsMobileMenuOpen(false) })}
+        </div>
       </>
     )
   }
@@ -415,6 +418,7 @@ export default function Dashboard() {
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />
       case 'summary': return <SummaryTab defaultSubTab={summarySubTab} />
+      case 'accountant': return <AccountantTab />
       case 'salary-slip': return <SalarySlipTab />
       case 'advance': return <AdvanceExpenseTab />
       case 'fines': return <FineTab />

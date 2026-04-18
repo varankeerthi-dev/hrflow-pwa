@@ -54,6 +54,9 @@ export function useAttendance(orgId) {
         }
         if (r.isAbsent) {
           summary[r.employeeId].absent++
+        } else if (r.isHalfDay || r.status === 'Half-Day') {
+          summary[r.employeeId].present += 0.5
+          summary[r.employeeId].absent += 0.5
         } else {
           summary[r.employeeId].present++
         }
@@ -174,36 +177,25 @@ export function useAttendance(orgId) {
 export function calcOT(inTime, outTime, inDate, outDate, workHours) {
   if (!inTime || !outTime || !inDate || !outDate) return '00:00'
 
-  const parseTime = (t) => {
-    if (!t) return 0
-    const [h, m] = t.split(':').map(Number)
-    return (h || 0) * 60 + (m || 0)
-  }
+  const [inH, inM] = inTime.split(':').map(Number)
+  const [outH, outM] = outTime.split(':').map(Number)
 
-  const parseDate = (d) => new Date(d)
+  const inDateTime = new Date(`${inDate}T${String(inH).padStart(2, '0')}:${String(inM).padStart(2, '0')}:00`)
+  const outDateTime = new Date(`${outDate}T${String(outH).padStart(2, '0')}:${String(outM).padStart(2, '0')}:00`)
 
-  const inMins = parseTime(inTime)
-  let outMins = parseTime(outTime)
+  if (isNaN(inDateTime.getTime()) || isNaN(outDateTime.getTime())) return '00:00'
 
-  const inD = parseDate(inDate)
-  const outD = parseDate(outDate)
+  // Total duration in minutes
+  const totalMins = Math.floor((outDateTime.getTime() - inDateTime.getTime()) / (1000 * 60))
+  
+  if (totalMins <= 0) return '00:00'
 
-  if (isNaN(inD.getTime()) || isNaN(outD.getTime())) return '00:00'
-
-  // Handle overnight shift
-  if (outD > inD || (outD.getTime() === inD.getTime() && outMins < inMins)) {
-    outMins += 24 * 60
-  }
-
-  const workedMins = outMins - inMins
   const expectedMins = (parseFloat(workHours) || 8) * 60
 
   // Calculate raw OT minutes
-  const rawOtMins = Math.max(0, workedMins - expectedMins)
+  const rawOtMins = Math.max(0, totalMins - expectedMins)
   
   // Only count OT if more than 30 minutes over permitted hours
-  // If OT is 30 mins or less, return 00:00
-  // If OT is more than 30 mins, return the full OT (not subtracting the 30 mins)
   if (rawOtMins <= 30) {
     return '00:00'
   }

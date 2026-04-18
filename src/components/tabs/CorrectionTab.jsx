@@ -277,6 +277,7 @@ function BulkCorrectionPanel({ isOpen, onClose, selectedRows, onBulkSave, saving
               <option value="">No Change</option>
               <option value="Present">Present</option>
               <option value="Absent">Absent</option>
+              <option value="Half-Day">Half-Day</option>
             </select>
           </div>
         </div>
@@ -500,7 +501,7 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
         <div>
           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Status</label>
           <div className="flex gap-2">
-            {['Present', 'Absent'].map(s => (
+            {['Present', 'Absent', 'Half-Day'].map(s => (
               <button
                 key={s}
                 onClick={() => handleChange('status', s)}
@@ -508,7 +509,9 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
                   form.status === s
                     ? s === 'Present'
                       ? 'bg-green-500 text-white'
-                      : 'bg-red-500 text-white'
+                      : s === 'Absent'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-amber-500 text-white'
                     : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                 }`}
               >
@@ -712,11 +715,12 @@ export default function CorrectionTab() {
       }
       
       const isAbsent = inlineForm.status === 'Absent'
+      const isHalfDay = inlineForm.status === 'Half-Day'
       const isSunWorked = inlineForm.status === 'SunWorked'
       const isSunHoliday = inlineForm.status === 'SunHoliday'
       const isWorked = inlineForm.status === 'Worked'  // Holiday worked (2x)
       const isNotWorkedHoliday = inlineForm.status === 'Holiday'  // Holiday not worked (1x)
-      const otHours = isAbsent ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, row.minDailyHours || inlineForm.minDailyHours || 8)
+      const otHours = (isAbsent || isHalfDay) ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, row.minDailyHours || inlineForm.minDailyHours || 8)
       
       const rows = [{
         employeeId: row.id,
@@ -729,7 +733,8 @@ export default function CorrectionTab() {
         otHours,
         remarks: inlineForm.site,
         isAbsent,
-        status: isAbsent ? 'Absent' : (isSunWorked ? 'SunWorked' : (isSunHoliday ? 'SunHoliday' : (isWorked ? 'Worked' : (isNotWorkedHoliday ? 'Holiday' : 'Present')))),
+        isHalfDay,
+        status: isAbsent ? 'Absent' : (isHalfDay ? 'Half-Day' : (isSunWorked ? 'SunWorked' : (isSunHoliday ? 'SunHoliday' : (isWorked ? 'Worked' : (isNotWorkedHoliday ? 'Holiday' : 'Present'))))),
         sundayWorked: isSunWorked,
         sundayHoliday: isSunHoliday,
         holidayWorked: isWorked,
@@ -1143,6 +1148,7 @@ export default function CorrectionTab() {
                         >
                           <option value="Present">Present</option>
                           <option value="Absent">Absent</option>
+                          <option value="Half-Day">Half-Day</option>
                           <option value="SunWorked">SunWorked (1x)</option>
                           <option value="SunHoliday">SunHoliday (1x)</option>
                           <option value="Worked">Worked (2x)</option>
@@ -1152,6 +1158,7 @@ export default function CorrectionTab() {
                         <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
                           row.status === 'PRESENT' ? 'bg-green-100 text-green-600' :
                           row.status === 'ABSENT' ? 'bg-red-100 text-red-500' :
+                          row.status === 'HALF-DAY' ? 'bg-amber-100 text-amber-600' :
                           row.status === 'SUNWORKED' ? 'bg-amber-100 text-amber-600' :
                           row.status === 'WORKED' ? 'bg-purple-100 text-purple-600' :
                           'bg-gray-100 text-gray-400'
