@@ -589,9 +589,29 @@ export default function SalarySlipTab() {
               </div>
               <div className="flex gap-2">
                 {summarySubTab==='detailed' && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 relative">
                     <button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf} className="p-1.5 border border-indigo-100 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors shadow-sm active:scale-95"><Download size={14}/></button>
                     <button onClick={() => setShowDetailedColumnPicker(!showDetailedColumnPicker)} className="h-7 px-3 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all">Columns</button>
+                    
+                    {showDetailedColumnPicker && (
+                      <div ref={columnPickerRef} className="absolute right-0 top-full mt-2 z-[110] bg-white border border-slate-200 shadow-2xl p-4 w-80 max-h-[500px] overflow-auto rounded-[24px] animate-in fade-in slide-in-from-top-2 border-2 border-black">
+                        <div className="pb-3 border-b-2 border-slate-100 mb-3 flex justify-between items-center"><span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Visibility Grid</span><button onClick={()=>setShowDetailedColumnPicker(false)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16}/></button></div>
+                        
+                        <div className="flex gap-2 mb-4">
+                          <button onClick={toggleAllColumns} className="flex-1 h-7 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-200">Toggle All</button>
+                          <button onClick={saveDetailedColumnDefaults} className="flex-1 h-7 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-indigo-700 shadow-sm">Save Default</button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                          {DETAILED_SUMMARY_COLUMNS.map(c => (
+                            <label key={c.id} className={`flex items-center gap-2 p-1 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all ${c.mandatory?'opacity-40 grayscale pointer-events-none':''}`}>
+                              <input type="checkbox" checked={selectedDetailedColumns.includes(c.id)} disabled={c.mandatory} onChange={() => toggleDetailedSummaryColumn(c.id)} className="w-3 h-3 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 shadow-sm"/>
+                              <span className="text-[10px] font-normal text-slate-700 truncate">{c.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -663,25 +683,6 @@ export default function SalarySlipTab() {
                 </div>
               ) : (
                 <div className="min-w-max h-full overflow-auto relative">
-                  {showDetailedColumnPicker && (
-                    <div ref={columnPickerRef} className="absolute right-0 top-0 z-[60] bg-white border border-slate-200 shadow-2xl p-4 w-72 max-h-[500px] overflow-auto rounded-[24px] animate-in fade-in slide-in-from-top-4 border-2 border-black">
-                      <div className="pb-3 border-b-2 border-slate-100 mb-3 flex justify-between items-center"><span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Visibility Grid</span><button onClick={()=>setShowDetailedColumnPicker(false)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16}/></button></div>
-                      
-                      <div className="flex gap-2 mb-4">
-                        <button onClick={toggleAllColumns} className="flex-1 h-7 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-200">Toggle All</button>
-                        <button onClick={saveDetailedColumnDefaults} className="flex-1 h-7 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-indigo-700 shadow-sm">Save Default</button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                        {DETAILED_SUMMARY_COLUMNS.map(c => (
-                          <label key={c.id} className={`flex items-center gap-2 p-1 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all ${c.mandatory?'opacity-40 grayscale pointer-events-none':''}`}>
-                            <input type="checkbox" checked={selectedDetailedColumns.includes(c.id)} disabled={c.mandatory} onChange={() => toggleDetailedSummaryColumn(c.id)} className="w-3 h-3 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 shadow-sm"/>
-                            <span className="text-[10px] font-normal text-slate-700 truncate">{c.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   <table className="w-full text-[10px] border-collapse detailed-summary-table bg-white">
                     <thead className="sticky top-0 z-40 font-raleway">
                       <tr className="h-[55px] border-b-2 border-gray-950">
