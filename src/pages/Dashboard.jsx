@@ -188,10 +188,15 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   )
 }
 
+import { useSidebar } from '../contexts/SidebarContext'
+
+// ... existing imports ...
+
 // ─── Dashboard Component ───────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
+  const { isCollapsed, setIsCollapsed, toggleSidebar } = useSidebar()
   
   const canFetchEmployees = user && !!user.orgId
   const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
@@ -199,7 +204,6 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('attendance')
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [summarySubTab, setSummarySubTab] = useState('summary')
-  const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
@@ -351,7 +355,7 @@ export default function Dashboard() {
             </button>
 
             {isFeaturesExpanded && (
-              <div className="ml-3 pl-3 border-l-2 border-gray-100 space-y-0.5">
+              <div className={`${isCollapsed ? 'ml-0 pl-0 border-l-0' : 'ml-3 pl-3 border-l-2 border-gray-100'} space-y-0.5`}>
                 {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }, '12px'))}
               </div>
             )}
@@ -451,7 +455,7 @@ export default function Dashboard() {
 
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/80 h-14 shrink-0 px-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 hidden md:block transition-all duration-200"><PanelLeft size={18} /></button>
+          <button onClick={toggleSidebar} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 hidden md:block transition-all duration-200"><PanelLeft size={18} /></button>
           <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 md:hidden transition-all duration-200"><Menu size={18} /></button>
           <div className="flex items-center gap-2.5">
             {orgSettings?.logoURL ? (
@@ -528,7 +532,7 @@ export default function Dashboard() {
           </nav>
           <div className="p-3 border-t border-gray-200/80 shrink-0 bg-gray-50/50">
             <button 
-              onClick={() => setIsCollapsed(!isCollapsed)} 
+              onClick={toggleSidebar} 
               className={`w-full flex items-center rounded-xl text-gray-500 hover:text-indigo-700 hover:bg-indigo-50/80 transition-all duration-200 ${isCollapsed ? 'justify-center py-2.5' : 'px-3 py-2.5 gap-3'}`}
             >
               <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform duration-300`} />

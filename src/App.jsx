@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import MobileDashboard from './components/MobileDashboard'
 import Spinner from './components/ui/Spinner'
 import React, { useEffect, useState } from 'react'
+import { SidebarProvider } from './contexts/SidebarContext'
 
 // Hook to detect mobile devices
 function useIsMobile() {
@@ -79,44 +80,46 @@ function ProtectedRoute({ children }) {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/tasks/checklist"
-          element={
-            <ProtectedRoute>
-              <Navigate to="/?tab=tasks&tasksTab=checklist" replace />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/tasks"
-          element={
-            <ProtectedRoute>
-              <Navigate to="/?tab=tasks" replace />
-            </ProtectedRoute>
-          }
-        />
-        <Route 
-          path="/" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/mobile" 
-          element={
-            <ProtectedRoute>
-              <MobileDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <SidebarProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/tasks/checklist"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/?tab=tasks&tasksTab=checklist" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/?tab=tasks" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/mobile" 
+            element={
+              <ProtectedRoute>
+                <MobileDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </SidebarProvider>
   )
 }
 

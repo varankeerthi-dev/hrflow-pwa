@@ -7,11 +7,12 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight } from 'lucide-react'
+import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font, pdf } from '@react-pdf/renderer'
 import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
+import { useSidebar } from '../../contexts/SidebarContext'
 
 // Use standard fonts for maximum compatibility
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : formatINR(val);
@@ -56,6 +57,11 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
     }
   }, [isOpen, initialAdjustments]);
 
+  const handleAdjust = (empId, delta) => {
+    const current = Number(adjustments[empId]) || 0;
+    setAdjustments({ ...adjustments, [empId]: current + delta });
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       const batch = [];
@@ -79,55 +85,82 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-100">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden border border-slate-200 ring-1 ring-black/5">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-black uppercase font-google-sans tracking-tight text-gray-900">OT Escalation</h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Adjust Overtime Hours for {formatMonthDisplay(month)}</p>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">OT Escalation</h2>
+            <p className="text-[11px] text-slate-500 font-medium">Overtime adjustments for {formatMonthDisplay(month)}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-all text-gray-400">
-            <X size={20} />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-md transition-colors text-slate-400 hover:text-slate-600">
+            <X size={18} />
           </button>
         </div>
         
-        <div className="flex-1 overflow-auto p-5">
-          <table className="w-full text-left border-collapse">
+        <div className="flex-1 overflow-auto px-6 py-2">
+          <table className="w-full text-left border-separate border-spacing-0">
             <thead className="sticky top-0 bg-white z-10">
-              <tr className="border-b border-gray-200 text-[10px] font-black uppercase tracking-widest text-gray-400 h-10">
-                <th className="pb-2">Employee Name</th>
-                <th className="pb-2 text-center w-24">Actual OT</th>
-                <th className="pb-2 text-center w-32">Adjust (Hrs)</th>
-                <th className="pb-2 text-right w-24">Final OT</th>
+              <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 h-10 border-b border-slate-100">
+                <th className="pb-2 border-b border-slate-100">Employee</th>
+                <th className="pb-2 text-center w-24 border-b border-slate-100">Actual</th>
+                <th className="pb-2 text-center w-40 border-b border-slate-100">Adjustment</th>
+                <th className="pb-2 text-right w-24 border-b border-slate-100">Final</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {employees.map((emp) => {
                 const actual = Number(emp.ot) || 0;
-                const adjust = adjustments[emp.id] || 0;
-                const final = actual + Number(adjust);
+                const adjust = Number(adjustments[emp.id]) || 0;
+                const final = actual + adjust;
+                const isFinalized = emp.isFinalized;
                 
                 return (
-                  <tr key={emp.id} className="h-14 hover:bg-gray-50/50 transition-colors">
-                    <td className="py-2">
-                      <p className="text-sm font-bold text-gray-900 uppercase">{emp.name}</p>
-                      <p className="text-[10px] text-gray-400 font-medium">{emp.empId}</p>
+                  <tr key={emp.id} className={`group transition-colors h-14 ${isFinalized ? 'opacity-60 bg-slate-50/30' : 'hover:bg-slate-50/50'}`}>
+                    <td className="py-2 pr-4">
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <p className="text-[13px] font-semibold text-slate-900 leading-tight">{emp.name}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">{emp.empId} • {emp.designation}</p>
+                        </div>
+                        {isFinalized && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase tracking-widest">Finalized</span>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-2 text-center text-sm font-medium text-gray-600">
+                    <td className="py-2 text-center text-[13px] font-medium text-slate-500">
                       {actual.toFixed(2)}
                     </td>
-                    <td className="py-2 text-center">
-                      <input 
-                        type="number" 
-                        step="0.5"
-                        value={adjustments[emp.id] === undefined ? "" : adjustments[emp.id]} 
-                        onChange={(e) => setAdjustments({ ...adjustments, [emp.id]: e.target.value })}
-                        className="w-24 h-9 border border-gray-200 rounded-lg text-center font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                        placeholder="0.00"
-                      />
+                    <td className="py-2">
+                      <div className={`flex items-center justify-center gap-1 p-1 rounded-lg border w-fit mx-auto transition-colors ${isFinalized ? 'bg-slate-100 border-slate-200' : 'bg-slate-50 border-slate-200 group-hover:bg-white'}`}>
+                        <button 
+                          onClick={() => handleAdjust(emp.id, -1)}
+                          disabled={isFinalized}
+                          className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-500 hover:text-rose-600 transition-all active:scale-90 border border-transparent hover:border-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Minus size={14} strokeWidth={2.5} />
+                        </button>
+                        <input 
+                          type="number" 
+                          step="0.5"
+                          disabled={isFinalized}
+                          value={adjustments[emp.id] === undefined ? "" : adjustments[emp.id]} 
+                          onChange={(e) => setAdjustments({ ...adjustments, [emp.id]: e.target.value })}
+                          className="w-16 h-8 bg-transparent text-center font-bold text-slate-900 text-[13px] focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:text-slate-400"
+                          placeholder="0.0"
+                        />
+                        <button 
+                          onClick={() => handleAdjust(emp.id, 1)}
+                          disabled={isFinalized}
+                          className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-500 hover:text-emerald-600 transition-all active:scale-90 border border-transparent hover:border-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={14} strokeWidth={2.5} />
+                        </button>
+                      </div>
                     </td>
-                    <td className="py-2 text-right text-sm font-black text-gray-900">
-                      {final.toFixed(2)}
+                    <td className="py-2 text-right">
+                      <p className={`text-[13px] font-bold ${adjust !== 0 ? 'text-indigo-600' : 'text-slate-900'}`}>
+                        {final.toFixed(2)}
+                      </p>
                     </td>
                   </tr>
                 );
@@ -136,14 +169,23 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
           </table>
         </div>
 
-        <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2.5 text-[11px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-100 rounded-xl transition-all">Cancel</button>
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 shrink-0">
+          <button 
+            onClick={onClose} 
+            className="px-4 py-2 text-[12px] font-semibold text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+          >
+            Cancel
+          </button>
           <button 
             onClick={() => saveMutation.mutate(adjustments)} 
             disabled={saveMutation.isLoading}
-            className="px-8 py-2.5 bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+            className="px-5 py-2 bg-slate-900 text-white text-[12px] font-semibold rounded-md shadow-sm hover:bg-slate-800 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center gap-2"
           >
-            {saveMutation.isLoading ? 'Saving...' : 'Save Adjustments'}
+            {saveMutation.isLoading ? (
+              <><RefreshCw size={14} className="animate-spin" /> Saving...</>
+            ) : (
+              'Save Adjustments'
+            )}
           </button>
         </div>
       </div>
@@ -393,12 +435,138 @@ const downloadPdfBlob = (blob, fileName) => {
   URL.revokeObjectURL(url)
 }
 
+const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  const filteredEmployees = useMemo(() => {
+    const term = searchTerm.toLowerCase()
+    return employees.filter(e => 
+      e.name.toLowerCase().includes(term) || 
+      (e.empCode && e.empCode.toLowerCase().includes(term))
+    )
+  }, [employees, searchTerm])
+
+  const selectedEmployee = useMemo(() => 
+    employees.find(e => e.id === selectedId), [employees, selectedId]
+  )
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <div 
+        className="w-full h-9 border border-gray-200 rounded-lg px-3 flex items-center justify-between bg-white cursor-pointer hover:border-indigo-300 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className={`text-[14px] font-semibold ${!selectedEmployee ? 'text-gray-400' : 'text-gray-900'}`}>
+          {selectedEmployee ? selectedEmployee.name : 'Search Employee...'}
+        </span>
+        <div className="flex items-center gap-2">
+          {selectedId && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onSelect(''); }}
+              className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600"
+            >
+              <X size={12} />
+            </button>
+          )}
+          <Search size={14} className="text-gray-400" />
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-2 border-b border-gray-100 bg-gray-50">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Type name or ID..."
+                className="w-full h-8 pl-9 pr-3 bg-white border border-gray-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredEmployees.length > 0) {
+                    onSelect(filteredEmployees[0].id)
+                    setIsOpen(false)
+                    setSearchTerm('')
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="max-h-[280px] overflow-auto py-1 no-scrollbar">
+            <button
+              className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between group"
+              onClick={() => {
+                onSelect('')
+                setIsOpen(false)
+                setSearchTerm('')
+              }}
+            >
+              <span className="text-[12px] font-black uppercase tracking-widest text-indigo-600">-- ALL EMPLOYEES --</span>
+              <CheckCircle2 size={12} className={`text-indigo-600 opacity-0 ${!selectedId ? 'opacity-100' : ''}`} />
+            </button>
+            {filteredEmployees.length === 0 ? (
+              <div className="px-3 py-8 text-center text-gray-400">
+                <p className="text-[10px] font-black uppercase tracking-widest">No results found</p>
+              </div>
+            ) : (
+              filteredEmployees.map(emp => (
+                <button
+                  key={emp.id}
+                  className={`w-full px-3 py-2 text-left hover:bg-indigo-50 flex flex-col transition-colors ${selectedId === emp.id ? 'bg-indigo-50' : ''}`}
+                  onClick={() => {
+                    onSelect(emp.id)
+                    setIsOpen(false)
+                    setSearchTerm('')
+                  }}
+                >
+                  <span className="text-sm font-bold text-gray-900 uppercase leading-tight">{emp.name}</span>
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-tighter">{emp.empCode || emp.id.slice(0, 8)} • {emp.designation}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SalarySlipTab() {
   const { user } = useAuth(), { employees } = useEmployees(user?.orgId, true), { slabs, increments } = useSalarySlab(user?.orgId), { fetchByDate } = useAttendance(user?.orgId)
+  const { isCollapsed, setIsCollapsed, setIsAutoCollapsed, isAutoCollapsed } = useSidebar()
   const isAdmin = user?.role?.toLowerCase() === 'admin'
-  const [activeTab, setActiveTab] = useState('salary-summary'), [selectedEmp, setSelectedEmp] = useState(''), [selectedMonth, setSelectedMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
-  const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
+  // ... existing code ...
   const [summarySubTab, setSummarySubTab] = useState('overview')
+
+  // Auto-collapse sidebar when on Detailed Summary
+  useEffect(() => {
+    if (activeTab === 'salary-summary' && summarySubTab === 'detailed') {
+      if (!isCollapsed) {
+        setIsCollapsed(true)
+        setIsAutoCollapsed(true)
+      }
+    } else {
+      if (isAutoCollapsed) {
+        setIsCollapsed(false)
+        setIsAutoCollapsed(false)
+      }
+    }
+  }, [activeTab, summarySubTab, isCollapsed, setIsCollapsed, isAutoCollapsed, setIsAutoCollapsed])
+
   const [loading, setLoading] = useState(false), [slipData, setSlipData] = useState(null), [advExpRows, setAdvExpRows] = useState([]), [genErr, setGenErr] = useState(''), [orgLogo, setOrgLogo] = useState(''), [orgData, setOrgData] = useState(null)
   const [loans, setLoans] = useState([]), [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', startMonth: '', remarks: '' }), [editingLoanId, setEditingLoanId] = useState(null), [selectedLoan, setSelectedLoan] = useState(null), [overrideForm, setOverrideForm] = useState({ month: '', amount: 0, reason: '', skip: false }), [loanActivities, setLoanActivities] = useState([])
   const [isAttendanceSummaryOpen, setIsAttendanceSummaryOpen] = useState(true)
@@ -669,13 +837,14 @@ export default function SalarySlipTab() {
       const daysInMonth = new Date(y, m, 0).getDate()
       const sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${daysInMonth}`
       
-      const [aSnap, slabSnap, loanSnap, advSnap, fineSnap, otAdjSnap] = await Promise.all([
+      const [aSnap, slabSnap, loanSnap, advSnap, fineSnap, otAdjSnap, slipSnap] = await Promise.all([
         getDocs(collection(db, 'organisations', user.orgId, 'attendance')),
         getDocs(collection(db, 'organisations', user.orgId, 'salaryIncrements')),
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))),
         getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')),
         getDocs(collection(db, 'organisations', user.orgId, 'fines')),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth)))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'salarySlips'), where('month', '==', summaryMonth)))
       ])
       
       const allAttendance = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed)
@@ -688,8 +857,10 @@ export default function SalarySlipTab() {
         acc[data.employeeId] = data.adjustment
         return acc
       }, {})
+      const finalizedEmployees = new Set(slipSnap.docs.map(d => d.data().employee?.id || d.id.split('_')[0]))
       
 return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) => {
+        const isFinalized = finalizedEmployees.has(emp.id)
         const empAtt = allAttendance.filter(a => a.employeeId === emp.id)
         const attendanceByDate = new Map(empAtt.map(a => [a.date, a]))
         let worked = 0, sun = 0, hol = 0, leave = 0, lop = 0, otH = 0, sunW = 0, holW = 0, sunNotWorked = 0, holNotWorked = 0
@@ -699,60 +870,60 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         for (let i = 1; i <= daysInMonth; i++) {
           const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`
           const d = new Date(y, m - 1, i)
+          const ds = d.toISOString().split('T')[0]
           const dayOfWeek = d.getDay()
-          const isSunday = dayOfWeek === 0
+          const isS = dayOfWeek === 0
           const isSaturday = dayOfWeek === 6
-          const isConfiguredHoliday = configuredHolidayDates.has(dateStr) && !isSunday
-          const isSaturdayConfiguredHoliday = isSaturday && isConfiguredHoliday
-          const isHoliday = isSunday || isConfiguredHoliday
-          const r = attendanceByDate.get(dateStr)
+          const isConfiguredHoliday = configuredHolidayDates.has(ds) && !isS
+          const isConfiguredHolidayOrSunday = isS || isConfiguredHoliday
+          const r = attendanceByDate.get(ds)
           const status = String(r?.status || '').toLowerCase()
 
-          // Count total Sundays and configured holidays
-          if (isSunday) sun++
+          if (isS) sun++
           if (isConfiguredHoliday) hol++
 
-          // Check if worked on Saturday (only counts if holiday type and has worked attendance)
+          // Saturday worked check (only for holiday type)
           const saturdayWorked = isSaturday && isSaturdayHoliday && isWorkedAttendanceRecord(r)
           
-          // Check Sunday worked - directly from record only
-          const sundayWorked = Boolean(r?.sundayWorked)
+          // Sunday worked logic
+          const sundayWorkedFromRecord = Boolean(r?.sundayWorked)
+          const prevDate = new Date(y, m - 1, i - 1).toISOString().split('T')[0]
+          const saturdayWorkedSupport = isS && isWorkedAttendanceRecord(attendanceByDate.get(prevDate))
+          const sundayWorkedFromSaturday = Boolean(!sundayWorkedFromRecord && saturdayWorkedSupport)
+          const sundayWorked = sundayWorkedFromRecord || sundayWorkedFromSaturday
           
-          // Check configured holiday worked (2x pay) or not worked but still has 1x pay
-          const holidayWorked = Boolean(r?.holidayWorked) || status === 'worked' || (isConfiguredHoliday && r && !r.isAbsent && !r.sundayHoliday && status !== 'absent' && status !== 'sunholiday' && status !== 'holiday' && status !== 'leave')
-          const holidayNotWorked = isConfiguredHoliday && r && (status === 'holiday' || status === 'sunholiday')
-          
-          // Check Sunday not worked but still has 1x pay
-          const sundayNotWorked = isSunday && !sundayWorked && r && (status === 'sunholiday' || r.sundayHoliday)
+          // Holiday worked (excluding Saturday - handled separately)
+          const holidayWorked = Boolean(r?.holidayWorked) || status === 'worked' || (isConfiguredHoliday && isWorkedAttendanceRecord(r))
 
           if (r?.isAbsent || status === 'absent') {
             lop++
           } else if (status === 'leave') {
             leave++
-          } else if (isSunday) {
+          } else if (isS) {
+            // Sunday handling
             if (sundayWorked) {
               sunW++
               worked++
-            } else if (sundayNotWorked) {
-              // Sunday not worked but marked as SunHoliday = 1x pay
+            } else if (r?.sundayHoliday || status === 'sunholiday') {
               sunNotWorked++
             }
           } else if (isConfiguredHoliday) {
+            // Configured holiday
             if (holidayWorked) {
               holW++
               worked++
-            } else if (holidayNotWorked) {
-              // Holiday not worked but marked as Holiday = 1x pay
+            } else if (status === 'holiday' || status === 'sunholiday') {
               holNotWorked++
             }
           } else if (isSaturday && isSaturdayHoliday) {
+            // Saturday as holiday
             if (saturdayWorked) {
               holW++
               worked++
             }
           } else if (r && (status === 'worked' || status === 'present' || r.checkIn)) {
             worked++
-          } else if (!isSunday && !isConfiguredHoliday && !(isSaturday && isSaturdayHoliday)) {
+          } else if (!isS && !isConfiguredHoliday && !(isSaturday && isSaturdayHoliday)) {
             // No record or unknown status on a regular working day
             lop++
           }
@@ -781,7 +952,7 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         const deductions = [{ label: 'PF', value: pf }, { label: 'IT', value: it }, { label: 'ESI', value: esi }, { label: 'Loan', value: loanE }, { label: 'Adv.', value: adv }, { label: 'Fine', value: fine }].filter(d => d.value > 0)
         const net = earnings.reduce((s, e) => s + e.value, 0) - deductions.reduce((s, d) => s + d.value, 0)
         const vrAdv = adv - reimb
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), otAdjustment, finalOt: finalOtH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, otPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0), fullBasic, fullHra }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: daysInMonth, worked, sunday: sun, holidays: hol, totalHolidays: sun + hol, leave, lop, ot: otH.toFixed(2), otAdjustment, finalOt: finalOtH.toFixed(2), sunW, holW, totalWorkingDays: Math.max(0, paidDays), salary: { earnings, deductions, net }, advanceAmount: adv, expenseAmount: reimb, vrAdvance: vrAdv, sunPay, holPay, otPay, dailyRate, basic, hra, pf, esi, it, loanE, fine, totalEarnings: earnings.reduce((s, e) => s + e.value, 0), totalDeductions: deductions.reduce((s, d) => s + d.value, 0), fullBasic, fullHra, isFinalized }
       })
     },
     enabled: !!user?.orgId && employees.length > 0 && activeTab === 'salary-summary'
@@ -1171,7 +1342,16 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto space-y-4 flex flex-col h-full overflow-hidden p-2 w-full">
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end shrink-0">
-              <div className="w-[240px] max-w-full font-google-sans uppercase text-[15px] font-bold text-gray-400">Target Employee<select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[15px] font-semibold bg-white outline-none mt-1 text-gray-900 normal-case" style={{ fontFamily: "'Inter', sans-serif" }}><option value="">Select Employee</option>{sortedEmployees.filter(e => e.includeInSalary !== false).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+              <div className="w-[240px] max-w-full font-google-sans uppercase text-[15px] font-bold text-gray-400">
+                Target Employee
+                <div className="mt-1">
+                  <EmployeeSearchableDropdown 
+                    employees={sortedEmployees.filter(e => e.includeInSalary !== false)}
+                    selectedId={selectedEmp}
+                    onSelect={setSelectedEmp}
+                  />
+                </div>
+              </div>
               <div className="w-[170px] font-google-sans uppercase text-[15px] font-bold text-gray-400">Pay Period<input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full h-9 border border-gray-200 rounded-lg px-3 text-[15px] font-bold mt-1 text-gray-900 normal-case" style={{ fontFamily: "'Inter', sans-serif" }}/></div>
               <div className="flex flex-col items-start gap-2"><button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-9 px-6 bg-gray-900 text-white font-bold rounded-lg uppercase tracking-[0.1em] text-[15px] shadow-lg hover:bg-black transition-all disabled:opacity-60">Generate</button></div>
             </div>
@@ -1509,11 +1689,14 @@ return sortedEmployees.filter(e => e.includeInSalary !== false).map((emp, idx) =
                                   </tr>
                                 ))}
                                 <tr className="bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold">
-                                  <td colSpan={visibleDetailedSummaryColumns.length} className="px-4 py-3 text-right">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-sm uppercase tracking-wider">Grand Total Net Payout:</span>
-                                      <span className="text-lg font-bold">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, emp) => sum + (Number(emp.salary?.net) || 0), 0))}</span>
-                                    </div>
+                                  <td colSpan={visibleDetailedSummaryColumns.length - 1} className="px-4 py-3 text-right border-r-2 border-green-800">
+                                    <span className="text-sm uppercase tracking-wider">Grand Total Net Payout:</span>
+                                  </td>
+                                  <td 
+                                    style={{ right: 0, zIndex: 10 }}
+                                    className="sticky shadow-[-2px_0_5px_rgba(0,0,0,0.1)] px-3 py-3 text-right bg-green-700 text-white border-l-2 border-green-800"
+                                  >
+                                    <span className="text-lg font-bold">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, emp) => sum + (Number(emp.salary?.net) || 0), 0))}</span>
                                   </td>
                                 </tr>
                               </>
