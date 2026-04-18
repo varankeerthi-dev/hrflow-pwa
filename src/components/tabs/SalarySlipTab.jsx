@@ -291,6 +291,45 @@ export default function SalarySlipTab() {
   const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
   const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map(c => c.id))
   const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
+  const columnPickerRef = useRef(null)
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const fetchOrgSettings = async () => {
+      try {
+        const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+        if (orgSnap.exists()) {
+          const data = orgSnap.data()
+          if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
+        }
+      } catch (err) { console.error('Error fetching detailed column settings:', err) }
+    }
+    fetchOrgSettings()
+  }, [user?.orgId])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => { if (columnPickerRef.current && !columnPickerRef.current.contains(e.target)) setShowDetailedColumnPicker(false) }
+    if (showDetailedColumnPicker) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showDetailedColumnPicker])
+
+  const saveDetailedColumnDefaults = async () => {
+    if (!user?.orgId) return
+    try {
+      await setDoc(doc(db, 'organisations', user.orgId), { detailedSummaryColumns: selectedDetailedColumns }, { merge: true })
+      alert('Default columns saved for organisation!')
+      setShowDetailedColumnPicker(false)
+    } catch (err) { alert('Failed to save defaults') }
+  }
+
+  const toggleAllColumns = () => {
+    if (selectedDetailedColumns.length === DETAILED_SUMMARY_COLUMNS.length) {
+      setSelectedDetailedColumns(DETAILED_SUMMARY_COLUMNS.filter(c => c.mandatory).map(c => c.id))
+    } else {
+      setSelectedDetailedColumns(DETAILED_SUMMARY_COLUMNS.map(c => c.id))
+    }
+  }
+
   const [isOtModalOpen, setIsOtModalOpen] = useState(false)
   const monthInputRef = useRef(null)
 
