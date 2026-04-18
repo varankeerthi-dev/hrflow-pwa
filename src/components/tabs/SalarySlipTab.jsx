@@ -372,10 +372,11 @@ export default function SalarySlipTab() {
       const allAtt = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
       return sortedEmployees.map((emp, idx) => {
         const empAtt = allAtt.filter(a => a.employeeId === emp.id), attByDate = new Map(empAtt.map(a => [a.date, a]))
-        let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0
+        let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
         for (let i = 1; i <= end; i++) {
           const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
           if (emp.joinedDate && dateStr < emp.joinedDate) continue;
+          if (isS) sunCount++
           if (status === 'absent' || r?.isAbsent) lop++; 
           else if (status === 'half-day' || r?.isHalfDay) { hd++; lop += 0.5; worked += 0.5 } 
           else if (status === 'leave') leave++;
@@ -390,7 +391,7 @@ export default function SalarySlipTab() {
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
         const totalEarnings = basic + hra + sunPay + otPay + reimb, totalDeductions = pf + esi + loanE + adv + fine
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sunW, holW: 0, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay: 0, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions } }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sunday: sunCount, holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay: 0, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions } }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -492,30 +493,64 @@ export default function SalarySlipTab() {
             </div>
             <div className="flex-1 overflow-auto bg-zinc-50/30">
               {summarySubTab==='overview' ? (
-                <table className="w-full text-sm border-collapse bg-white table-fixed">
-                  <thead>
-                    <tr className="bg-slate-50 text-[10px] uppercase font-black text-slate-900 tracking-widest h-[55px] font-raleway border-b-2 border-gray-950">
-                      <th className="px-4 text-left border-r border-gray-200 w-12">#</th>
-                      <th className="px-4 text-left border-r border-gray-200">Staff Profile</th>
-                      <th className="px-4 text-center border-r border-gray-200 w-32">Attendance</th>
-                      <th className="px-4 text-center border-r border-gray-200 w-24">Paid Days</th>
-                      <th className="px-4 text-right border-r border-gray-200 w-32">Net Payout</th>
-                      <th className="px-4 text-right w-20">Control</th>
+                <div className="h-full overflow-auto">
+                <table className="w-full text-sm border-collapse bg-white border border-zinc-200">
+                  <thead className="sticky top-0 z-40 shadow-sm font-raleway">
+                    {/* Group Headers Row */}
+                    <tr className="h-[40px] border-b border-zinc-200 bg-zinc-50/50">
+                      <th colSpan={2} className="px-4 text-left border-r border-zinc-200 font-black uppercase text-[10px] text-blue-600 tracking-widest bg-blue-50/20">Staff Profile</th>
+                      <th colSpan={3} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-orange-600 tracking-widest bg-orange-50/20">Period Status</th>
+                      <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-amber-600 tracking-widest bg-amber-50/20">Performance</th>
+                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-rose-600 tracking-widest bg-rose-50/20">Leave</th>
+                      <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-indigo-600 tracking-widest bg-indigo-50/20">Overtime</th>
+                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-emerald-600 tracking-widest bg-emerald-50/20">Holiday Worked</th>
+                      <th colSpan={1} className="px-4 text-center font-black uppercase text-[10px] text-green-600 tracking-widest bg-green-50/20">Summary</th>
+                      <th className="w-12 bg-zinc-50/50"></th>
+                    </tr>
+                    {/* Primary Header Row */}
+                    <tr className="bg-white text-[10px] uppercase font-bold text-zinc-500 tracking-tighter h-[35px] border-b-2 border-zinc-300">
+                      <th className="px-3 text-center border-r border-zinc-200 w-10">#</th>
+                      <th className="px-4 text-left border-r border-zinc-200">Employee Name</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24">Total Days</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-20">Sunday</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-20">Holiday</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24">Worked</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-20">Leave</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-rose-500">LOP</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24">OT (Hrs)</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24">Sun Wk</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24">Hol Wk</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-28 bg-green-50/50 text-green-700">Total Pay Days</th>
+                      <th className="w-12"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredAttendanceSummaryData.map((e, idx)=>(
-                      <tr key={e.id} className={`hover:bg-indigo-50/30 transition-colors h-[32px] group ${idx%2===0?'bg-white':'bg-slate-50/30'}`}>
-                        <td className="px-4 py-1 text-slate-400 font-mono text-[10px] border-r border-gray-100 text-center">{idx + 1}</td>
-                        <td className="px-4 py-1 border-r border-gray-100"><div className="flex flex-col"><span className="font-bold text-slate-900 uppercase tracking-tight text-[11px] leading-tight">{e.name}</span><span className="text-[8px] text-slate-400 font-medium uppercase tracking-tighter">{e.designation}</span></div></td>
-                        <td className="px-4 py-1 text-center border-r border-gray-100"><span className="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-600">{e.worked} / {e.totalDays}</span></td>
-                        <td className="px-4 py-1 text-center font-black text-emerald-600 text-[11px] border-r border-gray-100">{e.paidDays}</td>
-                        <td className="px-4 py-1 text-right font-black text-indigo-600 text-[11px] border-r border-gray-100">{formatINR(e.salary?.net || 0)}</td>
-                        <td className="px-4 py-1 text-right"><button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1 hover:bg-indigo-600 hover:text-white rounded transition-all text-indigo-600 group-hover:scale-105"><ArrowRight size={14}/></button></td>
+                  <tbody className="divide-y divide-zinc-200">
+                    {isAttendanceLoading ? (
+                       <tr><td colSpan={13} className="py-20 text-center"><Spinner /></td></tr>
+                    ) : filteredAttendanceSummaryData.map((e, idx)=>(
+                      <tr key={e.id} className={`hover:bg-zinc-50/80 transition-colors h-[32px] group ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-mono text-[10px]">{idx + 1}</td>
+                        <td className="px-4 border-r border-zinc-200 font-black text-zinc-900 uppercase text-[11px] tracking-tight">{e.name}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-semibold">{e.totalDays}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.sunday}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.holidays}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.worked}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600">{e.leave}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600">{e.lop}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-mono text-[11px]">{e.ot}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600">{e.sunW}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600">{e.holW}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-black text-green-700 bg-green-50/20 text-[12px]">{e.paidDays}</td>
+                        <td className="px-2 text-center">
+                          <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1 hover:bg-zinc-900 hover:text-white rounded transition-all text-zinc-400">
+                            <ArrowRight size={14}/>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                </div>
               ) : (
                 <div className="min-w-max h-full overflow-auto relative">
                   {showDetailedColumnPicker && (
@@ -532,8 +567,8 @@ export default function SalarySlipTab() {
                     </div>
                   )}
                   <table className="w-full text-[10px] border-collapse detailed-summary-table bg-white">
-                    <thead className="sticky top-0 z-40">
-                      <tr className="h-[55px] font-raleway border-b-2 border-gray-950">
+                    <thead className="sticky top-0 z-40 font-raleway">
+                      <tr className="h-[55px] border-b-2 border-gray-950">
                         {visibleGroups.map(g=>(
                           <th key={g.id} colSpan={g.visibleCount} className={`px-2 border-r-2 ${getColumnColorClass(g.columns[0], 'border')} text-center font-black uppercase tracking-[0.15em] text-[11px] ${
                             g.color === 'blue' ? 'bg-blue-100 text-blue-900' : 
@@ -547,7 +582,7 @@ export default function SalarySlipTab() {
                           </th>
                         ))}
                       </tr>
-                      <tr className="h-10 bg-white border-b-2 border-gray-900 font-raleway shadow-sm">
+                      <tr className="h-10 bg-white border-b-2 border-gray-900 shadow-sm">
                         {visibleDetailedSummaryColumns.map(c=>(
                           <th key={c.id} style={{ width: c.width, minWidth: c.width }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-extrabold text-[9px] uppercase tracking-tighter ${c.id === 'net' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-gray-500'}`}>
                             {c.label}
