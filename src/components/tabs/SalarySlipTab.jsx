@@ -62,19 +62,19 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'hd', label: 'Half days', width: 45 },
   { id: 'lop', label: 'LOP days', width: 45 },
   { id: 'paidDays', label: 'Paid days', width: 45 },
-  { id: 'basicPaid', label: 'Basic (Paid)', width: 70 },
-  { id: 'hraPaid', label: 'HRA (Paid)', width: 70 },
-  { id: 'salaryPaid', label: 'Earnings (Paid)', width: 80 },
-  { id: 'sundayPay', label: 'Sunday pay', width: 70 },
-  { id: 'holidayPay', label: 'Holiday pay', width: 70 },
-  { id: 'otPay', label: 'OT pay', width: 70 },
-  { id: 'earnings', label: 'Gross earnings', width: 90 },
-  { id: 'pf', label: 'PF contribution', width: 80 },
-  { id: 'esi', label: 'ESI contribution', width: 80 },
-  { id: 'loan', label: 'Loan EMI', width: 70 },
-  { id: 'ded', label: 'Fine amount', width: 70 },
-  { id: 'advance', label: 'Advance recovery', width: 80 },
-  { id: 'reimb', label: 'Expense reimbursement', width: 80 },
+  { id: 'basicPaid', label: 'Basic (Paid)', width: 60 },
+  { id: 'hraPaid', label: 'HRA (Paid)', width: 60 },
+  { id: 'salaryPaid', label: 'Earnings (Paid)', width: 60 },
+  { id: 'sundayPay', label: 'Sunday\npay', width: 52 },
+  { id: 'holidayPay', label: 'Holiday\npay', width: 52 },
+  { id: 'otPay', label: 'OT\npay', width: 52 },
+  { id: 'earnings', label: 'Gross earnings', width: 70 },
+  { id: 'pf', label: 'PF', width: 45 },
+  { id: 'esi', label: 'ESI', width: 45 },
+  { id: 'loan', label: 'Loan', width: 50 },
+  { id: 'ded', label: 'Fine', width: 50 },
+  { id: 'advance', label: 'Advance', width: 55 },
+  { id: 'reimb', label: 'Expense', width: 55 },
   { id: 'totalDed', label: 'Total deductions', width: 85 },
   { id: 'net', label: 'Net payout', width: 110, mandatory: true }
 ];
@@ -395,11 +395,11 @@ export default function SalarySlipTab() {
     if (!group) return '';
     const color = group.color;
     if (type === 'bg') {
-      if (color === 'blue') return 'bg-blue-50/30';
-      if (color === 'purple') return 'bg-purple-50/30';
-      if (color === 'amber') return 'bg-amber-50/30';
-      if (color === 'emerald') return 'bg-emerald-50/30';
-      if (color === 'red') return 'bg-red-50/30';
+      if (color === 'blue') return 'bg-blue-50/50';
+      if (color === 'purple') return 'bg-purple-50/50';
+      if (color === 'amber') return 'bg-amber-50/50';
+      if (color === 'emerald') return 'bg-green-100';
+      if (color === 'red') return 'bg-red-50/50';
       if (color === 'green') return 'bg-green-600';
       return '';
     }
@@ -407,13 +407,13 @@ export default function SalarySlipTab() {
       if (color === 'blue') return 'border-blue-100';
       if (color === 'purple') return 'border-purple-100';
       if (color === 'amber') return 'border-amber-100';
-      if (color === 'emerald') return 'border-emerald-100';
+      if (color === 'emerald') return 'border-green-200';
       if (color === 'red') return 'border-red-100';
       return 'border-gray-200';
     }
     if (type === 'text') {
       if (color === 'green') return 'text-white';
-      if (color === 'emerald') return 'text-emerald-700';
+      if (color === 'emerald') return 'text-black';
       if (color === 'red') return 'text-red-600';
       if (color === 'purple') return 'text-purple-700';
       return 'text-gray-900';
@@ -701,7 +701,7 @@ export default function SalarySlipTab() {
                       </tr>
                       <tr className="h-10 bg-white border-b-2 border-gray-900 shadow-sm">
                         {visibleDetailedSummaryColumns.map(c=>(
-                          <th key={c.id} style={{ width: c.width, minWidth: c.width }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-extrabold text-[9px] uppercase tracking-tighter ${c.id === 'net' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-gray-500'}`}>
+                          <th key={c.id} style={{ width: c.width, minWidth: c.width }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-extrabold text-[9px] uppercase tracking-tighter whitespace-pre-line ${c.id === 'net' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-gray-500'}`}>
                             {c.label}
                           </th>
                         ))}
@@ -709,9 +709,9 @@ export default function SalarySlipTab() {
                     </thead>
                     <tbody>
                       {filteredAttendanceSummaryData.map((e, idx)=>(
-                        <tr key={e.id} className={`border-b border-slate-200 h-[32px] transition-colors ${idx%2===0?'bg-white':'bg-slate-50/30'} hover:bg-indigo-50/50 group`}>
+                        <tr key={e.id} className={`border-b border-slate-200 h-[32px] transition-colors hover:bg-indigo-50/50 group`}>
                           {visibleDetailedSummaryColumns.map(c=>(
-                            <td key={c.id} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} ${
+                            <td key={c.id} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'bg')} ${getColumnColorClass(c.id, 'border')} ${
                               ['sno', 'empNo', 'days', 'worked', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'text-center' : 
                               ['name', 'designation'].includes(c.id) ? 'text-left' : 'text-right'
                             } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[11px] shadow-inner' : 'font-medium'}`}>
