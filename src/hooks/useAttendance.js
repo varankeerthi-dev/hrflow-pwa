@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore'
 import { attendanceCol, attendanceDoc } from '../lib/firestore'
+import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
 
 export function useAttendance(orgId) {
@@ -43,6 +44,11 @@ export function useAttendance(orgId) {
     if (!orgId || !yearMonth) return []
     setLoading(true)
     try {
+      const orgSnap = await getDoc(doc(db, 'organisations', orgId))
+      const orgData = orgSnap.exists() ? orgSnap.data() : {}
+      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
+      const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
+
       const q = query(attendanceCol(orgId), where('date', '>=', yearMonth), where('date', '<', yearMonth + '-31'))
       const snapshot = await getDocs(q)
       const records = snapshot.docs.map(d => d.data())
@@ -50,19 +56,37 @@ export function useAttendance(orgId) {
       const summary = {}
       records.forEach(r => {
         if (!summary[r.employeeId]) {
-          summary[r.employeeId] = { present: 0, absent: 0, otHours: 0 }
+          summary[r.employeeId] = { present: 0, absent: 0, otHours: 0, holidayWorked: 0, holidayCount: 0, sunWorked: 0, sunCount: 0 }
         }
-        if (r.isAbsent) {
+        const [y, m, day] = r.date.split('-').map(Number)
+        const d = new Date(y, m - 1, day)
+        const isS = d.getDay() === 0
+        const isH = holidayDates.has(r.date) && !isS
+        const status = String(r.status || '').toLowerCase()
+        const isPresent = (status === 'worked' || status === 'present' || r.checkIn || r.sundayWorked || r.holidayWorked || status === 'sunworked') && !r.isAbsent
+
+        if (isS) summary[r.employeeId].sunCount++
+        if (isH) summary[r.employeeId].holidayCount++
+
+        if (r.isAbsent || status === 'absent') {
           summary[r.employeeId].absent++
         } else if (r.isHalfDay || r.status === 'Half-Day') {
-          summary[r.employeeId].present += 0.5
           summary[r.employeeId].absent += 0.5
+          if (isS) summary[r.employeeId].sunWorked += 0.5;
+          else if (isH) summary[r.employeeId].holidayWorked += 0.5;
+          else summary[r.employeeId].present += 0.5;
         } else {
-          summary[r.employeeId].present++
+          if (isS) {
+            if (isPresent) summary[r.employeeId].sunWorked++
+          } else if (isH) {
+            if (isPresent) summary[r.employeeId].holidayWorked++
+          } else if (isPresent) {
+            summary[r.employeeId].present++
+          }
         }
         if (r.otHours) {
-          const [h, m] = r.otHours.split(':').map(Number)
-          summary[r.employeeId].otHours += (h || 0) + (m || 0) / 60
+          const [h, mi] = r.otHours.split(':').map(Number)
+          summary[r.employeeId].otHours += (h || 0) + (mi || 0) / 60
         }
       })
       return Object.entries(summary).map(([employeeId, stats]) => ({ employeeId, ...stats }))
@@ -200,8 +224,8 @@ export function calcOT(inTime, outTime, inDate, outDate, workHours) {
     return '00:00'
   }
   
-  // Round to next 5 minutes
-  const roundedOtMins = Math.ceil(rawOtMins / 5) * 5
+  // Round to nearest 5 minutes
+  const roundedOtMins = Math.round(rawOtMins / 5) * 5
   
   const otHrs = Math.floor(roundedOtMins / 60)
   const otRemMins = roundedOtMins % 60

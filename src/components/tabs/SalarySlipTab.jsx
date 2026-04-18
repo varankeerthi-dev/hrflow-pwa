@@ -136,7 +136,7 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName }) => {
             <Text style={{ width: colWidth.sunP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Sun.P</Text>
             <Text style={{ width: colWidth.holP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Hol.P</Text>
             <Text style={{ width: colWidth.otP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>OT.P</Text>
-            <Text style={{ width: colWidth.earn, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Gross</Text>
+            <Text style={{ width: colWidth.earn, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right', fontWeight: 'bold' }}>{Math.round(row.totalEarnings)}</Text>
             <Text style={{ width: colWidth.pf, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>PF</Text>
             <Text style={{ width: colWidth.esi, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>ESI</Text>
             <Text style={{ width: colWidth.loan, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>EMI</Text>
@@ -290,6 +290,10 @@ export default function SalarySlipTab() {
     return groups.map(g => ({ ...g, visibleCount: visibleDetailedSummaryColumns.filter(c => g.columns.includes(c.id)).length })).filter(g => g.visibleCount > 0);
   }, [visibleDetailedSummaryColumns]);
 
+  const toggleDetailedSummaryColumn = (id) => {
+    setSelectedDetailedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
   const renderDetailedCell = (colId, emp) => {
     switch (colId) {
       case 'sno': return emp.sno;
@@ -368,30 +372,51 @@ export default function SalarySlipTab() {
     queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
     queryFn: async () => {
       if (!user?.orgId || !sortedEmployees.length) return []; const [y, m] = summaryMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${end}`
-      const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap] = await Promise.all([getDocs(collection(db, 'organisations', user.orgId, 'attendance')), getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))), getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')), getDocs(collection(db, 'organisations', user.orgId, 'fines')), getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth)))])
+      const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap] = await Promise.all([
+        getDocs(collection(db, 'organisations', user.orgId, 'attendance')), 
+        getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))), 
+        getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')), 
+        getDocs(collection(db, 'organisations', user.orgId, 'fines')), 
+        getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth))),
+        getDoc(doc(db, 'organisations', user.orgId))
+      ])
+      const orgData = orgSnap.exists() ? orgSnap.data() : {}
+      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
+      const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
+
       const allAtt = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
       return sortedEmployees.map((emp, idx) => {
         const empAtt = allAtt.filter(a => a.employeeId === emp.id), attByDate = new Map(empAtt.map(a => [a.date, a]))
         let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
         for (let i = 1; i <= end; i++) {
-          const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
+          const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(dateStr) && !isS, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
           if (emp.joinedDate && dateStr < emp.joinedDate) continue;
           if (isS) sunCount++
+          if (isH) holCount++
+          
+          const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
+          const isHD = status === 'half-day' || r?.isHalfDay
+
           if (status === 'absent' || r?.isAbsent) lop++; 
-          else if (status === 'half-day' || r?.isHalfDay) { hd++; lop += 0.5; worked += 0.5 } 
+          else if (isHD) { 
+            hd++; lop += 0.5; 
+            if (isS) sunW += 0.5; else if (isH) holW += 0.5; else worked += 0.5;
+          } 
           else if (status === 'leave') leave++;
-          else if (isS) { if (r?.sundayWorked || status === 'sunworked' || isWorkedAttendanceRecord(r)) { sunW++; worked++ } }
-          else if (r && (status === 'worked' || status === 'present' || r.checkIn)) worked++; 
-          else if (!isS) lop++;
+          else if (isS) { if (isPresent) sunW++; }
+          else if (isH) { if (isPresent) holW++; }
+          else if (isPresent) worked++; 
+          else if (!isS && !isH) lop++;
+
           if (r?.otHours) { const [h, mi] = r.otHours.split(':').map(Number); otH += (h || 0) + (mi || 0) / 60 }
         }
         const slab = increments?.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20 };
         const ts = Number(slab.totalSalary) || 0, paidDays = end - lop, dailyRate = ts / end, fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
-        const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = sunW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / 8)
+        const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = sunW * dailyRate, holPay = holW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / 8)
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
-        const totalEarnings = basic + hra + sunPay + otPay + reimb, totalDeductions = pf + esi + loanE + adv + fine
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sunday: sunCount, holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay: 0, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions } }
+        const totalEarnings = basic + hra + sunPay + holPay + otPay + reimb, totalDeductions = pf + esi + loanE + adv + fine
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sunday: sunCount, holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions } }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -410,25 +435,45 @@ export default function SalarySlipTab() {
       const attByDate = new Map(aData.map(a => [a.date, a]))
       const slab = increments?.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, pfPercent: 0, esiPercent: 0 }
       const ts = Number(slab.totalSalary) || 0
-      let paid = 0, lop = 0, aOT = 0, sun = 0, sunW = 0, grid = []
-      for (let i = 1; i <= end; i++) {
-        const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, r = attByDate.get(ds), status = String(r?.status || '').toLowerCase()
-        if (isS) sun++
-        if (emp.joinedDate && ds < emp.joinedDate) continue;
-        if (status === 'absent' || r?.isAbsent) lop++; else if (status === 'half-day' || r?.isHalfDay) { lop += 0.5; paid += 0.5 } else if (status === 'leave') paid++;
-        else if (isS) { if (r?.sundayWorked || status === 'sunworked' || isWorkedAttendanceRecord(r)) { sunW++; paid++ } }
-        else if (r && (status === 'worked' || status === 'present' || r.checkIn)) paid++; else if (!isS) lop++;
-        if (r?.otHours) { const [h, mi] = r.otHours.split(':').map(Number); aOT += (h || 0) + (mi || 0) / 60 }
-      }
-      const [aeSnap, loanSnap, fineSnap, otAdjSnap] = await Promise.all([getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp))), getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))), getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))), getDoc(doc(db, 'organisations', user.orgId, 'otAdjustments', `${selectedMonth}_${selectedEmp}`))])
+      const [aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap] = await Promise.all([
+        getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp))), 
+        getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))), 
+        getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))), 
+        getDoc(doc(db, 'organisations', user.orgId, 'otAdjustments', `${selectedMonth}_${selectedEmp}`)),
+        getDoc(doc(db, 'organisations', user.orgId))
+      ])
+      const orgData = orgSnap.exists() ? orgSnap.data() : {}
+      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
+      const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
+
       const allAE = aeSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.date >= sd && a.date <= ed)
       setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })))
       const adv = allAE.filter(a => a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0)
+      
+      let paid = 0, lop = 0, aOT = 0, sun = 0, sunW = 0, hol = 0, holW = 0
+      for (let i = 1; i <= end; i++) {
+        const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(ds) && !isS, r = attByDate.get(ds), status = String(r?.status || '').toLowerCase()
+        if (isS) sun++
+        if (isH) hol++
+        if (emp.joinedDate && ds < emp.joinedDate) continue;
+
+        if (status === 'absent' || r?.isAbsent) lop++; 
+        else if (status === 'half-day' || r?.isHalfDay) { lop += 0.5; paid += 0.5 } 
+        else if (status === 'leave') paid++;
+        else if (isS) { if (r?.sundayWorked || status === 'sunworked' || isWorkedAttendanceRecord(r)) { sunW++; paid++ } }
+        else if (isH) { if (r?.holidayWorked || status === 'worked' || isWorkedAttendanceRecord(r)) { holW++; paid++ } }
+        else if (r && (status === 'worked' || status === 'present' || r.checkIn)) paid++; 
+        else if (!isS && !isH) lop++;
+
+        if (r?.otHours) { const [h, mi] = r.otHours.split(':').map(Number); aOT += (h || 0) + (mi || 0) / 60 }
+      }
+
       const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0), fineA = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, f) => s + Number(f.amount), 0)
       const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment) : 0, dailyRate = ts / end, otP = (aOT + otAdj) * (dailyRate / 8), fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
       const b = fullBasic * (paid / end), h = fullHra * (paid / end), p = ts * (slab.pfPercent / 100), e = ts * (slab.esiPercent / 100)
-      const gross = b + h + (sunW * dailyRate) + otP + reimb, ded = p + e + emi + adv + fineA
-      setSlipData({ employee: emp, month: selectedMonth, slab, paidDays: paid, lopDays: lop, otPay: otP, basic: b, hra: h, basicFull: fullBasic, hraFull: fullHra, expenseReimbursement: reimb, sundayPay: sunW * dailyRate, grossEarnings: gross, pf: p, esi: e, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: ded, netPay: Math.max(0, gross - ded), sundayCount: sun })
+      const holP = holW * dailyRate
+      const gross = b + h + (sunW * dailyRate) + holP + otP + reimb, ded = p + e + emi + adv + fineA
+      setSlipData({ employee: emp, month: selectedMonth, slab, paidDays: paid, lopDays: lop, otPay: otP, basic: b, hra: h, basicFull: fullBasic, hraFull: fullHra, expenseReimbursement: reimb, sundayPay: sunW * dailyRate, holidayPay: holP, holidayWorkedCount: holW, grossEarnings: gross, pf: p, esi: e, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: ded, netPay: Math.max(0, gross - ded), sundayCount: sun, holidayCount: hol })
     } catch (e) { alert(e.message) } finally { setLoading(false) }
   }
 
@@ -457,9 +502,9 @@ export default function SalarySlipTab() {
                   <div className="p-8 bg-white overflow-auto flex-1">
                     <div className="border-b border-slate-900 pb-4 mb-6 flex justify-between items-start"><div><h1 className="text-2xl font-black uppercase tracking-tight">{user?.orgName}</h1><p className="text-[8px] text-indigo-600 font-black uppercase tracking-[0.4em] mt-2 flex items-center gap-2"><span className="w-4 h-0.5 bg-indigo-600"></span>Payroll Disbursement Advice</p></div><div className="text-right"><h2 className="text-lg font-black uppercase italic font-raleway">Voucher</h2><p className="text-[9px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded border uppercase">{formatMonthDisplay(slipData.month)}</p></div></div>
                     <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-8">
-                      {[{l:'Staff Name',v:slipData.employee?.name},{l:'Paid Days',v:slipData.paidDays},{l:'Staff Code',v:slipData.employee?.empCode},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-bold text-slate-900 uppercase">{r.v}</span></div>))}
+                      {[{l:'Staff Name',v:slipData.employee?.name},{l:'Paid Days',v:slipData.paidDays},{l:'Staff Code',v:slipData.employee?.empCode},{l:'Worked Holidays',v:slipData.holidayWorkedCount || 0},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-bold text-slate-900 uppercase">{r.v}</span></div>))}
                     </div>
-                    <div className="border border-slate-200 rounded-[20px] overflow-hidden mb-6 shadow-sm"><div className="grid grid-cols-2 bg-slate-100 font-black text-[9px] uppercase tracking-widest text-slate-900 border-b"><div className="p-3 border-r"><span>Earnings (Credit)</span></div><div className="p-3"><span>Deductions (Debit)</span></div></div><div className="grid grid-cols-2 divide-x divide-slate-200 bg-white"><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px]">Basic Salary<span className="font-bold">{formatINR(slipData.basic)}</span></div><div className="flex justify-between p-2.5 text-[11px]">HRA<span className="font-bold">{formatINR(slipData.hra)}</span></div><div className="flex justify-between p-2.5 text-[11px]">Sunday Worked<span className="font-bold">{formatINR(slipData.sundayPay)}</span></div></div><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px]">PF Contribution<span className="font-bold">{dashIfZero(slipData.pf)}</span></div><div className="flex justify-between p-2.5 text-[11px]">ESI Contribution<span className="font-bold">{dashIfZero(slipData.esi)}</span></div><div className="flex justify-between p-2.5 text-[11px]">Advance Recovery<span className="font-bold font-black text-rose-600">{dashIfZero(slipData.advanceDeduction)}</span></div></div></div></div>
+                    <div className="border border-slate-200 rounded-[20px] overflow-hidden mb-6 shadow-sm"><div className="grid grid-cols-2 bg-slate-100 font-black text-[9px] uppercase tracking-widest text-slate-900 border-b"><div className="p-3 border-r"><span>Earnings (Credit)</span></div><div className="p-3"><span>Deductions (Debit)</span></div></div><div className="grid grid-cols-2 divide-x divide-slate-200 bg-white"><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px]">Basic Salary<span className="font-bold">{formatINR(slipData.basic)}</span></div><div className="flex justify-between p-2.5 text-[11px]">HRA<span className="font-bold">{formatINR(slipData.hra)}</span></div><div className="flex justify-between p-2.5 text-[11px]">Sunday Worked<span className="font-bold">{formatINR(slipData.sundayPay)}</span></div><div className="flex justify-between p-2.5 text-[11px]">Holiday Pay<span className="font-bold">{formatINR(slipData.holidayPay)}</span></div></div><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px]">PF Contribution<span className="font-bold">{dashIfZero(slipData.pf)}</span></div><div className="flex justify-between p-2.5 text-[11px]">ESI Contribution<span className="font-bold">{dashIfZero(slipData.esi)}</span></div><div className="flex justify-between p-2.5 text-[11px]">Advance Recovery<span className="font-bold font-black text-rose-600">{dashIfZero(slipData.advanceDeduction)}</span></div></div></div></div>
                     <div className="text-center pt-4 border-t border-dashed border-slate-200"><p className="text-[9px] font-black text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-white border-2 border-slate-200 rounded-xl p-4 inline-block shadow-xl font-black text-[18px]">{formatINR(slipData.netPay)}</div></div>
                   </div>
                 </div>
@@ -518,9 +563,9 @@ export default function SalarySlipTab() {
                       <th className="px-2 text-center border-r border-zinc-200 w-20">Leave</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20 text-rose-500">LOP</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24">OT (Hrs)</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24">Sun Wk</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24">Hol Wk</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-28 bg-green-50/50 text-green-700">Total Pay Days</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 font-bold text-emerald-600 bg-emerald-50/10">Sunday Wk</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24 font-bold text-emerald-600 bg-emerald-50/10">Holiday Wk</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-28 bg-green-50/50 text-green-700 font-black">Total Pay Days</th>
                       <th className="w-12"></th>
                     </tr>
                   </thead>
@@ -537,9 +582,9 @@ export default function SalarySlipTab() {
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.worked}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-600">{e.leave}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600">{e.lop}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-mono text-[11px]">{e.ot}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600">{e.sunW}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600">{e.holW}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-mono text-[11px]">{Number(e.ot || 0).toFixed(2)}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600 bg-emerald-50/5">{e.sunW}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5">{e.holW}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-black text-green-700 bg-green-50/20 text-[12px]">{e.paidDays}</td>
                         <td className="px-2 text-center">
                           <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1 hover:bg-zinc-900 hover:text-white rounded transition-all text-zinc-400">

@@ -255,12 +255,13 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                     <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase border-r border-gray-300">Employee</th>
                     <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Present</th>
                     <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Absent</th>
+                    <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Hw</th>
                     <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">OT Hours</th>
                     <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-right">Performance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {summaryLoading ? (<tr><td colSpan={5} className="text-center py-12 bg-gray-50"><Spinner /></td></tr>) : summaryData.length === 0 ? (<tr><td colSpan={5} className="text-center py-20 text-gray-400 text-sm italic">No activity data</td></tr>) : (
+                  {summaryLoading ? (<tr><td colSpan={6} className="text-center py-12 bg-gray-50"><Spinner /></td></tr>) : summaryData.length === 0 ? (<tr><td colSpan={6} className="text-center py-20 text-gray-400 text-sm italic">No activity data</td></tr>) : (
                     summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance)).map(row => {
                       const emp = employees.find(e => e.id === row.employeeId)
                       const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
@@ -269,7 +270,8 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                           <td className="px-4 py-1 border-r border-gray-200"><div className="flex flex-col"><span className="text-[12px] font-bold text-gray-800 leading-none">{emp?.name || 'Deleted'}</span><span className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{emp?.department || 'Operations'}</span></div></td>
                           <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-black">{row.present}D</span></td>
                           <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-[10px] font-black">{row.absent}D</span></td>
-                          <td className="px-4 py-1 text-center border-r border-gray-200"><span className="font-mono font-black text-gray-700 text-[11px]">{row.otHours > 0 ? `${row.otHours.toFixed(1)}h` : '-'}</span></td>
+                          <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">{row.holidayWorked || 0}D</span></td>
+                          <td className="px-4 py-1 text-center border-r border-gray-200"><span className="font-mono font-black text-gray-700 text-[11px]">{row.otHours > 0 ? `${row.otHours.toFixed(2)}h` : '-'}</span></td>
                           <td className="px-4 py-1 text-right"><div className="flex flex-col items-end gap-0.5"><div className="w-20 h-1 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${pct > 80 ? 'bg-green-500' : pct > 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div></div><span className="text-[8px] font-bold text-gray-400">{pct}%</span></div></td>
                         </tr>
                       )
