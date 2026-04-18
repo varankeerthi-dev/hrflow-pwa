@@ -75,115 +75,116 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'ded', label: 'Fine', width: 50 },
   { id: 'advance', label: 'Advance', width: 55 },
   { id: 'reimb', label: 'Expense', width: 55 },
-  { id: 'totalDed', label: 'Total deductions', width: 85 },
+  { id: 'netAdj', label: 'Net\n(Adv-Exp)', width: 60 },
   { id: 'net', label: 'Net payout', width: 110, mandatory: true }
 ];
 
 // --- PDF COMPONENTS ---
 
-const DetailedSalarySummaryPDF = ({ data, month, orgName }) => {
-  const colWidth = {
-    sno: 10, emp: 28, name: 50, des: 35,
-    bCTC: 25, hCTC: 25, sCTC: 28,
-    d: 10, w: 10, sw: 10, hw: 10, oth: 12, hd: 10, lop: 12, pd: 12,
-    bPd: 25, hPd: 25, sunP: 22, holP: 22, otP: 22, earn: 28,
-    pf: 20, esi: 18, loan: 22, fine: 18,
-    adv: 22, exp: 22,
-    totD: 28, net: 35
+const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibleGroups }) => {
+  const pdfColWidth = (id) => {
+    const c = visibleColumns.find(col => col.id === id);
+    if (!c) return 0;
+    return c.width * 0.55; 
+  };
+
+  const getPdfVal = (colId, row) => {
+    switch (colId) {
+      case 'sno': return row.sno;
+      case 'empNo': return row.empId;
+      case 'name': return row.name;
+      case 'designation': return row.designation;
+      case 'basicCtc': return Math.round(row.fullBasic).toLocaleString('en-IN');
+      case 'hraCtc': return Math.round(row.fullHra).toLocaleString('en-IN');
+      case 'salaryCtc': return Math.round(row.fullBasic + row.fullHra).toLocaleString('en-IN');
+      case 'days': return row.totalDays;
+      case 'worked': return row.worked;
+      case 'sunWorked': return row.sunW || 0;
+      case 'holidayWorked': return row.holW || 0;
+      case 'otH': return (row.ot + row.otAdjustment).toFixed(2);
+      case 'hd': return row.hd || 0;
+      case 'lop': return row.lop || 0;
+      case 'paidDays': return row.paidDays;
+      case 'basicPaid': return Math.round(row.basic).toLocaleString('en-IN');
+      case 'hraPaid': return Math.round(row.hra).toLocaleString('en-IN');
+      case 'salaryPaid': return Math.round(row.basic + row.hra).toLocaleString('en-IN');
+      case 'sundayPay': return Math.round(row.sunPay).toLocaleString('en-IN');
+      case 'holidayPay': return Math.round(row.holPay).toLocaleString('en-IN');
+      case 'otPay': return Math.round(row.otPay).toLocaleString('en-IN');
+      case 'earnings': return Math.round(row.totalEarnings).toLocaleString('en-IN');
+      case 'pf': return Math.round(row.pf).toLocaleString('en-IN');
+      case 'esi': return Math.round(row.esi).toLocaleString('en-IN');
+      case 'loan': return Math.round(row.loanE).toLocaleString('en-IN');
+      case 'ded': return Math.round(row.fine).toLocaleString('en-IN');
+      case 'advance': return Math.round(row.advanceAmount).toLocaleString('en-IN');
+      case 'reimb': return Math.round(row.expenseAmount).toLocaleString('en-IN');
+      case 'netAdj': return Math.round((row.advanceAmount || 0) - (row.expenseAmount || 0)).toLocaleString('en-IN');
+      case 'net': return Math.round(row.salary?.net || 0).toLocaleString('en-IN');
+      default: return '-';
+    }
+  }
+
+  const getGroupColor = (color) => {
+    switch(color) {
+      case 'blue': return '#dbeafe';
+      case 'purple': return '#f3e8ff';
+      case 'amber': return '#fff7ed';
+      case 'emerald': return '#dcfce7';
+      case 'red': return '#fee2e2';
+      case 'green': return '#059669';
+      default: return '#f3f4f6';
+    }
   };
 
   return (
     <Document>
-      <Page size="A3" orientation="landscape" style={{ padding: 8, fontSize: 4.5, fontFamily: 'Helvetica' }}>
-        <View style={{ marginBottom: 6, borderBottom: 1, borderColor: '#000', paddingBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <Page size="A3" orientation="landscape" style={{ padding: 10, fontSize: 5, fontFamily: 'Helvetica' }}>
+        <View style={{ marginBottom: 10, borderBottom: 1, borderColor: '#000', paddingBottom: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <View>
-            <Text style={{ fontSize: 12, fontWeight: 'bold' }}>{orgName}</Text>
-            <Text style={{ fontSize: 7, marginTop: 1, textTransform: 'uppercase', letterSpacing: 1 }}>MASTER PAYROLL RECONCILIATION - {formatMonthDisplay(month)}</Text>
+            <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{orgName}</Text>
+            <Text style={{ fontSize: 8, marginTop: 2, textTransform: 'uppercase', letterSpacing: 1 }}>MASTER PAYROLL RECONCILIATION - {formatMonthDisplay(month)}</Text>
           </View>
           <View style={{ textAlign: 'right' }}>
-            <Text style={{ fontSize: 5, color: '#666' }}>Engine v2.0 • Generated on {new Date().toLocaleString()}</Text>
+            <Text style={{ fontSize: 6, color: '#666' }}>Engine v2.0 • Generated on {new Date().toLocaleString()}</Text>
           </View>
         </View>
 
         <View style={{ borderWidth: 0.5, borderColor: '#000' }}>
           <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', fontWeight: 'bold', borderBottomWidth: 0.5 }}>
-            <Text style={{ width: colWidth.sno + colWidth.emp + colWidth.name + colWidth.des, padding: 2, borderRightWidth: 0.5 }}>BASIC INFO</Text>
-            <Text style={{ width: colWidth.bCTC + colWidth.hCTC + colWidth.sCTC, padding: 2, borderRightWidth: 0.5, textAlign: 'center', backgroundColor: '#f5f3ff' }}>STRUCTURE (CTC)</Text>
-            <Text style={{ width: colWidth.d + colWidth.w + colWidth.sw + colWidth.hw + colWidth.oth + colWidth.hd + colWidth.lop + colWidth.pd, padding: 2, borderRightWidth: 0.5, textAlign: 'center', backgroundColor: '#fffbeb' }}>ATTENDANCE</Text>
-            <Text style={{ width: colWidth.bPd + colWidth.hPd + colWidth.sunP + colWidth.holP + colWidth.otP + colWidth.earn, padding: 2, borderRightWidth: 0.5, textAlign: 'center', backgroundColor: '#ecfdf5' }}>EARNINGS (PAID)</Text>
-            <Text style={{ width: colWidth.pf + colWidth.esi + colWidth.loan + colWidth.fine + colWidth.adv + colWidth.exp, padding: 2, borderRightWidth: 0.5, textAlign: 'center', backgroundColor: '#fef2f2' }}>DEDUCTIONS & VOUCHERS</Text>
-            <Text style={{ flex: 1, padding: 2, textAlign: 'center', backgroundColor: '#f0fdf4' }}>PAYOUT SUMMARY</Text>
+            {visibleGroups.map(g => {
+               const width = g.columns.filter(id => visibleColumns.some(c => c.id === id)).reduce((sum, id) => sum + pdfColWidth(id), 0);
+               if (width === 0) return null;
+               return (
+                 <Text key={g.id} style={{ width, padding: 2, borderRightWidth: 0.5, textAlign: 'center', backgroundColor: getGroupColor(g.color), color: g.color === 'green' ? '#fff' : '#000' }}>
+                   {g.label.toUpperCase()}
+                 </Text>
+               );
+            })}
           </View>
 
           <View style={{ flexDirection: 'row', backgroundColor: '#fff', fontWeight: 'bold', borderBottomWidth: 0.5 }}>
-            <Text style={{ width: colWidth.sno, padding: 1.5, borderRightWidth: 0.5 }}>#</Text>
-            <Text style={{ width: colWidth.emp, padding: 1.5, borderRightWidth: 0.5 }}>ID</Text>
-            <Text style={{ width: colWidth.name, padding: 1.5, borderRightWidth: 0.5 }}>NAME</Text>
-            <Text style={{ width: colWidth.des, padding: 1.5, borderRightWidth: 0.5 }}>DESIG</Text>
-            <Text style={{ width: colWidth.bCTC, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Basic</Text>
-            <Text style={{ width: colWidth.hCTC, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>HRA</Text>
-            <Text style={{ width: colWidth.sCTC, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Total</Text>
-            <Text style={{ width: colWidth.d, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>D</Text>
-            <Text style={{ width: colWidth.w, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>W</Text>
-            <Text style={{ width: colWidth.sw, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>Sw</Text>
-            <Text style={{ width: colWidth.hw, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>Hw</Text>
-            <Text style={{ width: colWidth.oth, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>OT</Text>
-            <Text style={{ width: colWidth.hd, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>Hd</Text>
-            <Text style={{ width: colWidth.lop, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>Lop</Text>
-            <Text style={{ width: colWidth.pd, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>Pd</Text>
-            <Text style={{ width: colWidth.bPd, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Basic.P</Text>
-            <Text style={{ width: colWidth.hPd, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>HRA.P</Text>
-            <Text style={{ width: colWidth.sunP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Sun.P</Text>
-            <Text style={{ width: colWidth.holP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Hol.P</Text>
-            <Text style={{ width: colWidth.otP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>OT.P</Text>
-            <Text style={{ width: colWidth.earn, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right', fontWeight: 'bold' }}>{Math.round(row.totalEarnings)}</Text>
-            <Text style={{ width: colWidth.pf, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>PF</Text>
-            <Text style={{ width: colWidth.esi, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>ESI</Text>
-            <Text style={{ width: colWidth.loan, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>EMI</Text>
-            <Text style={{ width: colWidth.fine, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Fine</Text>
-            <Text style={{ width: colWidth.adv, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Adv</Text>
-            <Text style={{ width: colWidth.exp, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>Exp</Text>
-            <Text style={{ width: colWidth.totD, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>TotDed</Text>
-            <Text style={{ flex: 1, padding: 1.5, textAlign: 'right' }}>NET PAYOUT</Text>
+            {visibleColumns.map(c => (
+              <Text key={c.id} style={{ width: pdfColWidth(c.id), padding: 1.5, borderRightWidth: 0.5, textAlign: c.id === 'name' ? 'left' : 'center', backgroundColor: c.id === 'net' ? '#22c55e' : '#fff', color: c.id === 'net' ? '#fff' : '#4b5563' }}>
+                {c.label.replace('\n', ' ')}
+              </Text>
+            ))}
           </View>
 
           {data.map((row, i) => (
             <View key={i} style={{ flexDirection: 'row', borderBottomWidth: 0.5, backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-              <Text style={{ width: colWidth.sno, padding: 1.5, borderRightWidth: 0.5 }}>{row.sno}</Text>
-              <Text style={{ width: colWidth.emp, padding: 1.5, borderRightWidth: 0.5 }}>{row.empId}</Text>
-              <Text style={{ width: colWidth.name, padding: 1.5, borderRightWidth: 0.5, fontWeight: 'bold' }}>{row.name}</Text>
-              <Text style={{ width: colWidth.des, padding: 1.5, borderRightWidth: 0.5 }}>{row.designation}</Text>
-              <Text style={{ width: colWidth.bCTC, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{Math.round(row.fullBasic)}</Text>
-              <Text style={{ width: colWidth.hCTC, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{Math.round(row.fullHra)}</Text>
-              <Text style={{ width: colWidth.sCTC, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{Math.round(row.fullBasic + row.fullHra)}</Text>
-              <Text style={{ width: colWidth.d, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>{row.totalDays}</Text>
-              <Text style={{ width: colWidth.w, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>{row.worked}</Text>
-              <Text style={{ width: colWidth.sw, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>{row.sunW || 0}</Text>
-              <Text style={{ width: colWidth.hw, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>{row.holW || 0}</Text>
-              <Text style={{ width: colWidth.oth, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>{row.ot || 0}</Text>
-              <Text style={{ width: colWidth.hd, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>{row.hd || 0}</Text>
-              <Text style={{ width: colWidth.lop, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>{row.lop || 0}</Text>
-              <Text style={{ width: colWidth.pd, padding: 1.5, borderRightWidth: 0.5, textAlign: 'center' }}>{row.paidDays}</Text>
-              <Text style={{ width: colWidth.bPd, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{Math.round(row.basic)}</Text>
-              <Text style={{ width: colWidth.hPd, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{Math.round(row.hra)}</Text>
-              <Text style={{ width: colWidth.sunP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.sunPay)}</Text>
-              <Text style={{ width: colWidth.holP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.holPay)}</Text>
-              <Text style={{ width: colWidth.otP, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.otPay)}</Text>
-              <Text style={{ width: colWidth.earn, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right', fontWeight: 'bold' }}>{Math.round(row.totalEarnings)}</Text>
-              <Text style={{ width: colWidth.pf, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.pf)}</Text>
-              <Text style={{ width: colWidth.esi, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.esi)}</Text>
-              <Text style={{ width: colWidth.loan, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.loanE)}</Text>
-              <Text style={{ width: colWidth.fine, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.fine)}</Text>
-              <Text style={{ width: colWidth.adv, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.advanceAmount)}</Text>
-              <Text style={{ width: colWidth.exp, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{dashIfZero(row.expenseAmount)}</Text>
-              <Text style={{ width: colWidth.totD, padding: 1.5, borderRightWidth: 0.5, textAlign: 'right' }}>{Math.round(row.totalDeductions)}</Text>
-              <Text style={{ flex: 1, padding: 1.5, textAlign: 'right', fontWeight: 'bold', backgroundColor: '#ecfdf5' }}>{Math.round(row.salary?.net || 0)}</Text>
+              {visibleColumns.map(c => (
+                <Text key={c.id} style={{ width: pdfColWidth(c.id), padding: 1.5, borderRightWidth: 0.5, textAlign: ['name', 'designation'].includes(c.id) ? 'left' : (['sno', 'empNo', 'days', 'worked', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'center' : 'right'), fontWeight: c.id === 'name' || c.id === 'net' ? 'bold' : 'normal' }}>
+                  {getPdfVal(c.id, row)}
+                </Text>
+              ))}
             </View>
           ))}
 
           <View style={{ flexDirection: 'row', backgroundColor: '#000', color: '#fff', fontWeight: 'bold' }}>
-            <Text style={{ flex: 1, padding: 3, textAlign: 'right', fontSize: 6 }}>ORGANIZATION DISBURSEMENT TOTAL:</Text>
-            <Text style={{ width: 100, padding: 3, textAlign: 'right', fontSize: 7 }}>{formatSummaryCurrency(data.reduce((sum, r) => sum + (r.salary?.net || 0), 0))}</Text>
+            <Text style={{ flex: 1, padding: 4, textAlign: 'right', fontSize: 7 }}>ORGANIZATION DISBURSEMENT TOTAL:</Text>
+            <Text style={{ width: pdfColWidth('net'), padding: 4, textAlign: 'right', fontSize: 8, backgroundColor: '#16a34a' }}>
+              {formatSummaryCurrency(data.reduce((sum, r) => sum + (r.salary?.net || 0), 0))}
+            </Text>
           </View>
         </View>
       </Page>
@@ -206,11 +207,12 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
         <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>Employee ID</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.employee?.empCode}</Text></View>
         <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>Designation</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.employee?.designation || '-'}</Text></View>
         <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>No. of days Paid</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.paidDays}</Text></View>
+        <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>Worked Holidays</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.holidayWorkedCount || 0}</Text></View>
       </View>
     </View>
     <View style={{borderWidth:1, borderColor:'#0f172a', borderRadius:8, overflow:'hidden'}}>
       <View style={{flexDirection:'row', backgroundColor:'#0f172a', color:'white', padding:8}}><Text style={{flex:1, fontSize:8, fontWeight:'bold'}}>EARNINGS</Text><Text style={{flex:1, textAlign:'right', fontSize:8, fontWeight:'bold'}}>DEDUCTIONS</Text></View>
-      <View style={{flexDirection:'row'}}><View style={{flex:1, borderRightWidth:1, borderColor:'#e2e8f0'}}><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>Basic Salary</Text><Text>{formatINR(data.basic)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text>HRA</Text><Text>{formatINR(data.hra)}</Text></View></View><View style={{flex:1}}><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>PF</Text><Text>{dashIfZero(data.pf)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text>Advance Recovery</Text><Text>{dashIfZero(data.advanceDeduction)}</Text></View></View></View>
+      <View style={{flexDirection:'row'}}><View style={{flex:1, borderRightWidth:1, borderColor:'#e2e8f0'}}><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>Basic Salary</Text><Text>{formatINR(data.basic)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>HRA</Text><Text>{formatINR(data.hra)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>Sunday Worked</Text><Text>{formatINR(data.sundayPay)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text>Holiday Pay</Text><Text>{formatINR(data.holidayPay)}</Text></View></View><View style={{flex:1}}><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>PF</Text><Text>{dashIfZero(data.pf)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>ESI</Text><Text>{dashIfZero(data.esi)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text>Advance Recovery</Text><Text>{dashIfZero(data.advanceDeduction)}</Text></View></View></View>
       <View style={{flexDirection:'row', backgroundColor:'#f8fafc', borderTopWidth:1, borderColor:'#0f172a'}}><View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8, borderRightWidth:1, borderColor:'#0f172a'}}><Text style={{fontWeight:'bold'}}>GROSS PAY</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.grossEarnings)}</Text></View><View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{fontWeight:'bold'}}>TOTAL DED.</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.totalDeductions)}</Text></View></View>
     </View>
     <View style={{textAlign:'center', marginTop:20, borderTopWidth:1, borderColor:'#e2e8f0', borderStyle:'dashed', paddingTop:10}}><Text style={{fontSize:16, fontWeight:'bold'}}>{formatINR(data.netPay)}</Text><Text style={{fontSize:8, color:'#64748b', marginTop:4, textTransform:'uppercase'}}>Indian Rupee {numberToWords(data.netPay)} Only</Text></View>
@@ -294,18 +296,25 @@ export default function SalarySlipTab() {
   const columnPickerRef = useRef(null)
 
   useEffect(() => {
-    if (!user?.orgId) return
-    const fetchOrgSettings = async () => {
+    if (!user?.orgId || !user?.uid) return
+    const fetchUserSettings = async () => {
       try {
-        const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
-        if (orgSnap.exists()) {
-          const data = orgSnap.data()
+        const userPrefSnap = await getDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid))
+        if (userPrefSnap.exists()) {
+          const data = userPrefSnap.data()
           if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
+        } else {
+          // Fallback to org settings if user has none
+          const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+          if (orgSnap.exists()) {
+            const data = orgSnap.data()
+            if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
+          }
         }
       } catch (err) { console.error('Error fetching detailed column settings:', err) }
     }
-    fetchOrgSettings()
-  }, [user?.orgId])
+    fetchUserSettings()
+  }, [user?.orgId, user?.uid])
 
   useEffect(() => {
     const handleClickOutside = (e) => { if (columnPickerRef.current && !columnPickerRef.current.contains(e.target)) setShowDetailedColumnPicker(false) }
@@ -314,12 +323,12 @@ export default function SalarySlipTab() {
   }, [showDetailedColumnPicker])
 
   const saveDetailedColumnDefaults = async () => {
-    if (!user?.orgId) return
+    if (!user?.orgId || !user?.uid) return
     try {
-      await setDoc(doc(db, 'organisations', user.orgId), { detailedSummaryColumns: selectedDetailedColumns }, { merge: true })
-      alert('Default columns saved for organisation!')
+      await setDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid), { detailedSummaryColumns: selectedDetailedColumns, updatedAt: serverTimestamp() }, { merge: true })
+      alert('Preferences saved for your account!')
       setShowDetailedColumnPicker(false)
-    } catch (err) { alert('Failed to save defaults') }
+    } catch (err) { alert('Failed to save preferences') }
   }
 
   const toggleAllColumns = () => {
@@ -336,97 +345,6 @@ export default function SalarySlipTab() {
   useEffect(() => { if (activeTab === 'salary-summary' && summarySubTab === 'detailed') { if (!isCollapsed) { setIsCollapsed(true); setIsAutoCollapsed(true); } } else { if (isAutoCollapsed) { setIsCollapsed(false); setIsAutoCollapsed(false); } } }, [activeTab, summarySubTab, isCollapsed, isAutoCollapsed])
 
   const sortedEmployees = useMemo(() => employees.filter(e => e.includeInSalary !== false), [employees])
-  const visibleDetailedSummaryColumns = useMemo(() => DETAILED_SUMMARY_COLUMNS.filter(c => selectedDetailedColumns.includes(c.id)), [selectedDetailedColumns])
-  
-  const visibleGroups = useMemo(() => {
-    const groups = [
-      { id: 'basic', label: 'Basic Info', color: 'blue', columns: ['sno', 'empNo', 'name', 'designation'] },
-      { id: 'structure', label: 'Structure (CTC)', color: 'purple', columns: ['basicCtc', 'hraCtc', 'salaryCtc'] },
-      { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'lop', 'paidDays'] },
-      { id: 'earnings', label: 'Earnings (PAID)', color: 'emerald', columns: ['basicPaid', 'hraPaid', 'salaryPaid', 'sundayPay', 'holidayPay', 'otPay', 'earnings'] },
-      { id: 'genDeductions', label: 'Deductions & Vouchers', color: 'red', columns: ['pf', 'esi', 'loan', 'ded', 'advance', 'reimb'] },
-      { id: 'summary', label: 'Payout Summary', color: 'green', columns: ['totalDed', 'net'] }
-    ];
-    return groups.map(g => ({ ...g, visibleCount: visibleDetailedSummaryColumns.filter(c => g.columns.includes(c.id)).length })).filter(g => g.visibleCount > 0);
-  }, [visibleDetailedSummaryColumns]);
-
-  const toggleDetailedSummaryColumn = (id) => {
-    setSelectedDetailedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
-  };
-
-  const renderDetailedCell = (colId, emp) => {
-    switch (colId) {
-      case 'sno': return emp.sno;
-      case 'empNo': return <span className="font-mono text-[10px]">{emp.empId}</span>;
-      case 'name': return <span className="font-bold text-gray-900 uppercase">{emp.name}</span>;
-      case 'designation': return emp.designation;
-      case 'basicCtc': return Math.round(emp.fullBasic).toLocaleString('en-IN');
-      case 'hraCtc': return Math.round(emp.fullHra).toLocaleString('en-IN');
-      case 'salaryCtc': return Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN');
-      case 'days': return emp.totalDays;
-      case 'worked': return emp.worked;
-      case 'sunWorked': return emp.sunW;
-      case 'holidayWorked': return emp.holW;
-      case 'otH': return (emp.ot + emp.otAdjustment).toFixed(2);
-      case 'hd': return emp.hd;
-      case 'lop': return emp.lop;
-      case 'paidDays': return emp.paidDays;
-      case 'basicPaid': return dashIfZero(emp.basic);
-      case 'hraPaid': return dashIfZero(emp.hra);
-      case 'salaryPaid': return dashIfZero(emp.basic + emp.hra);
-      case 'sundayPay': return dashIfZero(emp.sunPay);
-      case 'holidayPay': return dashIfZero(emp.holPay);
-      case 'otPay': return dashIfZero(emp.otPay);
-      case 'earnings': return Math.round(emp.totalEarnings).toLocaleString('en-IN');
-      case 'pf': return dashIfZero(emp.pf);
-      case 'esi': return dashIfZero(emp.esi);
-      case 'loan': return dashIfZero(emp.loanE);
-      case 'ded': return dashIfZero(emp.fine);
-      case 'advance': return dashIfZero(emp.advanceAmount);
-      case 'reimb': return dashIfZero(emp.expenseAmount);
-      case 'totalDed': return Math.round(emp.totalDeductions).toLocaleString('en-IN');
-      case 'net': return <span className="font-bold">{Math.round(emp.salary?.net || 0).toLocaleString('en-IN')}</span>;
-      default: return '-';
-    }
-  }
-
-  const getColumnColorClass = (colId, type = 'bg') => {
-    const group = visibleGroups.find(g => g.columns.includes(colId));
-    if (!group) return '';
-    const color = group.color;
-    if (type === 'bg') {
-      if (color === 'blue') return 'bg-blue-50/50';
-      if (color === 'purple') return 'bg-purple-50/50';
-      if (color === 'amber') return 'bg-amber-50/50';
-      if (color === 'emerald') return 'bg-green-100';
-      if (color === 'red') return 'bg-red-50/50';
-      if (color === 'green') return 'bg-green-600';
-      return '';
-    }
-    if (type === 'border') {
-      if (color === 'blue') return 'border-blue-100';
-      if (color === 'purple') return 'border-purple-100';
-      if (color === 'amber') return 'border-amber-100';
-      if (color === 'emerald') return 'border-green-200';
-      if (color === 'red') return 'border-red-100';
-      return 'border-gray-200';
-    }
-    if (type === 'text') {
-      if (color === 'green') return 'text-white';
-      if (color === 'emerald') return 'text-black';
-      if (color === 'red') return 'text-red-600';
-      if (color === 'purple') return 'text-purple-700';
-      return 'text-gray-900';
-    }
-    return '';
-  }
-
-  const isWorkedAttendanceRecord = (r) => {
-    if (!r) return false;
-    const status = String(r.status || '').toLowerCase();
-    return (status === 'worked' || status === 'present' || r.checkIn) && !r.isAbsent;
-  }
-  const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0) return 0; return Math.min(l.emiAmount, l.remainingAmount) }
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
     queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
@@ -482,6 +400,114 @@ export default function SalarySlipTab() {
   })
 
   const filteredAttendanceSummaryData = useMemo(() => summaryFilterEmpId ? attendanceSummaryData.filter(e => e.id === summaryFilterEmpId) : attendanceSummaryData, [attendanceSummaryData, summaryFilterEmpId])
+  
+  const dynamicNameWidth = useMemo(() => {
+    if (!filteredAttendanceSummaryData.length) return 140;
+    const maxChars = Math.max(...filteredAttendanceSummaryData.map(e => (e.name || '').length), 10);
+    // Approx 7.5px per char for 10px bold text, plus padding
+    return Math.min(Math.max(maxChars * 7.5 + 20, 120), 300);
+  }, [filteredAttendanceSummaryData]);
+
+  const visibleDetailedSummaryColumns = useMemo(() => 
+    DETAILED_SUMMARY_COLUMNS.filter(c => selectedDetailedColumns.includes(c.id)).map(c => 
+      c.id === 'name' ? { ...c, width: dynamicNameWidth } : c
+    ), 
+  [selectedDetailedColumns, dynamicNameWidth])
+  
+  const visibleGroups = useMemo(() => {
+    const groups = [
+      { id: 'basic', label: 'Basic Info', color: 'blue', columns: ['sno', 'empNo', 'name', 'designation'] },
+      { id: 'structure', label: 'Structure (CTC)', color: 'purple', columns: ['basicCtc', 'hraCtc', 'salaryCtc'] },
+      { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'lop', 'paidDays'] },
+      { id: 'earnings', label: 'Earnings (PAID)', color: 'emerald', columns: ['basicPaid', 'hraPaid', 'salaryPaid', 'sundayPay', 'holidayPay', 'otPay', 'earnings'] },
+      { id: 'genDeductions', label: 'Deductions & Vouchers', color: 'red', columns: ['pf', 'esi', 'loan', 'ded', 'advance', 'reimb', 'netAdj'] },
+      { id: 'summary', label: 'Payout Summary', color: 'green', columns: ['totalDed', 'net'] }
+    ];
+    return groups.map(g => ({ ...g, visibleCount: visibleDetailedSummaryColumns.filter(c => g.columns.includes(c.id)).length })).filter(g => g.visibleCount > 0);
+  }, [visibleDetailedSummaryColumns]);
+
+  const toggleDetailedSummaryColumn = (id) => {
+    setSelectedDetailedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
+  const renderDetailedCell = (colId, emp) => {
+    switch (colId) {
+      case 'sno': return emp.sno;
+      case 'empNo': return <span className="font-mono text-[10px]">{emp.empId}</span>;
+      case 'name': return <span className="font-bold text-gray-900 uppercase">{emp.name}</span>;
+      case 'designation': return emp.designation;
+      case 'basicCtc': return Math.round(emp.fullBasic).toLocaleString('en-IN');
+      case 'hraCtc': return Math.round(emp.fullHra).toLocaleString('en-IN');
+      case 'salaryCtc': return Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN');
+      case 'days': return emp.totalDays;
+      case 'worked': return emp.worked;
+      case 'sunWorked': return emp.sunW;
+      case 'holidayWorked': return emp.holW;
+      case 'otH': return (emp.ot + emp.otAdjustment).toFixed(2);
+      case 'hd': return emp.hd;
+      case 'lop': return emp.lop;
+      case 'paidDays': return emp.paidDays;
+      case 'basicPaid': return dashIfZero(emp.basic);
+      case 'hraPaid': return dashIfZero(emp.hra);
+      case 'salaryPaid': return dashIfZero(emp.basic + emp.hra);
+      case 'sundayPay': return dashIfZero(emp.sunPay);
+      case 'holidayPay': return dashIfZero(emp.holPay);
+      case 'otPay': return dashIfZero(emp.otPay);
+      case 'earnings': return Math.round(emp.totalEarnings).toLocaleString('en-IN');
+      case 'pf': return dashIfZero(emp.pf);
+      case 'esi': return dashIfZero(emp.esi);
+      case 'loan': return dashIfZero(emp.loanE);
+      case 'ded': return dashIfZero(emp.fine);
+      case 'advance': return dashIfZero(emp.advanceAmount);
+      case 'reimb': return dashIfZero(emp.expenseAmount);
+      case 'netAdj': {
+        const val = (emp.advanceAmount || 0) - (emp.expenseAmount || 0);
+        if (val === 0) return '-';
+        return <span className={val < 0 ? 'text-green-600 font-bold' : 'text-rose-600 font-bold'}>{Math.round(val).toLocaleString('en-IN')}</span>;
+      }
+      case 'totalDed': return Math.round(emp.totalDeductions).toLocaleString('en-IN');
+      case 'net': return <span className="font-bold">{Math.round(emp.salary?.net || 0).toLocaleString('en-IN')}</span>;
+      default: return '-';
+    }
+  }
+
+  const getColumnColorClass = (colId, type = 'bg') => {
+    const group = visibleGroups.find(g => g.columns.includes(colId));
+    if (!group) return '';
+    const color = group.color;
+    if (type === 'bg') {
+      if (color === 'blue') return 'bg-blue-50/50';
+      if (color === 'purple') return 'bg-purple-50/50';
+      if (color === 'amber') return 'bg-amber-50/50';
+      if (color === 'emerald') return 'bg-green-100';
+      if (color === 'red') return 'bg-red-50/50';
+      if (color === 'green') return 'bg-green-600';
+      return '';
+    }
+    if (type === 'border') {
+      if (color === 'blue') return 'border-blue-100';
+      if (color === 'purple') return 'border-purple-100';
+      if (color === 'amber') return 'border-amber-100';
+      if (color === 'emerald') return 'border-green-200';
+      if (color === 'red') return 'border-red-100';
+      return 'border-gray-200';
+    }
+    if (type === 'text') {
+      if (color === 'green') return 'text-white';
+      if (color === 'emerald') return 'text-black';
+      if (color === 'red') return 'text-red-600';
+      if (color === 'purple') return 'text-purple-700';
+      return 'text-gray-900';
+    }
+    return '';
+  }
+
+  const isWorkedAttendanceRecord = (r) => {
+    if (!r) return false;
+    const status = String(r.status || '').toLowerCase();
+    return (status === 'worked' || status === 'present' || r.checkIn) && !r.isAbsent;
+  }
+  const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0) return 0; return Math.min(l.emiAmount, l.remainingAmount) }
 
   const handleGenerate = async () => {
     if (!selectedEmp || !selectedMonth) return alert('Please select staff and month');
@@ -701,7 +727,7 @@ export default function SalarySlipTab() {
                       </tr>
                       <tr className="h-10 bg-white border-b-2 border-gray-900 shadow-sm">
                         {visibleDetailedSummaryColumns.map(c=>(
-                          <th key={c.id} style={{ width: c.width, minWidth: c.width }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-extrabold text-[9px] uppercase tracking-tighter whitespace-pre-line ${c.id === 'net' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-gray-500'}`}>
+                          <th key={c.id} style={{ width: c.width, minWidth: c.width }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-bold text-[9px] uppercase tracking-[-0.05em] whitespace-pre-line ${c.id === 'net' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-gray-500'}`}>
                             {c.label}
                           </th>
                         ))}
