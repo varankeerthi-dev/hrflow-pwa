@@ -48,7 +48,7 @@ const downloadPdfBlob = (blob, fileName) => {
 // --- CONSTANTS ---
 const DETAILED_SUMMARY_COLUMNS = [
   { id: 'sno', label: 'S.No', width: 32, mandatory: true },
-  { id: 'empNo', label: 'Employee ID', width: 80, mandatory: true },
+  { id: 'empNo', label: 'Employee ID', width: 80 },
   { id: 'name', label: 'Staff name', width: 140, mandatory: true },
   { id: 'designation', label: 'Designation', width: 100 },
   { id: 'basicCtc', label: 'Basic (CTC)', width: 70 },
