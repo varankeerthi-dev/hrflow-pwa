@@ -47,36 +47,36 @@ const downloadPdfBlob = (blob, fileName) => {
 
 // --- CONSTANTS ---
 const DETAILED_SUMMARY_COLUMNS = [
-  { id: 'sno', label: '#', width: 32, mandatory: true },
-  { id: 'empNo', label: 'ID', width: 60, mandatory: true },
-  { id: 'name', label: 'NAME', width: 140, mandatory: true },
-  { id: 'designation', label: 'DESIG', width: 100 },
-  { id: 'basicCtc', label: 'BASIC', width: 70 },
-  { id: 'hraCtc', label: 'HRA', width: 70 },
-  { id: 'salaryCtc', label: 'TOTAL', width: 80 },
-  { id: 'days', label: 'D', width: 35 },
-  { id: 'worked', label: 'W', width: 35 },
-  { id: 'sunWorked', label: 'Sw', width: 35 },
-  { id: 'holidayWorked', label: 'Hw', width: 35 },
-  { id: 'otH', label: 'OT.H', width: 35 },
-  { id: 'hd', label: 'HD', width: 35 },
-  { id: 'lop', label: 'LOP', width: 40 },
-  { id: 'paidDays', label: 'Pd', width: 40 },
-  { id: 'basicPaid', label: 'BASIC.P', width: 70 },
-  { id: 'hraPaid', label: 'HRA.P', width: 70 },
-  { id: 'salaryPaid', label: 'EARN.P', width: 80 },
-  { id: 'sundayPay', label: 'SUN.P', width: 70 },
-  { id: 'holidayPay', label: 'HOL.P', width: 70 },
-  { id: 'otPay', label: 'OT.P', width: 60 },
-  { id: 'earnings', label: 'GROSS', width: 90 },
-  { id: 'pf', label: 'PF', width: 60 },
-  { id: 'esi', label: 'ESI', width: 60 },
-  { id: 'loan', label: 'EMI', width: 70 },
-  { id: 'ded', label: 'FINE', width: 60 },
-  { id: 'advance', label: 'ADV', width: 70 },
-  { id: 'reimb', label: 'EXP', width: 70 },
-  { id: 'totalDed', label: 'TOT DED', width: 85 },
-  { id: 'net', label: 'NET PAYOUT', width: 110, mandatory: true }
+  { id: 'sno', label: 'S.No', width: 32, mandatory: true },
+  { id: 'empNo', label: 'Employee ID', width: 80, mandatory: true },
+  { id: 'name', label: 'Staff name', width: 140, mandatory: true },
+  { id: 'designation', label: 'Designation', width: 100 },
+  { id: 'basicCtc', label: 'Basic (CTC)', width: 70 },
+  { id: 'hraCtc', label: 'HRA (CTC)', width: 70 },
+  { id: 'salaryCtc', label: 'Total (CTC)', width: 80 },
+  { id: 'days', label: 'Total days', width: 45 },
+  { id: 'worked', label: 'Worked days', width: 45 },
+  { id: 'sunWorked', label: 'Sunday worked', width: 45 },
+  { id: 'holidayWorked', label: 'Holiday worked', width: 45 },
+  { id: 'otH', label: 'OT hours', width: 45 },
+  { id: 'hd', label: 'Half days', width: 45 },
+  { id: 'lop', label: 'LOP days', width: 45 },
+  { id: 'paidDays', label: 'Paid days', width: 45 },
+  { id: 'basicPaid', label: 'Basic (Paid)', width: 70 },
+  { id: 'hraPaid', label: 'HRA (Paid)', width: 70 },
+  { id: 'salaryPaid', label: 'Earnings (Paid)', width: 80 },
+  { id: 'sundayPay', label: 'Sunday pay', width: 70 },
+  { id: 'holidayPay', label: 'Holiday pay', width: 70 },
+  { id: 'otPay', label: 'OT pay', width: 70 },
+  { id: 'earnings', label: 'Gross earnings', width: 90 },
+  { id: 'pf', label: 'PF contribution', width: 80 },
+  { id: 'esi', label: 'ESI contribution', width: 80 },
+  { id: 'loan', label: 'Loan EMI', width: 70 },
+  { id: 'ded', label: 'Fine amount', width: 70 },
+  { id: 'advance', label: 'Advance recovery', width: 80 },
+  { id: 'reimb', label: 'Expense reimbursement', width: 80 },
+  { id: 'totalDed', label: 'Total deductions', width: 85 },
+  { id: 'net', label: 'Net payout', width: 110, mandatory: true }
 ];
 
 // --- PDF COMPONENTS ---
@@ -664,13 +664,19 @@ export default function SalarySlipTab() {
               ) : (
                 <div className="min-w-max h-full overflow-auto relative">
                   {showDetailedColumnPicker && (
-                    <div className="absolute right-0 top-0 z-[60] bg-white border border-slate-200 shadow-2xl p-4 w-72 max-h-[500px] overflow-auto rounded-[24px] animate-in fade-in slide-in-from-top-4 border-2 border-black">
+                    <div ref={columnPickerRef} className="absolute right-0 top-0 z-[60] bg-white border border-slate-200 shadow-2xl p-4 w-72 max-h-[500px] overflow-auto rounded-[24px] animate-in fade-in slide-in-from-top-4 border-2 border-black">
                       <div className="pb-3 border-b-2 border-slate-100 mb-3 flex justify-between items-center"><span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Visibility Grid</span><button onClick={()=>setShowDetailedColumnPicker(false)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16}/></button></div>
-                      <div className="space-y-1">
+                      
+                      <div className="flex gap-2 mb-4">
+                        <button onClick={toggleAllColumns} className="flex-1 h-7 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-200">Toggle All</button>
+                        <button onClick={saveDetailedColumnDefaults} className="flex-1 h-7 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-indigo-700 shadow-sm">Save Default</button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                         {DETAILED_SUMMARY_COLUMNS.map(c => (
-                          <label key={c.id} className={`flex items-center gap-3 p-2 hover:bg-indigo-50 rounded-xl cursor-pointer transition-all ${c.mandatory?'opacity-40 grayscale pointer-events-none':''}`}>
-                            <input type="checkbox" checked={selectedDetailedColumns.includes(c.id)} disabled={c.mandatory} onChange={() => toggleDetailedSummaryColumn(c.id)} className="w-4 h-4 rounded-md border-gray-300 text-indigo-600 focus:ring-indigo-500 shadow-sm"/>
-                            <span className="text-[11px] font-bold text-slate-700 uppercase">{c.label}</span>
+                          <label key={c.id} className={`flex items-center gap-2 p-1 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all ${c.mandatory?'opacity-40 grayscale pointer-events-none':''}`}>
+                            <input type="checkbox" checked={selectedDetailedColumns.includes(c.id)} disabled={c.mandatory} onChange={() => toggleDetailedSummaryColumn(c.id)} className="w-3 h-3 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 shadow-sm"/>
+                            <span className="text-[10px] font-normal text-slate-700 truncate">{c.label}</span>
                           </label>
                         ))}
                       </div>
