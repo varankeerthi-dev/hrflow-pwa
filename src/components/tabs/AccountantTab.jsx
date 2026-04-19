@@ -54,6 +54,19 @@ const formatMonthDisplay = (monthStr) => {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 };
 
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
+
 const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, userName }) => {
   const [data, setData] = useState({}) 
   const [hiddenEmps, setHiddenEmps] = useState(new Set())
@@ -159,212 +172,110 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-zinc-100 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden border border-zinc-300 ring-1 ring-black/5">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between bg-white shrink-0">
-          <div className="flex items-center gap-6">
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#ea580c] flex items-center justify-center text-white shadow-lg shadow-orange-100">
-                  <LayoutGrid size={18} />
-                </div>
-                <h2 className="text-base font-bold text-zinc-900 tracking-tight font-raleway">Superfast Monthly Sync</h2>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] flex flex-col p-0 overflow-hidden bg-white border-zinc-200 gap-0 shadow-2xl rounded-none md:rounded-xl">
+        <div className="px-6 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white shadow-sm">
+                <LayoutGrid size={18} />
               </div>
-              <p className="text-[11px] text-zinc-500 font-medium mt-0.5 uppercase tracking-wider">Cycle: {formatMonthDisplay(month)}</p>
+              <div>
+                <h2 className="text-[13px] font-black text-zinc-900 uppercase tracking-tight">Superfast Batch Entry</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{formatMonthDisplay(month)}</span>
+                  <span className="w-1 h-1 rounded-full bg-zinc-300"></span>
+                  <span className="text-[10px] text-orange-600 font-black uppercase">Live Sync Mode</span>
+                </div>
+              </div>
             </div>
-
             {step === 'entry' && (
-              <div className="relative group">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-orange-500 transition-colors" />
-                <input 
-                  type="text"
-                  placeholder="Quick Search..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 focus:ring-2 focus:ring-orange-500 outline-none w-48 transition-all"
-                />
+              <div className="relative w-72 group">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <Input placeholder="Filter staff..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 bg-white border-zinc-200 rounded-md text-[12px] font-medium focus-visible:ring-zinc-400 h-8 shadow-none" />
               </div>
             )}
           </div>
-          <button onClick={onClose} tabIndex="-1" className="p-2 hover:bg-zinc-100 rounded-md text-zinc-400 transition-colors">
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4 mr-4 border-r border-zinc-200 pr-6">
+              <div className="flex flex-col items-end">
+                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Sub-Total</span>
+                <span className="text-sm font-black text-zinc-900 leading-none mt-1">{formatINR(Object.entries(data).reduce((s, [id, v]) => !hiddenEmps.has(id) ? s + (Number(v.advance)||0) + (Number(v.expense)||0) : s, 0))}</span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Progress</span>
+                <span className="text-[12px] font-bold text-zinc-600 leading-none mt-1">{processedCount} / {totalEmps}</span>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-zinc-400 hover:text-zinc-900"><X size={18} /></Button>
+          </div>
         </div>
 
         {step === 'entry' ? (
           <>
-            <div className="flex-1 overflow-auto px-4 py-0">
-              <table className="w-full text-left border-separate border-spacing-0">
-                <thead className="sticky top-0 bg-zinc-100 z-10">
-                  <tr className="h-12">
-                    <th className="px-2 font-raleway font-bold text-[11px] uppercase tracking-widest text-zinc-900 border-b border-zinc-200">Staff Member</th>
-                    <th className="px-2 font-raleway font-bold text-[11px] uppercase tracking-widest text-zinc-900 text-center w-28 border-b border-zinc-200">Advance</th>
-                    <th className="px-2 font-raleway font-bold text-[11px] uppercase tracking-widest text-zinc-900 text-center w-28 border-b border-zinc-200">Expense</th>
-                    <th className="px-2 font-raleway font-bold text-[11px] uppercase tracking-widest text-zinc-900 text-right w-32 border-b border-zinc-200">Action</th>
+            <div className="flex-1 overflow-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-white z-10">
+                  <tr className="h-10 bg-zinc-100/50 border-b border-zinc-200">
+                    <th className="pl-6 pr-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500 w-12 text-center">#</th>
+                    <th className="px-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500">Staff Member</th>
+                    <th className="px-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500">Designation</th>
+                    <th className="px-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500 w-48">Advance (₹)</th>
+                    <th className="px-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500 w-48">Expense (₹)</th>
+                    <th className="px-6 font-bold text-[10px] uppercase tracking-widest text-zinc-500 text-right w-40">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200 bg-transparent">
-                  {filteredEmployees.map(emp => {
+                <tbody className="divide-y divide-zinc-100">
+                  {filteredEmployees.map((emp, idx) => {
                     const vals = data[emp.id] || {}
                     return (
-                      <tr key={emp.id} className={`group h-14 transition-colors ${vals.verified ? 'bg-zinc-200/30' : 'bg-white/40'}`}>
-                        <td className="px-2 py-1.5">
-                          <p className="text-[12px] font-bold text-zinc-900 uppercase leading-none tracking-tight">{emp.name}</p>
-                          <p className="text-[9px] text-zinc-400 font-medium mt-1 uppercase">{emp.empCode}</p>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input 
-                            type="number"
-                            placeholder="0"
-                            value={vals.advance || ''}
-                            onChange={(e) => handleUpdate(emp.id, 'advance', e.target.value)}
-                            className="w-full h-9 bg-white border border-zinc-200 rounded-lg text-center font-black text-orange-600 focus:ring-2 focus:ring-orange-500 outline-none transition-all placeholder:text-zinc-200 text-xs"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input 
-                            type="number"
-                            placeholder="0"
-                            value={vals.expense || ''}
-                            onChange={(e) => handleUpdate(emp.id, 'expense', e.target.value)}
-                            className="w-full h-9 bg-white border border-zinc-200 rounded-lg text-center font-black text-zinc-700 focus:ring-2 focus:ring-zinc-900 outline-none transition-all placeholder:text-zinc-200 text-xs"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5 text-right">
-                          <div className="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => clearRow(emp.id)}
-                              tabIndex="-1"
-                              className="p-1.5 text-zinc-400 hover:text-amber-600 rounded-md transition-all"
-                            >
-                              <RotateCcw size={14} />
-                            </button>
-                            <button 
-                              onClick={() => removeRow(emp.id)}
-                              tabIndex="-1"
-                              className="p-1.5 text-zinc-400 hover:text-rose-600 rounded-md transition-all"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                            <button 
-                              onClick={() => toggleVerify(emp.id)}
-                              tabIndex="-1"
-                              className={`p-1.5 rounded-md transition-all ${vals.verified ? 'text-emerald-600 bg-emerald-50' : 'text-zinc-300'}`}
-                            >
-                              <CheckCircle2 size={16} fill={vals.verified ? 'currentColor' : 'none'} className={vals.verified ? 'text-white' : ''} />
-                            </button>
-                          </div>
-                        </td>
+                      <tr key={emp.id} className={cn("group h-11 transition-colors", vals.verified ? "bg-emerald-50/20" : "hover:bg-zinc-50/80 bg-white")}>
+                        <td className="pl-6 pr-4 text-center text-[10px] font-mono text-zinc-400">{idx + 1}</td>
+                        <td className="px-4"><div className="flex flex-col"><span className="text-[13px] font-bold text-zinc-800 capitalize leading-none">{emp.name.toLowerCase()}</span><span className="text-[9px] text-zinc-400 font-bold uppercase mt-1 tracking-tighter">{emp.empCode}</span></div></td>
+                        <td className="px-4"><span className="text-[11px] text-zinc-500 font-medium uppercase tracking-tight">{emp.designation || 'N/A'}</span></td>
+                        <td className="px-4"><div className="relative group/input"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-300 group-focus-within/input:text-orange-400">₹</span><input type="number" placeholder="0" value={vals.advance || ''} onChange={(e) => handleUpdate(emp.id, 'advance', e.target.value)} className="w-full h-8 pl-6 pr-2 bg-transparent border border-transparent group-hover/input:border-zinc-200 focus:border-orange-500 focus:bg-white rounded-md text-[12px] font-black text-orange-600 outline-none transition-all placeholder:text-zinc-200" /></div></td>
+                        <td className="px-4"><div className="relative group/input"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-300 group-focus-within/input:text-zinc-500">₹</span><input type="number" placeholder="0" value={vals.expense || ''} onChange={(e) => handleUpdate(emp.id, 'expense', e.target.value)} className="w-full h-8 pl-6 pr-2 bg-transparent border border-transparent group-hover/input:border-zinc-200 focus:border-zinc-900 focus:bg-white rounded-md text-[12px] font-black text-zinc-700 outline-none transition-all placeholder:text-zinc-200" /></div></td>
+                        <td className="px-6 text-right"><div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => clearRow(emp.id)} className="p-1.5 text-zinc-300 hover:text-amber-600 rounded hover:bg-white border border-transparent hover:border-zinc-100 transition-all shadow-none hover:shadow-sm"><RotateCcw size={13} /></button><button onClick={() => removeRow(emp.id)} className="p-1.5 text-zinc-300 hover:text-rose-600 rounded hover:bg-white border border-transparent hover:border-zinc-100 transition-all shadow-none hover:shadow-sm"><Trash2 size={13} /></button><button onClick={() => toggleVerify(emp.id)} className={cn("p-1.5 rounded transition-all border border-transparent", vals.verified ? "text-emerald-600 bg-emerald-50 border-emerald-100" : "text-zinc-300 hover:text-emerald-500")}><CheckCircle2 size={15} /></button></div></td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
             </div>
-            
-            <div className="px-6 py-4 border-t border-zinc-200 bg-white flex justify-between items-center shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
-              <div className="flex items-center gap-6">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Aggregate Total</span>
-                  <span className="text-sm font-black text-orange-600">
-                    {formatINR(Object.entries(data).reduce((s, [id, v]) => !hiddenEmps.has(id) ? s + (Number(v.advance)||0) + (Number(v.expense)||0) : s, 0))}
-                  </span>
-                </div>
-                <div className="h-8 w-px bg-zinc-100"></div>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Staff Progress</span>
-                  <span className="text-[11px] font-bold text-zinc-700">{processedCount} / {totalEmps} Reviewed</span>
-                </div>
-              </div>
-              <button 
-                onClick={() => setStep('review')}
-                className="px-8 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/30 hover:bg-emerald-700 transition-all flex items-center gap-2 active:scale-95 group"
-              >
-                Review Commit <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-            </div>
+            <div className="px-8 py-3 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center shrink-0"><div className="text-[11px] text-zinc-500 font-medium">Use <kbd className="px-1 py-0.5 bg-white border border-zinc-300 rounded text-[9px] font-bold">Tab</kbd> to navigate rapidly.</div><Button onClick={() => setStep('review')} className="h-9 px-10 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[11px] font-black uppercase tracking-[0.15em] transition-all group shadow-lg shadow-zinc-200">Continue to Review <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" /></Button></div>
           </>
         ) : (
           <>
-            <div className="flex-1 overflow-auto p-8 space-y-6 bg-zinc-100/50">
-              <div className="text-center max-w-md mx-auto space-y-2">
-                <h3 className="text-lg font-bold text-zinc-900 tracking-tight font-raleway">Final Verification</h3>
-                <p className="text-[11px] text-zinc-500 font-medium uppercase tracking-widest">Cycle: {formatMonthDisplay(month)}</p>
-              </div>
-
-              {entriesToCommit.length === 0 ? (
-                <div className="py-16 text-center bg-white rounded-2xl border border-zinc-200 border-dashed">
-                   <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">No entries recorded</p>
-                   <button onClick={() => setStep('entry')} className="mt-4 text-orange-600 text-xs font-bold underline">Back to Entry Grid</button>
+            <div className="flex-1 overflow-auto p-12 bg-zinc-50/30 custom-scrollbar">
+              <div className="max-w-4xl mx-auto space-y-8">
+                <div className="flex flex-col items-center text-center space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-2"><CheckCircle2 size={24} /></div>
+                  <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Review Batch Impact</h3>
+                  <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Ready for database synchronization</p>
                 </div>
-              ) : (
-                <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-lg shadow-zinc-200/50">
-                  <table className="w-full text-sm border-collapse">
-                    <thead className="bg-zinc-50 text-[10px] font-black uppercase text-zinc-500 h-10 border-b border-zinc-100">
-                      <tr>
-                        <th className="px-6 text-left">Staff Member</th>
-                        <th className="px-6 text-center">Advance</th>
-                        <th className="px-6 text-center">Expense</th>
-                        <th className="px-6 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-50">
-                      {entriesToCommit.map(row => (
-                        <tr key={row.id} className="h-12 hover:bg-zinc-50/50 transition-colors">
-                          <td className="px-6 py-2">
-                            <p className="text-[12px] font-bold text-zinc-900 uppercase">{row.name}</p>
-                            <p className="text-[9px] text-zinc-400 font-medium">{row.empCode}</p>
-                          </td>
-                          <td className="px-6 text-center font-mono font-bold text-orange-600">{row.advance ? formatINR(row.advance) : '-'}</td>
-                          <td className="px-6 text-center font-mono font-bold text-zinc-700">{row.expense ? formatINR(row.expense) : '-'}</td>
-                          <td className="px-6 text-right font-black text-zinc-900">{formatINR((Number(row.advance)||0) + (Number(row.expense)||0))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-emerald-600 text-white h-12">
-                      <tr className="font-black uppercase text-[10px] tracking-widest">
-                        <td className="px-6">Aggregate Impact</td>
-                        <td colSpan={3} className="px-6 text-right text-base tracking-normal">
-                          {formatINR(entriesToCommit.reduce((s, r) => s + (Number(r.advance)||0) + (Number(r.expense)||0), 0))}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-
-              {skippedCount > 0 && (
-                <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-3">
-                  <XCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-[12px] font-black text-rose-900 uppercase leading-none">Omission Alert</p>
-                    <p className="text-[10px] text-rose-700 mt-1.5 font-medium leading-relaxed">
-                      You are skipping <span className="font-black underline">{skippedCount} active employees</span>. No records will be added for them.
-                    </p>
+                {entriesToCommit.length === 0 ? (
+                  <div className="py-20 text-center bg-white border border-zinc-200 border-dashed rounded-3xl flex flex-col items-center"><FileText size={40} className="text-zinc-200 mb-4" /><p className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.2em]">No transactional data found</p><Button variant="link" onClick={() => setStep('entry')} className="mt-2 text-orange-600 font-bold uppercase text-[10px]">Return to editor</Button></div>
+                ) : (
+                  <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-xl shadow-zinc-200/50">
+                    <table className="w-full text-left">
+                      <thead><tr className="h-12 bg-zinc-50 border-b border-zinc-200 text-[10px] font-black uppercase text-zinc-400 tracking-widest"><th className="px-8">Staff Member</th><th className="px-8 text-center">Advance</th><th className="px-8 text-center">Expense</th><th className="px-8 text-right">Net impact</th></tr></thead>
+                      <tbody className="divide-y divide-zinc-50">{entriesToCommit.map(row => (<tr key={row.id} className="h-12 hover:bg-zinc-50/50 transition-colors"><td className="px-8"><div className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-zinc-200"></div><div><p className="text-[12px] font-bold text-zinc-900 capitalize">{row.name.toLowerCase()}</p><p className="text-[9px] text-zinc-400 font-bold">{row.empCode}</p></div></div></td><td className="px-8 text-center font-mono font-bold text-orange-600 text-[12px]">{row.advance ? formatINR(row.advance) : '-'}</td><td className="px-8 text-center font-mono font-bold text-zinc-700 text-[12px]">{row.expense ? formatINR(row.expense) : '-'}</td><td className="px-8 text-right font-black text-zinc-900 text-[13px]">{formatINR((Number(row.advance)||0) + (Number(row.expense)||0))}</td></tr>))}</tbody>
+                      <tfoot><tr className="bg-emerald-600 text-white h-14"><td className="px-8 font-black uppercase text-[11px] tracking-[0.15em]">Total Disbursement impact</td><td colSpan={3} className="px-8 text-right text-xl font-black">{formatINR(entriesToCommit.reduce((s, r) => s + (Number(r.advance)||0) + (Number(r.expense)||0), 0))}</td></tr></tfoot>
+                    </table>
                   </div>
-                </div>
-              )}
+                )}
+                {skippedCount > 0 && (<div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-4"><XCircle size={18} className="text-rose-600 shrink-0" /><p className="text-[11px] text-rose-800 font-bold uppercase tracking-tight leading-none">Warning: {skippedCount} staff members are being skipped in this batch sync.</p></div>)}
+              </div>
             </div>
-
-            <div className="px-6 py-4 border-t border-zinc-200 bg-white flex justify-between shrink-0">
-              <button onClick={() => setStep('entry')} tabIndex="-1" className="px-6 py-2 text-xs font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 rounded-lg transition-all">Back to Grid</button>
-              <button 
-                onClick={handleCommit}
-                disabled={isSubmitting || entriesToCommit.length === 0}
-                className="px-10 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/30 hover:bg-emerald-700 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
-              >
-                {isSubmitting ? <Spinner size="sm" /> : <CheckCircle2 size={16} />}
-                Confirm & Commit
-              </button>
+            <div className="px-8 py-4 border-t border-zinc-200 bg-white flex justify-between items-center shrink-0">
+              <Button variant="ghost" onClick={() => setStep('entry')} className="h-10 px-8 text-[11px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 rounded-lg">Back to Editor</Button>
+              <Button onClick={handleCommit} disabled={isSubmitting || entriesToCommit.length === 0} className="h-11 px-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 transition-all active:scale-95 disabled:opacity-50">{isSubmitting ? <Spinner size="sm" className="mr-2" /> : <Save size={16} className="mr-2" />}Confirm & Post to Ledger</Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

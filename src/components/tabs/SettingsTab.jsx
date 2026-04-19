@@ -68,6 +68,7 @@ function createEmployeeFormState() {
     shiftId: '',
     minDailyHoursCategory: '',
     site: '',
+    siteId: '', // Added for Geo-fencing
     employmentType: 'Full-time',
     monthlySalary: 0,
     status: EMPLOYEE_STATUS_ACTIVE,
@@ -775,6 +776,7 @@ export default function SettingsTab() {
       loginEnabled: employee.loginEnabled || false,
       tempPassword: '',
       shiftEffectiveDate: '',
+      siteId: employee.siteId || '',
       minDailyHoursCategory: mwhCategory?.name || defaultCategory || employee.minDailyHours || '',
     }
   }

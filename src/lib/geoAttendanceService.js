@@ -90,12 +90,15 @@ export function resolveTargetSite(employee, sites = []) {
 export function evaluateSiteProximity({ currentCoordinates, targetSite }) {
   const targetCoordinates = normalizeSiteCoordinates(targetSite)
   const radiusMeters = Number(targetSite?.radiusMeters) || ATTENDANCE_RADIUS_DEFAULT_METERS
+  const accuracy = currentCoordinates?.accuracy || 0
+
   if (!currentCoordinates || !targetCoordinates) {
     return {
       distanceMeters: null,
       radiusMeters,
       withinRange: false,
       targetCoordinates,
+      accuracy,
     }
   }
   const distanceMeters = haversineDistanceMeters(currentCoordinates, targetCoordinates)
@@ -104,6 +107,7 @@ export function evaluateSiteProximity({ currentCoordinates, targetSite }) {
     radiusMeters,
     withinRange: distanceMeters <= radiusMeters,
     targetCoordinates,
+    accuracy,
   }
 }
 

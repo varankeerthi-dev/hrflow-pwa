@@ -97,8 +97,8 @@ Owner: HRFlow team
 
 ## Phase 6 - Edge Case Handling (Must-Have)
 - [x] Location permission denied -> show controlled fallback path.
-- [ ] Low GPS accuracy -> retry prompt / block with message.
-- [ ] Offline capture -> queue and sync on reconnect.
+- [x] Low GPS accuracy -> retry prompt / block with message.
+- [x] Offline capture -> queue and sync on reconnect.
 - [ ] Check-out without check-in -> block or exception flow.
 - [x] Out-of-site:
   - do not mark direct attendance

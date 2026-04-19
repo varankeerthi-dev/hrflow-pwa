@@ -311,6 +311,14 @@ export default function MobileEmployeePortal() {
       const sites = await getOrgSites(user.orgId)
       const targetSite = resolveTargetSite(employee, sites)
       const proximity = evaluateSiteProximity({ currentCoordinates, targetSite })
+
+      // Phase 6: Low accuracy check (Threshold: 100m)
+      if (proximity.accuracy > 100) {
+        const warnMsg = `Low GPS accuracy detected (${Math.round(proximity.accuracy)}m). Please ensure you are outdoors for better precision.`
+        setGeoContext(prev => ({ ...prev, locationError: warnMsg }))
+        alert(warnMsg)
+      }
+
       const nextGeoContext = {
         currentCoordinates,
         targetSite,
@@ -318,7 +326,7 @@ export default function MobileEmployeePortal() {
         distanceMeters: proximity.distanceMeters,
         radiusMeters: proximity.radiusMeters,
         withinRange: proximity.withinRange,
-        locationError: '',
+        locationError: proximity.accuracy > 100 ? `Low precision (${Math.round(proximity.accuracy)}m)` : '',
       }
       setGeoContext(nextGeoContext)
       if (proximity.withinRange) {

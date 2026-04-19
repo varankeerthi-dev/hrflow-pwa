@@ -448,7 +448,8 @@ export default function SalarySlipTab() {
         }
         const slab = increments?.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20 };
         const ts = Number(slab.totalSalary) || 0, paidDays = end - lop, dailyRate = ts / end, fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
-        const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = sunW * dailyRate, holPay = holW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / 8)
+        const shiftH = Number(emp.minDailyHours) || 8
+        const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = sunW * dailyRate, holPay = holW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / shiftH)
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
         const totalEarnings = basic + hra + sunPay + holPay + otPay + reimb, totalDeductions = pf + esi + loanE + adv + fine
@@ -629,7 +630,8 @@ export default function SalarySlipTab() {
 
       const paidDaysValue = end - lop;
       const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0), fineA = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, f) => s + Number(f.amount || 0), 0)
-      const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment || 0) : 0, dailyRate = ts / end, otP = (aOT + otAdj) * (dailyRate / 8), fullBasic = ts * (Number(slab.basicPercent || 0) / 100), fullHra = ts * (Number(slab.hraPercent || 0) / 100)
+      const shiftH = Number(emp.minDailyHours) || 8
+      const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment || 0) : 0, dailyRate = ts / end, otP = (aOT + otAdj) * (dailyRate / shiftH), fullBasic = ts * (Number(slab.basicPercent || 0) / 100), fullHra = ts * (Number(slab.hraPercent || 0) / 100)
       const b = fullBasic * (paidDaysValue / end), h = fullHra * (paidDaysValue / end), p = ts * (Number(slab.pfPercent || 0) / 100), e = ts * (Number(slab.esiPercent || 0) / 100)
       const holP = holW * dailyRate
       const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0) + (reimb || 0), ded = (p || 0) + (e || 0) + (emi || 0) + (adv || 0) + (fineA || 0)

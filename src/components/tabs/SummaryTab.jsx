@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
 import Spinner from '../ui/Spinner'
-import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X, ArrowRight } from 'lucide-react'
+import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X, ArrowRight, Table } from 'lucide-react'
 import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
@@ -25,10 +25,13 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
   const { fetchMonthlySummary, loading: summaryLoading } = useAttendance(user?.orgId)
   const { isCollapsed, setIsCollapsed, setIsAutoCollapsed, isAutoCollapsed } = useSidebar()
   
-  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab || 'summary')
+  // Main tabs: 'summary' or 'monthlyView'
+  const [activeMainTab, setActiveMainTab] = useState(defaultSubTab || 'summary')
+  // Inner tabs for Summary: 'overview' or 'performance'
+  const [summaryInnerTab, setSummaryInnerTab] = useState('overview')
 
   useEffect(() => {
-    if (activeSubTab === 'monthlyView') {
+    if (activeMainTab === 'monthlyView') {
       if (!isCollapsed) {
         setIsCollapsed(true)
         setIsAutoCollapsed(true)
@@ -39,7 +42,11 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
         setIsAutoCollapsed(false)
       }
     }
-  }, [activeSubTab, isCollapsed, setIsCollapsed, isAutoCollapsed, setIsAutoCollapsed])
+  }, [activeMainTab, isCollapsed, setIsCollapsed, isAutoCollapsed, setIsAutoCollapsed])
+
+  useEffect(() => {
+    if (defaultSubTab) setActiveMainTab(defaultSubTab)
+  }, [defaultSubTab])
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date()
@@ -88,10 +95,6 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
     fetchMonthlySummary(selectedMonth).then(setSummaryData)
   }, [user?.orgId, selectedMonth])
 
-  useEffect(() => {
-    if (defaultSubTab) setActiveSubTab(defaultSubTab)
-  }, [defaultSubTab])
-
   const fetchPivotData = async () => {
     if (!user?.orgId || !selectedMonth) return
     setPivotLoading(true)
@@ -136,9 +139,9 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
   }
 
   useEffect(() => {
-    if (activeSubTab !== 'monthlyView') return
+    if (activeMainTab !== 'monthlyView') return
     fetchPivotData()
-  }, [user?.orgId, selectedMonth, activeSubTab])
+  }, [user?.orgId, selectedMonth, activeMainTab])
 
   const navigateMonth = (direction) => {
     const [year, month] = selectedMonth.split('-').map(Number)
@@ -182,7 +185,6 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
             table { border-collapse: collapse; width: auto; font-size: 7px; table-layout: fixed; }
             th, td { border: 1px solid #e5e7eb !important; padding: 4px 2px !important; text-align: center; word-wrap: break-word; }
             th { font-weight: 900; text-transform: uppercase; color: #000 !important; }
-            /* This ensures names are black in the header blocks */
             th div { color: #000 !important; }
             th:not([class*="bg-"]) { background-color: #f9fafb !important; }
             @media print { 
@@ -215,103 +217,198 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
     const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `Summary_${selectedMonth}.csv`); document.body.appendChild(link); link.click()
   }
 
+  const handleDragStart = (e, index) => { setDraggedItem(index); e.dataTransfer.effectAllowed = 'move' }
+  const handleDragOver = (e, index) => { e.preventDefault(); if (draggedItem === null || draggedItem === index) return; const newList = [...displayOrder]; const item = newList.splice(draggedItem, 1)[0]; newList.splice(index, 0, item); setDisplayOrder(newList); setDraggedItem(index) }
+  const handleDragEnd = () => { setDraggedItem(null) }
+
   return (
     <div className="space-y-4 font-inter text-slate-900">
+      {/* Main Tabs Navigation */}
       <div className="flex gap-0 border-b border-gray-200">
-        <button onClick={() => setActiveSubTab('summary')} className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeSubTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Summary</button>
-        <button onClick={() => setActiveSubTab('monthlyView')} className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeSubTab === 'monthlyView' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Full Summary</button>
+        <button 
+          onClick={() => setActiveMainTab('summary')} 
+          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeMainTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+        >
+          Summary
+        </button>
+        <button 
+          onClick={() => setActiveMainTab('monthlyView')} 
+          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeMainTab === 'monthlyView' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+        >
+          Full Summary
+        </button>
       </div>
 
-      {activeSubTab === 'summary' && (
+      {/* Control Bar: Month Selection & Actions */}
+      <div className="bg-white px-3 h-[42px] rounded-lg border border-gray-200 shadow-sm flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigateMonth(-1)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"><ChevronLeft size={16} className="text-gray-600" /></button>
+          <div className="flex items-center bg-gray-50 rounded-md px-3 py-1 border border-gray-100 min-w-[140px] justify-center gap-2 h-7">
+            <Calendar size={14} className="text-gray-400" />
+            <span className="text-[12px] font-bold text-gray-700">{formatMonth(selectedMonth)}</span>
+          </div>
+          <button onClick={() => navigateMonth(1)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"><ChevronRight size={16} className="text-gray-600" /></button>
+          
+          {activeMainTab === 'monthlyView' && (
+            <div className="flex items-center gap-1.5 ml-4 pl-4 border-l border-gray-200">
+              <select value={selectedMonth.split('-')[1]} onChange={(e) => setSelectedMonth(`${selectedMonth.split('-')[0]}-${e.target.value}`)} className="h-7 px-1.5 bg-white border border-gray-300 rounded text-[11px] font-bold text-gray-700 outline-none">
+                {Array.from({ length: 12 }, (_, i) => { const m = String(i + 1).padStart(2, '0'); return <option key={m} value={m}>{new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'short' })}</option> })}
+              </select>
+              <select value={selectedMonth.split('-')[0]} onChange={(e) => setSelectedMonth(`${e.target.value}-${selectedMonth.split('-')[1]}`)} className="h-7 px-1.5 bg-white border border-gray-300 rounded text-[11px] font-bold text-gray-700 outline-none">
+                {Array.from({ length: 5 }, (_, i) => { const y = new Date().getFullYear() - 2 + i; return <option key={y} value={y}>{y}</option> })}
+              </select>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-1.5">
+          {activeMainTab === 'summary' && (
+            <button onClick={exportCSV} className="h-7 px-3 bg-indigo-600 text-white rounded-md text-[11px] font-black uppercase tracking-wider flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-sm"><Download size={12} /> Export CSV</button>
+          )}
+          {activeMainTab === 'monthlyView' && (
+            <>
+              <button onClick={() => setShowColumnSettings(true)} className="h-7 px-2.5 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[10px] font-bold text-gray-700 uppercase"><Filter size={12} /> Columns</button>
+              <button onClick={() => setShowOrderModal(true)} className="h-7 px-2.5 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[10px] font-bold text-gray-700 uppercase"><GripVertical size={12} /> Order</button>
+              <button onClick={exportPDF} className="h-7 px-3 bg-indigo-600 text-white rounded-md text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm"><Download size={12} /> Export PDF</button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {activeMainTab === 'summary' && (
         <div className="space-y-4">
-          <div className="bg-white px-3 h-[32px] rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button onClick={() => navigateMonth(-1)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><ChevronLeft size={14} className="text-gray-600" /></button>
-              <div className="flex items-center bg-gray-50 rounded-md px-2 py-0.5 border border-gray-100 min-w-[120px] justify-center gap-2 h-6"><Calendar size={12} className="text-gray-400" /><span className="text-[11px] font-bold text-gray-700">{formatMonth(selectedMonth)}</span></div>
-              <button onClick={() => navigateMonth(1)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><ChevronRight size={14} className="text-gray-600" /></button>
-            </div>
-            <button onClick={exportCSV} className="h-6 px-2 bg-indigo-600 text-white rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm"><Download size={10} /> Export CSV</button>
+          {/* Inner Sub-Tabs for Summary Tab */}
+          <div className="flex gap-2 p-1 bg-gray-100 rounded-xl w-fit">
+            <button 
+              onClick={() => setSummaryInnerTab('overview')} 
+              className={`flex items-center gap-2 px-6 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${summaryInnerTab === 'overview' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <BarChart3 size={14} /> Overview
+            </button>
+            <button 
+              onClick={() => setSummaryInnerTab('performance')} 
+              className={`flex items-center gap-2 px-6 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${summaryInnerTab === 'performance' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <Table size={14} /> Performance
+            </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(() => {
-              const filtered = summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance))
-              return [
-                { label: 'Avg. Attendance', value: `${Math.round(filtered.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (filtered.length || 1) * 100)}%`, color: 'blue', icon: BarChart3 },
-                { label: 'Total OT Logged', value: `${filtered.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'green', icon: Calendar },
-                { label: 'Total Absences', value: filtered.reduce((acc, curr) => acc + curr.absent, 0), color: 'red', icon: X }
-              ].map(stat => (
-                <div key={stat.label} className="bg-white p-4 border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-2 mb-1"><stat.icon size={16} className={`text-${stat.color}-600`} /><p className="text-[11px] font-medium text-gray-500">{stat.label}</p></div>
-                  <p className={`text-2xl font-semibold text-${stat.color}-600`}>{stat.value}</p>
+
+          <div className="animate-in fade-in duration-500">
+            {summaryInnerTab === 'overview' ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(() => {
+                    const filtered = summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance))
+                    return [
+                      { label: 'Avg. Attendance', value: `${Math.round(filtered.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (filtered.length || 1) * 100)}%`, color: 'blue', icon: BarChart3 },
+                      { label: 'Total OT Logged', value: `${filtered.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'green', icon: Calendar },
+                      { label: 'Total Absences', value: filtered.reduce((acc, curr) => acc + curr.absent, 0), color: 'red', icon: X }
+                    ].map(stat => (
+                      <div key={stat.label} className="bg-white p-6 border border-gray-200 shadow-sm rounded-xl">
+                        <div className="flex items-center gap-3 mb-2"><stat.icon size={20} className={`text-${stat.color}-600`} /><p className="text-[12px] font-bold text-gray-500 uppercase tracking-widest">{stat.label}</p></div>
+                        <p className={`text-3xl font-black text-${stat.color}-600 tracking-tight`}>{stat.value}</p>
+                      </div>
+                    ))
+                  })()}
                 </div>
-              ))
-            })()}
-          </div>
-          <div className="bg-white border border-gray-300 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 border-b border-gray-300">
-                    <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase border-r border-gray-300">Employee</th>
-                    <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Present</th>
-                    <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Absent</th>
-                    <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Hw</th>
-                    <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">OT Hours</th>
-                    <th className="px-4 py-1.5 text-[10px] font-black text-gray-700 uppercase text-right">Performance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {summaryLoading ? (<tr><td colSpan={6} className="text-center py-12 bg-gray-50"><Spinner /></td></tr>) : summaryData.length === 0 ? (<tr><td colSpan={6} className="text-center py-20 text-gray-400 text-sm italic">No activity data</td></tr>) : (
-                    summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance)).map(row => {
-                      const emp = employees.find(e => e.id === row.employeeId)
-                      const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
-                      return (
-                        <tr key={row.employeeId} className="hover:bg-gray-50 transition-colors h-[32px]">
-                          <td className="px-4 py-1 border-r border-gray-200"><div className="flex flex-col"><span className="text-[12px] font-bold text-gray-800 leading-none">{emp?.name || 'Deleted'}</span><span className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{emp?.department || 'Operations'}</span></div></td>
-                          <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-black">{row.present}D</span></td>
-                          <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-[10px] font-black">{row.absent}D</span></td>
-                          <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">{row.holidayWorked || 0}D</span></td>
-                          <td className="px-4 py-1 text-center border-r border-gray-200 font-inter font-normal text-[11px] text-gray-700">
-                            {Number(row.otHours || 0).toFixed(2)}
-                            {row.otAdjustment !== 0 && (
-                              <span className="text-green-600 ml-1 font-bold">({(Number(row.otHours || 0) + Number(row.otAdjustment || 0)).toFixed(2)})</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-1 text-right"><div className="flex flex-col items-end gap-0.5"><div className="w-20 h-1 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${pct > 80 ? 'bg-green-500' : pct > 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }}></div></div><span className="text-[8px] font-bold text-gray-400">{pct}%</span></div></td>
+
+                {/* Performance Table in Overview */}
+                <div className="space-y-3">
+                  <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Performance Summary</h3>
+                  <div className="bg-white border border-gray-300 shadow-sm overflow-hidden rounded-xl">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 border-b border-gray-300">
+                            <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase border-r border-gray-300">Employee</th>
+                            <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Present</th>
+                            <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Absent</th>
+                            <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Hw</th>
+                            <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">OT Hours</th>
+                            <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-right">Performance</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {summaryLoading ? (<tr><td colSpan={6} className="text-center py-12 bg-gray-50"><Spinner /></td></tr>) : summaryData.length === 0 ? (<tr><td colSpan={6} className="text-center py-20 text-gray-400 text-sm italic">No activity data</td></tr>) : (
+                            summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance)).map(row => {
+                              const emp = employees.find(e => e.id === row.employeeId)
+                              const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
+                              return (
+                                <tr key={row.employeeId} className="hover:bg-gray-50 transition-colors h-[36px]">
+                                  <td className="px-4 py-1 border-r border-gray-200"><div className="flex flex-col"><span className="text-[12px] font-bold text-gray-800 leading-none">{emp?.name || 'Deleted'}</span><span className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{emp?.department || 'Operations'}</span></div></td>
+                                  <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-black">{row.present}D</span></td>
+                                  <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-[10px] font-black">{row.absent}D</span></td>
+                                  <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">{row.holidayWorked || 0}D</span></td>
+                                  <td className="px-4 py-1 text-center border-r border-gray-200 font-inter font-normal text-[11px] text-gray-700">
+                                    {Number(row.otHours || 0).toFixed(2)}
+                                    {row.otAdjustment !== 0 && (
+                                      <span className="text-green-600 ml-1 font-bold">({(Number(row.otHours || 0) + Number(row.otAdjustment || 0)).toFixed(2)})</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-1 text-right"><div className="flex flex-col items-end gap-1"><div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200/50"><div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : pct > 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }}></div></div><span className="text-[10px] font-black text-gray-400">{pct}%</span></div></td>
+                                </tr>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Individual Employee Performance</h3>
+                <div className="bg-white border border-gray-300 shadow-sm overflow-hidden rounded-xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100 border-b border-gray-300">
+                          <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase border-r border-gray-300">Employee</th>
+                          <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Present</th>
+                          <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Absent</th>
+                          <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">Hw</th>
+                          <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-center border-r border-gray-300">OT Hours</th>
+                          <th className="px-4 py-2 text-[10px] font-black text-gray-700 uppercase text-right">Performance</th>
                         </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {summaryLoading ? (<tr><td colSpan={6} className="text-center py-12 bg-gray-50"><Spinner /></td></tr>) : summaryData.length === 0 ? (<tr><td colSpan={6} className="text-center py-20 text-gray-400 text-sm italic">No activity data</td></tr>) : (
+                          summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance)).map(row => {
+                            const emp = employees.find(e => e.id === row.employeeId)
+                            const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
+                            return (
+                              <tr key={row.employeeId} className="hover:bg-gray-50 transition-colors h-[36px]">
+                                <td className="px-4 py-1 border-r border-gray-200"><div className="flex flex-col"><span className="text-[12px] font-bold text-gray-800 leading-none">{emp?.name || 'Deleted'}</span><span className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{emp?.department || 'Operations'}</span></div></td>
+                                <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-black">{row.present}D</span></td>
+                                <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-[10px] font-black">{row.absent}D</span></td>
+                                <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">{row.holidayWorked || 0}D</span></td>
+                                <td className="px-4 py-1 text-center border-r border-gray-200 font-inter font-normal text-[11px] text-gray-700">
+                                  {Number(row.otHours || 0).toFixed(2)}
+                                  {row.otAdjustment !== 0 && (
+                                    <span className="text-green-600 ml-1 font-bold">({(Number(row.otHours || 0) + Number(row.otAdjustment || 0)).toFixed(2)})</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-1 text-right"><div className="flex flex-col items-end gap-1"><div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200/50"><div className={`h-full rounded-full transition-all duration-1000 ${pct > 80 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : pct > 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }}></div></div><span className="text-[10px] font-black text-gray-400">{pct}%</span></div></td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {activeSubTab === 'monthlyView' && (
-        <div className="space-y-1">
-          <div className="h-[32px] px-3 border border-gray-200 bg-gray-50 rounded-lg flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5">
-                <select value={selectedMonth.split('-')[1]} onChange={(e) => setSelectedMonth(`${selectedMonth.split('-')[0]}-${e.target.value}`)} className="h-6 px-1.5 bg-white border border-gray-300 rounded text-[10px] font-bold text-gray-700 outline-none">
-                  {Array.from({ length: 12 }, (_, i) => { const m = String(i + 1).padStart(2, '0'); return <option key={m} value={m}>{new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'short' })}</option> })}
-                </select>
-                <select value={selectedMonth.split('-')[0]} onChange={(e) => setSelectedMonth(`${e.target.value}-${selectedMonth.split('-')[1]}`)} className="h-6 px-1.5 bg-white border border-gray-300 rounded text-[10px] font-bold text-gray-700 outline-none">
-                  {Array.from({ length: 5 }, (_, i) => { const y = new Date().getFullYear() - 2 + i; return <option key={y} value={y}>{y}</option> })}
-                </select>
-                <button onClick={fetchPivotData} className="h-6 px-3 bg-gray-800 text-white rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-gray-900 transition-colors"><BarChart3 size={12} /> Show</button>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button onClick={() => setShowColumnSettings(true)} className="h-6 px-2 flex items-center gap-1 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[9px] font-bold text-gray-700 uppercase"><Filter size={10} /> Columns</button>
-              <button onClick={() => setShowOrderModal(true)} className="h-6 px-2 flex items-center gap-1 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[9px] font-bold text-gray-700 uppercase"><GripVertical size={10} /> Order</button>
-              <button onClick={exportPDF} className="h-6 px-3 bg-indigo-600 text-white rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-indigo-700 transition-colors shadow-sm"><Download size={12} /> Export PDF</button>
-            </div>
-          </div>
-          
-          {pivotLoading ? (<div className="text-center py-20 bg-gray-50 rounded-xl"><Spinner /></div>) : (
-            <div className="overflow-x-auto max-h-[calc(100vh-210px)] overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-sm">
+      {activeMainTab === 'monthlyView' && (
+        <div className="space-y-3 animate-in fade-in duration-500">
+          <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Detailed Daily Attendance Grid</h3>
+          {pivotLoading ? (<div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200 shadow-sm"><Spinner /></div>) : (
+            <div className="overflow-x-auto max-h-[calc(100vh-210px)] overflow-y-auto bg-white border border-gray-300 rounded-xl shadow-sm">
               {(() => {
                 const colW = { inTime: 56, outTime: 56, ot: 40, remarks: 52 }, gapW = 8
                 let blockW = 0

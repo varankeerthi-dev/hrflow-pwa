@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { initializeFirestore } from 'firebase/firestore'
+import { initializeFirestore, enableIndexedDbPersistence } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
@@ -19,6 +19,17 @@ export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 })
 export const storage = getStorage(app)
+
+// Enable offline persistence
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    // Multiple tabs open, persistence can only be enabled in one tab at a a time.
+    console.warn('Firestore persistence failed-precondition')
+  } else if (err.code === 'unimplemented') {
+    // The current browser does not support all of the features required to enable persistence
+    console.warn('Firestore persistence unimplemented')
+  }
+})
 
 // Secondary app for creating accounts without logging out the current admin
 const secondaryApp = initializeApp(firebaseConfig, 'SecondaryAccountCreator')
