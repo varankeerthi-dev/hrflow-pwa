@@ -312,7 +312,7 @@ export default function SalarySlipTab() {
         if (orgSnap.exists()) {
           const orgData = orgSnap.data()
           if (orgData.employeeRowOrder) setEmployeeRowOrder(orgData.employeeRowOrder)
-          if (orgData.logo) setOrgLogo(orgData.logo)
+          if (orgData.logoURL) setOrgLogo(orgData.logoURL)
         }
 
         if (userPrefSnap.exists()) {
