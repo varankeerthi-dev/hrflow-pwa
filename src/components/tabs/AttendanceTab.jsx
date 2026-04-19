@@ -8,7 +8,7 @@ import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
-import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
 
