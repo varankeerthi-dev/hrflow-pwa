@@ -12,6 +12,7 @@ import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
 import { useSidebar } from '../../contexts/SidebarContext'
+import JSZip from 'jszip'
 
 // --- HELPERS ---
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : Math.round(Number(val)).toLocaleString('en-IN');
@@ -194,28 +195,55 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
   <Document><Page size="A4" style={{ padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' }}>
-    <View style={{ borderBottomWidth: 2, borderBottomColor: '#4f46e5', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-      <View style={{flexDirection:'row', alignItems:'center'}}>
-        {orgLogo && <Image src={orgLogo} style={{width:40,height:40,marginRight:10}}/>}
-        <View><Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#0f172a' }}>{orgName}</Text><Text style={{fontSize:7, color:'#3b82f6', fontWeight: 'bold', marginTop:2}}>PAYROLL STATEMENT</Text></View>
+    <View style={{ border: '2pt solid #0f172a', padding: 20, flex: 1 }}>
+      <View style={{ borderBottomWidth: 2, borderBottomColor: '#3b82f6', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <View style={{flexDirection:'row', alignItems:'center'}}>
+          {orgLogo && <Image src={orgLogo} style={{width:40,height:40,marginRight:10}}/>}
+          <View><Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#3b82f6' }}>{orgName}</Text><Text style={{fontSize:7, color:'#64748b', fontWeight: 'bold', marginTop:2}}>PAYROLL STATEMENT</Text></View>
+        </View>
+        <View style={{textAlign:'right'}}><Text style={{fontSize:12, fontWeight: 'bold', color:'#0f172a'}}>PAYSLIP</Text><Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{formatMonthDisplay(data.month)}</Text></View>
       </View>
-      <View style={{textAlign:'right'}}><Text style={{fontSize:12, fontWeight: 'bold', color:'#0f172a'}}>PAYSLIP</Text><Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{formatMonthDisplay(data.month)}</Text></View>
-    </View>
-    <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:20}}>
-      <View style={{flex: 1}}>
-        <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>Employee Name</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.employee?.name}</Text></View>
-        <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>Employee ID</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.employee?.empCode}</Text></View>
-        <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>Designation</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.employee?.designation || '-'}</Text></View>
-        <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>No. of days Paid</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.paidDays}</Text></View>
-        <View style={{ flexDirection: 'row', marginBottom: 2 }}><Text style={{ width: 120, color: '#64748b', fontWeight: 'bold', fontSize: 10 }}>Worked Holidays</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 10 }}>: {data.holidayWorkedCount || 0}</Text></View>
+      <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:12}}>
+        <View style={{flex: 1}}>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Staff Name</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.employee?.name}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Employee ID</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.employee?.empCode}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Designation</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.employee?.designation || '-'}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>DOJ</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {formatDateDDMMYYYY(data.employee?.joinedDate)}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total days</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.totalMonthDays}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Net Payout</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {formatINR(data.netPay)}</Text></View>
+        </View>
+        <View style={{flex: 1, marginLeft: 20}}>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total worked days</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.workedDaysCount}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Leave taken</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.leaveCount || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>No. of Holidays</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.holidayCount || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Sunday Worked</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.sundayWorkedCount || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Holiday Worked</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.holidayWorkedCount || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total Pay days</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.paidDays}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>OT hours</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {Number(data.otHoursTotal || 0).toFixed(2)}</Text></View>
+        </View>
+      </View>
+      <View style={{borderWidth:1, borderColor:'#0f172a', borderRadius:4, overflow:'hidden'}}>
+        <View style={{flexDirection:'row'}}>
+          <View style={{flex:1, backgroundColor:'#dcfce7', color:'#166534', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#0f172a', flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>EARNINGS (CREDIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
+          <View style={{flex:1, backgroundColor:'#fee2e2', color:'#991b1b', paddingVertical:6, paddingHorizontal:8, flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>DEDUCTIONS (DEBIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
+        </View>
+        <View style={{flexDirection:'row'}}><View style={{flex:1, borderRightWidth:1, borderColor:'#e2e8f0'}}><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Basic Salary</Text><Text>{formatINR(data.basic)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>HRA</Text><Text>{formatINR(data.hra)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Sunday Worked</Text><Text>{formatINR(data.sundayPay)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Holiday Pay</Text><Text>{formatINR(data.holidayPay)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>OT Pay</Text><Text>{formatINR(data.otPay)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8}}><Text style={{fontWeight:'bold'}}>Expense</Text><Text>{formatINR(data.expenseReimbursement)}</Text></View></View><View style={{flex:1}}><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>PF</Text><Text>{dashIfZero(data.pf)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>ESI</Text><Text>{dashIfZero(data.esi)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Loan</Text><Text>{dashIfZero(data.loanEMI)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Fine</Text><Text>{dashIfZero(data.fineAmount)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8}}><Text style={{fontWeight:'bold'}}>Advance</Text><Text>{dashIfZero(data.advanceDeduction)}</Text></View></View></View>
+        <View style={{flexDirection:'row', borderTopWidth:1, borderColor:'#0f172a'}}>
+          <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8, borderRightWidth:1, borderColor:'#0f172a', backgroundColor:'#f0fdf4'}}>
+            <Text style={{fontWeight:'bold', color:'#166534'}}>GROSS PAY</Text>
+            <Text style={{fontWeight:'bold', color:'#166534'}}>{formatINR(data.grossEarnings)}</Text>
+          </View>
+          <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8, backgroundColor:'#fef2f2'}}>
+            <Text style={{fontWeight:'bold', color:'#991b1b'}}>TOTAL DED.</Text>
+            <Text style={{fontWeight:'bold', color:'#991b1b'}}>{formatINR(data.totalDeductions)}</Text>
+          </View>
+        </View>
+      </View>
+      <View style={{textAlign:'center', marginTop:20, borderTopWidth:1, borderColor:'#e2e8f0', borderStyle:'dashed', paddingTop:10}}>
+        <Text style={{fontSize:16, fontWeight:'bold'}}>{formatINR(data.netPay)}</Text>
+        <Text style={{fontSize:8, color:'#64748b', marginTop:4, textTransform:'uppercase', fontStyle:'italic'}}>Indian Rupee {numberToWords(data.netPay)} Only</Text>
       </View>
     </View>
-    <View style={{borderWidth:1, borderColor:'#0f172a', borderRadius:8, overflow:'hidden'}}>
-      <View style={{flexDirection:'row', backgroundColor:'#0f172a', color:'white', padding:8}}><Text style={{flex:1, fontSize:8, fontWeight:'bold'}}>EARNINGS</Text><Text style={{flex:1, textAlign:'right', fontSize:8, fontWeight:'bold'}}>DEDUCTIONS</Text></View>
-      <View style={{flexDirection:'row'}}><View style={{flex:1, borderRightWidth:1, borderColor:'#e2e8f0'}}><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>Basic Salary</Text><Text>{formatINR(data.basic)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>HRA</Text><Text>{formatINR(data.hra)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>Sunday Worked</Text><Text>{formatINR(data.sundayPay)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text>Holiday Pay</Text><Text>{formatINR(data.holidayPay)}</Text></View></View><View style={{flex:1}}><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>PF</Text><Text>{dashIfZero(data.pf)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text>ESI</Text><Text>{dashIfZero(data.esi)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', padding:8}}><Text>Advance Recovery</Text><Text>{dashIfZero(data.advanceDeduction)}</Text></View></View></View>
-      <View style={{flexDirection:'row', backgroundColor:'#f8fafc', borderTopWidth:1, borderColor:'#0f172a'}}><View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8, borderRightWidth:1, borderColor:'#0f172a'}}><Text style={{fontWeight:'bold'}}>GROSS PAY</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.grossEarnings)}</Text></View><View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8}}><Text style={{fontWeight:'bold'}}>TOTAL DED.</Text><Text style={{fontWeight:'bold'}}>{formatINR(data.totalDeductions)}</Text></View></View>
-    </View>
-    <View style={{textAlign:'center', marginTop:20, borderTopWidth:1, borderColor:'#e2e8f0', borderStyle:'dashed', paddingTop:10}}><Text style={{fontSize:16, fontWeight:'bold'}}>{formatINR(data.netPay)}</Text><Text style={{fontSize:8, color:'#64748b', marginTop:4, textTransform:'uppercase'}}>Indian Rupee {numberToWords(data.netPay)} Only</Text></View>
   </Page></Document>
 )
 
@@ -266,7 +294,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
   const [searchTerm, setSearchTerm] = useState(''); const [isOpen, setIsOpen] = useState(false); const dropdownRef = useRef(null);
   const filtered = useMemo(() => employees.filter(e => e.name.toLowerCase().includes(searchTerm.toLowerCase())), [employees, searchTerm]);
   useEffect(() => { const handleClickOutside = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false); }; document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); }, []);
-  return (<div className="relative w-full" ref={dropdownRef}><div className="w-full h-7 border rounded-sm px-2 flex items-center justify-between bg-white cursor-pointer" onClick={() => setIsOpen(!isOpen)}><span className="text-[11px] font-semibold">{employees.find(e => e.id === selectedId)?.name || 'Search Staff...'}</span><ChevronDown size={10} /></div>{isOpen && (<div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-sm shadow-2xl z-[100] p-2"><input autoFocus type="text" className="w-full h-8 border rounded px-2 text-xs mb-1" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />{filtered.map(e => (<button key={e.id} className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 uppercase font-bold text-[10px]" onClick={() => { onSelect(e.id); setIsOpen(false); }}>{e.name}</button>))}</div>)}</div>)
+  return (<div className="relative w-full" ref={dropdownRef}><div className="w-full h-7 border border-zinc-200 rounded-sm px-2 flex items-center justify-between bg-zinc-50 cursor-pointer" onClick={() => setIsOpen(!isOpen)}><span className="text-[11px] font-semibold text-zinc-900 capitalize">{employees.find(e => e.id === selectedId)?.name?.toLowerCase() || 'Search staff...'}</span><ChevronDown size={10} className="text-zinc-400" /></div>{isOpen && (<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-lg shadow-2xl z-[100] p-2 animate-in fade-in zoom-in-95 duration-150"><input autoFocus type="text" className="w-full h-8 border border-zinc-100 rounded-md px-2 text-[11px] mb-1 focus:outline-none focus:ring-1 focus:ring-zinc-200" placeholder="Type name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /><div className="max-h-60 overflow-auto">{filtered.map(e => (<button key={e.id} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-50 rounded-md capitalize font-medium text-zinc-700" onClick={() => { onSelect(e.id); setIsOpen(false); }}>{e.name.toLowerCase()}</button>))}</div></div>)}</div>)
 }
 
 // --- MAIN COMPONENT ---
@@ -291,6 +319,7 @@ export default function SalarySlipTab() {
   useEffect(() => { setGenerated(false); }, [selectedEmp, selectedMonth])
 
   const [advExpRows, setAdvExpRows] = useState([])
+  const [paySummaryDates, setPaySummaryDates] = useState({ sundays: [], holidays: [] })
   const [orgLogo, setOrgLogo] = useState('')
   const [orgData, setOrgData] = useState(null)
   const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
@@ -410,7 +439,12 @@ export default function SalarySlipTab() {
           else if (isPresent) worked++; 
           else if (!isS && !isH) lop++;
 
-          if (r?.otHours) { const [h, mi] = r.otHours.split(':').map(Number); otH += (h || 0) + (mi || 0) / 60 }
+          if (r?.otHours) { 
+            const [h, mi] = r.otHours.split(':').map(Number); 
+            const totalMins = (h || 0) * 60 + (mi || 0);
+            const roundedMins = Math.ceil(totalMins / 5) * 5;
+            otH += roundedMins / 60;
+          }
         }
         const slab = increments?.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20 };
         const ts = Number(slab.totalSalary) || 0, paidDays = end - lop, dailyRate = ts / end, fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
@@ -560,44 +594,60 @@ export default function SalarySlipTab() {
       setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })))
       const adv = allAE.filter(a => a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0)
       
-      let paid = 0, lop = 0, aOT = 0, sun = 0, sunW = 0, hol = 0, holW = 0
+      let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, aOT = 0, sunCount = 0, holCount = 0
+      const sunDates = [], holDates = []
+
       for (let i = 1; i <= end; i++) {
         const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(ds) && !isS, r = attByDate.get(ds), status = String(r?.status || '').toLowerCase()
-        if (isS) sun++
-        if (isH) hol++
         if (emp.joinedDate && ds < emp.joinedDate) continue;
+        if (isS) sunCount++
+        if (isH) holCount++
+        
+        const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
+        const isHD = status === 'half-day' || r?.isHalfDay
 
         if (status === 'absent' || r?.isAbsent) lop++; 
-        else if (status === 'half-day' || r?.isHalfDay) { lop += 0.5; paid += 0.5 } 
-        else if (status === 'leave') paid++;
-        else if (isS) { if (r?.sundayWorked || status === 'sunworked' || isWorkedAttendanceRecord(r)) { sunW++; paid++ } }
-        else if (isH) { if (r?.holidayWorked || status === 'worked' || isWorkedAttendanceRecord(r)) { holW++; paid++ } }
-        else if (r && (status === 'worked' || status === 'present' || r.checkIn)) paid++; 
+        else if (isHD) { 
+          hd++; lop += 0.5; 
+          if (isS) { sunW += 0.5; sunDates.push(i); } else if (isH) { holW += 0.5; holDates.push(i); } else worked += 0.5;
+        } 
+        else if (status === 'leave') leave++;
+        else if (isS) { if (isPresent) { sunW++; sunDates.push(i); } }
+        else if (isH) { if (isPresent) { holW++; holDates.push(i); } }
+        else if (isPresent) worked++; 
         else if (!isS && !isH) lop++;
 
-        if (r?.otHours) { const [h, mi] = r.otHours.split(':').map(Number); aOT += (h || 0) + (mi || 0) / 60 }
+        if (r?.otHours) { 
+          const [h, mi] = r.otHours.split(':').map(Number); 
+          const totalMins = (h || 0) * 60 + (mi || 0);
+          const roundedMins = Math.ceil(totalMins / 5) * 5;
+          aOT += roundedMins / 60;
+        }
       }
 
-      const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0), fineA = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, f) => s + Number(f.amount), 0)
-      const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment) : 0, dailyRate = ts / end, otP = (aOT + otAdj) * (dailyRate / 8), fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
-      const b = fullBasic * (paid / end), h = fullHra * (paid / end), p = ts * (slab.pfPercent / 100), e = ts * (slab.esiPercent / 100)
+      setPaySummaryDates({ sundays: sunDates, holidays: holDates })
+
+      const paidDaysValue = end - lop;
+      const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0), fineA = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, f) => s + Number(f.amount || 0), 0)
+      const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment || 0) : 0, dailyRate = ts / end, otP = (aOT + otAdj) * (dailyRate / 8), fullBasic = ts * (Number(slab.basicPercent || 0) / 100), fullHra = ts * (Number(slab.hraPercent || 0) / 100)
+      const b = fullBasic * (paidDaysValue / end), h = fullHra * (paidDaysValue / end), p = ts * (Number(slab.pfPercent || 0) / 100), e = ts * (Number(slab.esiPercent || 0) / 100)
       const holP = holW * dailyRate
-      const gross = b + h + (sunW * dailyRate) + holP + otP + reimb, ded = p + e + emi + adv + fineA
-      const workedDaysRegular = paid - sunW - holW; 
+      const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0) + (reimb || 0), ded = (p || 0) + (e || 0) + (emi || 0) + (adv || 0) + (fineA || 0)
 
       setSlipData({ 
         employee: emp, month: selectedMonth, slab, 
-        paidDays: paid, lopDays: lop, 
-        otPay: otP, otHoursTotal: (aOT + otAdj),
-        basic: b, hra: h, basicFull: fullBasic, hraFull: fullHra, 
-        expenseReimbursement: reimb, 
-        sundayPay: sunW * dailyRate, sundayWorkedCount: sunW,
-        holidayPay: holP, holidayWorkedCount: holW, 
-        grossEarnings: gross, pf: p, esi: e, advanceDeduction: adv, 
-        loanEMI: emi, fineAmount: fineA, totalDeductions: ded, 
-        netPay: Math.max(0, gross - ded), 
-        sundayCount: sun, holidayCount: hol,
-        totalMonthDays: end, workedDaysCount: workedDaysRegular
+        paidDays: paidDaysValue, lopDays: lop, 
+        otPay: otP || 0, otHoursTotal: (aOT + otAdj) || 0,
+        basic: b || 0, hra: h || 0, basicFull: fullBasic || 0, hraFull: fullHra || 0, 
+        expenseReimbursement: reimb || 0, 
+        sundayPay: (sunW * dailyRate) || 0, sundayWorkedCount: sunW || 0,
+        holidayPay: holP || 0, holidayWorkedCount: holW || 0, 
+        grossEarnings: gross || 0, pf: p || 0, esi: e || 0, advanceDeduction: adv || 0, 
+        loanEMI: emi || 0, fineAmount: fineA || 0, totalDeductions: ded || 0, 
+        netPay: Math.max(0, (gross || 0) - (ded || 0)), 
+        sundayCount: sunCount || 0, holidayCount: holCount || 0,
+        totalMonthDays: end, workedDaysCount: worked || 0,
+        leaveCount: leave || 0
       })
       setGenerated(true)
     } catch (e) { alert(e.message) } finally { setLoading(false) }
@@ -621,6 +671,47 @@ export default function SalarySlipTab() {
   }
   const handleExportSalarySlipPdf = async () => { if (!slipData) return; setExportingSlipPdf(true); try { const blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />).toBlob(); downloadPdfBlob(blob, `Slip_${slipData.employee.name}.pdf`); } finally { setExportingSlipPdf(false); } }
 
+  const [downloadAllLoading, setDownloadAllLoading] = useState(false)
+  const handleDownloadAllZipped = async () => {
+    if (!attendanceSummaryData.length) return;
+    setDownloadAllLoading(true);
+    try {
+      const zip = new JSZip();
+      for (const empSummary of attendanceSummaryData) {
+        const emp = employees.find(e => e.id === empSummary.id);
+        const slab = increments?.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, pfPercent: 0, esiPercent: 0 };
+        
+        const data = {
+          employee: emp, month: summaryMonth, slab,
+          paidDays: empSummary.paidDays, lopDays: empSummary.lop,
+          otPay: empSummary.otPay, otHoursTotal: (empSummary.ot + empSummary.otAdjustment),
+          basic: empSummary.basic, hra: empSummary.hra, basicFull: empSummary.fullBasic, hraFull: empSummary.fullHra,
+          expenseReimbursement: empSummary.expenseAmount,
+          sundayPay: empSummary.sunPay, sundayWorkedCount: empSummary.sunW,
+          holidayPay: empSummary.holPay, holidayWorkedCount: empSummary.holW,
+          grossEarnings: empSummary.totalEarnings, pf: empSummary.pf, esi: empSummary.esi, advanceDeduction: empSummary.advanceAmount,
+          loanEMI: empSummary.loanE, fineAmount: empSummary.fine, totalDeductions: empSummary.totalDeductions,
+          netPay: empSummary.salary.net,
+          sundayCount: empSummary.sunday, holidayCount: empSummary.holidays,
+          totalMonthDays: empSummary.totalDays, workedDaysCount: empSummary.worked,
+          leaveCount: empSummary.leave
+        };
+
+        const blob = await pdf(<SalarySlipPDF data={data} orgName={user?.orgName} orgLogo={orgLogo} />).toBlob();
+        zip.file(`SalarySlip_${emp.name.replace(/\s+/g, '_')}_${summaryMonth}.pdf`, blob);
+      }
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `SalarySlips_${user?.orgName}_${summaryMonth}.zip`;
+      link.click();
+    } catch (e) { console.error(e); alert('Error generating ZIP'); } finally { setDownloadAllLoading(false); }
+  }
+
+  const handleOpenGmail = () => {
+    window.open('https://mail.google.com', '_blank');
+  }
+
   return (
     <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden flex-col">
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
@@ -631,41 +722,115 @@ export default function SalarySlipTab() {
       <div className="flex-1 p-6 overflow-hidden flex flex-col">
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto w-full space-y-4 h-full flex flex-col overflow-hidden">
-            <div className="flex gap-6 items-end shrink-0 mb-2 mt-1">
+            <div className="flex gap-4 items-end shrink-0 mb-2 mt-1">
               <div className="flex-1 max-w-xs">
                 <EmployeeSearchableDropdown employees={sortedEmployees} selectedId={selectedEmp} onSelect={setSelectedEmp} />
               </div>
               <div className="w-32">
                 <input type="month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="w-full h-7 border-b border-gray-200 text-sm font-normal focus:border-blue-600 outline-none bg-transparent"/>
               </div>
-              <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-6 bg-zinc-800 text-white rounded-sm text-xs font-normal uppercase tracking-widest hover:bg-green-600 active:scale-95 transition-all flex items-center gap-2">
-                {generated && <CheckCircle2 size={12} />}
-                {generated ? 'Advice Generated' : 'Generate Advice'}
-              </button>
+              <div className="flex gap-2">
+                <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-4 bg-zinc-800 text-white rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-green-600 active:scale-95 transition-all flex items-center gap-2">
+                  {generated && <CheckCircle2 size={12} />}
+                  {generated ? 'Advice Generated' : 'Generate'}
+                </button>
+                <button onClick={handleDownloadAllZipped} disabled={downloadAllLoading || !attendanceSummaryData.length} className="h-7 px-4 border border-zinc-200 bg-white text-zinc-900 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-50 active:scale-95 transition-all flex items-center gap-2">
+                  {downloadAllLoading ? <RefreshCw size={12} className="animate-spin" /> : <Download size={12} />}
+                  {downloadAllLoading ? 'Processing...' : 'Download All (ZIP)'}
+                </button>
+                <button onClick={handleOpenGmail} className="h-7 px-4 border border-red-100 bg-red-50 text-red-600 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 active:scale-95 transition-all flex items-center gap-2">
+                  <Plus size={12} className="rotate-45" /> Send to Mail
+                </button>
+              </div>
             </div>
             {slipData && (
               <div className="flex-1 overflow-hidden flex gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex-1 min-w-0 bg-white rounded-[24px] overflow-hidden flex flex-col h-full print-area" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
                   <div className="flex justify-end gap-2 p-3 no-print shrink-0"><button onClick={() => window.print()} className="h-7 bg-white border border-zinc-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-zinc-50"><Download size={12}/> Print</button><button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-7 bg-white border border-zinc-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-zinc-50"><Download size={12}/> PDF</button></div>
-                  <div className="p-8 bg-white overflow-auto flex-1">
+                  <div className="p-8 bg-white overflow-auto flex-1 border-[3px] border-zinc-900 rounded-[24px] m-4">
                     <div className="border-b border-zinc-200 pb-4 mb-6 flex justify-between items-start">
                       <div className="flex items-center gap-4">
                         {orgLogo && <img src={orgLogo} alt="Logo" className="w-12 h-12 object-contain" />}
-                        <h1 className="text-2xl font-normal uppercase tracking-tight text-zinc-900">{user?.orgName}</h1>
+                        <h1 className="text-2xl font-black uppercase tracking-tight text-blue-600">{user?.orgName}</h1>
                       </div>
                       <div className="text-right">
                         <h2 className="text-lg font-normal uppercase italic text-zinc-500">Salary Slip</h2>
                         <p className="text-[9px] font-normal text-zinc-600 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-100 uppercase mt-1">{formatMonthDisplay(slipData.month)}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-8">
-                      {[{l:'Staff Name',v:slipData.employee?.name},{l:'Paid Days',v:slipData.paidDays},{l:'Designation',v:slipData.employee?.designation || '-'},{l:'Worked Holidays',v:slipData.holidayWorkedCount || 0},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-1.5"><span className="text-[12px] font-normal text-slate-400 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-0.5 mb-6">
+                      <div className="space-y-0.5">
+                        {[{l:'Staff Name',v:slipData.employee?.name},{l:'Employee ID',v:slipData.employee?.empCode},{l:'Designation',v:slipData.employee?.designation || '-'},{l:'DOJ',v:formatDateDDMMYYYY(slipData.employee?.joinedDate)},{l:'Total days',v:slipData.totalMonthDays},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                      </div>
+                      <div className="space-y-0.5">
+                        {[{l:'Total worked days',v:slipData.workedDaysCount},{l:'Leave taken',v:slipData.leaveCount || 0},{l:'No. of Holidays',v:slipData.holidayCount || 0},{l:'Sunday Worked',v:slipData.sundayWorkedCount},{l:'Holiday Worked',v:slipData.holidayWorkedCount},{l:'Total Pay days',v:slipData.paidDays},{l:'OT hours',v:slipData.otHoursTotal.toFixed(2)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                      </div>
                     </div>
-                    <div className="border border-zinc-100 rounded-[20px] overflow-hidden mb-6"><div className="grid grid-cols-2 bg-zinc-50 font-normal text-[9px] uppercase tracking-widest text-zinc-900 border-b border-zinc-100"><div className="p-3 border-r border-zinc-100"><span>Earnings (Credit)</span></div><div className="p-3"><span>Deductions (Debit)</span></div></div><div className="grid grid-cols-2 divide-x divide-zinc-100 bg-white"><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px] font-normal">Basic Salary<span>{formatINR(slipData.basic)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">HRA<span>{formatINR(slipData.hra)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Sunday Worked<span>{formatINR(slipData.sundayPay)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Holiday Pay<span>{formatINR(slipData.holidayPay)}</span></div></div><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px] font-normal">PF Contribution<span>{dashIfZero(slipData.pf)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">ESI Contribution<span>{dashIfZero(slipData.esi)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Advance Recovery<span className="text-zinc-900">{dashIfZero(slipData.advanceDeduction)}</span></div></div></div></div>
-                    <div className="text-center pt-4 border-t border-dashed border-zinc-200"><p className="text-[9px] font-normal text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 inline-block shadow-sm font-normal text-[18px] text-zinc-900">{formatINR(slipData.netPay)}</div></div>
+                    <div className="border border-zinc-900 rounded-lg overflow-hidden mb-6">
+                      <div className="grid grid-cols-2 font-black text-[9px] uppercase tracking-widest border-b border-zinc-900">
+                        <div className="p-3 border-r border-zinc-900 bg-green-50 text-green-800 flex justify-between"><span>Earnings (Credit)</span><span>Amount</span></div>
+                        <div className="p-3 bg-red-50 text-red-800 flex justify-between"><span>Deductions (Debit)</span><span>Amount</span></div>
+                      </div>
+                      <div className="grid grid-cols-2 divide-x divide-zinc-900 bg-white"><div className="p-1 space-y-0.5"><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Basic Salary</span><span>{formatINR(slipData.basic)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">HRA</span><span>{formatINR(slipData.hra)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Sunday Worked</span><span>{formatINR(slipData.sundayPay)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Holiday Pay</span><span>{formatINR(slipData.holidayPay)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">OT Pay</span><span>{formatINR(slipData.otPay)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Expense</span><span>{formatINR(slipData.expenseReimbursement)}</span></div></div><div className="p-1 space-y-0.5"><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">PF Contribution</span><span>{dashIfZero(slipData.pf)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">ESI Contribution</span><span>{dashIfZero(slipData.esi)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Loan</span><span>{dashIfZero(slipData.loanEMI)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Fine</span><span>{dashIfZero(slipData.fineAmount)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Advance</span><span className="text-zinc-900">{dashIfZero(slipData.advanceDeduction)}</span></div></div></div>
+                      <div className="grid grid-cols-2 border-t border-zinc-900">
+                        <div className="flex justify-between p-3 bg-green-50 border-r border-zinc-900"><span className="text-[10px] font-bold text-green-800 uppercase">Gross Pay</span><span className="text-[12px] font-bold text-green-800">{formatINR(slipData.grossEarnings)}</span></div>
+                        <div className="flex justify-between p-3 bg-red-50"><span className="text-[10px] font-bold text-red-800 uppercase">Total Ded.</span><span className="text-[12px] font-bold text-red-800">{formatINR(slipData.totalDeductions)}</span></div>
+                      </div>
+                    </div>
+                    <div className="text-center pt-4 border-t border-dashed border-zinc-200"><p className="text-[9px] font-normal text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 inline-block shadow-sm font-normal text-[18px] text-zinc-900">{formatINR(slipData.netPay)}</div><p className="text-[10px] italic text-zinc-500 mt-3 uppercase tracking-tight">Indian Rupee {numberToWords(slipData.netPay)} Only</p></div>
                   </div>
                 </div>
-                <div className="w-[340px] shrink-0 bg-white border border-zinc-100 rounded-[24px] overflow-hidden flex flex-col h-full shadow-sm"><div className="p-4 bg-zinc-50 border-b border-zinc-100 font-normal uppercase text-[12px] tracking-widest">Monthly Vouchers</div><div className="p-3 overflow-auto flex-1"><table className="w-full text-left text-[10px]"><thead><tr className="text-slate-400 uppercase font-normal"><th className="pb-2 font-normal">Date</th><th className="pb-2 font-normal">Type</th><th className="pb-2 text-right font-normal">Amount</th></tr></thead><tbody className="divide-y divide-zinc-50">{advExpRows.length===0?(<tr><td colSpan={3} className="py-10 text-center text-slate-300 uppercase italic">No records found</td></tr>):(advExpRows.map((r,i)=>(<tr key={i} className="hover:bg-zinc-50"><td className="py-2.5">{formatDateDDMMYYYY(r.date)}</td><td className="py-2.5 uppercase font-normal text-zinc-600">{r.type}</td><td className="py-2.5 text-right font-normal text-zinc-900">{formatINR(r.amount)}</td></tr>)))}</tbody></table></div></div>
+                <div className="w-[340px] shrink-0 bg-white border border-zinc-200 rounded-[24px] overflow-hidden flex flex-col h-full shadow-sm">
+                  <div className="p-4 bg-zinc-50 border-b border-zinc-100 font-bold uppercase text-[11px] tracking-[0.1em] text-zinc-600">Period Summary</div>
+                  <div className="p-5 flex-1 overflow-auto space-y-8">
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-1.5 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                        <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">Sunday Worked (Dates)</span>
+                        <div className="flex flex-wrap gap-1">
+                          {paySummaryDates.sundays.length > 0 ? paySummaryDates.sundays.map(d => (
+                            <span key={d} className="bg-white border border-indigo-200 text-indigo-700 font-bold text-[10px] w-6 h-6 flex items-center justify-center rounded-md shadow-sm">{d}</span>
+                          )) : <span className="text-[10px] italic text-slate-400">None</span>}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5 p-3 bg-amber-50/50 rounded-xl border border-amber-100/50">
+                        <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider">Holiday Worked (Dates)</span>
+                        <div className="flex flex-wrap gap-1">
+                          {paySummaryDates.holidays.length > 0 ? paySummaryDates.holidays.map(d => (
+                            <span key={d} className="bg-white border border-amber-200 text-amber-700 font-bold text-[10px] w-6 h-6 flex items-center justify-center rounded-md shadow-sm">{d}</span>
+                          )) : <span className="text-[10px] italic text-slate-400">None</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Monthly Vouchers</span>
+                      <div className="border border-zinc-100 rounded-xl overflow-hidden shadow-sm">
+                        <table className="w-full text-left text-[10px]">
+                          <thead>
+                            <tr className="bg-zinc-50/50 text-slate-400 uppercase font-black tracking-tighter border-b border-zinc-100">
+                              <th className="p-2.5 font-bold">Date</th>
+                              <th className="p-2.5 font-bold">Type</th>
+                              <th className="p-2.5 text-right font-bold">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-50 bg-white">
+                            {advExpRows.length === 0 ? (
+                              <tr><td colSpan={3} className="py-8 text-center text-slate-300 uppercase font-bold text-[9px] tracking-widest italic bg-white">No vouchers found</td></tr>
+                            ) : (
+                              advExpRows.map((r, i) => (
+                                <tr key={i} className="hover:bg-zinc-50 transition-colors">
+                                  <td className="p-2.5 font-medium text-slate-500">{formatDateDDMMYYYY(r.date)}</td>
+                                  <td className="p-2.5"><span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase border ${r.type==='Advance'?'bg-red-50 text-red-600 border-red-100':'bg-green-50 text-green-600 border-green-100'}`}>{r.type}</span></td>
+                                  <td className="p-2.5 text-right font-black text-zinc-900">{formatINR(r.amount)}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
