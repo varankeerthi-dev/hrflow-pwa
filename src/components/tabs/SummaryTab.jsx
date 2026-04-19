@@ -152,8 +152,14 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
   const formatMonth = (m) => new Date(m.split('-')[0], parseInt(m.split('-')[1]) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   const getStatusBadge = (att, day, emp, holidays = []) => {
-    if (!att) return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
     const [y, m] = selectedMonth.split('-').map(Number), ds = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const isBeforeJoined = emp.joinedDate && ds < emp.joinedDate;
+    
+    if (isBeforeJoined) {
+      return { bg: 'bg-red-50', text: 'Absent', color: 'text-red-600', type: 'absent' }
+    }
+    
+    if (!att) return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
     const isSun = new Date(y, m - 1, day).getDay() === 0, isHol = holidays.some(h => h.date === ds)
     if (att.sundayWorked) return { bg: 'bg-amber-50', text: 'SW', color: 'text-amber-600', type: 'sunworked' }
     if (att.isAbsent || isHol || isSun) {

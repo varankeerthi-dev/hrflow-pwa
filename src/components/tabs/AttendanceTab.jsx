@@ -469,6 +469,47 @@ export default function AttendanceTab() {
   const [showOutTimePicker, setShowOutTimePicker] = useState(null)
   const [validationErrors, setValidationErrors] = useState({})
 
+  const [fixingHistory, setFixingHistory] = useState(false)
+
+  const handleFixHistory = async () => {
+    if (!user?.orgId || !reportData.length) return
+    if (!window.confirm("This will mark all records before an employee's joining date as 'Absent' in the CURRENT report range. Continue?")) return
+    
+    setFixingHistory(true)
+    try {
+      const updates = []
+      for (const row of reportData) {
+        const emp = employees.find(e => e.id === row.employeeId)
+        if (emp && emp.joinedDate && row.date < emp.joinedDate && row.status !== 'Absent') {
+          // Prepare update
+          updates.push({
+            ...row,
+            status: 'Absent',
+            isAbsent: true,
+            inTime: '',
+            outTime: '',
+            otHours: '00:00'
+          })
+        }
+      }
+      
+      if (updates.length > 0) {
+        // Break into chunks of 50 for upsertAttendance if needed, 
+        // but upsertAttendance already handles the records array.
+        await upsertAttendance(updates)
+        alert(`Successfully fixed ${updates.length} records in the current range.`)
+        handleFilterSubmit()
+      } else {
+        alert("No records found that need fixing in the current report range.")
+      }
+    } catch (err) {
+      console.error('Error fixing history:', err)
+      alert("Error fixing history: " + err.message)
+    } finally {
+      setFixingHistory(false)
+    }
+  }
+
   const handleFilterSubmit = async () => {
     setReportLoading(true)
     try {
@@ -617,23 +658,26 @@ export default function AttendanceTab() {
       return
     }
     
-    const newRows = activeEmployees.map(emp => ({
-      employeeId: emp.id,
-      name: emp.name,
-      date: selectedDate,
-      inDate: selectedDate,
-      inTime: '',
-      outDate: selectedDate,
-      outTime: '',
-      otHours: '00:00',
-      remarks: emp.site || '',
-      isAbsent: false,
-      sundayWorked: false,
-      sundayHoliday: false,
-      shiftType: 'Day',
-      status: 'Present',
-      minDailyHours: emp.minDailyHours || 8
-    }))
+    const newRows = activeEmployees.map(emp => {
+      const isBeforeJoined = emp.joinedDate && selectedDate < emp.joinedDate;
+      return {
+        employeeId: emp.id,
+        name: emp.name,
+        date: selectedDate,
+        inDate: selectedDate,
+        inTime: '',
+        outDate: selectedDate,
+        outTime: '',
+        otHours: '00:00',
+        remarks: emp.site || '',
+        isAbsent: isBeforeJoined,
+        sundayWorked: false,
+        sundayHoliday: false,
+        shiftType: 'Day',
+        status: isBeforeJoined ? 'Absent' : 'Present',
+        minDailyHours: emp.minDailyHours || 8
+      };
+    })
     setRows(newRows)
     setHasGenerated(true)
   }
@@ -1207,6 +1251,14 @@ export default function AttendanceTab() {
                     className="h-9 px-3 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold uppercase tracking-wider hover:bg-gray-200 transition-all flex items-center gap-2"
                   >
                     <Calendar size={14} /> Last 30 Days
+                  </button>
+                  <button
+                    onClick={handleFixHistory}
+                    disabled={reportLoading || fixingHistory || !reportData.length}
+                    className="h-9 px-3 bg-red-50 text-red-600 border border-red-100 rounded-lg text-xs font-semibold uppercase tracking-wider hover:bg-red-100 transition-all flex items-center gap-2"
+                  >
+                    {fixingHistory ? <Spinner size="w-3 h-3" color="text-red-600" /> : <AlertCircle size={14} />}
+                    Fix Joining History
                   </button>
                   <button
                     onClick={handleFilterSubmit}

@@ -421,7 +421,12 @@ export default function SalarySlipTab() {
         let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
         for (let i = 1; i <= end; i++) {
           const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(dateStr) && !isS, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
-          if (emp.joinedDate && dateStr < emp.joinedDate) continue;
+          
+          if (emp.joinedDate && dateStr < emp.joinedDate) {
+            lop++;
+            continue;
+          }
+          
           if (isS) sunCount++
           if (isH) holCount++
           
@@ -600,7 +605,12 @@ export default function SalarySlipTab() {
 
       for (let i = 1; i <= end; i++) {
         const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(ds) && !isS, r = attByDate.get(ds), status = String(r?.status || '').toLowerCase()
-        if (emp.joinedDate && ds < emp.joinedDate) continue;
+        
+        if (emp.joinedDate && ds < emp.joinedDate) {
+          lop++;
+          continue;
+        }
+        
         if (isS) sunCount++
         if (isH) holCount++
         
