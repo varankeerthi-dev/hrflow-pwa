@@ -600,6 +600,7 @@ export default function SalarySlipTab() {
         totalMonthDays: end, workedDaysCount: workedDaysRegular
       })
       setGenerated(true)
+    } catch (e) { alert(e.message) } finally { setLoading(false) }
   }
 
   const handleExportDetailedSummaryPdf = async () => { 
