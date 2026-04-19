@@ -312,6 +312,7 @@ export default function SalarySlipTab() {
         if (orgSnap.exists()) {
           const orgData = orgSnap.data()
           if (orgData.employeeRowOrder) setEmployeeRowOrder(orgData.employeeRowOrder)
+          if (orgData.logo) setOrgLogo(orgData.logo)
         }
 
         if (userPrefSnap.exists()) {
@@ -614,14 +615,17 @@ export default function SalarySlipTab() {
       <div className="flex-1 p-6 overflow-hidden flex flex-col">
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto w-full space-y-4 h-full flex flex-col overflow-hidden">
-            <div className="flex gap-6 items-end shrink-0 mb-2 mt-[-10px]">
+            <div className="flex gap-6 items-end shrink-0 mb-2 mt-1">
               <div className="flex-1 max-w-xs">
                 <EmployeeSearchableDropdown employees={sortedEmployees} selectedId={selectedEmp} onSelect={setSelectedEmp} />
               </div>
               <div className="w-32">
-                <input type="month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="w-full h-7 border-b border-gray-200 text-sm font-normal focus:border-zinc-800 outline-none bg-transparent"/>
+                <input type="month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="w-full h-7 border-b border-gray-200 text-sm font-normal focus:border-blue-600 outline-none bg-transparent"/>
               </div>
-              <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-6 bg-zinc-800 text-white rounded-lg text-xs font-normal uppercase tracking-widest hover:bg-zinc-900 active:scale-95 transition-all">Generate Advice</button>
+              <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-6 bg-zinc-800 text-white rounded-sm text-xs font-normal uppercase tracking-widest hover:bg-green-600 active:scale-95 transition-all flex items-center gap-2">
+                {generated && <CheckCircle2 size={12} />}
+                {generated ? 'Advice Generated' : 'Generate Advice'}
+              </button>
             </div>
             {slipData && (
               <div className="flex-1 overflow-hidden flex gap-4 animate-in fade-in slide-in-from-bottom-2">
