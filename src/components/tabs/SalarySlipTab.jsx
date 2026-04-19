@@ -285,7 +285,11 @@ export default function SalarySlipTab() {
   const [summarySubTab, setSummarySubTab] = useState('overview')
   const [summaryFilterEmpId, setSummaryFilterEmpId] = useState('')
   const [loading, setLoading] = useState(false)
+  const [generated, setGenerated] = useState(false)
   const [slipData, setSlipData] = useState(null)
+
+  useEffect(() => { setGenerated(false); }, [selectedEmp, selectedMonth])
+
   const [advExpRows, setAdvExpRows] = useState([])
   const [orgLogo, setOrgLogo] = useState('')
   const [orgData, setOrgData] = useState(null)
@@ -604,7 +608,7 @@ export default function SalarySlipTab() {
     <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden flex-col">
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-2"><div className="text-[10px] font-normal uppercase text-slate-400 mr-4 tracking-widest">Payroll</div>
-          <nav className="flex gap-1">{[{id:'salary-summary',i:<FileText size={16}/>,l:'Summary'},{id:'salary-slip',i:<Banknote size={16}/>,l:'Generator'},{id:'loan',i:<Wallet size={16}/>,l:'Loans'}].map(t=>(<button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-normal transition-all ${activeTab===t.id?'text-blue-600 bg-blue-50/50':'text-slate-500 hover:bg-zinc-100'}`}>{t.i}{t.l}</button>))}</nav>
+          <nav className="flex gap-1">{[{id:'salary-summary',i:<FileText size={16}/>,l:'Summary'},{id:'salary-slip',i:<Banknote size={16}/>,l:'Generator'},{id:'loan',i:<Wallet size={16}/>,l:'Loans'}].map(t=>(<button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-normal transition-all ${activeTab===t.id?'text-blue-600 bg-transparent':'text-slate-500 hover:bg-zinc-100'}`}>{t.i}{t.l}</button>))}</nav>
         </div>
       </div>
       <div className="flex-1 p-6 overflow-hidden flex flex-col">
