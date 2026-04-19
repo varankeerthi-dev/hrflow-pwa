@@ -65,8 +65,8 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'basicPaid', label: 'Basic (Paid)', width: 60 },
   { id: 'hraPaid', label: 'HRA (Paid)', width: 60 },
   { id: 'salaryPaid', label: 'Earnings (Paid)', width: 60 },
-  { id: 'sundayPay', label: 'Sunday\npay', width: 52 },
-  { id: 'holidayPay', label: 'Holiday\npay', width: 52 },
+  { id: 'sundayPay', label: 'Sunday\npay', width: 50 },
+  { id: 'holidayPay', label: 'Holiday\npay', width: 50 },
   { id: 'otPay', label: 'OT\npay', width: 52 },
   { id: 'earnings', label: 'Gross earnings', width: 70 },
   { id: 'pf', label: 'PF', width: 45 },
@@ -293,25 +293,33 @@ export default function SalarySlipTab() {
   const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
   const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map(c => c.id))
   const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
+  const [employeeRowOrder, setEmployeeRowOrder] = useState([])
   const columnPickerRef = useRef(null)
 
   useEffect(() => {
     if (!user?.orgId || !user?.uid) return
     const fetchUserSettings = async () => {
       try {
-        const userPrefSnap = await getDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid))
+        const [userPrefSnap, orgSnap] = await Promise.all([
+          getDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid)),
+          getDoc(doc(db, 'organisations', user.orgId))
+        ])
+        
+        if (orgSnap.exists()) {
+          const orgData = orgSnap.data()
+          if (orgData.employeeRowOrder) setEmployeeRowOrder(orgData.employeeRowOrder)
+        }
+
         if (userPrefSnap.exists()) {
           const data = userPrefSnap.data()
           if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
         } else {
-          // Fallback to org settings if user has none
-          const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
           if (orgSnap.exists()) {
             const data = orgSnap.data()
             if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
           }
         }
-      } catch (err) { console.error('Error fetching detailed column settings:', err) }
+      } catch (err) { console.error('Error fetching settings:', err) }
     }
     fetchUserSettings()
   }, [user?.orgId, user?.uid])
@@ -344,7 +352,18 @@ export default function SalarySlipTab() {
 
   useEffect(() => { if (activeTab === 'salary-summary' && summarySubTab === 'detailed') { if (!isCollapsed) { setIsCollapsed(true); setIsAutoCollapsed(true); } } else { if (isAutoCollapsed) { setIsCollapsed(false); setIsAutoCollapsed(false); } } }, [activeTab, summarySubTab, isCollapsed, isAutoCollapsed])
 
-  const sortedEmployees = useMemo(() => employees.filter(e => e.includeInSalary !== false), [employees])
+  const sortedEmployees = useMemo(() => {
+    const base = employees.filter(e => e.includeInSalary !== false);
+    if (!employeeRowOrder || !employeeRowOrder.length) return base;
+    return [...base].sort((a, b) => {
+      const idxA = employeeRowOrder.indexOf(a.id);
+      const idxB = employeeRowOrder.indexOf(b.id);
+      if (idxA === -1 && idxB === -1) return 0;
+      if (idxA === -1) return 1;
+      if (idxB === -1) return -1;
+      return idxA - idxB;
+    });
+  }, [employees, employeeRowOrder])
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
     queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
@@ -563,7 +582,22 @@ export default function SalarySlipTab() {
     } catch (e) { alert(e.message) } finally { setLoading(false) }
   }
 
-  const handleExportDetailedSummaryPdf = async () => { if (!attendanceSummaryData.length) return; setExportingDetailedPdf(true); try { const blob = await pdf(<DetailedSalarySummaryPDF data={attendanceSummaryData} month={summaryMonth} orgName={user?.orgName} />).toBlob(); downloadPdfBlob(blob, `Summary_${summaryMonth}.pdf`); } finally { setExportingDetailedPdf(false); } }
+  const handleExportDetailedSummaryPdf = async () => { 
+    if (!attendanceSummaryData.length) return; 
+    setExportingDetailedPdf(true); 
+    try { 
+      const blob = await pdf(<DetailedSalarySummaryPDF 
+        data={attendanceSummaryData} 
+        month={summaryMonth} 
+        orgName={user?.orgName} 
+        visibleColumns={visibleDetailedSummaryColumns}
+        visibleGroups={visibleGroups}
+      />).toBlob(); 
+      downloadPdfBlob(blob, `Summary_${summaryMonth}.pdf`); 
+    } finally { 
+      setExportingDetailedPdf(false); 
+    } 
+  }
   const handleExportSalarySlipPdf = async () => { if (!slipData) return; setExportingSlipPdf(true); try { const blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />).toBlob(); downloadPdfBlob(blob, `Slip_${slipData.employee.name}.pdf`); } finally { setExportingSlipPdf(false); } }
 
   return (
@@ -616,7 +650,10 @@ export default function SalarySlipTab() {
               <div className="flex gap-2">
                 {summarySubTab==='detailed' && (
                   <div className="flex items-center gap-1.5 relative">
-                    <button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf} className="p-1.5 border border-indigo-100 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors shadow-sm active:scale-95"><Download size={14}/></button>
+                    <button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf} className="h-7 px-3 border border-indigo-100 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm hover:bg-indigo-100 active:scale-95 transition-all flex items-center gap-2">
+                      {exportingDetailedPdf ? <RefreshCw size={10} className="animate-spin"/> : <Download size={10}/>}
+                      <span>Download</span>
+                    </button>
                     <button onClick={() => setShowDetailedColumnPicker(!showDetailedColumnPicker)} className="h-7 px-3 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all">Columns</button>
                     
                     {showDetailedColumnPicker && (
@@ -740,7 +777,7 @@ export default function SalarySlipTab() {
                             <td key={c.id} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'bg')} ${getColumnColorClass(c.id, 'border')} ${
                               ['sno', 'empNo', 'days', 'worked', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'text-center' : 
                               ['name', 'designation'].includes(c.id) ? 'text-left' : 'text-right'
-                            } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[11px] shadow-inner' : 'font-medium'}`}>
+                            } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[11px] shadow-inner' : (c.id === 'earnings' ? 'font-black' : 'font-medium')}`}>
                               {renderDetailedCell(c.id, e)}
                             </td>
                           ))}
