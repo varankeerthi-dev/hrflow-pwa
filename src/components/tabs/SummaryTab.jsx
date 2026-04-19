@@ -154,8 +154,9 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
   const getStatusBadge = (att, day, emp, holidays = []) => {
     const [y, m] = selectedMonth.split('-').map(Number), ds = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const isBeforeJoined = emp.joinedDate && ds < emp.joinedDate;
+    const isAfterInactive = emp.inactiveFrom && ds > emp.inactiveFrom;
     
-    if (isBeforeJoined) {
+    if (isBeforeJoined || isAfterInactive) {
       return { bg: 'bg-red-50', text: 'Absent', color: 'text-red-600', type: 'absent' }
     }
     

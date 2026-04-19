@@ -426,6 +426,10 @@ export default function SalarySlipTab() {
             lop++;
             continue;
           }
+          if (emp.inactiveFrom && dateStr > emp.inactiveFrom) {
+            lop++;
+            continue;
+          }
           
           if (isS) sunCount++
           if (isH) holCount++
@@ -607,6 +611,10 @@ export default function SalarySlipTab() {
         const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(ds) && !isS, r = attByDate.get(ds), status = String(r?.status || '').toLowerCase()
         
         if (emp.joinedDate && ds < emp.joinedDate) {
+          lop++;
+          continue;
+        }
+        if (emp.inactiveFrom && ds > emp.inactiveFrom) {
           lop++;
           continue;
         }

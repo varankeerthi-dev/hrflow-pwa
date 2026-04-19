@@ -530,7 +530,24 @@ export default function AttendanceTab() {
   }
 
   const sortedEmployees = useMemo(() => {
-    const active = employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance)
+    const [y, m] = selectedDate.split('-').map(Number)
+    const selectedMonth = `${y}-${String(m).padStart(2, '0')}`
+    
+    const active = employees.filter(e => {
+      if (e.hideInAttendance) return false
+      
+      // Basic check: is the employee status 'Active' or 'Rejoined'?
+      if (isEmployeeActiveStatus(e.status)) return true
+      
+      // If employee is Inactive, check if they became inactive in the selected month
+      // or if they were active at any point during this month.
+      if (e.status === 'Inactive' && e.inactiveFrom) {
+        return e.inactiveFrom.startsWith(selectedMonth) || e.inactiveFrom > selectedMonth
+      }
+      
+      return false
+    })
+
     if (!Array.isArray(rowOrder) || !rowOrder.length) return active
     return [...active].sort((a, b) => {
       const idxA = rowOrder.indexOf(a.id)
@@ -540,7 +557,7 @@ export default function AttendanceTab() {
       if (idxB === -1) return -1
       return idxA - idxB
     })
-  }, [employees, rowOrder])
+  }, [employees, rowOrder, selectedDate])
 
   const activeEmployees = useMemo(() => sortedEmployees, [sortedEmployees])
   const isSunday = new Date(selectedDate).getDay() === 0
@@ -660,6 +677,9 @@ export default function AttendanceTab() {
     
     const newRows = activeEmployees.map(emp => {
       const isBeforeJoined = emp.joinedDate && selectedDate < emp.joinedDate;
+      const isAfterInactive = emp.inactiveFrom && selectedDate > emp.inactiveFrom;
+      const isAbsentState = isBeforeJoined || isAfterInactive;
+
       return {
         employeeId: emp.id,
         name: emp.name,
@@ -670,11 +690,11 @@ export default function AttendanceTab() {
         outTime: '',
         otHours: '00:00',
         remarks: emp.site || '',
-        isAbsent: isBeforeJoined,
+        isAbsent: isAbsentState,
         sundayWorked: false,
         sundayHoliday: false,
         shiftType: 'Day',
-        status: isBeforeJoined ? 'Absent' : 'Present',
+        status: isAbsentState ? 'Absent' : 'Present',
         minDailyHours: emp.minDailyHours || 8
       };
     })
