@@ -266,7 +266,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
   const [searchTerm, setSearchTerm] = useState(''); const [isOpen, setIsOpen] = useState(false); const dropdownRef = useRef(null);
   const filtered = useMemo(() => employees.filter(e => e.name.toLowerCase().includes(searchTerm.toLowerCase())), [employees, searchTerm]);
   useEffect(() => { const handleClickOutside = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false); }; document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); }, []);
-  return (<div className="relative w-full" ref={dropdownRef}><div className="w-full h-7 border rounded-lg px-2 flex items-center justify-between bg-white cursor-pointer" onClick={() => setIsOpen(!isOpen)}><span className="text-[11px] font-semibold">{employees.find(e => e.id === selectedId)?.name || 'Search Staff...'}</span><ChevronDown size={10} /></div>{isOpen && (<div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-xl shadow-2xl z-[100] p-2"><input autoFocus type="text" className="w-full h-8 border rounded px-2 text-xs mb-1" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />{filtered.map(e => (<button key={e.id} className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 uppercase font-bold text-[10px]" onClick={() => { onSelect(e.id); setIsOpen(false); }}>{e.name}</button>))}</div>)}</div>)
+  return (<div className="relative w-full" ref={dropdownRef}><div className="w-full h-7 border rounded-sm px-2 flex items-center justify-between bg-white cursor-pointer" onClick={() => setIsOpen(!isOpen)}><span className="text-[11px] font-semibold">{employees.find(e => e.id === selectedId)?.name || 'Search Staff...'}</span><ChevronDown size={10} /></div>{isOpen && (<div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-sm shadow-2xl z-[100] p-2"><input autoFocus type="text" className="w-full h-8 border rounded px-2 text-xs mb-1" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />{filtered.map(e => (<button key={e.id} className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 uppercase font-bold text-[10px]" onClick={() => { onSelect(e.id); setIsOpen(false); }}>{e.name}</button>))}</div>)}</div>)
 }
 
 // --- MAIN COMPONENT ---
@@ -603,32 +603,44 @@ export default function SalarySlipTab() {
   return (
     <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden flex-col">
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
-        <div className="flex items-center gap-2"><div className="text-[10px] font-black uppercase text-slate-400 mr-4 tracking-widest">Payroll</div>
-          <nav className="flex gap-2">{[{id:'salary-summary',i:<FileText size={16}/>,l:'Summary'},{id:'salary-slip',i:<Banknote size={16}/>,l:'Generator'},{id:'loan',i:<Wallet size={16}/>,l:'Loans'}].map(t=>(<button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all ${activeTab===t.id?'bg-indigo-600 text-white shadow-md':'text-slate-500 hover:bg-slate-50'}`}>{t.i}{t.l}</button>))}</nav>
+        <div className="flex items-center gap-2"><div className="text-[10px] font-normal uppercase text-slate-400 mr-4 tracking-widest">Payroll</div>
+          <nav className="flex gap-1">{[{id:'salary-summary',i:<FileText size={16}/>,l:'Summary'},{id:'salary-slip',i:<Banknote size={16}/>,l:'Generator'},{id:'loan',i:<Wallet size={16}/>,l:'Loans'}].map(t=>(<button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-normal transition-all ${activeTab===t.id?'text-blue-600 bg-blue-50/50':'text-slate-500 hover:bg-zinc-100'}`}>{t.i}{t.l}</button>))}</nav>
         </div>
       </div>
       <div className="flex-1 p-6 overflow-hidden flex flex-col">
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto w-full space-y-4 h-full flex flex-col overflow-hidden">
-            <div className="bg-white p-4 rounded-xl border flex gap-4 items-end shrink-0">
-              <div><label className="text-[10px] font-bold text-slate-400 uppercase">Select Staff</label><EmployeeSearchableDropdown employees={sortedEmployees} selectedId={selectedEmp} onSelect={setSelectedEmp} /></div>
-              <div><label className="text-[10px] font-bold text-slate-400 uppercase">Cycle</label><input type="month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="w-full h-8 border rounded-lg px-2 text-sm font-bold"/></div>
-              <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-8 px-6 bg-slate-900 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all">Generate Advice</button>
+            <div className="flex gap-6 items-end shrink-0 mb-2 mt-[-10px]">
+              <div className="flex-1 max-w-xs">
+                <EmployeeSearchableDropdown employees={sortedEmployees} selectedId={selectedEmp} onSelect={setSelectedEmp} />
+              </div>
+              <div className="w-32">
+                <input type="month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="w-full h-7 border-b border-gray-200 text-sm font-normal focus:border-zinc-800 outline-none bg-transparent"/>
+              </div>
+              <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-6 bg-zinc-800 text-white rounded-lg text-xs font-normal uppercase tracking-widest hover:bg-zinc-900 active:scale-95 transition-all">Generate Advice</button>
             </div>
             {slipData && (
               <div className="flex-1 overflow-hidden flex gap-4 animate-in fade-in slide-in-from-bottom-2">
-                <div className="flex-1 min-w-0 bg-white border-2 border-black rounded-[24px] shadow-2xl overflow-hidden flex flex-col h-full print-area">
-                  <div className="flex justify-end gap-2 p-3 bg-slate-50 border-b no-print shrink-0"><button onClick={() => window.print()} className="h-8 bg-white border px-3 rounded-lg text-[10px] font-black uppercase flex items-center gap-2"><Download size={12}/> Print</button><button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-8 bg-white border px-3 rounded-lg text-[10px] font-black uppercase flex items-center gap-2"><Download size={12}/> PDF</button></div>
+                <div className="flex-1 min-w-0 bg-white rounded-[24px] overflow-hidden flex flex-col h-full print-area">
+                  <div className="flex justify-end gap-2 p-3 no-print shrink-0"><button onClick={() => window.print()} className="h-7 bg-white border border-zinc-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-zinc-50"><Download size={12}/> Print</button><button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-7 bg-white border border-zinc-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-zinc-50"><Download size={12}/> PDF</button></div>
                   <div className="p-8 bg-white overflow-auto flex-1">
-                    <div className="border-b border-slate-900 pb-4 mb-6 flex justify-between items-start"><div><h1 className="text-2xl font-black uppercase tracking-tight">{user?.orgName}</h1><p className="text-[8px] text-indigo-600 font-black uppercase tracking-[0.4em] mt-2 flex items-center gap-2"><span className="w-4 h-0.5 bg-indigo-600"></span>Payroll Disbursement Advice</p></div><div className="text-right"><h2 className="text-lg font-black uppercase italic font-raleway">Voucher</h2><p className="text-[9px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded border uppercase">{formatMonthDisplay(slipData.month)}</p></div></div>
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-8">
-                      {[{l:'Staff Name',v:slipData.employee?.name},{l:'Paid Days',v:slipData.paidDays},{l:'Staff Code',v:slipData.employee?.empCode},{l:'Worked Holidays',v:slipData.holidayWorkedCount || 0},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-slate-100 py-1.5"><span className="text-[12px] font-black text-slate-400 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-bold text-slate-900 uppercase">{r.v}</span></div>))}
+                    <div className="border-b border-zinc-200 pb-4 mb-6 flex justify-between items-start">
+                      <div>
+                        <h1 className="text-2xl font-normal uppercase tracking-tight text-zinc-900">{user?.orgName}</h1>
+                      </div>
+                      <div className="text-right">
+                        <h2 className="text-lg font-normal uppercase italic font-raleway text-zinc-500">Voucher</h2>
+                        <p className="text-[9px] font-normal text-zinc-600 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-100 uppercase mt-1">{formatMonthDisplay(slipData.month)}</p>
+                      </div>
                     </div>
-                    <div className="border border-slate-200 rounded-[20px] overflow-hidden mb-6 shadow-sm"><div className="grid grid-cols-2 bg-slate-100 font-black text-[9px] uppercase tracking-widest text-slate-900 border-b"><div className="p-3 border-r"><span>Earnings (Credit)</span></div><div className="p-3"><span>Deductions (Debit)</span></div></div><div className="grid grid-cols-2 divide-x divide-slate-200 bg-white"><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px]">Basic Salary<span className="font-bold">{formatINR(slipData.basic)}</span></div><div className="flex justify-between p-2.5 text-[11px]">HRA<span className="font-bold">{formatINR(slipData.hra)}</span></div><div className="flex justify-between p-2.5 text-[11px]">Sunday Worked<span className="font-bold">{formatINR(slipData.sundayPay)}</span></div><div className="flex justify-between p-2.5 text-[11px]">Holiday Pay<span className="font-bold">{formatINR(slipData.holidayPay)}</span></div></div><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px]">PF Contribution<span className="font-bold">{dashIfZero(slipData.pf)}</span></div><div className="flex justify-between p-2.5 text-[11px]">ESI Contribution<span className="font-bold">{dashIfZero(slipData.esi)}</span></div><div className="flex justify-between p-2.5 text-[11px]">Advance Recovery<span className="font-bold font-black text-rose-600">{dashIfZero(slipData.advanceDeduction)}</span></div></div></div></div>
-                    <div className="text-center pt-4 border-t border-dashed border-slate-200"><p className="text-[9px] font-black text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-white border-2 border-slate-200 rounded-xl p-4 inline-block shadow-xl font-black text-[18px]">{formatINR(slipData.netPay)}</div></div>
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-8">
+                      {[{l:'Staff Name',v:slipData.employee?.name},{l:'Paid Days',v:slipData.paidDays},{l:'Staff Code',v:slipData.employee?.empCode},{l:'Worked Holidays',v:slipData.holidayWorkedCount || 0},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-1.5"><span className="text-[12px] font-normal text-slate-400 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                    </div>
+                    <div className="border border-zinc-100 rounded-[20px] overflow-hidden mb-6"><div className="grid grid-cols-2 bg-zinc-50 font-normal text-[9px] uppercase tracking-widest text-zinc-900 border-b border-zinc-100"><div className="p-3 border-r border-zinc-100"><span>Earnings (Credit)</span></div><div className="p-3"><span>Deductions (Debit)</span></div></div><div className="grid grid-cols-2 divide-x divide-zinc-100 bg-white"><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px] font-normal">Basic Salary<span>{formatINR(slipData.basic)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">HRA<span>{formatINR(slipData.hra)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Sunday Worked<span>{formatINR(slipData.sundayPay)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Holiday Pay<span>{formatINR(slipData.holidayPay)}</span></div></div><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px] font-normal">PF Contribution<span>{dashIfZero(slipData.pf)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">ESI Contribution<span>{dashIfZero(slipData.esi)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Advance Recovery<span className="text-zinc-900">{dashIfZero(slipData.advanceDeduction)}</span></div></div></div></div>
+                    <div className="text-center pt-4 border-t border-dashed border-zinc-200"><p className="text-[9px] font-normal text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 inline-block shadow-sm font-normal text-[18px] text-zinc-900">{formatINR(slipData.netPay)}</div></div>
                   </div>
                 </div>
-                <div className="w-[340px] shrink-0 bg-white border rounded-[24px] overflow-hidden flex flex-col h-full shadow-sm"><div className="p-4 bg-slate-50 border-b font-black uppercase text-[12px] tracking-widest">Monthly Vouchers</div><div className="p-3 overflow-auto flex-1"><table className="w-full text-left text-[10px]"><thead><tr className="text-slate-400 uppercase"><th className="pb-2">Date</th><th className="pb-2">Type</th><th className="pb-2 text-right">Amount</th></tr></thead><tbody className="divide-y divide-slate-100">{advExpRows.length===0?(<tr><td colSpan={3} className="py-10 text-center text-slate-300 uppercase italic">No records found</td></tr>):(advExpRows.map((r,i)=>(<tr key={i} className="hover:bg-slate-50"><td className="py-2.5">{formatDateDDMMYYYY(r.date)}</td><td className="py-2.5 uppercase font-black text-indigo-600">{r.type}</td><td className="py-2.5 text-right font-black">{formatINR(r.amount)}</td></tr>)))}</tbody></table></div></div>
+                <div className="w-[340px] shrink-0 bg-white border border-zinc-100 rounded-[24px] overflow-hidden flex flex-col h-full shadow-sm"><div className="p-4 bg-zinc-50 border-b border-zinc-100 font-normal uppercase text-[12px] tracking-widest">Monthly Vouchers</div><div className="p-3 overflow-auto flex-1"><table className="w-full text-left text-[10px]"><thead><tr className="text-slate-400 uppercase font-normal"><th className="pb-2 font-normal">Date</th><th className="pb-2 font-normal">Type</th><th className="pb-2 text-right font-normal">Amount</th></tr></thead><tbody className="divide-y divide-zinc-50">{advExpRows.length===0?(<tr><td colSpan={3} className="py-10 text-center text-slate-300 uppercase italic">No records found</td></tr>):(advExpRows.map((r,i)=>(<tr key={i} className="hover:bg-zinc-50"><td className="py-2.5">{formatDateDDMMYYYY(r.date)}</td><td className="py-2.5 uppercase font-normal text-zinc-600">{r.type}</td><td className="py-2.5 text-right font-normal text-zinc-900">{formatINR(r.amount)}</td></tr>)))}</tbody></table></div></div>
               </div>
             )}
           </div>
@@ -685,15 +697,15 @@ export default function SalarySlipTab() {
                 <table className="w-full text-sm border-collapse bg-white border border-zinc-200">
                   <thead className="sticky top-0 z-40 shadow-sm font-raleway">
                     {/* Group Headers Row */}
-                    <tr className="h-[40px] border-b border-zinc-200 bg-zinc-50/50">
-                      <th colSpan={2} className="px-4 text-left border-r border-zinc-200 font-black uppercase text-[10px] text-blue-600 tracking-widest bg-blue-50/20">Staff Profile</th>
-                      <th colSpan={3} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-orange-600 tracking-widest bg-orange-50/20">Period Status</th>
-                      <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-amber-600 tracking-widest bg-amber-50/20">Performance</th>
-                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-rose-600 tracking-widest bg-rose-50/20">Leave</th>
-                      <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-indigo-600 tracking-widest bg-indigo-50/20">Overtime</th>
-                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-emerald-600 tracking-widest bg-emerald-50/20">Holiday Worked</th>
-                      <th colSpan={1} className="px-4 text-center font-black uppercase text-[10px] text-green-600 tracking-widest bg-green-50/20">Summary</th>
-                      <th className="w-12 bg-zinc-50/50"></th>
+                    <tr className="h-[40px] border-b border-zinc-200">
+                      <th colSpan={2} className="px-4 text-left border-r border-zinc-200 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-100">Staff Profile</th>
+                      <th colSpan={3} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-orange-900 tracking-widest bg-orange-100">Period Status</th>
+                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-black tracking-widest bg-gray-500">Performance</th>
+                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-rose-900 tracking-widest bg-rose-100">Leave</th>
+                      <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-100">Overtime</th>
+                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-emerald-900 tracking-widest bg-emerald-100">Holiday Worked</th>
+                      <th colSpan={1} className="px-4 text-center font-black uppercase text-[10px] text-white tracking-widest bg-green-600">Summary</th>
+                      <th className="w-12 bg-zinc-100"></th>
                     </tr>
                     {/* Primary Header Row */}
                     <tr className="bg-white text-[10px] uppercase font-bold text-zinc-500 tracking-tighter h-[35px] border-b-2 border-zinc-300">
@@ -703,6 +715,7 @@ export default function SalarySlipTab() {
                       <th className="px-2 text-center border-r border-zinc-200 w-20">Sunday</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20">Holiday</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24">Worked</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-[50px] whitespace-pre-line">HALF{"\n"}DAY</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20">Leave</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20 text-rose-500">LOP</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24">OT (Hrs)</th>
@@ -714,7 +727,7 @@ export default function SalarySlipTab() {
                   </thead>
                   <tbody className="divide-y divide-zinc-200">
                     {isAttendanceLoading ? (
-                       <tr><td colSpan={13} className="py-20 text-center"><Spinner /></td></tr>
+                       <tr><td colSpan={14} className="py-20 text-center"><Spinner /></td></tr>
                     ) : filteredAttendanceSummaryData.map((e, idx)=>(
                       <tr key={e.id} className={`hover:bg-zinc-50/80 transition-colors h-[32px] group ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-mono text-[10px]">{idx + 1}</td>
@@ -723,6 +736,7 @@ export default function SalarySlipTab() {
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.sunday}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.holidays}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.worked}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.hd}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-600">{e.leave}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600">{e.lop}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-inter font-normal text-[11px]">
