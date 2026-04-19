@@ -471,11 +471,15 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                           <tr key={day} className="hover:bg-gray-50 transition-colors h-[32px]">
                             <td className={`px-2 py-0.5 text-center font-bold sticky left-0 z-20 border-r border-b border-gray-200 ${dateCls}`}><div className="flex items-baseline justify-center gap-1"><span className="text-[11px]">{String(day).padStart(2, '0')}</span><span className="text-[8px] text-gray-400 uppercase">{cD.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></td>
                             {monthlyViewData.employees?.map(emp => {
-                              const joinD = emp.joinedDate ? new Date(emp.joinedDate) : null, isBeforeStart = joinD && cD < joinD, att = monthlyViewData.attendanceMap?.[emp.id]?.[day], st = isBeforeStart ? null : getStatusBadge(att, day, emp, monthlyViewData.holidays || []), isOff = st?.type === 'absent' || st?.type === 'sunday' || st?.type === 'holiday'
+                              const att = monthlyViewData.attendanceMap?.[emp.id]?.[day]
+                              const st = getStatusBadge(att, day, emp, monthlyViewData.holidays || [])
+                              const isOff = st?.type === 'absent' || st?.type === 'sunday' || st?.type === 'holiday'
+                              const isJoinInactive = (emp.joinedDate && ds < emp.joinedDate) || (emp.inactiveFrom && ds > emp.inactiveFrom)
+                              
                               const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.outTime ? 'outTime' : 'inTime'))
                               return (
                                 <React.Fragment key={emp.id}>
-                                  {isOff ? (<td colSpan={columnSettings.inTime || columnSettings.outTime || columnSettings.ot || columnSettings.remarks ? (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) : 1} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${isBeforeStart ? 'bg-gray-50' : st.bg}`}><span className={`text-[9px] font-black uppercase ${isBeforeStart ? 'text-gray-400' : st.text === 'Holiday' ? 'text-amber-600' : st.color}`}>{isBeforeStart ? '—' : st.text}</span></td>) : (
+                                  {isOff ? (<td colSpan={columnSettings.inTime || columnSettings.outTime || columnSettings.ot || columnSettings.remarks ? (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) : 1} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${st.bg}`}><span className={`text-[9px] font-black uppercase ${st.text === 'Holiday' ? 'text-amber-600' : st.color}`}>{st.text}</span></td>) : (
                                     <>
                                       {columnSettings.inTime && <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>{formatTimeTo12Hour(att?.inTime) || '—'}</td>}
                                       {columnSettings.outTime && <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'outTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>{formatTimeTo12Hour(att?.outTime) || '—'}</td>}

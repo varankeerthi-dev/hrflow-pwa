@@ -473,23 +473,28 @@ export default function AttendanceTab() {
 
   const handleFixHistory = async () => {
     if (!user?.orgId || !reportData.length) return
-    if (!window.confirm("This will mark all records before an employee's joining date as 'Absent' in the CURRENT report range. Continue?")) return
+    if (!window.confirm("This will mark all records before an employee's joining date OR after their inactive date as 'Absent' in the CURRENT report range. Continue?")) return
     
     setFixingHistory(true)
     try {
       const updates = []
       for (const row of reportData) {
         const emp = employees.find(e => e.id === row.employeeId)
-        if (emp && emp.joinedDate && row.date < emp.joinedDate && row.status !== 'Absent') {
-          // Prepare update
-          updates.push({
-            ...row,
-            status: 'Absent',
-            isAbsent: true,
-            inTime: '',
-            outTime: '',
-            otHours: '00:00'
-          })
+        if (emp) {
+          const isBeforeJoined = emp.joinedDate && row.date < emp.joinedDate
+          const isAfterInactive = emp.inactiveFrom && row.date > emp.inactiveFrom
+          
+          if ((isBeforeJoined || isAfterInactive) && row.status !== 'Absent') {
+            // Prepare update
+            updates.push({
+              ...row,
+              status: 'Absent',
+              isAbsent: true,
+              inTime: '',
+              outTime: '',
+              otHours: '00:00'
+            })
+          }
         }
       }
       
