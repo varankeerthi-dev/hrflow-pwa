@@ -1013,7 +1013,7 @@ export default function AttendanceTab() {
               </div>
               <div className="flex items-center gap-4">
                 {saved && <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium" style={{ fontFamily: "'Inter', sans-serif" }}><Check size={14} /> Submitted successfully</div>}
-                <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-9 px-5 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50" style={{ fontFamily: "'Inter', sans-serif" }}>
+                <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-9 px-5 bg-emerald-600 text-white font-medium rounded-lg text-xs shadow-md hover:bg-emerald-700 transition-all disabled:opacity-50" style={{ fontFamily: "'Inter', sans-serif" }}>
                   {saving ? 'Processing...' : 'Submit Records'}
                 </button>
               </div>
@@ -1241,7 +1241,7 @@ export default function AttendanceTab() {
                   <button 
                     onClick={handleSubmit} 
                     disabled={saving || rows.length === 0} 
-                    className="h-9 px-5 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50" 
+                    className="h-9 px-5 bg-emerald-600 text-white font-medium rounded-lg text-xs shadow-md hover:bg-emerald-700 transition-all disabled:opacity-50" 
                     style={{ fontFamily: "'Inter', sans-serif" }}
                   >
                     {saving ? 'Processing...' : 'Submit Records'}
