@@ -583,8 +583,23 @@ export default function SalarySlipTab() {
       const b = fullBasic * (paid / end), h = fullHra * (paid / end), p = ts * (slab.pfPercent / 100), e = ts * (slab.esiPercent / 100)
       const holP = holW * dailyRate
       const gross = b + h + (sunW * dailyRate) + holP + otP + reimb, ded = p + e + emi + adv + fineA
-      setSlipData({ employee: emp, month: selectedMonth, slab, paidDays: paid, lopDays: lop, otPay: otP, basic: b, hra: h, basicFull: fullBasic, hraFull: fullHra, expenseReimbursement: reimb, sundayPay: sunW * dailyRate, holidayPay: holP, holidayWorkedCount: holW, grossEarnings: gross, pf: p, esi: e, advanceDeduction: adv, loanEMI: emi, fineAmount: fineA, totalDeductions: ded, netPay: Math.max(0, gross - ded), sundayCount: sun, holidayCount: hol })
-    } catch (e) { alert(e.message) } finally { setLoading(false) }
+      const workedDaysRegular = paid - sunW - holW; 
+
+      setSlipData({ 
+        employee: emp, month: selectedMonth, slab, 
+        paidDays: paid, lopDays: lop, 
+        otPay: otP, otHoursTotal: (aOT + otAdj),
+        basic: b, hra: h, basicFull: fullBasic, hraFull: fullHra, 
+        expenseReimbursement: reimb, 
+        sundayPay: sunW * dailyRate, sundayWorkedCount: sunW,
+        holidayPay: holP, holidayWorkedCount: holW, 
+        grossEarnings: gross, pf: p, esi: e, advanceDeduction: adv, 
+        loanEMI: emi, fineAmount: fineA, totalDeductions: ded, 
+        netPay: Math.max(0, gross - ded), 
+        sundayCount: sun, holidayCount: hol,
+        totalMonthDays: end, workedDaysCount: workedDaysRegular
+      })
+      setGenerated(true)
   }
 
   const handleExportDetailedSummaryPdf = async () => { 
@@ -629,20 +644,21 @@ export default function SalarySlipTab() {
             </div>
             {slipData && (
               <div className="flex-1 overflow-hidden flex gap-4 animate-in fade-in slide-in-from-bottom-2">
-                <div className="flex-1 min-w-0 bg-white rounded-[24px] overflow-hidden flex flex-col h-full print-area">
+                <div className="flex-1 min-w-0 bg-white rounded-[24px] overflow-hidden flex flex-col h-full print-area" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
                   <div className="flex justify-end gap-2 p-3 no-print shrink-0"><button onClick={() => window.print()} className="h-7 bg-white border border-zinc-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-zinc-50"><Download size={12}/> Print</button><button onClick={handleExportSalarySlipPdf} disabled={exportingSlipPdf} className="h-7 bg-white border border-zinc-200 px-3 rounded-lg text-[10px] font-normal uppercase flex items-center gap-2 hover:bg-zinc-50"><Download size={12}/> PDF</button></div>
                   <div className="p-8 bg-white overflow-auto flex-1">
                     <div className="border-b border-zinc-200 pb-4 mb-6 flex justify-between items-start">
-                      <div>
+                      <div className="flex items-center gap-4">
+                        {orgLogo && <img src={orgLogo} alt="Logo" className="w-12 h-12 object-contain" />}
                         <h1 className="text-2xl font-normal uppercase tracking-tight text-zinc-900">{user?.orgName}</h1>
                       </div>
                       <div className="text-right">
-                        <h2 className="text-lg font-normal uppercase italic font-raleway text-zinc-500">Voucher</h2>
+                        <h2 className="text-lg font-normal uppercase italic text-zinc-500">Salary Slip</h2>
                         <p className="text-[9px] font-normal text-zinc-600 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-100 uppercase mt-1">{formatMonthDisplay(slipData.month)}</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-8">
-                      {[{l:'Staff Name',v:slipData.employee?.name},{l:'Paid Days',v:slipData.paidDays},{l:'Staff Code',v:slipData.employee?.empCode},{l:'Worked Holidays',v:slipData.holidayWorkedCount || 0},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-1.5"><span className="text-[12px] font-normal text-slate-400 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                      {[{l:'Staff Name',v:slipData.employee?.name},{l:'Paid Days',v:slipData.paidDays},{l:'Designation',v:slipData.employee?.designation || '-'},{l:'Worked Holidays',v:slipData.holidayWorkedCount || 0},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-1.5"><span className="text-[12px] font-normal text-slate-400 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
                     </div>
                     <div className="border border-zinc-100 rounded-[20px] overflow-hidden mb-6"><div className="grid grid-cols-2 bg-zinc-50 font-normal text-[9px] uppercase tracking-widest text-zinc-900 border-b border-zinc-100"><div className="p-3 border-r border-zinc-100"><span>Earnings (Credit)</span></div><div className="p-3"><span>Deductions (Debit)</span></div></div><div className="grid grid-cols-2 divide-x divide-zinc-100 bg-white"><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px] font-normal">Basic Salary<span>{formatINR(slipData.basic)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">HRA<span>{formatINR(slipData.hra)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Sunday Worked<span>{formatINR(slipData.sundayPay)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Holiday Pay<span>{formatINR(slipData.holidayPay)}</span></div></div><div className="p-1 space-y-0.5"><div className="flex justify-between p-2.5 text-[11px] font-normal">PF Contribution<span>{dashIfZero(slipData.pf)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">ESI Contribution<span>{dashIfZero(slipData.esi)}</span></div><div className="flex justify-between p-2.5 text-[11px] font-normal">Advance Recovery<span className="text-zinc-900">{dashIfZero(slipData.advanceDeduction)}</span></div></div></div></div>
                     <div className="text-center pt-4 border-t border-dashed border-zinc-200"><p className="text-[9px] font-normal text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 inline-block shadow-sm font-normal text-[18px] text-zinc-900">{formatINR(slipData.netPay)}</div></div>
