@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, where, orderBy } from 'firebase/firestore'
 import { employeesCol, employeeDoc, shiftsCol } from '../lib/firestore'
 import { isEmployeeActiveStatus } from '../lib/employeeStatus'
 
@@ -16,7 +16,8 @@ export function useEmployees(orgId, activeOnly = false) {
     }
     setLoading(true)
     try {
-      const snapshot = await getDocs(employeesCol(orgId))
+      const q = query(employeesCol(orgId), orderBy('name', 'asc'))
+      const snapshot = await getDocs(q)
 
       // Fetch all shifts once to avoid N+1 queries
       const shiftsSnap = await getDocs(shiftsCol(orgId))
