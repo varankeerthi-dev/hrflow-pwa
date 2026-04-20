@@ -19,7 +19,16 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
 
+      // Explicit rules for core sub-collections
       match /employees/{employeeId} {
+        allow read, write: if true;
+      }
+      
+      match /attendance/{attendanceId} {
+        allow read, write: if true;
+      }
+
+      match /activityLogs/{logId} {
         allow read, write: if true;
       }
       
@@ -57,6 +66,7 @@ service cloud.firestore {
       allow write: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
     }
 
+    // Catch-all for other sub-collections or top-level docs
     match /{document=**} {
       allow read, write: if true;
     }
