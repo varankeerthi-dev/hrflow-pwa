@@ -314,6 +314,7 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
       otHours: '',
       site: '',
       status: 'Present',
+      isAbsent: false,
       notes: '',
     }
     return {
@@ -324,6 +325,7 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
       otHours: row.ot || '00:00',
       site: row.site || '',
       status: row.status === 'PRESENT' ? 'Present' : row.status === 'ABSENT' ? 'Absent' : row.status === 'SUNDAY' ? 'Holiday' : 'Present',
+      isAbsent: row.status === 'ABSENT',
       notes: '',
     }
   })()

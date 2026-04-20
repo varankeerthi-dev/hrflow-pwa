@@ -29,13 +29,25 @@ export function useAttendance(orgId) {
     if (!orgId || !rows.length) return
     const batch = rows.map(row => {
       const rowDate = row.date || row.inDate
-      return setDoc(attendanceDoc(orgId, rowDate, row.employeeId), {
+      const payload = {
         ...row,
         date: rowDate,
+        isAbsent: !!row.isAbsent,
+        sundayWorked: !!row.sundayWorked,
+        sundayHoliday: !!row.sundayHoliday,
         updatedAt: serverTimestamp(),
         updatedBy: user?.uid || 'system',
         updatedByName: user?.name || 'System'
-      }, { merge: true })
+      }
+      
+      // Remove any undefined fields to prevent Firebase errors
+      Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) {
+          delete payload[key]
+        }
+      })
+
+      return setDoc(attendanceDoc(orgId, rowDate, row.employeeId), payload, { merge: true })
     })
     await Promise.all(batch)
   }, [orgId, user])

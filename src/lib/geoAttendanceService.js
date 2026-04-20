@@ -329,19 +329,34 @@ export async function finalizePendingAttendance({ orgId, pendingId, approver }) 
   }
 
   const batch = writeBatch(db)
-  batch.set(attRef, {
+  
+  const cleanPayload = (data) => {
+    const cleaned = { ...data }
+    Object.keys(cleaned).forEach(key => {
+      if (cleaned[key] === undefined) {
+        delete cleaned[key]
+      }
+    })
+    return cleaned
+  }
+
+  const attendancePayload = cleanPayload({
     ...mergedAttendance,
     updatedAt: serverTimestamp(),
     updatedBy: approver?.uid || '',
     updatedByName: approver?.name || approver?.email || 'HR',
-  }, { merge: true })
-  batch.set(attFinalRef, {
+  })
+
+  const finalPayload = cleanPayload({
     ...mergedAttendance,
     finalizedFromPendingId: pendingId,
     finalizedAt: serverTimestamp(),
     finalizedBy: approver?.uid || '',
     finalizedByName: approver?.name || approver?.email || 'HR',
-  }, { merge: true })
+  })
+
+  batch.set(attRef, attendancePayload, { merge: true })
+  batch.set(attFinalRef, finalPayload, { merge: true })
   batch.update(employeePortalAttendanceLogDoc(orgId, row.employeeId, row.portalLogId), {
     status: ATTENDANCE_STATUS_FINALIZED,
     finalizedBy: approver?.uid || '',
