@@ -304,6 +304,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
 export default function SalarySlipTab() {
   const { user } = useAuth(); const { employees } = useEmployees(user?.orgId, true); const { slabs, increments } = useSalarySlab(user?.orgId);
   const { isCollapsed, setIsCollapsed, setIsAutoCollapsed, isAutoCollapsed } = useSidebar();
+  const queryClient = useQueryClient();
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const [activeTab, setActiveTab] = useState('salary-summary')
   const [selectedEmp, setSelectedEmp] = useState('')
@@ -526,14 +527,22 @@ export default function SalarySlipTab() {
             otH += roundedMins / 60;
           }
         }
+        // Calculate sandwich Sundays count
+        const sandwichSundays = appliedForThisEmp.filter(s => {
+          const date = new Date(s.date);
+          return date.getDay() === 0; // Sunday
+        }).length;
+        
         const slab = increments?.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20 };
         const ts = Number(slab.totalSalary) || 0, paidDays = end - lop, dailyRate = ts / end, fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
         const shiftH = Number(emp.minDailyHours) || 8
         const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = sunW * dailyRate, holPay = holW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / shiftH)
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
-        const totalEarnings = basic + hra + sunPay + holPay + otPay + reimb, totalDeductions = pf + esi + loanE + adv + fine
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp }
+        const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
+        const totalEarnings = basic + hra + sunPay + holPay + otPay + reimb, totalDeductions = pf + esi + loanE + fine
+        const finalNet = totalEarnings - totalDeductions - netAdvanceExpense // Apply net adjustment
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp, sandwichSundays }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -601,7 +610,7 @@ export default function SalarySlipTab() {
       case 'advance': return dashIfZero(emp.advanceAmount);
       case 'reimb': return dashIfZero(emp.expenseAmount);
       case 'netAdj': {
-        const val = (emp.advanceAmount || 0) - (emp.expenseAmount || 0);
+        const val = emp.netAdvanceExpense || 0;
         if (val === 0) return '-';
         return <span className={val < 0 ? 'text-green-600 font-bold' : 'text-rose-600 font-bold'}>{Math.round(val).toLocaleString('en-IN')}</span>;
       }
@@ -807,6 +816,8 @@ export default function SalarySlipTab() {
   const [selectedSandwichDays, setSelectedSandwichDays] = useState(new Set());
   const [processingSandwich, setProcessingSandwich] = useState(false);
   const [sandwichHistoryFilterEmp, setSandwichHistoryFilterEmp] = useState('');
+  const [showFallbackModal, setShowFallbackModal] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
   
   const processSandwichMutation = useMutation({
     mutationFn: async (selectedDays) => {
@@ -826,6 +837,7 @@ export default function SalarySlipTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['attendanceSummary']);
+      queryClient.invalidateQueries(['sandwichHistory']);
       setSelectedSandwichDays(new Set());
       alert('Sandwich deductions applied successfully!');
     },
@@ -852,7 +864,7 @@ export default function SalarySlipTab() {
       const snap = await getDocs(q);
       return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
-    enabled: !!user?.orgId && summarySubTab === 'history'
+    enabled: !!user?.orgId && summarySubTab === 'sandwich'
   });
 
   const filteredHistory = useMemo(() => {
@@ -1173,7 +1185,7 @@ export default function SalarySlipTab() {
                         <EmployeeSearchableDropdown employees={employees} selectedId={sandwichHistoryFilterEmp} onSelect={setSandwichHistoryFilterEmp} />
                       </div>
                     </div>
-                    {isHistoryLoading ? <div className="py-20 text-center"><Spinner /></div> : (
+                    {isHistoryLoading || !employees.length ? <div className="py-20 text-center"><Spinner /></div> : (
                       <div className="flex-1 overflow-auto border border-zinc-200 rounded-sm shadow-sm">
                         <table className="w-full border-collapse">
                           <thead className="sticky top-0 bg-zinc-50 font-['Raleway'] shadow-sm z-10">
@@ -1189,17 +1201,21 @@ export default function SalarySlipTab() {
                               <tr><td colSpan={4} className="py-20 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No records found</td></tr>
                             ) : filteredHistory.map(h => (
                               <tr key={h.id} className="h-[32px] hover:bg-sky-50/30 transition-colors">
-                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{employees.find(e => e.id === h.employeeId)?.name || 'Unknown staff'}</td>
+                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{(() => {
+                                  const emp = employees.find(e => e.id === h.employeeId);
+                                  if (!emp) {
+                                    console.log('Employee not found for ID:', h.employeeId, 'Available employees:', employees.map(e => ({ id: e.id, name: e.name })));
+                                    return 'Unknown staff';
+                                  }
+                                  return emp.name;
+                                })()}</td>
                                 <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(h.date)}</td>
                                 <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
                                 <td className="px-3 text-center">
                                   <button 
-                                    onClick={async () => {
-                                      if (window.confirm('Delete this deduction?')) {
-                                        await deleteDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', h.id));
-                                        queryClient.invalidateQueries(['sandwichHistory']);
-                                        queryClient.invalidateQueries(['attendanceSummary']);
-                                      }
+                                    onClick={() => {
+                                      setSelectedHistoryItem(h);
+                                      setShowFallbackModal(true);
                                     }}
                                     className="p-1 text-zinc-300 hover:text-rose-600 transition-all"
                                   >
@@ -1270,10 +1286,101 @@ export default function SalarySlipTab() {
           <div className="flex-1 overflow-auto flex flex-col items-center justify-center p-20 bg-slate-50/50">
             <div className="w-20 h-20 bg-slate-100 rounded-3xl border-2 border-slate-200 flex items-center justify-center mb-6 shadow-inner"><Wallet size={40} className="text-slate-300" /></div>
             <p className="text-[13px] font-black uppercase tracking-[0.2em] text-slate-400 text-center max-w-sm leading-relaxed">Loan Configuration & Recovery Module under development...</p>
+        </div>
+      )}
+    </div>
+      
+      {/* Fallback Status Selection Modal */}
+      {showFallbackModal && selectedHistoryItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Choose Fallback Status</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              When deleting this sandwich deduction for {employees.find(e => e.id === selectedHistoryItem.employeeId)?.name || 'Unknown staff'} on {formatDateDDMMYYYY(selectedHistoryItem.date)}, 
+              what status should be applied to this day?
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={async () => {
+                  try {
+                    // Delete sandwich deduction
+                    await deleteDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', selectedHistoryItem.id));
+                    
+                    // Update attendance record to "Holiday"
+                    const attendanceQuery = query(
+                      collection(db, 'organisations', user.orgId, 'attendance'),
+                      where('employeeId', '==', selectedHistoryItem.employeeId),
+                      where('date', '==', selectedHistoryItem.date)
+                    );
+                    const attendanceSnap = await getDocs(attendanceQuery);
+                    if (!attendanceSnap.empty) {
+                      await updateDoc(doc(db, 'organisations', user.orgId, 'attendance', attendanceSnap.docs[0].id), {
+                        status: 'Holiday',
+                        isAbsent: false
+                      });
+                    }
+                    
+                    queryClient.invalidateQueries(['sandwichHistory']);
+                    queryClient.invalidateQueries(['attendanceSummary']);
+                    setShowFallbackModal(false);
+                    setSelectedHistoryItem(null);
+                    alert('Deduction deleted and marked as Holiday!');
+                  } catch (err) {
+                    alert('Error: ' + err.message);
+                  }
+                }}
+                className="w-full px-4 py-3 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 transition-colors"
+              >
+                Mark as Holiday
+              </button>
+              
+              <button
+                onClick={async () => {
+                  try {
+                    // Delete sandwich deduction
+                    await deleteDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', selectedHistoryItem.id));
+                    
+                    // Update attendance record to "Present/Worked"
+                    const attendanceQuery = query(
+                      collection(db, 'organisations', user.orgId, 'attendance'),
+                      where('employeeId', '==', selectedHistoryItem.employeeId),
+                      where('date', '==', selectedHistoryItem.date)
+                    );
+                    const attendanceSnap = await getDocs(attendanceQuery);
+                    if (!attendanceSnap.empty) {
+                      await updateDoc(doc(db, 'organisations', user.orgId, 'attendance', attendanceSnap.docs[0].id), {
+                        status: 'Present',
+                        isAbsent: false
+                      });
+                    }
+                    
+                    queryClient.invalidateQueries(['sandwichHistory']);
+                    queryClient.invalidateQueries(['attendanceSummary']);
+                    setShowFallbackModal(false);
+                    setSelectedHistoryItem(null);
+                    alert('Deduction deleted and marked as Worked!');
+                  } catch (err) {
+                    alert('Error: ' + err.message);
+                  }
+                }}
+                className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
+              >
+                Mark as Worked (1x)
+              </button>
+              
+              <button
+                onClick={() => {
+                  setShowFallbackModal(false);
+                  setSelectedHistoryItem(null);
+                }}
+                className="w-full px-4 py-3 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-      <OTEscalationModal isOpen={isOtModalOpen} onClose={()=>setIsOtModalOpen(false)} month={summaryMonth} employees={attendanceSummaryData} initialAdjustments={attendanceSummaryData.reduce((acc, e) => { acc[e.id] = e.otAdjustment; return acc; }, {})} orgId={user?.orgId} />
+        </div>
+      )}
     </div>
   )
 }
