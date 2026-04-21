@@ -100,7 +100,7 @@ const getWeeklyColumns = (monthDate) => {
   })
 }
 
-export default function ChecklistView({ user, isModalView = false }) {
+export default function ChecklistView({ user }) {
   const [frequency, setFrequency] = useState('daily')
   const [monthCursor, setMonthCursor] = useState(() => {
     const now = new Date()

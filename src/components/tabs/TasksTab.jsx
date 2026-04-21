@@ -34,7 +34,6 @@ import {
   List,
   ChevronLeft,
   ChevronRight,
-  Settings,
   CheckSquare
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -66,6 +65,7 @@ const TABS = [
   { id: 'personal', label: 'Personal', icon: <User size={14} /> },
   { id: 'idea', label: 'Ideas', icon: <Lightbulb size={14} /> },
   { id: 'reminders', label: 'Announcements', icon: <Bell size={14} /> },
+  { id: 'checklist', label: 'Checklist', icon: <CheckSquare size={14} /> }
 ]
 
 export default function TasksTab() {
@@ -91,7 +91,6 @@ export default function TasksTab() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [showReminderModal, setShowReminderModal] = useState(false)
-  const [showChecklistModal, setShowChecklistModal] = useState(false)
   const [selectedReminder, setSelectedReminder] = useState(null)
   const [inlineInputs, setInlineInputs] = useState({})
   const [inlineDates, setInlineDates] = useState({})
@@ -1940,18 +1939,13 @@ export default function TasksTab() {
           >
             <Plus size={16} /> New Task
           </button>
-          <button
-            onClick={() => setShowChecklistModal(true)}
-            className="h-11 px-5 bg-white border border-slate-200 text-slate-700 rounded-xl text-[12px] font-semibold uppercase tracking-[0.08em] flex items-center gap-2 hover:bg-slate-50 hover:border-slate-300 transition-all"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            <Settings size={16} /> Configure Checklist
-          </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto p-2.5">
-        {activeTab === 'reminders' ? (
+        {activeTab === 'checklist' ? (
+          <ChecklistView user={user} />
+        ) : activeTab === 'reminders' ? (
           <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {reminders.map(r => (
               <div key={r.id} className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm hover:border-indigo-300 transition-all cursor-pointer group" onClick={() => setSelectedReminder(r)}>
@@ -2593,17 +2587,6 @@ export default function TasksTab() {
             </div>
           </div>
         )}
-      </Modal>
-
-      <Modal
-        isOpen={showChecklistModal}
-        onClose={() => setShowChecklistModal(false)}
-        title="User Scoped Checklist Module"
-        size="xl"
-      >
-        <div className="h-[600px]">
-          <ChecklistView user={user} isModalView />
-        </div>
       </Modal>
     </div>
   )
