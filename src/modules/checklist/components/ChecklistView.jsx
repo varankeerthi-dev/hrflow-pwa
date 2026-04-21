@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
   Ban,
+  Calendar as CalendarIcon,
   Check,
   ChevronLeft,
   ChevronRight,
   GripVertical,
+  Layout,
   Loader2,
   Pencil,
   Plus,
@@ -401,74 +403,136 @@ export default function ChecklistView({ user }) {
       )}
 
       {showConfigureModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <h2 className="text-[16px] font-semibold text-slate-800">Configure Checklist Templates</h2>
-              <button onClick={() => setShowConfigureModal(false)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"><X size={18} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Configure Templates</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Manage your daily and weekly checklist items</p>
+              </div>
+              <button onClick={() => setShowConfigureModal(false)} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                <X size={20} />
+              </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
               {[
-                ['daily', daily],
-                ['weekly', weekly],
-              ].map(([kind, list]) => (
-                <div key={kind}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[13px] font-semibold text-slate-700 capitalize">{kind} Checklists</span>
-                    <span className="text-[11px] text-slate-400">{list.length} items</span>
-                  </div>
-                  <div className="space-y-2">
-                    {list.map((t) => (
-                      <div key={t.id} onDragOver={(e) => { e.preventDefault(); if (dragging?.kind === kind) setDragOverId(t.id) }} onDrop={(e) => { e.preventDefault(); reorder(t.id, kind) }} className={`border rounded-lg ${dragOverId === t.id ? 'border-emerald-300 bg-emerald-50/50' : 'border-slate-200 bg-white'}`}>
-                        <div className="px-3 py-2 flex items-center gap-2">
-                          <button draggable onDragStart={() => setDragging({ id: t.id, kind })} onDragEnd={() => { setDragging(null); setDragOverId(null) }} className="p-1 text-slate-300 hover:text-slate-500 cursor-grab"><GripVertical size={14} /></button>
-                          <button onClick={() => setExpanded((p) => ({ ...p, [t.id]: !p[t.id] }))} className="p-1 text-slate-400 hover:text-slate-600"><ChevronRight size={14} className={`${expanded[t.id] ? 'rotate-90' : ''} transition-transform duration-200`} /></button>
-                          <p className="flex-1 text-[12px] text-slate-700 truncate">{t.name}</p>
-                        </div>
-                        {expanded[t.id] && (
-                          <div className="border-t border-slate-100 p-2 bg-slate-50/60 space-y-2">
-                            {editingId === t.id ? (
-                              <>
-                                <input value={editingName} onChange={(e) => setEditingName(e.target.value)} className="w-full h-8 px-2.5 text-[12px] border border-slate-300 rounded-md outline-none focus:ring-2 focus:ring-slate-200" />
-                                <div className="flex gap-2">
-                                  <button onClick={() => saveEdit(t.id)} className="h-7 px-3 rounded-md bg-slate-800 text-white text-[11px] font-semibold">Save</button>
-                                  <button onClick={() => { setEditingId(null); setEditingName('') }} className="h-7 px-3 rounded-md border border-slate-300 text-slate-600 text-[11px] font-semibold">Cancel</button>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="flex gap-2">
-                                <button onClick={() => { setEditingId(t.id); setEditingName(t.name || '') }} className="h-7 px-3 rounded-md border border-slate-300 text-slate-700 text-[11px] font-semibold inline-flex items-center gap-1.5"><Pencil size={12} /> Edit</button>
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await templatesApi.deleteTemplate(t.id)
-                                    } catch (error) {
-                                      setActionError(error?.message || 'Unable to delete checklist')
-                                    }
-                                  }}
-                                  className="h-7 px-3 rounded-md border border-rose-300 text-rose-600 text-[11px] font-semibold inline-flex items-center gap-1.5"
-                                >
-                                  <Trash2 size={12} /> Delete
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 border border-dashed border-slate-300 rounded-lg p-2">
-                    <div className="flex gap-2">
-                      <input value={newNames[kind]} onChange={(e) => { setNewNames((p) => ({ ...p, [kind]: e.target.value })); if (nameErrors[kind]) setNameErrors((p) => ({ ...p, [kind]: '' })) }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTemplate(kind) } }} className="flex-1 h-8 px-2.5 text-[12px] border border-slate-300 rounded-md outline-none focus:ring-2 focus:ring-slate-200" placeholder={`Add ${kind} checklist`} />
-                      <button onClick={() => addTemplate(kind)} className="h-8 w-8 rounded-md bg-slate-800 text-white inline-flex items-center justify-center"><Plus size={13} /></button>
+                ['daily', daily, 'Repeats every day'],
+                ['weekly', weekly, 'Repeats every week'],
+              ].map(([kind, list, desc], idx) => (
+                <div key={kind} className={idx > 0 ? 'mt-6 pt-6 border-t border-slate-100' : ''}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${kind === 'daily' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                      {kind === 'daily' ? <CalendarIcon size={16} /> : <Layout size={16} />}
                     </div>
-                    {nameErrors[kind] && <p className="mt-1 text-[11px] text-rose-600">{nameErrors[kind]}</p>}
+                    <div className="flex-1">
+                      <span className="text-sm font-semibold text-slate-800 capitalize">{kind} Checklist</span>
+                      <p className="text-xs text-slate-500">{desc} • {list.length} items</p>
+                    </div>
+                  </div>
+                  
+                  {list.length === 0 ? (
+                    <div className="py-6 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center">
+                      <p className="text-xs text-slate-500 mb-3">No {kind} items yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {list.map((t) => (
+                        <div 
+                          key={t.id} 
+                          onDragOver={(e) => { e.preventDefault(); if (dragging?.kind === kind) setDragOverId(t.id) }} 
+                          onDrop={(e) => { e.preventDefault(); reorder(t.id, kind) }} 
+                          className={`group border rounded-xl transition-all duration-200 ${dragOverId === t.id ? 'border-emerald-400 bg-emerald-50/70 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'}`}
+                        >
+                          <div className="px-3 py-2.5 flex items-center gap-2">
+                            <button 
+                              draggable 
+                              onDragStart={() => setDragging({ id: t.id, kind })} 
+                              onDragEnd={() => { setDragging(null); setDragOverId(null) }} 
+                              className="p-1.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing hover:bg-slate-50 rounded-lg transition-colors"
+                            >
+                              <GripVertical size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setExpanded((p) => ({ ...p, [t.id]: !p[t.id] }))} 
+                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                            >
+                              <ChevronRight size={14} className={`${expanded[t.id] ? 'rotate-90' : ''} transition-transform duration-200`} />
+                            </button>
+                            <p className="flex-1 text-sm font-medium text-slate-700 truncate">{t.name}</p>
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                              <button 
+                                onClick={() => { setEditingId(t.id); setEditingName(t.name || '') }} 
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await templatesApi.deleteTemplate(t.id)
+                                  } catch (error) {
+                                    setActionError(error?.message || 'Unable to delete checklist')
+                                  }
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          {expanded[t.id] && (
+                            <div className="border-t border-slate-100 px-3 py-3 bg-slate-50/50 space-y-2">
+                              {editingId === t.id ? (
+                                <>
+                                  <input 
+                                    value={editingName} 
+                                    onChange={(e) => setEditingName(e.target.value)} 
+                                    className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => saveEdit(t.id)} className="h-8 px-4 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors">Save</button>
+                                    <button onClick={() => { setEditingId(null); setEditingName('') }} className="h-8 px-4 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+                                  </div>
+                                </>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="mt-3">
+                    <div className="flex gap-2">
+                      <input 
+                        value={newNames[kind]} 
+                        onChange={(e) => { setNewNames((p) => ({ ...p, [kind]: e.target.value })); if (nameErrors[kind]) setNameErrors((p) => ({ ...p, [kind]: '' })) }} 
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTemplate(kind) } }} 
+                        className="flex-1 h-10 px-3 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400" 
+                        placeholder={`Add new ${kind} item...`} 
+                      />
+                      <button 
+                        onClick={() => addTemplate(kind)} 
+                        className="h-10 px-4 rounded-xl bg-slate-900 text-white text-sm font-medium inline-flex items-center gap-1.5 hover:bg-slate-800 transition-colors"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    {nameErrors[kind] && <p className="mt-1.5 text-xs text-rose-500">{nameErrors[kind]}</p>}
                   </div>
                 </div>
               ))}
             </div>
-            <div className="p-4 border-t border-slate-200">
-              <button onClick={() => setShowConfigureModal(false)} className="w-full h-10 rounded-lg bg-slate-800 text-white text-[12px] font-semibold">Done</button>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
+              <button 
+                onClick={() => setShowConfigureModal(false)} 
+                className="w-full h-11 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
