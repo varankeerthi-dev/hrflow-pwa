@@ -475,25 +475,49 @@ export default function AttendanceTab() {
     if (!user?.orgId || !reportData.length) return
     if (!window.confirm("This will mark all records before an employee's joining date OR after their inactive date as 'Absent' in the CURRENT report range. Continue?")) return
     
+    const normalizeDate = (dateStr) => {
+      if (!dateStr || dateStr === '-') return null;
+      const parts = dateStr.split(/[-/]/);
+      if (parts.length === 3) {
+        if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+      return dateStr;
+    };
+
     setFixingHistory(true)
     try {
       const updates = []
       for (const row of reportData) {
         const emp = employees.find(e => e.id === row.employeeId)
         if (emp) {
-          const isBeforeJoined = emp.joinedDate && row.date < emp.joinedDate
-          const isAfterInactive = emp.inactiveFrom && row.date > emp.inactiveFrom
+          const normalizedRowDate = normalizeDate(row.date)
+          const normalizedJoined = normalizeDate(emp.joinedDate)
+          const normalizedInactive = normalizeDate(emp.inactiveFrom)
           
-          if ((isBeforeJoined || isAfterInactive) && row.status !== 'Absent') {
-            // Prepare update
+          const isBeforeJoined = normalizedJoined && normalizedRowDate < normalizedJoined
+          const isAfterInactive = normalizedInactive && normalizedRowDate > normalizedInactive
+          
+          const shouldBeAbsent = isBeforeJoined || isAfterInactive
+          
+          if (shouldBeAbsent && row.status !== 'Absent') {
             updates.push({
               ...row,
               status: 'Absent',
               isAbsent: true,
               inTime: '',
               outTime: '',
-              otHours: '00:00'
-            })
+              otHours: '00:00',
+              checkIn: null,
+              checkOut: null
+            });
+          } else if (!shouldBeAbsent && row.status === 'Absent' && (row.inTime || row.checkIn)) {
+            // Restore incorrectly marked records
+            updates.push({
+              ...row,
+              status: 'Present',
+              isAbsent: false
+            });
           }
         }
       }

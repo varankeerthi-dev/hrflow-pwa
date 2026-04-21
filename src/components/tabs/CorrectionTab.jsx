@@ -7,6 +7,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
+import BulkAttendanceModal from './BulkAttendanceModal'
 import { 
   Calendar, Search, FileText, Printer, ChevronLeft, ChevronRight, 
   Clock, Edit2, Save, X, Check, Square, Trash2, FileDown, 
@@ -559,7 +560,7 @@ export default function CorrectionTab() {
   // Load Inter and Roboto fonts
     useEffect(() => {
       const link = document.createElement('link')
-      link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap'
+      link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Raleway:wght@700;800;900&display=swap'
       link.rel = 'stylesheet'
       document.head.appendChild(link)
       return () => document.head.removeChild(link)
@@ -583,6 +584,7 @@ export default function CorrectionTab() {
   
   // Panels
   const [showBulkPanel, setShowBulkPanel] = useState(false)
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false)
   const [showEditDrawer, setShowEditDrawer] = useState(false)
   const [drawerRow, setDrawerRow] = useState(null)
 
@@ -938,6 +940,13 @@ export default function CorrectionTab() {
           </div>
           
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowBulkAddModal(true)}
+              className="h-[32px] px-4 bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-md"
+            >
+              <Plus size={12} strokeWidth={3} /> Bulk Add
+            </button>
+
             {selectedRows.length > 0 && (
               <button
                 onClick={() => setShowBulkPanel(true)}
@@ -1239,6 +1248,17 @@ export default function CorrectionTab() {
         onSave={handleDrawerSave}
         onDelete={handleDeleteEntry}
         saving={saving}
+      />
+
+      {/* Bulk Add Modal */}
+      <BulkAttendanceModal
+        isOpen={showBulkAddModal}
+        onClose={() => {
+          setShowBulkAddModal(false)
+          handleRefresh()
+        }}
+        employees={employees}
+        orgId={user?.orgId}
       />
     </div>
   )

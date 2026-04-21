@@ -6,7 +6,7 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight } from 'lucide-react'
+import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font, pdf } from '@react-pdf/renderer'
 import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -403,36 +403,105 @@ export default function SalarySlipTab() {
     queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
     queryFn: async () => {
       if (!user?.orgId || !sortedEmployees.length) return []; const [y, m] = summaryMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${end}`
-      const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap] = await Promise.all([
+      const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap, sandwichSnap] = await Promise.all([
         getDocs(collection(db, 'organisations', user.orgId, 'attendance')), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))), 
         getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')), 
         getDocs(collection(db, 'organisations', user.orgId, 'fines')), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth))),
-        getDoc(doc(db, 'organisations', user.orgId))
+        getDoc(doc(db, 'organisations', user.orgId)),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', summaryMonth)))
       ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
+      const saturdayType = orgData.saturdayType || 'working'; // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
+      const isSaturdayHoliday = saturdayType !== 'working';
+      
+      const appliedSandwiches = sandwichSnap.docs.map(d => d.data());
 
       const allAtt = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
+      
       return sortedEmployees.map((emp, idx) => {
-        const empAtt = allAtt.filter(a => a.employeeId === emp.id), attByDate = new Map(empAtt.map(a => [a.date, a]))
+        const normalizeDate = (dateStr) => {
+          if (!dateStr || dateStr === '-') return null;
+          const parts = dateStr.split(/[-/]/);
+          if (parts.length === 3) {
+            if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+          return dateStr;
+        };
+
+        const empAtt = allAtt.filter(a => a.employeeId === emp.id);
+        const attByDate = new Map(empAtt.map(a => [normalizeDate(a.date), a]));
+        
         let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
+        const potentialSandwichDays = [];
+        const appliedForThisEmp = appliedSandwiches.filter(s => s.employeeId === emp.id);
+
+        const normalizedJoined = normalizeDate(emp.joinedDate)
+        const normalizedInactive = normalizeDate(emp.inactiveFrom)
+
+        const isDateAHoliday = (dateObj) => {
+          const ds = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          const day = dateObj.getDay(); // 0: Sun, 6: Sat
+          if (day === 0) return true;
+          if (day === 6 && isSaturdayHoliday) return true;
+          if (holidayDates.has(ds)) return true;
+          return false;
+        };
+
         for (let i = 1; i <= end; i++) {
-          const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(dateStr) && !isS, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
+          const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isSat = d.getDay() === 6, isH = holidayDates.has(dateStr) && !isS, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
           
-          if (emp.joinedDate && dateStr < emp.joinedDate) {
+          if (normalizedJoined && dateStr < normalizedJoined) {
             lop++;
             continue;
           }
-          if (emp.inactiveFrom && dateStr > emp.inactiveFrom) {
+          if (normalizedInactive && dateStr > normalizedInactive) {
             lop++;
             continue;
           }
           
           if (isS) sunCount++
           if (isH) holCount++
+
+          // Sandwich Detection
+          // Skip if employee is marked as hidden (MD/Partner)
+          if (!emp.hideInAttendance && (isS || isH || (isSat && isSaturdayHoliday)) && !isWorkedAttendanceRecord(r)) {
+            // Find last working day before
+            let prevWorkingDay = new Date(y, m - 1, i - 1);
+            while (prevWorkingDay.getDate() > 0 && isDateAHoliday(prevWorkingDay)) {
+              prevWorkingDay.setDate(prevWorkingDay.getDate() - 1);
+            }
+            
+            // Find next working day after
+            let nextWorkingDay = new Date(y, m - 1, i + 1);
+            while (nextWorkingDay.getDate() <= end && isDateAHoliday(nextWorkingDay)) {
+              nextWorkingDay.setDate(nextWorkingDay.getDate() + 1);
+            }
+
+            const prevDS = `${prevWorkingDay.getFullYear()}-${String(prevWorkingDay.getMonth()+1).padStart(2, '0')}-${String(prevWorkingDay.getDate()).padStart(2, '0')}`;
+            const nextDS = `${nextWorkingDay.getFullYear()}-${String(nextWorkingDay.getMonth()+1).padStart(2, '0')}-${String(nextWorkingDay.getDate()).padStart(2, '0')}`;
+            
+            const rPrev = attByDate.get(prevDS);
+            const rNext = attByDate.get(nextDS);
+            
+            // If they are absent on both the previous actual working day AND the next actual working day
+            const isPrevAbsent = (!rPrev || rPrev.status?.toLowerCase() === 'absent' || rPrev.isAbsent);
+            const isNextAbsent = (!rNext || rNext.status?.toLowerCase() === 'absent' || rNext.isAbsent);
+
+            if (isPrevAbsent && isNextAbsent) {
+              const typeLabel = isS ? 'Sunday' : (isSat ? 'Saturday' : 'Holiday');
+              potentialSandwichDays.push({ date: dateStr, type: typeLabel });
+              // If already applied, add to LOP
+              if (appliedForThisEmp.some(s => s.date === dateStr)) {
+                lop++;
+                continue;
+              }
+            }
+          }
           
           const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
           const isHD = status === 'half-day' || r?.isHalfDay
@@ -462,7 +531,7 @@ export default function SalarySlipTab() {
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
         const totalEarnings = basic + hra + sunPay + holPay + otPay + reimb, totalDeductions = pf + esi + loanE + adv + fine
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sunday: sunCount, holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions } }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sunday: sunCount, holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -732,6 +801,63 @@ export default function SalarySlipTab() {
     window.open('https://mail.google.com', '_blank');
   }
 
+  const [selectedSandwichDays, setSelectedSandwichDays] = useState(new Set());
+  const [processingSandwich, setProcessingSandwich] = useState(false);
+  const [sandwichHistoryFilterEmp, setSandwichHistoryFilterEmp] = useState('');
+  
+  const processSandwichMutation = useMutation({
+    mutationFn: async (selectedDays) => {
+      const batch = [];
+      selectedDays.forEach(key => {
+        const [empId, date] = key.split('_');
+        const docId = `${summaryMonth}_${empId}_${date}`;
+        batch.push(setDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', docId), {
+          employeeId: empId,
+          month: summaryMonth,
+          date: date,
+          appliedAt: serverTimestamp(),
+          appliedBy: user.uid
+        }));
+      });
+      await Promise.all(batch);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['attendanceSummary']);
+      setSelectedSandwichDays(new Set());
+      alert('Sandwich deductions applied successfully!');
+    },
+    onError: (err) => alert('Failed to apply: ' + err.message)
+  });
+
+  const allPotentialSandwiches = useMemo(() => {
+    const list = [];
+    attendanceSummaryData.forEach(emp => {
+      (emp.potentialSandwichDays || []).forEach(day => {
+        const isApplied = (emp.appliedSandwichDays || []).some(s => s.date === day.date);
+        if (!isApplied) {
+          list.push({ ...day, empId: emp.id, empName: emp.name });
+        }
+      });
+    });
+    return list;
+  }, [attendanceSummaryData]);
+
+  const { data: sandwichHistory = [], isLoading: isHistoryLoading } = useQuery({
+    queryKey: ['sandwichHistory', user?.orgId, summaryMonth],
+    queryFn: async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', summaryMonth));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    enabled: !!user?.orgId && summarySubTab === 'history'
+  });
+
+  const filteredHistory = useMemo(() => {
+    return sandwichHistoryFilterEmp 
+      ? sandwichHistory.filter(h => h.employeeId === sandwichHistoryFilterEmp)
+      : sandwichHistory;
+  }, [sandwichHistory, sandwichHistoryFilterEmp]);
+
   return (
     <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden flex-col">
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
@@ -860,7 +986,12 @@ export default function SalarySlipTab() {
             <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-50">
               <div className="flex gap-2 items-center">
                 <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                  {[{id:'overview',l:'Overview'},{id:'detailed',l:'Full Summary'}].map(t=>(<button key={t.id} onClick={()=>setSummarySubTab(t.id)} className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${summarySubTab===t.id?'bg-white text-indigo-600 shadow-sm border border-indigo-100':'text-slate-500 hover:text-slate-900'}`}>{t.l}</button>))}
+                  {[
+                    {id:'overview',l:'Overview'},
+                    {id:'detailed',l:'Full Summary'},
+                    {id:'sandwich',l:'Sandwich Rule'},
+                    {id:'history',l:'History'}
+                  ].map(t=>(<button key={t.id} onClick={()=>setSummarySubTab(t.id)} className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${summarySubTab===t.id?'bg-white text-indigo-600 shadow-sm border border-indigo-100':'text-slate-500 hover:text-slate-900'}`}>{t.l}</button>))}
                 </div>
                 <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
                   <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
@@ -898,6 +1029,16 @@ export default function SalarySlipTab() {
                       </div>
                     )}
                   </div>
+                )}
+                {summarySubTab==='sandwich' && (
+                  <button 
+                    onClick={() => processSandwichMutation.mutate(selectedSandwichDays)} 
+                    disabled={selectedSandwichDays.size === 0 || processSandwichMutation.isPending}
+                    className="h-7 px-4 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                  >
+                    {processSandwichMutation.isPending ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
+                    Apply Selected ({selectedSandwichDays.size})
+                  </button>
                 )}
               </div>
             </div>
@@ -967,6 +1108,105 @@ export default function SalarySlipTab() {
                     ))}
                   </tbody>
                 </table>
+                </div>
+              ) : summarySubTab === 'sandwich' ? (
+                <div className="h-full overflow-auto bg-white p-4">
+                  <div className="mb-4 flex justify-between items-end">
+                    <div>
+                      <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Sandwich Detection</h2>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Detected Sundays/Holidays sandwiched between absences.</p>
+                    </div>
+                  </div>
+                  {allPotentialSandwiches.length === 0 ? (
+                    <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                      <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-4 opacity-20" />
+                      <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">No potential sandwiches detected</p>
+                    </div>
+                  ) : (
+                    <div className="border border-zinc-200 rounded-sm overflow-hidden shadow-sm">
+                      <table className="w-full border-collapse">
+                        <thead className="bg-zinc-50 font-['Raleway']">
+                          <tr className="h-8 border-b border-zinc-200">
+                            <th className="px-3 border-r border-zinc-200 text-left w-10 bg-zinc-50"><input type="checkbox" checked={selectedSandwichDays.size === allPotentialSandwiches.length} onChange={(e) => {
+                              if (e.target.checked) setSelectedSandwichDays(new Set(allPotentialSandwiches.map(s => `${s.empId}_${s.date}`)));
+                              else setSelectedSandwichDays(new Set());
+                            }} className="w-3 h-3 rounded border-zinc-300" /></th>
+                            <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
+                            <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Sandwich Date</th>
+                            <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Type</th>
+                            <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Financial Impact</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-200 bg-white">
+                          {allPotentialSandwiches.map(s => (
+                            <tr key={`${s.empId}_${s.date}`} className="h-[32px] hover:bg-sky-50/30 transition-colors">
+                              <td className="px-3 border-r border-zinc-100"><input type="checkbox" checked={selectedSandwichDays.has(`${s.empId}_${s.date}`)} onChange={() => {
+                                const next = new Set(selectedSandwichDays);
+                                if (next.has(`${s.empId}_${s.date}`)) next.delete(`${s.empId}_${s.date}`);
+                                else next.add(`${s.empId}_${s.date}`);
+                                setSelectedSandwichDays(next);
+                              }} className="w-3 h-3 rounded border-zinc-300" /></td>
+                              <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{s.empName}</td>
+                              <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(s.date)}</td>
+                              <td className="px-3 border-r border-zinc-100 text-center"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${s.type === 'Sunday' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{s.type}</span></td>
+                              <td className="px-3 text-center text-rose-600 font-black text-[11px]">+1 Day LOP</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : summarySubTab === 'history' ? (
+                <div className="h-full overflow-auto bg-white p-4 flex flex-col">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Applied History</h2>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Record of processed sandwich deductions.</p>
+                    </div>
+                    <div className="w-64">
+                      <EmployeeSearchableDropdown employees={employees} selectedId={sandwichHistoryFilterEmp} onSelect={setSandwichHistoryFilterEmp} />
+                    </div>
+                  </div>
+                  {isHistoryLoading ? <div className="py-20 text-center"><Spinner /></div> : (
+                    <div className="flex-1 overflow-auto border border-zinc-200 rounded-sm shadow-sm">
+                      <table className="w-full border-collapse">
+                        <thead className="sticky top-0 bg-zinc-50 font-['Raleway'] shadow-sm z-10">
+                          <tr className="h-8 border-b border-zinc-200">
+                            <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
+                            <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Date</th>
+                            <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-48">Applied On</th>
+                            <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-20">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-200 bg-white">
+                          {filteredHistory.length === 0 ? (
+                            <tr><td colSpan={4} className="py-20 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No records found</td></tr>
+                          ) : filteredHistory.map(h => (
+                            <tr key={h.id} className="h-[32px] hover:bg-sky-50/30 transition-colors">
+                              <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{employees.find(e => e.id === h.employeeId)?.name || 'Unknown staff'}</td>
+                              <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(h.date)}</td>
+                              <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
+                              <td className="px-3 text-center">
+                                <button 
+                                  onClick={async () => {
+                                    if (window.confirm('Delete this deduction?')) {
+                                      await deleteDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', h.id));
+                                      queryClient.invalidateQueries(['sandwichHistory']);
+                                      queryClient.invalidateQueries(['attendanceSummary']);
+                                    }
+                                  }}
+                                  className="p-1 text-zinc-300 hover:text-rose-600 transition-all"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="min-w-max h-full overflow-auto relative">
