@@ -57,6 +57,7 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'salaryCtc', label: 'Total (CTC)', width: 80 },
   { id: 'days', label: 'Total days', width: 45 },
   { id: 'worked', label: 'Worked days', width: 45 },
+  { id: 'sundays', label: 'Sunday', width: 45 },
   { id: 'sunWorked', label: 'Sunday worked', width: 45 },
   { id: 'holidayWorked', label: 'Holiday worked', width: 45 },
   { id: 'otH', label: 'OT hours', width: 45 },
@@ -100,6 +101,7 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
       case 'salaryCtc': return Math.round(row.fullBasic + row.fullHra).toLocaleString('en-IN');
       case 'days': return row.totalDays;
       case 'worked': return row.worked;
+      case 'sundays': return row.sundays || 0;
       case 'sunWorked': return row.sunW || 0;
       case 'holidayWorked': return row.holW || 0;
       case 'otH': return (row.ot + row.otAdjustment).toFixed(2);
@@ -531,7 +533,7 @@ export default function SalarySlipTab() {
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
         const totalEarnings = basic + hra + sunPay + holPay + otPay + reimb, totalDeductions = pf + esi + loanE + adv + fine
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sunday: sunCount, holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, salary: { net: totalEarnings - totalDeductions }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -555,7 +557,7 @@ export default function SalarySlipTab() {
     const groups = [
       { id: 'basic', label: 'Basic Info', color: 'blue', columns: ['sno', 'empNo', 'name', 'designation'] },
       { id: 'structure', label: 'Structure (CTC)', color: 'purple', columns: ['basicCtc', 'hraCtc', 'salaryCtc'] },
-      { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'lop', 'paidDays'] },
+      { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'lop', 'paidDays'] },
       { id: 'earnings', label: 'Earnings (PAID)', color: 'emerald', columns: ['basicPaid', 'hraPaid', 'salaryPaid', 'sundayPay', 'holidayPay', 'otPay', 'earnings'] },
       { id: 'genDeductions', label: 'Deductions & Vouchers', color: 'red', columns: ['pf', 'esi', 'loan', 'ded', 'advance', 'reimb', 'netAdj'] },
       { id: 'summary', label: 'Payout Summary', color: 'green', columns: ['totalDed', 'net'] }
@@ -578,6 +580,7 @@ export default function SalarySlipTab() {
       case 'salaryCtc': return Math.round(emp.fullBasic + emp.fullHra).toLocaleString('en-IN');
       case 'days': return emp.totalDays;
       case 'worked': return emp.worked;
+      case 'sundays': return emp.sundays || 0;
       case 'sunWorked': return emp.sunW;
       case 'holidayWorked': return emp.holW;
       case 'otH': return (emp.ot + emp.otAdjustment).toFixed(2);
@@ -989,8 +992,7 @@ export default function SalarySlipTab() {
                   {[
                     {id:'overview',l:'Overview'},
                     {id:'detailed',l:'Full Summary'},
-                    {id:'sandwich',l:'Sandwich Rule'},
-                    {id:'history',l:'History'}
+                    {id:'sandwich',l:'Sandwich Rule'}
                   ].map(t=>(<button key={t.id} onClick={()=>setSummarySubTab(t.id)} className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${summarySubTab===t.id?'bg-white text-indigo-600 shadow-sm border border-indigo-100':'text-slate-500 hover:text-slate-900'}`}>{t.l}</button>))}
                 </div>
                 <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
@@ -1029,16 +1031,6 @@ export default function SalarySlipTab() {
                       </div>
                     )}
                   </div>
-                )}
-                {summarySubTab==='sandwich' && (
-                  <button 
-                    onClick={() => processSandwichMutation.mutate(selectedSandwichDays)} 
-                    disabled={selectedSandwichDays.size === 0 || processSandwichMutation.isPending}
-                    className="h-7 px-4 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center gap-2"
-                  >
-                    {processSandwichMutation.isPending ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
-                    Apply Selected ({selectedSandwichDays.size})
-                  </button>
                 )}
               </div>
             </div>
@@ -1084,7 +1076,7 @@ export default function SalarySlipTab() {
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-mono text-[10px]">{idx + 1}</td>
                         <td className="px-4 border-r border-zinc-200 font-black text-zinc-900 uppercase text-[11px] tracking-tight">{e.name}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-semibold">{e.totalDays}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.sunday}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.sundays}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.holidays}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.worked}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.hd}</td>
@@ -1110,103 +1102,117 @@ export default function SalarySlipTab() {
                 </table>
                 </div>
               ) : summarySubTab === 'sandwich' ? (
-                <div className="h-full overflow-auto bg-white p-4">
-                  <div className="mb-4 flex justify-between items-end">
-                    <div>
-                      <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Sandwich Detection</h2>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Detected Sundays/Holidays sandwiched between absences.</p>
-                    </div>
-                  </div>
-                  {allPotentialSandwiches.length === 0 ? (
-                    <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                      <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-4 opacity-20" />
-                      <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">No potential sandwiches detected</p>
-                    </div>
-                  ) : (
-                    <div className="border border-zinc-200 rounded-sm overflow-hidden shadow-sm">
-                      <table className="w-full border-collapse">
-                        <thead className="bg-zinc-50 font-['Raleway']">
-                          <tr className="h-8 border-b border-zinc-200">
-                            <th className="px-3 border-r border-zinc-200 text-left w-10 bg-zinc-50"><input type="checkbox" checked={selectedSandwichDays.size === allPotentialSandwiches.length} onChange={(e) => {
-                              if (e.target.checked) setSelectedSandwichDays(new Set(allPotentialSandwiches.map(s => `${s.empId}_${s.date}`)));
-                              else setSelectedSandwichDays(new Set());
-                            }} className="w-3 h-3 rounded border-zinc-300" /></th>
-                            <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
-                            <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Sandwich Date</th>
-                            <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Type</th>
-                            <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Financial Impact</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-200 bg-white">
-                          {allPotentialSandwiches.map(s => (
-                            <tr key={`${s.empId}_${s.date}`} className="h-[32px] hover:bg-sky-50/30 transition-colors">
-                              <td className="px-3 border-r border-zinc-100"><input type="checkbox" checked={selectedSandwichDays.has(`${s.empId}_${s.date}`)} onChange={() => {
-                                const next = new Set(selectedSandwichDays);
-                                if (next.has(`${s.empId}_${s.date}`)) next.delete(`${s.empId}_${s.date}`);
-                                else next.add(`${s.empId}_${s.date}`);
-                                setSelectedSandwichDays(next);
-                              }} className="w-3 h-3 rounded border-zinc-300" /></td>
-                              <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{s.empName}</td>
-                              <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(s.date)}</td>
-                              <td className="px-3 border-r border-zinc-100 text-center"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${s.type === 'Sunday' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{s.type}</span></td>
-                              <td className="px-3 text-center text-rose-600 font-black text-[11px]">+1 Day LOP</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              ) : summarySubTab === 'history' ? (
                 <div className="h-full overflow-auto bg-white p-4 flex flex-col">
-                  <div className="flex justify-between items-center mb-4">
-                    <div>
-                      <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Applied History</h2>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Record of processed sandwich deductions.</p>
+                  {/* Detection Section */}
+                  <div className="mb-6">
+                    <div className="mb-4 flex justify-between items-end">
+                      <div>
+                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Sandwich Detection</h2>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Detected Sundays/Holidays sandwiched between absences.</p>
+                      </div>
+                      {allPotentialSandwiches.length > 0 && (
+                        <button 
+                          onClick={() => processSandwichMutation.mutate(selectedSandwichDays)} 
+                          disabled={selectedSandwichDays.size === 0 || processSandwichMutation.isPending}
+                          className="h-7 px-4 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                        >
+                          {processSandwichMutation.isPending ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
+                          Apply Selected ({selectedSandwichDays.size})
+                        </button>
+                      )}
                     </div>
-                    <div className="w-64">
-                      <EmployeeSearchableDropdown employees={employees} selectedId={sandwichHistoryFilterEmp} onSelect={setSandwichHistoryFilterEmp} />
-                    </div>
-                  </div>
-                  {isHistoryLoading ? <div className="py-20 text-center"><Spinner /></div> : (
-                    <div className="flex-1 overflow-auto border border-zinc-200 rounded-sm shadow-sm">
-                      <table className="w-full border-collapse">
-                        <thead className="sticky top-0 bg-zinc-50 font-['Raleway'] shadow-sm z-10">
-                          <tr className="h-8 border-b border-zinc-200">
-                            <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
-                            <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Date</th>
-                            <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-48">Applied On</th>
-                            <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-20">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-200 bg-white">
-                          {filteredHistory.length === 0 ? (
-                            <tr><td colSpan={4} className="py-20 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No records found</td></tr>
-                          ) : filteredHistory.map(h => (
-                            <tr key={h.id} className="h-[32px] hover:bg-sky-50/30 transition-colors">
-                              <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{employees.find(e => e.id === h.employeeId)?.name || 'Unknown staff'}</td>
-                              <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(h.date)}</td>
-                              <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
-                              <td className="px-3 text-center">
-                                <button 
-                                  onClick={async () => {
-                                    if (window.confirm('Delete this deduction?')) {
-                                      await deleteDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', h.id));
-                                      queryClient.invalidateQueries(['sandwichHistory']);
-                                      queryClient.invalidateQueries(['attendanceSummary']);
-                                    }
-                                  }}
-                                  className="p-1 text-zinc-300 hover:text-rose-600 transition-all"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </td>
+                    {allPotentialSandwiches.length === 0 ? (
+                      <div className="py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                        <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-4 opacity-20" />
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">No potential sandwiches detected</p>
+                      </div>
+                    ) : (
+                      <div className="border border-zinc-200 rounded-sm overflow-hidden shadow-sm">
+                        <table className="w-full border-collapse">
+                          <thead className="bg-zinc-50 font-['Raleway']">
+                            <tr className="h-8 border-b border-zinc-200">
+                              <th className="px-3 border-r border-zinc-200 text-left w-10 bg-zinc-50"><input type="checkbox" checked={selectedSandwichDays.size === allPotentialSandwiches.length} onChange={(e) => {
+                                if (e.target.checked) setSelectedSandwichDays(new Set(allPotentialSandwiches.map(s => `${s.empId}_${s.date}`)));
+                                else setSelectedSandwichDays(new Set());
+                              }} className="w-3 h-3 rounded border-zinc-300" /></th>
+                              <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
+                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Sandwich Date</th>
+                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Type</th>
+                              <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Financial Impact</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-200 bg-white">
+                            {allPotentialSandwiches.map(s => (
+                              <tr key={`${s.empId}_${s.date}`} className="h-[32px] hover:bg-sky-50/30 transition-colors">
+                                <td className="px-3 border-r border-zinc-100"><input type="checkbox" checked={selectedSandwichDays.has(`${s.empId}_${s.date}`)} onChange={() => {
+                                  const next = new Set(selectedSandwichDays);
+                                  if (next.has(`${s.empId}_${s.date}`)) next.delete(`${s.empId}_${s.date}`);
+                                  else next.add(`${s.empId}_${s.date}`);
+                                  setSelectedSandwichDays(next);
+                                }} className="w-3 h-3 rounded border-zinc-300" /></td>
+                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{s.empName}</td>
+                                <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(s.date)}</td>
+                                <td className="px-3 border-r border-zinc-100 text-center"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${s.type === 'Sunday' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{s.type}</span></td>
+                                <td className="px-3 text-center text-rose-600 font-black text-[11px]">+1 Day LOP</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* History Section */}
+                  <div className="flex-1 flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Applied History</h2>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Record of processed sandwich deductions.</p>
+                      </div>
+                      <div className="w-64">
+                        <EmployeeSearchableDropdown employees={employees} selectedId={sandwichHistoryFilterEmp} onSelect={setSandwichHistoryFilterEmp} />
+                      </div>
                     </div>
-                  )}
+                    {isHistoryLoading ? <div className="py-20 text-center"><Spinner /></div> : (
+                      <div className="flex-1 overflow-auto border border-zinc-200 rounded-sm shadow-sm">
+                        <table className="w-full border-collapse">
+                          <thead className="sticky top-0 bg-zinc-50 font-['Raleway'] shadow-sm z-10">
+                            <tr className="h-8 border-b border-zinc-200">
+                              <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
+                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Date</th>
+                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-48">Applied On</th>
+                              <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-20">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-200 bg-white">
+                            {filteredHistory.length === 0 ? (
+                              <tr><td colSpan={4} className="py-20 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No records found</td></tr>
+                            ) : filteredHistory.map(h => (
+                              <tr key={h.id} className="h-[32px] hover:bg-sky-50/30 transition-colors">
+                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{employees.find(e => e.id === h.employeeId)?.name || 'Unknown staff'}</td>
+                                <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(h.date)}</td>
+                                <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
+                                <td className="px-3 text-center">
+                                  <button 
+                                    onClick={async () => {
+                                      if (window.confirm('Delete this deduction?')) {
+                                        await deleteDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', h.id));
+                                        queryClient.invalidateQueries(['sandwichHistory']);
+                                        queryClient.invalidateQueries(['attendanceSummary']);
+                                      }
+                                    }}
+                                    className="p-1 text-zinc-300 hover:text-rose-600 transition-all"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="min-w-max h-full overflow-auto relative">
@@ -1239,7 +1245,7 @@ export default function SalarySlipTab() {
                         <tr key={e.id} className={`border-b border-slate-200 h-[32px] transition-colors hover:bg-indigo-50/50 group`}>
                           {visibleDetailedSummaryColumns.map(c=>(
                             <td key={c.id} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'bg')} ${getColumnColorClass(c.id, 'border')} ${
-                              ['sno', 'empNo', 'days', 'worked', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'text-center' : 
+                              ['sno', 'empNo', 'days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'text-center' : 
                               ['name', 'designation'].includes(c.id) ? 'text-left' : 'text-right'
                             } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[11px] shadow-inner' : (c.id === 'earnings' ? 'font-black' : 'font-medium')}`}>
                               {renderDetailedCell(c.id, e)}

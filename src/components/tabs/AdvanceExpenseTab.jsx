@@ -31,7 +31,6 @@ export default function AdvanceExpenseTab() {
   const [reportFilterTxn, setReportFilterTxn] = useState('')
   const [reportFilterType, setReportFilterType] = useState('All') // All | Advance | Expense
   const [reportFilterPayout, setReportFilterPayout] = useState('All') // All | Immediate | With Salary
-  const [reportFilterPaidBy, setReportFilterPaidBy] = useState('All') // All | specific user uid
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
   
@@ -577,10 +576,7 @@ export default function AdvanceExpenseTab() {
         // Payout filter
         const matchesPayout = reportFilterPayout === 'All' || e.payoutMethod === reportFilterPayout
         
-        // Paid By filter (Accountant)
-        const matchesPaidBy = reportFilterPaidBy === 'All' || e.paidBy === reportFilterPaidBy
-        
-        return matchesDate && matchesEmployee && matchesCategory && matchesRemarks && matchesTxn && matchesType && matchesPayout && matchesPaidBy
+        return matchesDate && matchesEmployee && matchesCategory && matchesRemarks && matchesTxn && matchesType && matchesPayout
       })
       
       setFilteredEntries(filtered)
@@ -590,7 +586,7 @@ export default function AdvanceExpenseTab() {
     if (entries.length > 0) {
       autoApplyFilters()
     }
-  }, [entries, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategory, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportFilterPaidBy, reportMonth])
+  }, [entries, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategory, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportMonth])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -747,10 +743,7 @@ export default function AdvanceExpenseTab() {
         Number(existing.amount) === Number(row.amount) &&
         existing.date === row.date &&
         existing.category.toLowerCase().trim() === row.category.toLowerCase().trim() &&
-        existing.status !== 'Rejected' &&
-        // New: Check Recipient (paidTo)
-        existing.paidTo === (row.paidTo || null) &&
-        existing.paidToType === (row.paidToType || null)
+        existing.status !== 'Rejected'
       )
       
       if (isDuplicate) {
@@ -1212,22 +1205,11 @@ export default function AdvanceExpenseTab() {
     setReportFilterTxn('')
     setReportFilterType('All')
     setReportFilterPayout('All')
-    setReportFilterPaidBy('All')
     setReportMonth(new Date().toISOString().slice(0, 7))
   }
 
   const advForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Advance'), [filteredEntries])
   const expForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Expense'), [filteredEntries])
-
-  const payers = useMemo(() => {
-    const map = new Map()
-    entries.forEach(e => {
-      if (e.paidBy && e.paidByName) {
-        map.set(e.paidBy, e.paidByName)
-      }
-    })
-    return Array.from(map.entries()).map(([uid, name]) => ({ uid, name }))
-  }, [entries])
 
   const handleScreenshot = async () => {
     try {
@@ -2547,19 +2529,6 @@ export default function AdvanceExpenseTab() {
                 <option value="All">All Payouts</option>
                 <option value="Immediate">Immediate</option>
                 <option value="With Salary">With Salary</option>
-              </select>
-
-              {/* Paid By Filter (Accountant) */}
-              <select 
-                value={reportFilterPaidBy}
-                onChange={(e) => setReportFilterPaidBy(e.target.value)}
-                className="px-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer"
-                style={{ lineHeight: '15px' }}
-              >
-                <option value="All">All Payers</option>
-                {payers.map(p => (
-                  <option key={p.uid} value={p.uid}>{p.name}</option>
-                ))}
               </select>
 
               {/* Clear Filters */}
