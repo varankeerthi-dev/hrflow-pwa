@@ -226,10 +226,49 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
       </View>
       <View style={{borderWidth:1, borderColor:'#0f172a', borderRadius:4, overflow:'hidden'}}>
         <View style={{flexDirection:'row'}}>
-          <View style={{flex:1, backgroundColor:'#dcfce7', color:'#166534', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#0f172a', flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>EARNINGS (CREDIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
-          <View style={{flex:1, backgroundColor:'#fee2e2', color:'#991b1b', paddingVertical:6, paddingHorizontal:8, flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>DEDUCTIONS (DEBIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
+          <View style={{flex:5, backgroundColor:'#dcfce7', color:'#166534', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#0f172a', flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>EARNINGS (CREDIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
+          <View style={{flex:4, backgroundColor:'#fee2e2', color:'#991b1b', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#0f172a', flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>DEDUCTIONS (DEBIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
+          <View style={{flex:3, backgroundColor:'#f0fdf4', color:'#475569', paddingVertical:6, paddingHorizontal:8, flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>ADVANCE/EXPENSE</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
         </View>
-        <View style={{flexDirection:'row'}}><View style={{flex:1, borderRightWidth:1, borderColor:'#e2e8f0'}}><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Basic Salary</Text><Text>{formatINR(data.basic)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>HRA</Text><Text>{formatINR(data.hra)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Sunday Worked</Text><Text>{formatINR(data.sundayPay)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Holiday Pay</Text><Text>{formatINR(data.holidayPay)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>OT Pay</Text><Text>{formatINR(data.otPay)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8}}><Text style={{fontWeight:'bold'}}>Expense</Text><Text>{formatINR(data.expenseReimbursement)}</Text></View></View><View style={{flex:1}}><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>PF</Text><Text>{dashIfZero(data.pf)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>ESI</Text><Text>{dashIfZero(data.esi)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Loan</Text><Text>{dashIfZero(data.loanEMI)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Fine</Text><Text>{dashIfZero(data.fineAmount)}</Text></View><View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8}}><Text style={{fontWeight:'bold'}}>Advance</Text><Text>{dashIfZero(data.advanceDeduction)}</Text></View></View></View>
+        <View style={{flexDirection:'row'}}>
+          <View style={{flex:5, borderRightWidth:1, borderColor:'#e2e8f0'}}>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Basic Salary</Text><Text>{formatINR(data.basic)}</Text></View>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>HRA</Text><Text>{formatINR(data.hra)}</Text></View>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Sunday Worked</Text><Text>{formatINR(data.sundayPay)}</Text></View>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Holiday Pay</Text><Text>{formatINR(data.holidayPay)}</Text></View>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>OT Pay</Text><Text>{formatINR(data.otPay)}</Text></View>
+          </View>
+          <View style={{flex:4, borderRightWidth:1, borderColor:'#e2e8f0'}}>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>PF</Text><Text>{dashIfZero(data.pf)}</Text></View>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>ESI</Text><Text>{dashIfZero(data.esi || 0)}</Text></View>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Loan Recovery</Text><Text>{dashIfZero(data.loanEMI)}</Text></View>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Fine / Penalties</Text><Text>{dashIfZero(data.fineAmount)}</Text></View>
+          </View>
+          <View style={{flex:3, backgroundColor:'#fafafa'}}>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:3, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#e2e8f0'}}>
+              <Text style={{fontSize:7, fontWeight:'bold', color:'#065f46'}}>Expense</Text>
+              <Text style={{fontSize:7, fontWeight:'bold', color:'#065f46'}}>{formatINR(data.expenseReimbursement)}</Text>
+            </View>
+            <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:3, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#e2e8f0'}}>
+              <Text style={{fontSize:7, fontWeight:'bold', color:'#991b1b'}}>Advance</Text>
+              <Text style={{fontSize:7, fontWeight:'bold', color:'#991b1b'}}>{formatINR(data.advanceDeduction)}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={{flexDirection:'row', borderTopWidth:1, borderColor:'#0f172a'}}>
+          <View style={{flex:5, flexDirection:'row', justifyContent:'space-between', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#e2e8f0', backgroundColor:'#f0fdf4'}}>
+            <Text style={{fontSize:8, fontWeight:'bold', color:'#166534'}}>TOTAL EARNINGS</Text>
+            <Text style={{fontSize:8, fontWeight:'bold', color:'#166534'}}>{formatINR((data.basic || 0) + (data.hra || 0) + (data.sundayPay || 0) + (data.holidayPay || 0) + (data.otPay || 0))}</Text>
+          </View>
+          <View style={{flex:4, flexDirection:'row', justifyContent:'space-between', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#e2e8f0', backgroundColor:'#fef2f2'}}>
+            <Text style={{fontSize:8, fontWeight:'bold', color:'#991b1b'}}>TOTAL DEDUCTIONS</Text>
+            <Text style={{fontSize:8, fontWeight:'bold', color:'#991b1b'}}>{formatINR((data.pf || 0) + (data.esi || 0) + (data.loanEMI || 0) + (data.fineAmount || 0))}</Text>
+          </View>
+          <View style={{flex:3, flexDirection:'row', justifyContent:'space-between', paddingVertical:6, paddingHorizontal:8, backgroundColor:'#f3f4f6'}}>
+            <Text style={{fontSize:8, fontWeight:'bold', color:'#475569'}}>NET</Text>
+            <Text style={{fontSize:8, fontWeight:'bold', color:'#475569'}}>{formatINR((data.advanceDeduction || 0) - (data.expenseReimbursement || 0))}</Text>
+          </View>
+        </View>
         <View style={{flexDirection:'row', borderTopWidth:1, borderColor:'#0f172a'}}>
           <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8, borderRightWidth:1, borderColor:'#0f172a', backgroundColor:'#f0fdf4'}}>
             <Text style={{fontWeight:'bold', color:'#166534'}}>GROSS PAY</Text>
@@ -540,8 +579,8 @@ export default function SalarySlipTab() {
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
-        const totalEarnings = basic + hra + sunPay + holPay + otPay + reimb, totalDeductions = pf + esi + loanE + fine
-        const finalNet = totalEarnings - totalDeductions - netAdvanceExpense // Apply net adjustment
+        const totalEarnings = basic + hra + sunPay + holPay + otPay, totalDeductions = pf + esi + loanE + fine + adv
+        const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
         return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp, sandwichSundays }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
@@ -733,7 +772,8 @@ export default function SalarySlipTab() {
       const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment || 0) : 0, dailyRate = ts / end, otP = (aOT + otAdj) * (dailyRate / shiftH), fullBasic = ts * (Number(slab.basicPercent || 0) / 100), fullHra = ts * (Number(slab.hraPercent || 0) / 100)
       const b = fullBasic * (paidDaysValue / end), h = fullHra * (paidDaysValue / end), p = ts * (Number(slab.pfPercent || 0) / 100), e = ts * (Number(slab.esiPercent || 0) / 100)
       const holP = holW * dailyRate
-      const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0) + (reimb || 0), ded = (p || 0) + (e || 0) + (emi || 0) + (adv || 0) + (fineA || 0)
+      const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0), ded = (p || 0) + (e || 0) + (emi || 0) + (fineA || 0) + (adv || 0)
+      const finalNet = Math.max(0, (gross || 0) - (ded || 0) + (reimb || 0)) // Net: Gross - Deductions + Expense
 
       setSlipData({ 
         employee: emp, month: selectedMonth, slab, 
@@ -745,7 +785,7 @@ export default function SalarySlipTab() {
         holidayPay: holP || 0, holidayWorkedCount: holW || 0, 
         grossEarnings: gross || 0, pf: p || 0, esi: e || 0, advanceDeduction: adv || 0, 
         loanEMI: emi || 0, fineAmount: fineA || 0, totalDeductions: ded || 0, 
-        netPay: Math.max(0, (gross || 0) - (ded || 0)), 
+        netPay: finalNet, 
         sundayCount: sunCount || 0, holidayCount: holCount || 0,
         totalMonthDays: end, workedDaysCount: worked || 0,
         leaveCount: leave || 0
@@ -928,14 +968,49 @@ export default function SalarySlipTab() {
                       </div>
                     </div>
                     <div className="border border-zinc-900 rounded-lg overflow-hidden mb-6">
-                      <div className="grid grid-cols-2 font-black text-[9px] uppercase tracking-widest border-b border-zinc-900">
-                        <div className="p-3 border-r border-zinc-900 bg-green-50 text-green-800 flex justify-between"><span>Earnings (Credit)</span><span>Amount</span></div>
-                        <div className="p-3 bg-red-50 text-red-800 flex justify-between"><span>Deductions (Debit)</span><span>Amount</span></div>
+                      <div className="grid grid-cols-12 font-black text-[9px] uppercase tracking-widest border-b border-zinc-900">
+                        <div className="col-span-5 p-3 border-r border-zinc-900 bg-green-50 text-green-800 flex justify-between"><span>Earnings (Credit)</span><span>Amount</span></div>
+                        <div className="col-span-4 p-3 border-r border-zinc-900 bg-red-50 text-red-800 flex justify-between"><span>Deductions (Debit)</span><span>Amount</span></div>
+                        <div className="col-span-3 p-3 bg-gradient-to-r from-emerald-50 to-rose-50 text-slate-800 flex justify-between"><span>Advance/Expense</span><span>Amount</span></div>
                       </div>
-                      <div className="grid grid-cols-2 divide-x divide-zinc-900 bg-white"><div className="p-1 space-y-0.5"><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Basic Salary</span><span>{formatINR(slipData.basic)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">HRA</span><span>{formatINR(slipData.hra)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Sunday Worked</span><span>{formatINR(slipData.sundayPay)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Holiday Pay</span><span>{formatINR(slipData.holidayPay)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">OT Pay</span><span>{formatINR(slipData.otPay)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Expense</span><span>{formatINR(slipData.expenseReimbursement)}</span></div></div><div className="p-1 space-y-0.5"><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">PF Contribution</span><span>{dashIfZero(slipData.pf)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">ESI Contribution</span><span>{dashIfZero(slipData.esi)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Loan</span><span>{dashIfZero(slipData.loanEMI)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Fine</span><span>{dashIfZero(slipData.fineAmount)}</span></div><div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Advance</span><span className="text-zinc-900">{dashIfZero(slipData.advanceDeduction)}</span></div></div></div>
-                      <div className="grid grid-cols-2 border-t border-zinc-900">
-                        <div className="flex justify-between p-3 bg-green-50 border-r border-zinc-900"><span className="text-[10px] font-bold text-green-800 uppercase">Gross Pay</span><span className="text-[12px] font-bold text-green-800">{formatINR(slipData.grossEarnings)}</span></div>
-                        <div className="flex justify-between p-3 bg-red-50"><span className="text-[10px] font-bold text-red-800 uppercase">Total Ded.</span><span className="text-[12px] font-bold text-red-800">{formatINR(slipData.totalDeductions)}</span></div>
+                      <div className="grid grid-cols-12 divide-x divide-zinc-900 bg-white">
+                        <div className="col-span-5 p-1 space-y-0.5">
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Basic Salary</span><span>{formatINR(slipData.basic)}</span></div>
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">HRA</span><span>{formatINR(slipData.hra)}</span></div>
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Sunday Worked</span><span>{formatINR(slipData.sundayPay)}</span></div>
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Holiday Pay</span><span>{formatINR(slipData.holidayPay)}</span></div>
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">OT Pay</span><span>{formatINR(slipData.otPay)}</span></div>
+                        </div>
+                        <div className="col-span-4 p-1 space-y-0.5">
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">PF Contribution</span><span>{dashIfZero(slipData.pf)}</span></div>
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">ESI Contribution</span><span>{dashIfZero(slipData.esi)}</span></div>
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Loan</span><span>{dashIfZero(slipData.loanEMI)}</span></div>
+                          <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Fine</span><span>{dashIfZero(slipData.fineAmount)}</span></div>
+                        </div>
+                        <div className="col-span-3 p-1 space-y-0.5 bg-gradient-to-b from-slate-50 to-white">
+                          <div className="flex justify-between py-1 px-2 text-[10px] font-normal border-b border-slate-200">
+                            <span className="font-bold text-emerald-700">Expense</span>
+                            <span className="text-emerald-700 font-bold">{formatINR(slipData.expenseReimbursement)}</span>
+                          </div>
+                          <div className="flex justify-between py-1 px-2 text-[10px] font-normal border-b border-slate-200">
+                            <span className="font-bold text-rose-700">Advance</span>
+                            <span className="text-rose-700 font-bold">{formatINR(slipData.advanceDeduction)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-12 border-t border-zinc-900">
+                        <div className="col-span-5 flex justify-between p-3 bg-green-50 border-r border-zinc-900">
+                          <span className="text-[10px] font-bold text-green-800 uppercase">Total Earnings</span>
+                          <span className="text-[12px] font-bold text-green-800">{formatINR((slipData.basic || 0) + (slipData.hra || 0) + (slipData.sundayPay || 0) + (slipData.holidayPay || 0) + (slipData.otPay || 0))}</span>
+                        </div>
+                        <div className="col-span-4 flex justify-between p-3 bg-red-50 border-r border-zinc-900">
+                          <span className="text-[10px] font-bold text-red-800 uppercase">Total Deductions</span>
+                          <span className="text-[12px] font-bold text-red-800">{formatINR((slipData.pf || 0) + (slipData.esi || 0) + (slipData.loanEMI || 0) + (slipData.fineAmount || 0))}</span>
+                        </div>
+                        <div className="col-span-3 flex justify-between p-3 bg-slate-100">
+                          <span className="text-[10px] font-bold text-slate-800 uppercase">NET</span>
+                          <span className="text-[12px] font-bold text-slate-800">{formatINR((slipData.advanceDeduction || 0) - (slipData.expenseReimbursement || 0))}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="text-center pt-4 border-t border-dashed border-zinc-200"><p className="text-[9px] font-normal text-slate-400 uppercase mb-2">Net Disbursement</p><div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 inline-block shadow-sm font-normal text-[18px] text-zinc-900">{formatINR(slipData.netPay)}</div><p className="text-[10px] italic text-zinc-500 mt-3 uppercase tracking-tight">Indian Rupee {numberToWords(slipData.netPay)} Only</p></div>
