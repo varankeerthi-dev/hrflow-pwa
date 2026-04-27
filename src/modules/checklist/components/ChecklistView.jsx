@@ -245,7 +245,7 @@ export default function ChecklistView({ user }) {
     setDraftNote(log?.note || '')
   }
 
-  const saveCell = async () => {
+  const saveCell = async (newStatus = draftStatus, newNote = draftNote) => {
     if (!popover) return
     setSavingCell(true)
     setActionError('')
@@ -253,8 +253,8 @@ export default function ChecklistView({ user }) {
       await logsApi.upsertLog({
         templateId: popover.templateId,
         date: popover.dateId,
-        status: draftStatus,
-        note: draftNote.trim() ? draftNote.trim() : null,
+        status: newStatus,
+        note: newNote.trim() ? newNote.trim() : null,
       })
       setPopover(null)
     } catch (error) {
@@ -389,7 +389,7 @@ export default function ChecklistView({ user }) {
           <p className="text-[12px] font-semibold text-slate-700 mb-2">Update status</p>
           <div className="grid gap-1.5 mb-3">
             {STATUSES.map((s) => (
-              <button key={s} onClick={() => setDraftStatus(s)} className={`h-8 px-3 rounded-md text-left text-[12px] font-medium border ${draftStatus === s ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-300 text-slate-700 hover:bg-slate-50'} transition-colors duration-200`}>
+              <button key={s} onClick={() => { setDraftStatus(s); saveCell(s); }} className={`h-8 px-3 rounded-md text-left text-[12px] font-medium border ${draftStatus === s ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm' : 'border-slate-300 text-slate-700 hover:bg-slate-50'} transition-colors duration-200`}>
                 {s === 'done' ? 'Done' : s === 'skipped' ? 'Skipped' : 'Not Required'}
               </button>
             ))}
