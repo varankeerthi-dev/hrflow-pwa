@@ -737,12 +737,32 @@ export default function TasksTab() {
                     task.priority === 'high' ? 'bg-amber-500' :
                     'bg-slate-200'
 
+                  // Assignee-based Card Color
+                  const getCardColor = () => {
+                    if (task.status === 'Completed') return 'bg-white'
+                    if (assignees.length === 0) return 'bg-white'
+                    const colors = [
+                      'bg-blue-50/50',
+                      'bg-indigo-50/50',
+                      'bg-violet-50/50',
+                      'bg-emerald-50/50',
+                      'bg-sky-50/50',
+                      'bg-rose-50/50',
+                      'bg-amber-50/50'
+                    ]
+                    // Use a hash of the first assignee's ID to pick a consistent color
+                    const id = assignees[0].id || ''
+                    let hash = 0
+                    for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
+                    return colors[Math.abs(hash) % colors.length]
+                  }
+
                   return (
                     <div
                       key={task.id}
                       draggable
                       onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                      className={`relative bg-white border border-slate-200/80 rounded-xl p-3.5 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden ${isAnimating ? 'animate-pulse scale-95' : ''}`}
+                      className={`relative ${getCardColor()} border border-slate-200/80 rounded-xl p-3.5 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden ${isAnimating ? 'animate-pulse scale-95' : ''}`}
                       style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
                     >
                       {/* Priority color strip (left border) */}
@@ -776,64 +796,78 @@ export default function TasksTab() {
                               className={`w-2 h-2 rounded-full transition-all duration-300 ${task.status === 'Completed' ? 'bg-emerald-500 ring-4 ring-emerald-50' : 'bg-slate-300 ring-4 ring-transparent hover:ring-slate-100'}`}
                             />
                           </div>
-                        </div>
-
-                        {/* Tier 2: Client / Project */}
-                        {(task.clientName || task.category) && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{task.clientName || 'General'}</span>
-                            <span className="text-slate-200">•</span>
-                            <span className="text-[11px] font-medium text-slate-500">{task.category || 'Task'}</span>
                           </div>
-                        )}
 
-                        {/* Tier 3: Tags + Due Date */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {task.priority !== 'normal' && (
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
-                              {task.priority}
-                            </span>
-                          )}
-                          {task.dueDate && (
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-50/50 px-2 py-0.5 rounded-md border border-rose-100/50">
-                              <Clock size={10} />
-                              {dueDateText}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Tier 4: Assignees + Actions */}
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-50 mt-1">
-                          <div className="flex -space-x-1.5 overflow-hidden">
-                            {assignees.length > 0 ? (
-                              assignees.map(emp => (
-                                <div key={emp.id} title={emp.name} className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-slate-600 ring-1 ring-slate-100 shadow-sm">
-                                  {getInitials(emp.name)}
-                                </div>
-                              ))
-                            ) : (
-                              <div title="Unassigned" className="w-6 h-6 rounded-full bg-slate-50 border-2 border-slate-100 flex items-center justify-center text-slate-300">
-                                <User size={12} />
+                          {/* Tier 3: Tags + Due Date + Assignees */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {task.dueDate && (
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-50/50 px-2 py-0.5 rounded-md border border-rose-100/50">
+                                <Clock size={10} />
+                                {dueDateText}
                               </div>
                             )}
+
+                            {task.priority !== 'normal' && (
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${task.priority === 'urgent' ? 'bg-rose-500 text-white shadow-sm shadow-rose-200' : 'bg-amber-500 text-white shadow-sm shadow-amber-200'}`}>
+                                {task.priority}
+                              </span>
+                            )}
+                            
+                            {/* Task Status next to priority if enabled */}
+                            {task.status !== 'To Do' && task.status !== 'Completed' && (
+                              <span className="px-2 py-0.5 rounded bg-slate-800 text-white text-[9px] font-black uppercase tracking-widest shadow-sm">
+                                {task.status}
+                              </span>
+                            )}
+
+                            {/* Assignees - inline with date, full names with color coding */}
+                            <div className="flex flex-wrap gap-1">
+                              {assignees.length > 0 ? (
+                                assignees.map((emp, i) => {
+                                  // Generate a distinct but soft color based on employee ID
+                                  const colors = [
+                                    'bg-blue-600 text-white border-blue-200',
+                                    'bg-indigo-600 text-white border-indigo-200',
+                                    'bg-violet-600 text-white border-violet-200',
+                                    'bg-emerald-600 text-white border-emerald-200',
+                                    'bg-sky-600 text-white border-sky-200'
+                                  ]
+                                  const colorClass = colors[i % colors.length]
+
+                                  return (
+                                    <div key={emp.id} className={`px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tight flex items-center gap-1 ${colorClass}`}>
+                                      {emp.name.split(' ')[0]}
+                                    </div>
+                                  )
+                                })
+                              ) : (
+                                <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 uppercase italic">
+                                  <User size={10} />
+                                  Unassigned
+                                </div>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><ArrowUpRight size={14} /></button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
+                          {/* Tier 4: Actions only */}
+                          <div className="flex items-center justify-end pt-1 border-t border-slate-50/50 mt-1">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><ArrowUpRight size={14} /></button>
+                              <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
+                          </div>
+                          </div>
+                          )
+                          })}
+                          </div>
+                          </div>
+                          )
+                          })}
+                          </div>
+                          )
+                          }
+
 
   const renderTableView = () => {
     const columnCount = Object.values(visibleColumns).filter(Boolean).length + 1 // +1 for actions
