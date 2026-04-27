@@ -762,7 +762,7 @@ export default function TasksTab() {
                       key={task.id}
                       draggable
                       onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                      className={`relative ${getCardColor()} border border-slate-200/80 rounded-xl p-3.5 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden ${isAnimating ? 'animate-pulse scale-95' : ''}`}
+                      className={`relative ${getCardColor()} border border-slate-200/80 rounded-xl p-3.5 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group ${isAnimating ? 'animate-pulse scale-95' : ''}`}
                       style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
                     >
                       {/* Priority color strip (left border) */}
@@ -795,30 +795,89 @@ export default function TasksTab() {
                               onClick={(e) => { e.stopPropagation(); setStatusMenuOpen(statusMenuOpen === task.id ? null : task.id); }} 
                               className={`w-2 h-2 rounded-full transition-all duration-300 ${task.status === 'Completed' ? 'bg-emerald-500 ring-4 ring-emerald-50' : 'bg-slate-300 ring-4 ring-transparent hover:ring-slate-100'}`}
                             />
+                            
+                            {statusMenuOpen === task.id && (
+                              <div className="fixed mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-2xl z-[9999] py-1.5 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200" style={{ transform: 'translateX(-100%)' }}>
+                                <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 mb-1">Set Status</div>
+                                {STATUSES.map(s => (
+                                  <button
+                                    key={s.id}
+                                    onClick={async (e) => { e.stopPropagation(); handleStatusChange(task.id, s.id); }}
+                                    className={`w-full text-left px-3 py-2 text-[11px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors ${task.status === s.id ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600'}`}
+                                  >
+                                    <span className="scale-90">{s.icon}</span>
+                                    {s.label}
+                                    {task.status === s.id && <Check size={12} className="ml-auto" />}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           </div>
 
                           {/* Tier 3: Tags + Due Date + Assignees */}
                           <div className="flex items-center gap-2 flex-wrap">
                             {task.dueDate && (
-                              <div className="flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-50/50 px-2 py-0.5 rounded-md border border-rose-100/50">
-                                <Clock size={10} />
-                                {dueDateText}
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setQuickDatePicker(quickDatePicker === task.id ? null : task.id); }}
+                                  className="flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-50/50 px-2 py-0.5 rounded-md border border-rose-100/50 hover:bg-rose-100 transition-all"
+                                >
+                                  <Clock size={10} />
+                                  {dueDateText}
+                                </button>
+                                
+                                {quickDatePicker === task.id && (
+                                  <div className="fixed mt-2 z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl p-2 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200">
+                                    <DatePicker
+                                      selected={task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : new Date()}
+                                      onChange={(date) => handleQuickDateChange(task.id, date)}
+                                      onClickOutside={() => setQuickDatePicker(null)}
+                                      inline
+                                    />
+                                  </div>
+                                )}
                               </div>
                             )}
 
-                            {task.priority !== 'normal' && (
-                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${task.priority === 'urgent' ? 'bg-rose-500 text-white shadow-sm shadow-rose-200' : 'bg-amber-500 text-white shadow-sm shadow-amber-200'}`}>
-                                {task.priority}
-                              </span>
-                            )}
-                            
-                            {/* Task Status next to priority if enabled */}
-                            {task.status !== 'To Do' && task.status !== 'Completed' && (
-                              <span className="px-2 py-0.5 rounded bg-slate-800 text-white text-[9px] font-black uppercase tracking-widest shadow-sm">
-                                {task.status}
-                              </span>
-                            )}
+                            <div className="relative">
+                              <button
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setEditingTableCell(editingTableCell?.taskId === task.id && editingTableCell?.field === 'priority' ? null : { taskId: task.id, field: 'priority' }); 
+                                }}
+                                className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all ${
+                                  task.priority === 'urgent' ? 'bg-rose-500 text-white shadow-sm shadow-rose-200 hover:bg-rose-600' :
+                                  task.priority === 'high' ? 'bg-amber-500 text-white shadow-sm shadow-amber-200 hover:bg-amber-600' :
+                                  'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                }`}
+                              >
+                                {task.priority === 'normal' ? 'Priority' : task.priority}
+                              </button>
+
+                              {editingTableCell?.taskId === task.id && editingTableCell?.field === 'priority' && (
+                                <div className="fixed mt-2 w-32 bg-white border border-slate-200 rounded-xl shadow-2xl z-[9999] py-1.5 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200">
+                                  {['urgent', 'high', 'normal'].map((p) => (
+                                    <button
+                                      key={p}
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        await updateTask(task.id, { priority: p });
+                                        setEditingTableCell(null);
+                                      }}
+                                      className={`w-full text-left px-3 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                                        task.priority === p ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      {p === 'urgent' && <span className="mr-2">🔴</span>}
+                                      {p === 'high' && <span className="mr-2">📊</span>}
+                                      {p === 'normal' && <span className="mr-2">○</span>}
+                                      {p}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
 
                             {/* Assignees - inline with date, full names with color coding */}
                             <div className="flex flex-wrap gap-1">
