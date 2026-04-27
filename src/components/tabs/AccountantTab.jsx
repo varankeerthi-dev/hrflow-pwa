@@ -174,7 +174,7 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] md:max-w-[1200px] w-full max-h-[95vh] flex flex-col p-0 overflow-hidden bg-white border-[#e5e5e5] gap-0 shadow-[0_4px_24px_rgba(0,0,0,0.15)] rounded-none md:rounded-lg">
+      <DialogContent showCloseButton={false} className="max-w-[95vw] md:max-w-[1200px] w-full max-h-[95vh] flex flex-col p-0 overflow-hidden bg-white border-[#e5e5e5] gap-0 shadow-[0_4px_24px_rgba(0,0,0,0.15)] rounded-none md:rounded-lg">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5] shrink-0">
           <div className="flex items-center gap-8">
             <h3 className="text-[16px] font-semibold text-[#171717] tracking-tight">Superfast Batch Entry - {formatMonthDisplay(month)}</h3>
@@ -461,7 +461,7 @@ export default function AccountantTab() {
                 <button onClick={clearAllRows} className="px-3 py-2 text-[#525252] hover:text-[#171717] text-xs font-semibold uppercase transition-colors">Clear All</button>
                 <button 
                   onClick={() => setIsSuperfastOpen(true)} 
-                  className="flex items-center gap-2 px-5 py-2 bg-[#171717] text-white rounded-md text-[14px] font-medium hover:bg-[#262626] transition-all shadow-sm active:scale-95"
+                  className="flex items-center gap-2 px-5 py-2 bg-[#D97706] text-white rounded-md text-[14px] font-semibold hover:bg-[#B45309] transition-all shadow-[0_0_15px_rgba(217,119,6,0.4)] hover:shadow-[0_0_20px_rgba(217,119,6,0.6)] active:scale-95"
                 >
                   <LayoutGrid size={16} /> Superfast Sync
                 </button>
