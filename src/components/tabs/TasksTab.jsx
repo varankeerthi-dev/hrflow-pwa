@@ -218,8 +218,34 @@ export default function TasksTab() {
     setSearchParams(next, { replace: true })
   }, [activeTab, searchParams, setSearchParams])
 
+  const [focusedColumn, setFocusedColumn] = useState(null)
+  const [quickFilter, setQuickFilter] = useState('all') // 'all', 'today', 'me', 'high'
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger shortcuts if user is typing in an input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && editingInlineTask) {
+          handleStatusChange(editingInlineTask, 'Completed')
+          setEditingInlineTask(null)
+        }
+        return
+      }
+
+      if (e.key.toLowerCase() === 'n') {
+        e.preventDefault()
+        setShowAddModal(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [editingInlineTask])
+
   const filteredTasks = useMemo(() => {
     let tasksToFilter = tasks
+    
+    // Sub-tab filtering
     if (activeTab === 'idea') {
       tasksToFilter = tasksToFilter.filter(t => t.category === 'idea')
     } else if (activeTab === 'personal') {
@@ -227,6 +253,21 @@ export default function TasksTab() {
     } else {
       tasksToFilter = tasksToFilter.filter(t => !t.isPersonal && t.category === 'task')
     }
+
+    // Quick Filters
+    if (quickFilter === 'today') {
+      const today = new Date().toISOString().split('T')[0]
+      tasksToFilter = tasksToFilter.filter(t => {
+        if (!t.dueDate) return false
+        const d = t.dueDate.toDate ? t.dueDate.toDate() : new Date(t.dueDate)
+        return d.toISOString().split('T')[0] === today
+      })
+    } else if (quickFilter === 'me') {
+      tasksToFilter = tasksToFilter.filter(t => (t.assignedTo || []).includes(user.uid))
+    } else if (quickFilter === 'high') {
+      tasksToFilter = tasksToFilter.filter(t => t.priority === 'urgent' || t.priority === 'high')
+    }
+
     if (clientFilter !== 'all') {
       if (clientFilter === 'internal') {
         tasksToFilter = tasksToFilter.filter(t => !t.clientName && !t.clientType)
@@ -235,7 +276,7 @@ export default function TasksTab() {
       }
     }
     return tasksToFilter
-  }, [tasks, activeTab, clientFilter])
+  }, [tasks, activeTab, clientFilter, quickFilter, user.uid])
 
   const taskEmployees = useMemo(() => {
     return employees.filter(emp => emp.includeInTask !== false)
@@ -622,328 +663,177 @@ export default function TasksTab() {
     )
   }
 
-  const renderBoardView = () => (
-    <div className="flex gap-6 h-full min-w-full overflow-x-auto pb-8 no-scrollbar px-2">
-      {STATUSES.map(status => (
-        <div 
-          key={status.id} 
-          className="flex flex-col min-w-[280px] max-w-[280px] shrink-0"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={async (e) => {
-            e.preventDefault()
-            if (!draggedTaskId) return
-            await updateTask(draggedTaskId, { status: status.id })
-            setDraggedTaskId(null)
-          }}
-        >
-          <div className="flex items-center justify-between mb-4 px-2">
-            <div className="flex items-center gap-2">
-              {status.icon}
-              <span className="text-[12px] font-semibold text-slate-600">{status.label}</span>
-              <span className="text-[10px] font-bold text-slate-400 tabular-nums">
-                {filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do'))).length}
-              </span>
-            </div>
-            <button onClick={() => { setNewTask({ ...newTask, status: status.id }); setShowAddModal(true); }} className="text-slate-300 hover:text-indigo-600 transition-colors">
-              <Plus size={14} />
-            </button>
-          </div>
+  const renderBoardView = () => {
+    // Reorder statuses to put 'Completed' at the far right
+    const reorderedStatuses = [
+      ...STATUSES.filter(s => s.id !== 'Completed'),
+      ...STATUSES.filter(s => s.id === 'Completed')
+    ]
 
-          <div className="flex-1 space-y-3 min-h-[600px] p-1">
-            <div className="relative group">
-              <input
-                type="text"
-                placeholder="Quick add..."
-                className="w-full bg-slate-50 border border-slate-100 focus:border-indigo-500/30 focus:bg-white rounded-lg px-3 py-2 text-[12px] font-medium text-slate-700 outline-none transition-all placeholder:text-slate-300"
-                value={inlineInputs[status.id] || ''}
-                onChange={(e) => handleTextChange('inline', e.target.value, status.id)}
-                onKeyDown={(e) => handleInlineCreate(status.id, e)}
-              />
-              {mentionState.active && mentionState.targetId === status.id && <div className="absolute top-full left-0 z-50"><MentionList /></div>}
-              
-              {/* Date picker for inline input */}
-              {inlineInputs[status.id]?.trim() && (
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setInlineDates({ ...inlineDates, [status.id]: inlineDates[status.id] ? null : new Date() })}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-all ${
-                      inlineDates[status.id] 
-                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' 
-                        : 'bg-slate-50 text-slate-500 border border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <CalendarIcon size={12} />
-                    {inlineDates[status.id] ? formatDueDate(inlineDates[status.id]) : 'Set due date'}
-                  </button>
-                  
-                  {inlineDates[status.id] && (
-                    <DatePicker
-                      selected={inlineDates[status.id]}
-                      onChange={(date) => setInlineDates({ ...inlineDates, [status.id]: date })}
-                      className="!w-[100px] !bg-white !border-slate-200 !rounded-md !px-2 !py-1 !text-[11px]"
-                      dateFormat="MMM d"
-                      placeholderText="Pick date"
-                      popperPlacement="bottom-start"
-                    />
-                  )}
+    return (
+      <div className="flex gap-4 h-full min-w-full overflow-x-auto pb-8 no-scrollbar px-2 bg-slate-50/50">
+        {reorderedStatuses.map(status => {
+          const columnTasks = filteredTasks.filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
+          const columnTint = 
+            status.id === 'In Progress' ? 'bg-blue-50/40' :
+            status.id === 'Completed' ? 'bg-emerald-50/30 opacity-70' :
+            status.id === 'On Hold' ? 'bg-amber-50/40' :
+            status.id === 'Review' ? 'bg-purple-50/40' :
+            'bg-slate-100/40'
+            
+          return (
+            <div 
+              key={status.id} 
+              className={`flex flex-col min-w-[300px] max-w-[300px] shrink-0 rounded-2xl ${columnTint} transition-all duration-300 border border-slate-200/50`}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={async (e) => {
+                e.preventDefault()
+                if (!draggedTaskId) return
+                await updateTask(draggedTaskId, { status: status.id })
+                setDraggedTaskId(null)
+              }}
+            >
+              {/* Sticky Header */}
+              <div className="sticky top-0 z-20 flex items-center justify-between py-4 px-4 bg-transparent backdrop-blur-sm rounded-t-2xl border-b border-slate-200/30 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="scale-110">{status.icon}</span>
+                  <span className="text-[13px] font-bold text-slate-700 tracking-tight uppercase tracking-widest">{status.label}</span>
+                  <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-slate-800 text-[10px] font-black text-white shadow-md">
+                    {columnTasks.length}
+                  </span>
                 </div>
-              )}
-            </div>
+                <button 
+                  onClick={() => { setNewTask({ ...newTask, status: status.id }); setShowAddModal(true); }} 
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white hover:text-indigo-600 transition-all border border-transparent hover:border-slate-200 shadow-none hover:shadow-sm"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
 
-            {filteredTasks
-              .filter(t => t.status === status.id || (status.id === 'To Do' && (t.status === 'Inbox' || t.status === 'To-do')))
-              .map(task => {
-                const assignees = getAssigneeInfo(task.assignedTo)
-                const dueDateText = formatDueDate(task.dueDate)
-                const dueDateColor = getDueDateColor(task.dueDate)
-                const isAnimating = animatingTaskId === task.id
-                
-                return (
-                  <div
-                    key={task.id}
-                    draggable
-                    onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
-                    onClick={(e) => {
-                      // Don't open edit modal if clicking on interactive elements
-                      if (e.target.closest('.status-menu-container') || 
-                          e.target.closest('.quick-edit-trigger') ||
-                          e.target.closest('.inline-edit-input') ||
-                          editingInlineTask === task.id) return
-                      // Clicking task text now triggers inline edit, not modal
-                      // Only open modal if explicitly clicking outside interactive areas
-                      // The arrow button now handles full modal opening
-                    }}
-                    className={`bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all cursor-pointer group ${isAnimating ? 'animate-pulse scale-95' : ''}`}
-                    style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
-                  >
-                    <div className="flex flex-col gap-2">
-                      {/* Row 1: Task Title with inline editing */}
-                      <div className="flex justify-between items-start gap-2">
-                        {editingInlineTask === task.id ? (
-                          <div className="flex-1 relative inline-edit-input">
+              <div className="flex-1 space-y-3 min-h-[600px] p-3 pt-0">
+                <div className="relative group mb-4">
+                  <div className="relative">
+                    <Plus size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Add task (press Enter)"
+                      className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 rounded-xl pl-9 pr-3 py-2.5 text-[12px] font-medium text-slate-700 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                      value={inlineInputs[status.id] || ''}
+                      onChange={(e) => handleTextChange('inline', e.target.value, status.id)}
+                      onKeyDown={(e) => handleInlineCreate(status.id, e)}
+                    />
+                  </div>
+                  {mentionState.active && mentionState.targetId === status.id && <div className="absolute top-full left-0 z-50"><MentionList /></div>}
+                </div>
+
+                {columnTasks.map(task => {
+                  const assignees = getAssigneeInfo(task.assignedTo)
+                  const dueDateText = formatDueDate(task.dueDate)
+                  const isAnimating = animatingTaskId === task.id
+                  
+                  // Priority Strip Color
+                  const priorityColor = 
+                    task.priority === 'urgent' ? 'bg-rose-500' :
+                    task.priority === 'high' ? 'bg-amber-500' :
+                    'bg-slate-200'
+
+                  return (
+                    <div
+                      key={task.id}
+                      draggable
+                      onDragStart={(e) => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
+                      className={`relative bg-white border border-slate-200/80 rounded-xl p-3.5 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden ${isAnimating ? 'animate-pulse scale-95' : ''}`}
+                      style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
+                    >
+                      {/* Priority color strip (left border) */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${priorityColor}`} />
+
+                      <div className="flex flex-col gap-2.5">
+                        {/* Tier 1: Title + Status Dot */}
+                        <div className="flex justify-between items-start gap-3">
+                          {editingInlineTask === task.id ? (
                             <input
                               type="text"
                               value={inlineEditValue}
-                              onChange={(e) => {
-                                setInlineEditValue(e.target.value)
-                                handleTextChange('inline-edit', e.target.value, task.id)
-                              }}
+                              onChange={(e) => setInlineEditValue(e.target.value)}
                               onKeyDown={handleInlineEdit}
-                              onBlur={() => {
-                                setEditingInlineTask(null)
-                                setInlineEditValue('')
-                              }}
+                              onBlur={() => setEditingInlineTask(null)}
                               autoFocus
-                              className="w-full bg-white border border-indigo-300 rounded px-2 py-1 text-[13px] font-medium text-slate-800 outline-none"
+                              className="flex-1 bg-slate-50 border border-indigo-200 rounded px-2 py-1 text-[13px] font-semibold text-slate-800 outline-none"
                             />
-                            {mentionState.active && mentionState.targetId === task.id && (
-                              <div className="absolute top-full left-0 mt-1 z-50">
-                                <MentionList />
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <h4 
-                            onClick={() => startInlineEdit(task)}
-                            className={`text-[13px] font-medium text-slate-800 leading-tight flex-1 cursor-text hover:bg-slate-50 rounded px-1 -mx-1 transition-colors ${task.status === 'Completed' ? 'line-through text-slate-300' : ''}`}
-                          >
-                            {task.title}
-                          </h4>
-                        )}
-                        
-                        {/* Arrow to open full edit modal */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openEditModal(task)
-                          }}
-                          className="shrink-0 text-slate-300 hover:text-indigo-600 transition-colors"
-                          title="Open full edit"
-                        >
-                          <ArrowUpRight size={16} />
-                        </button>
-                        
-                        <div className="status-menu-container relative shrink-0 z-20">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setStatusMenuOpen(statusMenuOpen === task.id ? null : task.id)
-                            }} 
-                            className={`shrink-0 transition-all duration-300 ${task.status === 'Completed' ? 'text-emerald-500 scale-110' : 'text-slate-300 hover:text-slate-500'} ${isAnimating ? 'animate-bounce' : ''}`}
-                            title="Change status"
-                            style={{ transition: 'all 0.3s ease' }}
-                          >
-                            {task.status === 'Completed' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                          </button>
+                          ) : (
+                            <h4 
+                              onClick={() => startInlineEdit(task)}
+                              className={`text-[13px] font-bold text-slate-800 leading-snug flex-1 transition-colors ${task.status === 'Completed' ? 'line-through text-slate-400' : 'group-hover:text-indigo-600'}`}
+                            >
+                              {task.title}
+                            </h4>
+                          )}
                           
-                          {statusMenuOpen === task.id && (
-                            <div className="absolute top-full right-0 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-200">
-                              {STATUSES.map(s => (
-                                <button
-                                  key={s.id}
-                                  onClick={() => handleStatusChange(task.id, s.id)}
-                                  className={`w-full text-left px-3 py-2 text-[11px] font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors ${task.status === s.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600'}`}
-                                >
-                                  <span className="transition-transform duration-200">{s.icon}</span>
-                                  {s.label}
-                                  {task.status === s.id && <CheckCircle2 size={12} className="ml-auto text-indigo-600" />}
-                                </button>
-                              ))}
+                          <div className="status-menu-container relative shrink-0 pt-0.5">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setStatusMenuOpen(statusMenuOpen === task.id ? null : task.id); }} 
+                              className={`w-2 h-2 rounded-full transition-all duration-300 ${task.status === 'Completed' ? 'bg-emerald-500 ring-4 ring-emerald-50' : 'bg-slate-300 ring-4 ring-transparent hover:ring-slate-100'}`}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Tier 2: Client / Project */}
+                        {(task.clientName || task.category) && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{task.clientName || 'General'}</span>
+                            <span className="text-slate-200">•</span>
+                            <span className="text-[11px] font-medium text-slate-500">{task.category || 'Task'}</span>
+                          </div>
+                        )}
+
+                        {/* Tier 3: Tags + Due Date */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {task.priority !== 'normal' && (
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                              {task.priority}
+                            </span>
+                          )}
+                          {task.dueDate && (
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-50/50 px-2 py-0.5 rounded-md border border-rose-100/50">
+                              <Clock size={10} />
+                              {dueDateText}
                             </div>
                           )}
                         </div>
-                      </div>
-                      
-                      {/* Row 2: Due Date + Priority + Assignees - all on same line */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Due Date - always red color */}
-                        {task.dueDate && (
-                          <div className="relative">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setQuickDatePicker(quickDatePicker === task.id ? null : task.id)
-                              }}
-                              className="quick-edit-trigger text-[11px] font-medium flex items-center gap-1 hover:opacity-70 transition-opacity text-rose-600"
-                            >
-                              <CalendarIcon size={12} />
-                              {dueDateText}
-                            </button>
-                            
-                            {/* Quick Date Picker Popup */}
-                            {quickDatePicker === task.id && (
-                              <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2">
-                                <DatePicker
-                                  selected={task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : new Date()}
-                                  onChange={(date) => handleQuickDateChange(task.id, date)}
-                                  onClickOutside={() => setQuickDatePicker(null)}
-                                  inline
-                                />
+
+                        {/* Tier 4: Assignees + Actions */}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-50 mt-1">
+                          <div className="flex -space-x-1.5 overflow-hidden">
+                            {assignees.length > 0 ? (
+                              assignees.map(emp => (
+                                <div key={emp.id} title={emp.name} className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-slate-600 ring-1 ring-slate-100 shadow-sm">
+                                  {getInitials(emp.name)}
+                                </div>
+                              ))
+                            ) : (
+                              <div title="Unassigned" className="w-6 h-6 rounded-full bg-slate-50 border-2 border-slate-100 flex items-center justify-center text-slate-300">
+                                <User size={12} />
                               </div>
                             )}
                           </div>
-                        )}
-                        
-                        {/* Priority badges */}
-                        {task.priority === 'urgent' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-600">
-                            URGENT
-                          </span>
-                        )}
-                        {task.priority === 'high' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-600">
-                            HIGH
-                          </span>
-                        )}
-                        
-                        {/* Assignees - immediately next to priority */}
-                        <div className="relative ml-auto">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setQuickAssigneePicker(quickAssigneePicker === task.id ? null : task.id)
-                            }}
-                            className="quick-edit-trigger flex items-center gap-1 hover:opacity-70 transition-opacity"
-                          >
-                            {assignees.length > 0 ? (
-                              <div className="flex items-center gap-1">
-                                <div className="flex -space-x-1">
-                                  {assignees.slice(0, 3).map(emp => (
-                                    <div key={emp.id} className="w-5 h-5 rounded-full bg-slate-100 border border-white flex items-center justify-center text-[8px] font-bold text-slate-600">
-                                      {getInitials(emp.name)}
-                                    </div>
-                                  ))}
-                                </div>
-                                <span className="text-[10px] text-slate-500">
-                                  {assignees.length === 1 ? assignees[0].name : `${assignees.length} assignees`}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                <User size={10} />
-                                Unassigned
-                              </span>
-                            )}
-                          </button>
-                          
-                          {/* Quick Assignee Picker Popup */}
-                          {quickAssigneePicker === task.id && (
-                            <div className="absolute top-full right-0 mt-1 z-50 w-56 bg-white border border-slate-200 rounded-lg shadow-xl p-2">
-                              <div className="text-[10px] font-semibold text-slate-500 mb-2 px-2">Assign to:</div>
-                              <div className="max-h-48 overflow-y-auto space-y-1">
-                                {taskEmployees.map(emp => {
-                                  const isAssigned = assignees.some(a => a.id === emp.id)
-                                  return (
-                                    <button
-                                      key={emp.id}
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleQuickAssigneeChange(task.id, emp.id)
-                                      }}
-                                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ${isAssigned ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
-                                    >
-                                      <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                                        {isAssigned ? '✓' : getInitials(emp.name)}
-                                      </div>
-                                      {emp.name}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
+
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><ArrowUpRight size={14} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-              <div className="relative group mt-3">
-                <input
-                  type="text"
-                  placeholder="+ Add a task..."
-                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-[12px] font-medium text-slate-700 outline-none transition-all placeholder:text-slate-400"
-                  value={inlineInputs[`${status.id}-bottom`] || ''}
-                  onChange={(e) => handleTextChange('inline', e.target.value, `${status.id}-bottom`)}
-                  onKeyDown={(e) => handleInlineCreate(`${status.id}-bottom`, e)}
-                />
-                {mentionState.active && mentionState.targetId === `${status.id}-bottom` && <div className="absolute top-full left-0 z-50"><MentionList /></div>}
-                
-                {/* Date picker for bottom inline input */}
-                {inlineInputs[`${status.id}-bottom`]?.trim() && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setInlineDates({ ...inlineDates, [`${status.id}-bottom`]: inlineDates[`${status.id}-bottom`] ? null : new Date() })}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-all ${
-                        inlineDates[`${status.id}-bottom`] 
-                          ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' 
-                          : 'bg-slate-50 text-slate-500 border border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <CalendarIcon size={12} />
-                      {inlineDates[`${status.id}-bottom`] ? formatDueDate(inlineDates[`${status.id}-bottom`]) : 'Set due date'}
-                    </button>
-                    
-                    {inlineDates[`${status.id}-bottom`] && (
-                      <DatePicker
-                        selected={inlineDates[`${status.id}-bottom`]}
-                        onChange={(date) => setInlineDates({ ...inlineDates, [`${status.id}-bottom`]: date })}
-                        className="!w-[100px] !bg-white !border-slate-200 !rounded-md !px-2 !py-1 !text-[11px]"
-                        dateFormat="MMM d"
-                        placeholderText="Pick date"
-                        popperPlacement="bottom-start"
-                      />
-                    )}
-                  </div>
-                )}
+                  )
+                })}
               </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   const renderTableView = () => {
     const columnCount = Object.values(visibleColumns).filter(Boolean).length + 1 // +1 for actions
@@ -2358,7 +2248,7 @@ export default function TasksTab() {
                       }}
                       className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-all flex items-center gap-1.5 border ${
                         isSelected 
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-100' 
+                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-100' 
                           : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
@@ -2529,7 +2419,7 @@ export default function TasksTab() {
                         key={emp.id}
                         onClick={() => {
                           const current = drawerTask.assignedTo || []
-                          const updated = isSelected 
+                          const updated = isAssigned 
                             ? current.filter(id => id !== emp.id)
                             : [...current, emp.id]
                           setDrawerTask({ ...drawerTask, assignedTo: updated })
