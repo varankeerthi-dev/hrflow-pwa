@@ -6,8 +6,9 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save } from 'lucide-react'
+import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save, Table } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font, pdf } from '@react-pdf/renderer'
+import SummaryTab from './SummaryTab'
 import { logActivity } from '../../hooks/useActivityLog'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
@@ -62,7 +63,7 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'holidayWorked', label: 'Holiday worked', width: 45 },
   { id: 'otH', label: 'OT hours', width: 45 },
   { id: 'hd', label: 'Half days', width: 45 },
-  { id: 'lop', label: 'LOP days', width: 45 },
+  { id: 'lop', label: 'Leave', width: 45 },
   { id: 'paidDays', label: 'Paid days', width: 45 },
   { id: 'basicPaid', label: 'Basic (Paid)', width: 60 },
   { id: 'hraPaid', label: 'HRA (Paid)', width: 60 },
@@ -216,7 +217,7 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
         </View>
         <View style={{flex: 1, marginLeft: 20}}>
           <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total worked days</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.workedDaysCount}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Leave taken</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.leaveCount || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Leave</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.lopDays || 0}</Text></View>
           <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>No. of Holidays</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.holidayCount || 0}</Text></View>
           <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Sunday Worked</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.sundayWorkedCount || 0}</Text></View>
           <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Holiday Worked</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.holidayWorkedCount || 0}</Text></View>
@@ -548,12 +549,11 @@ export default function SalarySlipTab() {
           const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
           const isHD = status === 'half-day' || r?.isHalfDay
 
-          if (status === 'absent' || r?.isAbsent) lop++; 
+          if (status === 'absent' || r?.isAbsent || status === 'leave') lop++; 
           else if (isHD) { 
             hd++; lop += 0.5; 
             if (isS) sunW += 0.5; else if (isH) holW += 0.5; else worked += 0.5;
           } 
-          else if (status === 'leave') leave++;
           else if (isS) { if (isPresent) sunW++; }
           else if (isH) { if (isPresent) holW++; }
           else if (isPresent) worked++; 
@@ -725,7 +725,7 @@ export default function SalarySlipTab() {
       const adv = allAE.filter(a => a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0)
       
       let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, aOT = 0, sunCount = 0, holCount = 0
-      const sunDates = [], holDates = []
+      const sunDates = [], holDates = [], leaveDates = []
 
       for (let i = 1; i <= end; i++) {
         const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(ds) && !isS, r = attByDate.get(ds), status = String(r?.status || '').toLowerCase()
@@ -745,16 +745,21 @@ export default function SalarySlipTab() {
         const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
         const isHD = status === 'half-day' || r?.isHalfDay
 
-        if (status === 'absent' || r?.isAbsent) lop++; 
+        if (status === 'absent' || r?.isAbsent || status === 'leave') {
+          lop++;
+          leaveDates.push(i);
+        }
         else if (isHD) { 
           hd++; lop += 0.5; 
           if (isS) { sunW += 0.5; sunDates.push(i); } else if (isH) { holW += 0.5; holDates.push(i); } else worked += 0.5;
         } 
-        else if (status === 'leave') leave++;
         else if (isS) { if (isPresent) { sunW++; sunDates.push(i); } }
         else if (isH) { if (isPresent) { holW++; holDates.push(i); } }
         else if (isPresent) worked++; 
-        else if (!isS && !isH) lop++;
+        else if (!isS && !isH) {
+          lop++;
+          leaveDates.push(i);
+        }
 
         if (r?.otHours) { 
           const [h, mi] = r.otHours.split(':').map(Number); 
@@ -764,7 +769,7 @@ export default function SalarySlipTab() {
         }
       }
 
-      setPaySummaryDates({ sundays: sunDates, holidays: holDates })
+      setPaySummaryDates({ sundays: sunDates, holidays: holDates, leaves: leaveDates })
 
       const paidDaysValue = end - lop;
       const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0), fineA = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, f) => s + Number(f.amount || 0), 0)
@@ -916,11 +921,37 @@ export default function SalarySlipTab() {
   return (
     <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden flex-col">
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
-        <div className="flex items-center gap-2"><div className="text-[10px] font-normal uppercase text-slate-400 mr-4 tracking-widest">Payroll</div>
-          <nav className="flex gap-1">{[{id:'salary-summary',i:<FileText size={16}/>,l:'Summary'},{id:'salary-slip',i:<Banknote size={16}/>,l:'Generator'},{id:'loan',i:<Wallet size={16}/>,l:'Loans'}].map(t=>(<button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-normal transition-all ${activeTab===t.id?'text-blue-600 bg-transparent':'text-slate-500 hover:bg-zinc-100'}`}>{t.i}{t.l}</button>))}</nav>
+        <div className="flex items-center gap-2">
+          <div className="text-[10px] font-black uppercase text-slate-400 mr-6 tracking-[0.2em] select-none">Payroll</div>
+          <nav className="flex p-1 bg-slate-100/50 rounded-xl border border-slate-200/60 gap-1">
+            {[
+              {id:'salary-summary', i:<FileText size={15}/>, l:'Summary'},
+              {id:'salary-slip', i:<Banknote size={15}/>, l:'Pay Slip'},
+              {id:'loan', i:<Wallet size={15}/>, l:'Loans'},
+              {id:'full-summary', i:<Table size={15}/>, l:'Full Summary'}
+            ].map(t => (
+              <button 
+                key={t.id} 
+                onClick={() => setActiveTab(t.id)} 
+                className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-[12px] font-bold tracking-tight transition-all duration-200 ${
+                  activeTab === t.id 
+                    ? 'text-indigo-600 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-indigo-100/50 scale-[1.02]' 
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                <span className={`${activeTab === t.id ? 'text-indigo-600' : 'text-slate-400'}`}>{t.i}</span>
+                {t.l}
+              </button>
+            ))}
+          </nav>
         </div>
       </div>
       <div className="flex-1 p-6 overflow-hidden flex flex-col">
+        {activeTab === 'full-summary' && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
+          </div>
+        )}
         {activeTab === 'salary-slip' && (
           <div className="max-w-6xl mx-auto w-full space-y-4 h-full flex flex-col overflow-hidden">
             <div className="flex gap-4 items-end shrink-0 mb-2 mt-1">
@@ -964,7 +995,7 @@ export default function SalarySlipTab() {
                         {[{l:'Staff Name',v:slipData.employee?.name},{l:'Employee ID',v:slipData.employee?.empCode},{l:'Designation',v:slipData.employee?.designation || '-'},{l:'DOJ',v:formatDateDDMMYYYY(slipData.employee?.joinedDate)},{l:'Total days',v:slipData.totalMonthDays},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
                       </div>
                       <div className="space-y-0.5">
-                        {[{l:'Total worked days',v:slipData.workedDaysCount},{l:'Leave taken',v:slipData.leaveCount || 0},{l:'No. of Holidays',v:slipData.holidayCount || 0},{l:'Sunday Worked',v:slipData.sundayWorkedCount},{l:'Holiday Worked',v:slipData.holidayWorkedCount},{l:'Total Pay days',v:slipData.paidDays},{l:'OT hours',v:slipData.otHoursTotal.toFixed(2)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                        {[{l:'Total worked days',v:slipData.workedDaysCount},{l:'Leave',v:slipData.lopDays || 0},{l:'No. of Holidays',v:slipData.holidayCount || 0},{l:'Sunday Worked',v:slipData.sundayWorkedCount},{l:'Holiday Worked',v:slipData.holidayWorkedCount},{l:'Total Pay days',v:slipData.paidDays},{l:'OT hours',v:slipData.otHoursTotal.toFixed(2)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
                       </div>
                     </div>
                     <div className="border border-zinc-900 rounded-lg overflow-hidden mb-6">
@@ -1034,6 +1065,12 @@ export default function SalarySlipTab() {
                           {paySummaryDates.holidays.length > 0 ? paySummaryDates.holidays.map(d => (
                             <span key={d} className="bg-white border border-amber-200 text-amber-700 font-bold text-[10px] w-6 h-6 flex items-center justify-center rounded-md shadow-sm">{d}</span>
                           )) : <span className="text-[10px] italic text-slate-400">None</span>}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5 p-3 bg-rose-50/50 rounded-xl border border-rose-100/50">
+                        <span className="text-[10px] font-black uppercase text-rose-500 tracking-wider">Leave Dates</span>
+                        <div className="text-[11px] font-bold text-rose-700">
+                          {paySummaryDates.leaves?.length > 0 ? paySummaryDates.leaves.join(', ') : <span className="text-[10px] italic text-slate-400 font-normal">None</span>}
                         </div>
                       </div>
                     </div>
@@ -1130,8 +1167,7 @@ export default function SalarySlipTab() {
                     <tr className="h-[40px] border-b border-zinc-200">
                       <th colSpan={2} className="px-4 text-left border-r border-zinc-200 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-100">Staff Profile</th>
                       <th colSpan={3} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-orange-900 tracking-widest bg-orange-100">Period Status</th>
-                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-black tracking-widest bg-gray-500">Performance</th>
-                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-rose-900 tracking-widest bg-rose-100">Leave</th>
+                      <th colSpan={4} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-black tracking-widest bg-gray-500">Performance</th>
                       <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-100">Overtime</th>
                       <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-emerald-900 tracking-widest bg-emerald-100">Holiday Worked</th>
                       <th colSpan={1} className="px-4 text-center font-black uppercase text-[10px] text-white tracking-widest bg-green-600">Summary</th>
@@ -1147,7 +1183,7 @@ export default function SalarySlipTab() {
                       <th className="px-2 text-center border-r border-zinc-200 w-24">Worked</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-[50px] whitespace-pre-line">HALF{"\n"}DAY</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20">Leave</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-rose-500">LOP</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-rose-500">Loss of pay</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24">OT (Hrs)</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-24 font-bold text-emerald-600 bg-emerald-50/10">Sunday Wk</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24 font-bold text-emerald-600 bg-emerald-50/10">Holiday Wk</th>

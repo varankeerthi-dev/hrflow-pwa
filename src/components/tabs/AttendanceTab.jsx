@@ -790,11 +790,18 @@ export default function AttendanceTab() {
       if (r.employeeId !== empId) return r
       const updated = { ...r, [field]: value }
       if (field === 'inDate' && isDayShift) updated.outDate = value
-      if (field === 'shiftType' && value === 'Night') {
+      
+      // Auto-set outDate based on shift type
+      if (field === 'shiftType') {
         const inDate = new Date(updated.inDate)
-        inDate.setDate(inDate.getDate() + 1)
-        updated.outDate = inDate.toISOString().split('T')[0]
+        if (value === 'Night' || value === 'DN') {
+          inDate.setDate(inDate.getDate() + 1)
+          updated.outDate = inDate.toISOString().split('T')[0]
+        } else {
+          updated.outDate = updated.inDate
+        }
       }
+
       if (['inTime', 'outTime', 'inDate', 'outDate'].includes(field)) {
         updated.otHours = calcOT(updated.inTime, updated.outTime, updated.inDate, updated.outDate, r.minDailyHours || 8)
         if (field === 'outTime' && value) {
@@ -1067,7 +1074,7 @@ export default function AttendanceTab() {
                     <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium text-lg">Ready to generate attendance</td></tr>
                   ) : (
                     rows.map((row, idx) => (
-                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${row.shiftType === 'Night' && row.outTime ? 'h-[48px]' : 'h-[40px]'}`}>
+                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[48px]' : 'h-[40px]'}`}>
                         <td className="px-4">
                           {row.employeeId ? (
                             <div className="flex items-center gap-2">
@@ -1088,16 +1095,43 @@ export default function AttendanceTab() {
                           )}
                         </td>
                         <td className="px-3 text-center">
-                          <button
-                            onClick={() => updateRow(row.employeeId, 'shiftType', row.shiftType === 'Night' ? 'Day' : 'Night')}
-                            disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId}
-                            className={`relative w-[58px] h-5 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${row.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-500'}`}
+                          <div
+                            className={`relative w-[72px] h-6 rounded-full transition-all duration-200 shadow-sm ${
+                              row.isAbsent || row.status === 'SunHoliday' || !row.employeeId ? 'opacity-50 cursor-not-allowed' : ''
+                            } ${
+                              row.shiftType === 'DN' ? 'bg-indigo-600' : row.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-500'
+                            }`}
                           >
-                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 ${row.shiftType === 'Night' ? 'left-[36px]' : 'left-0.5'}`}></span>
-                            <span className={`absolute top-0.5 text-[7px] font-bold ${row.shiftType === 'Night' ? 'left-2 text-white' : 'right-2 text-white'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
-                              {row.shiftType === 'Night' ? 'NIGHT' : 'DAY'}
+                            {/* Clickable Zones */}
+                            {!(row.isAbsent || row.status === 'SunHoliday' || !row.employeeId) && (
+                              <>
+                                <div 
+                                  onClick={() => updateRow(row.employeeId, 'shiftType', 'Day')} 
+                                  className="absolute left-0 w-[24px] h-full z-20 cursor-pointer"
+                                  title="Day Shift"
+                                />
+                                <div 
+                                  onClick={() => updateRow(row.employeeId, 'shiftType', 'DN')} 
+                                  className="absolute left-[24px] w-[24px] h-full z-20 cursor-pointer"
+                                  title="Double Shift"
+                                />
+                                <div 
+                                  onClick={() => updateRow(row.employeeId, 'shiftType', 'Night')} 
+                                  className="absolute left-[48px] w-[24px] h-full z-20 cursor-pointer"
+                                  title="Night Shift"
+                                />
+                              </>
+                            )}
+
+                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200 pointer-events-none ${
+                              row.shiftType === 'Night' ? 'left-[49.5px]' : row.shiftType === 'DN' ? 'left-[26px]' : 'left-0.5'
+                            }`}></span>
+                            <span className={`absolute top-1 text-[9px] font-black tracking-tight pointer-events-none ${
+                              row.shiftType === 'Night' ? 'left-1.5 text-white' : row.shiftType === 'DN' ? 'left-1.5 text-white' : 'right-2 text-white'
+                            }`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                              {row.shiftType === 'Night' ? 'NIGHT' : row.shiftType === 'DN' ? 'D+N' : 'DAY'}
                             </span>
-                          </button>
+                          </div>
                         </td>
                         <td className="px-3 text-center">
                           <div className="flex items-center justify-center relative">
@@ -1132,7 +1166,7 @@ export default function AttendanceTab() {
                               field="outTime"
                               placeholder="09:00 PM"
                               error={validationErrors[row.employeeId]}
-                              extra={row.shiftType === 'Night' && row.outTime && (
+                              extra={(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime && (
                                 <div className="flex items-center gap-1 text-[9px] text-orange-600/70 font-bold whitespace-nowrap pr-1">
                                   <ArrowRight size={8} />
                                   <span>{displayShortDate(row.outDate)}</span>

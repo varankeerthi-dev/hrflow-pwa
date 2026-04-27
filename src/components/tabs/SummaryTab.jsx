@@ -19,7 +19,7 @@ function formatOTHours(otHours) {
   return `${h}h ${m}m`
 }
 
-export default function SummaryTab({ defaultSubTab = 'summary' }) {
+export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = false }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const { fetchMonthlySummary, loading: summaryLoading } = useAttendance(user?.orgId)
@@ -27,26 +27,12 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
   
   // Main tabs: 'summary' or 'monthlyView'
   const [activeMainTab, setActiveMainTab] = useState(defaultSubTab || 'summary')
-  // Inner tabs for Summary: 'overview' or 'performance'
-  const [summaryInnerTab, setSummaryInnerTab] = useState('overview')
-
-  useEffect(() => {
-    if (activeMainTab === 'monthlyView') {
-      if (!isCollapsed) {
-        setIsCollapsed(true)
-        setIsAutoCollapsed(true)
-      }
-    } else {
-      if (isAutoCollapsed) {
-        setIsCollapsed(false)
-        setIsAutoCollapsed(false)
-      }
-    }
-  }, [activeMainTab, isCollapsed, setIsCollapsed, isAutoCollapsed, setIsAutoCollapsed])
 
   useEffect(() => {
     if (defaultSubTab) setActiveMainTab(defaultSubTab)
   }, [defaultSubTab])
+
+  // ... rest of useEffects ...
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date()
@@ -231,20 +217,22 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
   return (
     <div className="space-y-4 font-inter text-slate-900">
       {/* Main Tabs Navigation */}
-      <div className="flex gap-0 border-b border-gray-200">
-        <button 
-          onClick={() => setActiveMainTab('summary')} 
-          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeMainTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-        >
-          Summary
-        </button>
-        <button 
-          onClick={() => setActiveMainTab('monthlyView')} 
-          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeMainTab === 'monthlyView' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-        >
-          Full Summary
-        </button>
-      </div>
+      {!hideMainTabs && (
+        <div className="flex gap-0 border-b border-gray-200">
+          <button 
+            onClick={() => setActiveMainTab('summary')} 
+            className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeMainTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+          >
+            Summary
+          </button>
+          <button 
+            onClick={() => setActiveMainTab('monthlyView')} 
+            className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeMainTab === 'monthlyView' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+          >
+            Full Summary
+          </button>
+        </div>
+      )}
 
       {/* Control Bar: Month Selection & Actions */}
       <div className="bg-white px-3 h-[42px] rounded-lg border border-gray-200 shadow-sm flex items-center justify-between shrink-0">
@@ -481,8 +469,29 @@ export default function SummaryTab({ defaultSubTab = 'summary' }) {
                                 <React.Fragment key={emp.id}>
                                   {isOff ? (<td colSpan={columnSettings.inTime || columnSettings.outTime || columnSettings.ot || columnSettings.remarks ? (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) : 1} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${st.bg}`}><span className={`text-[9px] font-black uppercase ${st.text === 'Holiday' ? 'text-amber-600' : st.color}`}>{st.text}</span></td>) : (
                                     <>
-                                      {columnSettings.inTime && <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>{formatTimeTo12Hour(att?.inTime) || '—'}</td>}
-                                      {columnSettings.outTime && <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'outTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>{formatTimeTo12Hour(att?.outTime) || '—'}</td>}
+                                      {columnSettings.inTime && (
+                                        <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
+                                          <div className="flex flex-col items-center leading-none">
+                                            <span>{formatTimeTo12Hour(att?.inTime) || '—'}</span>
+                                            {(att?.shiftType === 'Night' || att?.shiftType === 'DN') && att?.outTime && att?.outDate && (
+                                              <div className="h-[9px] mt-0.5"></div> /* Placeholder for alignment */
+                                            )}
+                                          </div>
+                                        </td>
+                                      )}
+                                      {columnSettings.outTime && (
+                                        <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'outTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
+                                          <div className="flex flex-col items-center leading-none">
+                                            <span>{formatTimeTo12Hour(att?.outTime) || '—'}</span>
+                                            {(att?.shiftType === 'Night' || att?.shiftType === 'DN') && att?.outTime && att?.outDate && (
+                                              <div className="flex items-center gap-0.5 text-[7px] text-orange-600/80 font-black mt-0.5">
+                                                <ArrowRight size={6} />
+                                                <span>{new Date(att.outDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </td>
+                                      )}
                                       {columnSettings.ot && <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-black text-indigo-600 bg-white whitespace-nowrap overflow-hidden ${lastCol === 'ot' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>{formatOTHours(att?.otHours)}</td>}
                                       {columnSettings.remarks && <td className={`px-1 py-0.5 text-center border-b border-gray-200 text-[9px] font-bold text-gray-600 bg-white truncate border-r-[8px] border-white`} title={att?.remarks}>{att?.remarks || '—'}</td>}
                                       {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <td className="px-0 py-0.5 text-center border-b border-gray-200 bg-white text-[9px] border-r-[8px] border-white">—</td>}
