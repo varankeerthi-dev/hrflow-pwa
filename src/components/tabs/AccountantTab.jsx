@@ -174,41 +174,36 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] flex flex-col p-0 overflow-hidden bg-white border-zinc-200 gap-0 shadow-2xl rounded-none md:rounded-xl">
-        <div className="px-6 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between shrink-0">
+      <DialogContent className="max-w-[95vw] md:max-w-[1200px] w-full max-h-[95vh] flex flex-col p-0 overflow-hidden bg-white border-[#e5e5e5] gap-0 shadow-[0_4px_24px_rgba(0,0,0,0.15)] rounded-none md:rounded-lg">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5] shrink-0">
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white shadow-sm">
-                <LayoutGrid size={18} />
-              </div>
-              <div>
-                <h2 className="text-[13px] font-black text-zinc-900 uppercase tracking-tight">Superfast Batch Entry</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{formatMonthDisplay(month)}</span>
-                  <span className="w-1 h-1 rounded-full bg-zinc-300"></span>
-                  <span className="text-[10px] text-orange-600 font-black uppercase">Live Sync Mode</span>
-                </div>
-              </div>
-            </div>
+            <h3 className="text-[16px] font-semibold text-[#171717] tracking-tight">Superfast Batch Entry - {formatMonthDisplay(month)}</h3>
             {step === 'entry' && (
               <div className="relative w-72 group">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                <Input placeholder="Filter staff..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 bg-white border-zinc-200 rounded-md text-[12px] font-medium focus-visible:ring-zinc-400 h-8 shadow-none" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#525252]" />
+                <input 
+                  placeholder="Filter staff..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  className="w-full h-8 pl-9 pr-3 bg-white border border-[#d4d4d4] rounded-md text-[14px] text-[#171717] focus:outline-none focus:border-[#171717] transition-all" 
+                />
               </div>
             )}
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-4 mr-4 border-r border-zinc-200 pr-6">
+            <div className="flex items-center gap-6 mr-4 border-r border-[#e5e5e5] pr-6">
               <div className="flex flex-col items-end">
-                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Sub-Total</span>
-                <span className="text-sm font-black text-zinc-900 leading-none mt-1">{formatINR(Object.entries(data).reduce((s, [id, v]) => !hiddenEmps.has(id) ? s + (Number(v.advance)||0) + (Number(v.expense)||0) : s, 0))}</span>
+                <span className="text-[12px] font-semibold text-[#525252]">Sub-Total</span>
+                <span className="text-[14px] font-semibold text-[#171717]">{formatINR(Object.entries(data).reduce((s, [id, v]) => !hiddenEmps.has(id) ? s + (Number(v.advance)||0) + (Number(v.expense)||0) : s, 0))}</span>
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Progress</span>
-                <span className="text-[12px] font-bold text-zinc-600 leading-none mt-1">{processedCount} / {totalEmps}</span>
+                <span className="text-[12px] font-semibold text-[#525252]">Progress</span>
+                <span className="text-[14px] font-semibold text-[#171717]">{processedCount} / {totalEmps}</span>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-zinc-400 hover:text-zinc-900"><X size={18} /></Button>
+            <button onClick={onClose} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded-md transition-colors">
+              <X size={20} />
+            </button>
           </div>
         </div>
 
@@ -217,60 +212,116 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
             <div className="flex-1 overflow-auto custom-scrollbar">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-white z-10">
-                  <tr className="h-10 bg-zinc-100/50 border-b border-zinc-200">
-                    <th className="pl-6 pr-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500 w-12 text-center">#</th>
-                    <th className="px-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500">Staff Member</th>
-                    <th className="px-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500">Designation</th>
-                    <th className="px-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500 w-48">Advance (₹)</th>
-                    <th className="px-4 font-bold text-[10px] uppercase tracking-widest text-zinc-500 w-48">Expense (₹)</th>
-                    <th className="px-6 font-bold text-[10px] uppercase tracking-widest text-zinc-500 text-right w-40">Actions</th>
+                  <tr className="h-10 bg-white border-b border-[#e5e5e5]">
+                    <th className="pl-6 pr-4 font-semibold text-[12px] text-[#525252] w-12 text-center">#</th>
+                    <th className="px-4 font-semibold text-[12px] text-[#525252]">Staff Member</th>
+                    <th className="px-4 font-semibold text-[12px] text-[#525252]">Designation</th>
+                    <th className="px-4 font-semibold text-[12px] text-[#525252] w-48">Advance (₹)</th>
+                    <th className="px-4 font-semibold text-[12px] text-[#525252] w-48">Expense (₹)</th>
+                    <th className="px-6 font-semibold text-[12px] text-[#525252] text-right w-40">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100">
+                <tbody className="divide-y divide-[#e5e5e5]">
                   {filteredEmployees.map((emp, idx) => {
                     const vals = data[emp.id] || {}
                     return (
-                      <tr key={emp.id} className={cn("group h-11 transition-colors", vals.verified ? "bg-emerald-50/20" : "hover:bg-zinc-50/80 bg-white")}>
-                        <td className="pl-6 pr-4 text-center text-[10px] font-mono text-zinc-400">{idx + 1}</td>
-                        <td className="px-4"><div className="flex flex-col"><span className="text-[13px] font-bold text-zinc-800 capitalize leading-none">{emp.name.toLowerCase()}</span><span className="text-[9px] text-zinc-400 font-bold uppercase mt-1 tracking-tighter">{emp.empCode}</span></div></td>
-                        <td className="px-4"><span className="text-[11px] text-zinc-500 font-medium uppercase tracking-tight">{emp.designation || 'N/A'}</span></td>
-                        <td className="px-4"><div className="relative group/input"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-300 group-focus-within/input:text-orange-400">₹</span><input type="number" placeholder="0" value={vals.advance || ''} onChange={(e) => handleUpdate(emp.id, 'advance', e.target.value)} className="w-full h-8 pl-6 pr-2 bg-transparent border border-transparent group-hover/input:border-zinc-200 focus:border-orange-500 focus:bg-white rounded-md text-[12px] font-black text-orange-600 outline-none transition-all placeholder:text-zinc-200" /></div></td>
-                        <td className="px-4"><div className="relative group/input"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-300 group-focus-within/input:text-zinc-500">₹</span><input type="number" placeholder="0" value={vals.expense || ''} onChange={(e) => handleUpdate(emp.id, 'expense', e.target.value)} className="w-full h-8 pl-6 pr-2 bg-transparent border border-transparent group-hover/input:border-zinc-200 focus:border-zinc-900 focus:bg-white rounded-md text-[12px] font-black text-zinc-700 outline-none transition-all placeholder:text-zinc-200" /></div></td>
-                        <td className="px-6 text-right"><div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => clearRow(emp.id)} className="p-1.5 text-zinc-300 hover:text-amber-600 rounded hover:bg-white border border-transparent hover:border-zinc-100 transition-all shadow-none hover:shadow-sm"><RotateCcw size={13} /></button><button onClick={() => removeRow(emp.id)} className="p-1.5 text-zinc-300 hover:text-rose-600 rounded hover:bg-white border border-transparent hover:border-zinc-100 transition-all shadow-none hover:shadow-sm"><Trash2 size={13} /></button><button onClick={() => toggleVerify(emp.id)} className={cn("p-1.5 rounded transition-all border border-transparent", vals.verified ? "text-emerald-600 bg-emerald-50 border-emerald-100" : "text-zinc-300 hover:text-emerald-500")}><CheckCircle2 size={15} /></button></div></td>
+                      <tr key={emp.id} className={cn("group h-12 transition-colors", vals.verified ? "bg-[#f5f5f5]/50" : "hover:bg-[#f5f5f5] bg-white")}>
+                        <td className="pl-6 pr-4 text-center text-[12px] text-[#525252] font-mono">{idx + 1}</td>
+                        <td className="px-4">
+                          <div className="flex flex-col">
+                            <span className="text-[14px] font-semibold text-[#171717] capitalize leading-none">{emp.name.toLowerCase()}</span>
+                            <span className="text-[11px] text-[#525252] font-medium mt-1 uppercase tracking-tight">{emp.empCode}</span>
+                          </div>
+                        </td>
+                        <td className="px-4"><span className="text-[13px] text-[#525252] font-medium uppercase tracking-tight">{emp.designation || 'N/A'}</span></td>
+                        <td className="px-4">
+                          <div className="relative group/input">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-[#d4d4d4] group-focus-within/input:text-[#171717]">₹</span>
+                            <input 
+                              type="number" 
+                              placeholder="0" 
+                              value={vals.advance || ''} 
+                              onChange={(e) => handleUpdate(emp.id, 'advance', e.target.value)} 
+                              className="w-full h-8 pl-7 pr-3 bg-white border border-[#d4d4d4] focus:border-[#171717] rounded-md text-[13px] font-semibold text-[#171717] outline-none transition-all placeholder:text-[#d4d4d4]" 
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4">
+                          <div className="relative group/input">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-[#d4d4d4] group-focus-within/input:text-[#171717]">₹</span>
+                            <input 
+                              type="number" 
+                              placeholder="0" 
+                              value={vals.expense || ''} 
+                              onChange={(e) => handleUpdate(emp.id, 'expense', e.target.value)} 
+                              className="w-full h-8 pl-7 pr-3 bg-white border border-[#d4d4d4] focus:border-[#171717] rounded-md text-[13px] font-semibold text-[#171717] outline-none transition-all placeholder:text-[#d4d4d4]" 
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 text-right">
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => clearRow(emp.id)} className="p-1.5 text-[#525252] hover:bg-white rounded-md border border-transparent hover:border-[#d4d4d4] transition-all"><RotateCcw size={14} /></button>
+                            <button onClick={() => removeRow(emp.id)} className="p-1.5 text-[#525252] hover:bg-white rounded-md border border-transparent hover:border-[#d4d4d4] transition-all"><Trash2 size={14} /></button>
+                            <button onClick={() => toggleVerify(emp.id)} className={cn("p-1.5 rounded-md transition-all border border-transparent", vals.verified ? "text-[#171717] bg-[#f5f5f5] border-[#d4d4d4]" : "text-[#d4d4d4] hover:text-[#171717]")}><CheckCircle2 size={16} /></button>
+                          </div>
+                        </td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
             </div>
-            <div className="px-8 py-3 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center shrink-0"><div className="text-[11px] text-zinc-500 font-medium">Use <kbd className="px-1 py-0.5 bg-white border border-zinc-300 rounded text-[9px] font-bold">Tab</kbd> to navigate rapidly.</div><Button onClick={() => setStep('review')} className="h-9 px-10 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[11px] font-black uppercase tracking-[0.15em] transition-all group shadow-lg shadow-zinc-200">Continue to Review <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" /></Button></div>
+            <div className="px-8 py-4 border-t border-[#e5e5e5] bg-white flex justify-between items-center shrink-0">
+              <div className="text-[13px] text-[#525252] font-medium">Use <kbd className="px-1.5 py-0.5 bg-[#f5f5f5] border border-[#d4d4d4] rounded text-[11px] font-bold">Tab</kbd> to navigate rapidly.</div>
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 border border-[#d4d4d4] rounded-md bg-white text-[#525252] text-[14px] font-medium hover:bg-[#f5f5f5] transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => setStep('review')} 
+                  className="px-8 py-2 bg-[#171717] hover:bg-[#262626] text-white rounded-md text-[14px] font-medium transition-all flex items-center gap-2"
+                >
+                  Continue to Review <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
           </>
         ) : (
           <>
-            <div className="flex-1 overflow-auto p-12 bg-zinc-50/30 custom-scrollbar">
+            <div className="flex-1 overflow-auto p-12 bg-white custom-scrollbar">
               <div className="max-w-4xl mx-auto space-y-8">
                 <div className="flex flex-col items-center text-center space-y-2">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-2"><CheckCircle2 size={24} /></div>
-                  <h3 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Review Batch Impact</h3>
-                  <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Ready for database synchronization</p>
+                  <div className="w-12 h-12 rounded-full bg-[#f5f5f5] flex items-center justify-center text-[#171717] mb-2 border border-[#d4d4d4]"><CheckCircle2 size={24} /></div>
+                  <h3 className="text-[18px] font-semibold text-[#171717]">Review Batch Impact</h3>
+                  <p className="text-[13px] text-[#525252] font-medium">Ready for database synchronization</p>
                 </div>
                 {entriesToCommit.length === 0 ? (
-                  <div className="py-20 text-center bg-white border border-zinc-200 border-dashed rounded-3xl flex flex-col items-center"><FileText size={40} className="text-zinc-200 mb-4" /><p className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.2em]">No transactional data found</p><Button variant="link" onClick={() => setStep('entry')} className="mt-2 text-orange-600 font-bold uppercase text-[10px]">Return to editor</Button></div>
+                  <div className="py-20 text-center bg-[#f5f5f5] border border-[#d4d4d4] border-dashed rounded-lg flex flex-col items-center"><FileText size={40} className="text-[#d4d4d4] mb-4" /><p className="text-[13px] font-semibold text-[#525252]">No transactional data found</p><button onClick={() => setStep('entry')} className="mt-2 text-[#171717] font-bold text-[13px] hover:underline">Return to editor</button></div>
                 ) : (
-                  <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-xl shadow-zinc-200/50">
+                  <div className="bg-white border border-[#e5e5e5] rounded-lg overflow-hidden shadow-sm">
                     <table className="w-full text-left">
-                      <thead><tr className="h-12 bg-zinc-50 border-b border-zinc-200 text-[10px] font-black uppercase text-zinc-400 tracking-widest"><th className="px-8">Staff Member</th><th className="px-8 text-center">Advance</th><th className="px-8 text-center">Expense</th><th className="px-8 text-right">Net impact</th></tr></thead>
-                      <tbody className="divide-y divide-zinc-50">{entriesToCommit.map(row => (<tr key={row.id} className="h-12 hover:bg-zinc-50/50 transition-colors"><td className="px-8"><div className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-zinc-200"></div><div><p className="text-[12px] font-bold text-zinc-900 capitalize">{row.name.toLowerCase()}</p><p className="text-[9px] text-zinc-400 font-bold">{row.empCode}</p></div></div></td><td className="px-8 text-center font-mono font-bold text-orange-600 text-[12px]">{row.advance ? formatINR(row.advance) : '-'}</td><td className="px-8 text-center font-mono font-bold text-zinc-700 text-[12px]">{row.expense ? formatINR(row.expense) : '-'}</td><td className="px-8 text-right font-black text-zinc-900 text-[13px]">{formatINR((Number(row.advance)||0) + (Number(row.expense)||0))}</td></tr>))}</tbody>
-                      <tfoot><tr className="bg-emerald-600 text-white h-14"><td className="px-8 font-black uppercase text-[11px] tracking-[0.15em]">Total Disbursement impact</td><td colSpan={3} className="px-8 text-right text-xl font-black">{formatINR(entriesToCommit.reduce((s, r) => s + (Number(r.advance)||0) + (Number(r.expense)||0), 0))}</td></tr></tfoot>
+                      <thead><tr className="h-12 bg-[#f5f5f5] border-b border-[#e5e5e5] text-[12px] font-semibold text-[#525252]"><th className="px-8">Staff Member</th><th className="px-8 text-center">Advance</th><th className="px-8 text-center">Expense</th><th className="px-8 text-right">Net impact</th></tr></thead>
+                      <tbody className="divide-y divide-[#e5e5e5]">{entriesToCommit.map(row => (<tr key={row.id} className="h-12 hover:bg-[#f5f5f5]/50 transition-colors"><td className="px-8"><div className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-[#d4d4d4]"></div><div><p className="text-[13px] font-semibold text-[#171717] capitalize">{row.name.toLowerCase()}</p><p className="text-[11px] text-[#525252] font-medium">{row.empCode}</p></div></div></td><td className="px-8 text-center font-mono font-semibold text-[#171717] text-[13px]">{row.advance ? formatINR(row.advance) : '-'}</td><td className="px-8 text-center font-mono font-semibold text-[#171717] text-[13px]">{row.expense ? formatINR(row.expense) : '-'}</td><td className="px-8 text-right font-bold text-[#171717] text-[14px]">{formatINR((Number(row.advance)||0) + (Number(row.expense)||0))}</td></tr>))}</tbody>
+                      <tfoot><tr className="bg-[#171717] text-white h-14"><td className="px-8 font-semibold text-[13px]">Total Disbursement impact</td><td colSpan={3} className="px-8 text-right text-xl font-bold">{formatINR(entriesToCommit.reduce((s, r) => s + (Number(r.advance)||0) + (Number(r.expense)||0), 0))}</td></tr></tfoot>
                     </table>
                   </div>
                 )}
-                {skippedCount > 0 && (<div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-4"><XCircle size={18} className="text-rose-600 shrink-0" /><p className="text-[11px] text-rose-800 font-bold uppercase tracking-tight leading-none">Warning: {skippedCount} staff members are being skipped in this batch sync.</p></div>)}
+                {skippedCount > 0 && (<div className="p-4 bg-[#f5f5f5] border border-[#d4d4d4] rounded-lg flex items-center gap-4"><XCircle size={18} className="text-[#525252] shrink-0" /><p className="text-[12px] text-[#171717] font-medium">Warning: {skippedCount} staff members are being skipped in this batch sync.</p></div>)}
               </div>
             </div>
-            <div className="px-8 py-4 border-t border-zinc-200 bg-white flex justify-between items-center shrink-0">
-              <Button variant="ghost" onClick={() => setStep('entry')} className="h-10 px-8 text-[11px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 rounded-lg">Back to Editor</Button>
-              <Button onClick={handleCommit} disabled={isSubmitting || entriesToCommit.length === 0} className="h-11 px-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 transition-all active:scale-95 disabled:opacity-50">{isSubmitting ? <Spinner size="sm" className="mr-2" /> : <Save size={16} className="mr-2" />}Confirm & Post to Ledger</Button>
+            <div className="px-8 py-4 border-t border-[#e5e5e5] bg-white flex justify-between items-center shrink-0">
+              <button onClick={() => setStep('entry')} className="h-10 px-8 text-[14px] font-medium text-[#525252] hover:bg-[#f5f5f5] rounded-md transition-all">Back to Editor</button>
+              <button 
+                onClick={handleCommit} 
+                disabled={isSubmitting || entriesToCommit.length === 0} 
+                className="h-11 px-12 bg-[#171717] hover:bg-[#262626] text-white rounded-md text-[14px] font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-2"
+              >
+                {isSubmitting ? <Spinner size="sm" className="mr-2" /> : <Save size={18} className="mr-2" />}
+                Confirm & Post to Ledger
+              </button>
             </div>
           </>
         )}
@@ -407,9 +458,14 @@ export default function AccountantTab() {
                 <div><h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider font-raleway">Bulk Entry Panel</h2><p className="text-xs text-zinc-500">{entryMode === 'monthly' ? 'Wholesale monthly sync' : 'Individual transaction log'}</p></div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={clearAllRows} className="px-3 py-2 text-zinc-400 hover:text-rose-600 text-xs font-bold uppercase transition-colors">Clear All</button>
-                <button onClick={() => setIsSuperfastOpen(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#ea580c] text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-[#c2410c] transition-all shadow-lg shadow-orange-100 flex items-center gap-2 active:scale-95"><LayoutGrid size={16} /> Superfast Sync</button>
-                <button onClick={addBulkRow} className="flex items-center gap-2 px-4 py-2 bg-zinc-100 border border-zinc-200 text-zinc-700 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-all shadow-sm"><Plus size={14} /> Add Row</button>
+                <button onClick={clearAllRows} className="px-3 py-2 text-[#525252] hover:text-[#171717] text-xs font-semibold uppercase transition-colors">Clear All</button>
+                <button 
+                  onClick={() => setIsSuperfastOpen(true)} 
+                  className="flex items-center gap-2 px-5 py-2 bg-[#171717] text-white rounded-md text-[14px] font-medium hover:bg-[#262626] transition-all shadow-sm active:scale-95"
+                >
+                  <LayoutGrid size={16} /> Superfast Sync
+                </button>
+                <button onClick={addBulkRow} className="flex items-center gap-2 px-4 py-2 bg-white border border-[#d4d4d4] text-[#525252] rounded-md text-[14px] font-medium hover:bg-[#f5f5f5] transition-all shadow-sm"><Plus size={14} /> Add Row</button>
               </div>
             </div>
 

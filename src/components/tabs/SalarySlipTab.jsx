@@ -197,32 +197,32 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
 };
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
-  <Document><Page size="A4" style={{ padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' }}>
+  <Document><Page size="A4" style={{ padding: 30, fontSize: 9, fontFamily: 'Manrope', color: '#0f172a' }}>
     <View style={{ border: '2pt solid #0f172a', padding: 20, flex: 1 }}>
       <View style={{ borderBottomWidth: 2, borderBottomColor: '#3b82f6', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <View style={{flexDirection:'row', alignItems:'center'}}>
           {orgLogo && <Image src={orgLogo} style={{width:40,height:40,marginRight:10}}/>}
-          <View><Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#3b82f6' }}>{orgName}</Text><Text style={{fontSize:7, color:'#64748b', fontWeight: 'bold', marginTop:2}}>PAYROLL STATEMENT</Text></View>
+          <View><Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', color: '#3b82f6', fontFamily: 'Helvetica' }}>{orgName}</Text><Text style={{fontSize:7, color:'#64748b', fontWeight: 'bold', marginTop:2}}>PAYROLL STATEMENT</Text></View>
         </View>
         <View style={{textAlign:'right'}}><Text style={{fontSize:12, fontWeight: 'bold', color:'#0f172a'}}>PAYSLIP</Text><Text style={{fontSize:8, color:'#64748b', marginTop:2}}>{formatMonthDisplay(data.month)}</Text></View>
       </View>
       <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:12}}>
         <View style={{flex: 1}}>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Staff Name</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.employee?.name}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Employee ID</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.employee?.empCode}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Designation</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.employee?.designation || '-'}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>DOJ</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {formatDateDDMMYYYY(data.employee?.joinedDate)}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total days</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.totalMonthDays}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 100, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Net Payout</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {formatINR(data.netPay)}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Staff Name : {data.employee?.name}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Employee ID : {data.employee?.empCode}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Designation : {data.employee?.designation || '-'}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>DOJ : {formatDateDDMMYYYY(data.employee?.joinedDate)}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total days : {data.totalMonthDays}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Net Payout : {formatINR(data.netPay)}</Text></View>
         </View>
         <View style={{flex: 1, marginLeft: 20}}>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total worked days</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.workedDaysCount}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Leave</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.lopDays || 0}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>No. of Holidays</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.holidayCount || 0}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Sunday Worked</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.sundayWorkedCount || 0}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Holiday Worked</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.holidayWorkedCount || 0}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total Pay days</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {data.paidDays}</Text></View>
-          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ width: 110, color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>OT hours</Text><Text style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', fontSize: 9 }}>: {Number(data.otHoursTotal || 0).toFixed(2)}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total worked days : {data.workedDaysCount}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Leave : {data.lopDays || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>No. of Holidays : {data.holidayCount || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Sunday Worked : {data.sundayWorkedCount || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Holiday Worked : {data.holidayWorkedCount || 0}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>Total Pay days : {data.paidDays}</Text></View>
+          <View style={{ flexDirection: 'row', marginBottom: 1 }}><Text style={{ color: '#1e293b', fontWeight: 'bold', fontSize: 9 }}>OT hours : {Number(data.otHoursTotal || 0).toFixed(2)}</Text></View>
         </View>
       </View>
       <View style={{borderWidth:1, borderColor:'#0f172a', borderRadius:4, overflow:'hidden'}}>
@@ -1176,7 +1176,7 @@ export default function SalarySlipTab() {
                     {/* Primary Header Row */}
                     <tr className="bg-white text-[10px] uppercase font-bold text-zinc-500 tracking-tighter h-[35px] border-b-2 border-zinc-300">
                       <th className="px-3 text-center border-r border-zinc-200 w-10">#</th>
-                      <th className="px-4 text-left border-r border-zinc-200">Employee Name</th>
+                      <th className="px-4 text-left border-r border-zinc-200 w-40">Employee Name</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24">Total Days</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20">Sunday</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20">Holiday</th>
@@ -1197,7 +1197,7 @@ export default function SalarySlipTab() {
                     ) : filteredAttendanceSummaryData.map((e, idx)=>(
                       <tr key={e.id} className={`hover:bg-zinc-50/80 transition-colors h-[32px] group ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-mono text-[10px]">{idx + 1}</td>
-                        <td className="px-4 border-r border-zinc-200 font-black text-zinc-900 uppercase text-[11px] tracking-tight">{e.name}</td>
+                        <td className="px-4 border-r border-zinc-200 font-black text-zinc-900 uppercase text-[11px] tracking-tight truncate w-40">{e.name}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-semibold">{e.totalDays}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.sundays}</td>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.holidays}</td>
