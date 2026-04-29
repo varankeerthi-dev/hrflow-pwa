@@ -366,6 +366,8 @@ export default function SalarySlipTab() {
   const [variableEntryDate, setVariableEntryDate] = useState(() => new Date().toISOString().split('T')[0])
   const [paymentDetails, setPaymentDetails] = useState({})
   const [downloadAllLoading, setDownloadAllLoading] = useState(false)
+  const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
+  const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
   const [orgLogo, setOrgLogo] = useState('')
   const [employeeRowOrder, setEmployeeRowOrder] = useState([])
   const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map(c => c.id))
