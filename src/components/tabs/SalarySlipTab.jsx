@@ -366,6 +366,40 @@ export default function SalarySlipTab() {
   const [variableEntryDate, setVariableEntryDate] = useState(() => new Date().toISOString().split('T')[0])
   const [paymentDetails, setPaymentDetails] = useState({})
   const [downloadAllLoading, setDownloadAllLoading] = useState(false)
+  const [orgLogo, setOrgLogo] = useState('')
+  const [employeeRowOrder, setEmployeeRowOrder] = useState([])
+  const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map(c => c.id))
+  const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
+  const columnPickerRef = useRef(null)
+
+  useEffect(() => {
+    if (!user?.orgId || !user?.uid) return
+    const fetchUserSettings = async () => {
+      try {
+        const [userPrefSnap, orgSnap] = await Promise.all([
+          getDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid)),
+          getDoc(doc(db, 'organisations', user.orgId))
+        ])
+        
+        if (orgSnap.exists()) {
+          const orgData = orgSnap.data()
+          if (orgData.employeeRowOrder) setEmployeeRowOrder(orgData.employeeRowOrder)
+          if (orgData.logoURL) setOrgLogo(orgData.logoURL)
+        }
+
+        if (userPrefSnap.exists()) {
+          const data = userPrefSnap.data()
+          if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
+        } else {
+          if (orgSnap.exists()) {
+            const data = orgSnap.data()
+            if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
+          }
+        }
+      } catch (err) { console.error('Error fetching settings:', err) }
+    }
+    fetchUserSettings()
+  }, [user?.orgId, user?.uid])
 
   // Query for daily variable pay entries (for the specific entry date)
   const { data: dailyVariables = {}, isLoading: isDailyVarsLoading } = useQuery({
@@ -475,7 +509,7 @@ export default function SalarySlipTab() {
         getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth))),
         getDoc(doc(db, 'organisations', user.orgId)),
         getDocs(query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', summaryMonth))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'salaryVariables'), where('month', '==', summaryMonth)))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', summaryMonth)))
       ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
@@ -484,7 +518,16 @@ export default function SalarySlipTab() {
       const isSaturdayHoliday = saturdayType !== 'working';
       
       const appliedSandwiches = sandwichSnap.docs.map(d => d.data());
-      const allVariables = varSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data(); return acc; }, {});
+      
+      // Aggregate variable pay logs for the month
+      const allVariables = {};
+      varSnap.docs.forEach(d => {
+        const row = d.data();
+        if (!allVariables[row.employeeId]) allVariables[row.employeeId] = { food: 0, convenience: 0, bonus: 0 };
+        allVariables[row.employeeId].food += Number(row.food || 0);
+        allVariables[row.employeeId].convenience += Number(row.convenience || 0);
+        allVariables[row.employeeId].bonus += Number(row.bonus || 0);
+      });
 
       const allAtt = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
       
@@ -735,20 +778,26 @@ export default function SalarySlipTab() {
       const attByDate = new Map(aData.map(a => [a.date, a]))
       const slab = increments?.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, pfPercent: 0, esiPercent: 0 }
       const ts = Number(slab.totalSalary) || 0
-      const [aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap, varSnap] = await Promise.all([
+      const [aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap, varLogsSnap] = await Promise.all([
         getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp))), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))), 
         getDoc(doc(db, 'organisations', user.orgId, 'otAdjustments', `${selectedMonth}_${selectedEmp}`)),
         getDoc(doc(db, 'organisations', user.orgId)),
-        getDoc(doc(db, 'organisations', user.orgId, 'salaryVariables', `${selectedMonth}_${selectedEmp}`))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth)))
       ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
 
-      const varData = varSnap.exists() ? varSnap.data() : {}
-      const foodP = Number(varData.food || 0), convP = Number(varData.convenience || 0), bonusP = Number(varData.bonus || 0)
+      // Aggregate variable pay logs for the selected month
+      let foodP = 0, convP = 0, bonusP = 0
+      varLogsSnap.docs.forEach(d => {
+        const row = d.data()
+        foodP += Number(row.food || 0)
+        convP += Number(row.convenience || 0)
+        bonusP += Number(row.bonus || 0)
+      })
 
       const allAE = aeSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.date >= sd && a.date <= ed)
       setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })))
@@ -1282,20 +1331,52 @@ export default function SalarySlipTab() {
               ) : summarySubTab === 'variable' ? (
                 <div className="h-full flex flex-col bg-white p-6">
                   <div className="flex justify-between items-end mb-6">
-                    <div>
-                      <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-raleway">Variable Pay Management</h2>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Enter Food, Convenience, and Bonus for {formatMonthDisplay(summaryMonth)}.</p>
+                    <div className="flex items-end gap-6">
+                      <div>
+                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-raleway">Variable Pay Management</h2>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Log Food, Convenience, and Bonus for specific dates.</p>
+                      </div>
+                      
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest ml-1">Entry Date</span>
+                        <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
+                          <button 
+                            onClick={() => setVariableEntryDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return nd.toISOString().split('T')[0]; })} 
+                            className="p-1 hover:bg-white hover:shadow-sm rounded text-gray-500 transition-all"
+                          >
+                            <ChevronLeft size={14} />
+                          </button>
+                          <input 
+                            type="date" 
+                            value={variableEntryDate} 
+                            onChange={e => setVariableEntryDate(e.target.value)}
+                            className="bg-transparent border-0 text-[10px] font-black uppercase outline-none focus:ring-0 w-28 text-center cursor-pointer"
+                          />
+                          <button 
+                            onClick={() => setVariableEntryDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return nd.toISOString().split('T')[0]; })} 
+                            className="p-1 hover:bg-white hover:shadow-sm rounded text-gray-500 transition-all"
+                          >
+                            <ChevronRight size={14} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
+
                     <button 
                       onClick={() => saveVariablesMutation.mutate(variablePayData)}
-                      disabled={saveVariablesMutation.isPending}
+                      disabled={saveVariablesMutation.isPending || isDailyVarsLoading}
                       className="h-9 px-6 bg-indigo-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2"
                     >
                       {saveVariablesMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                      Save Variable Data
+                      Save for {formatDateDDMMYYYY(variableEntryDate)}
                     </button>
                   </div>
-                  <div className="flex-1 overflow-auto border border-zinc-200 rounded-2xl shadow-sm">
+                  <div className="flex-1 overflow-auto border border-zinc-200 rounded-2xl shadow-sm relative">
+                    {isDailyVarsLoading && (
+                      <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-20 flex items-center justify-center">
+                        <Spinner />
+                      </div>
+                    )}
                     <table className="w-full border-collapse">
                       <thead className="sticky top-0 bg-slate-50 z-10 border-b border-zinc-200">
                         <tr className="h-10">
@@ -1306,9 +1387,7 @@ export default function SalarySlipTab() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100 bg-white">
-                        {isAttendanceLoading ? (
-                          <tr><td colSpan={4} className="py-20 text-center"><Spinner /></td></tr>
-                        ) : sortedEmployees.map(emp => (
+                        {sortedEmployees.map(emp => (
                           <tr key={emp.id} className="h-12 hover:bg-slate-50 transition-colors">
                             <td className="px-4 border-r border-zinc-50 font-bold text-slate-900 uppercase text-[11px]">{emp.name}</td>
                             <td className="px-4 border-r border-zinc-50">
