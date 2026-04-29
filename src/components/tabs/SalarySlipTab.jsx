@@ -841,19 +841,21 @@ export default function SalarySlipTab() {
         getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))), 
         getDoc(doc(db, 'organisations', user.orgId, 'otAdjustments', `${selectedMonth}_${selectedEmp}`)),
         getDoc(doc(db, 'organisations', user.orgId)),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('employeeId', '==', selectedEmp), where('month', '==', selectedMonth)))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', selectedMonth)))
       ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
 
-      // Aggregate variable pay logs for the selected month
+      // Aggregate variable pay logs for the selected employee in the selected month
       let foodP = 0, convP = 0, bonusP = 0
       varLogsSnap.docs.forEach(d => {
         const row = d.data()
-        foodP += Number(row.food || 0)
-        convP += Number(row.convenience || 0)
-        bonusP += Number(row.bonus || 0)
+        if (row.employeeId === selectedEmp) {
+          foodP += Number(row.food || 0)
+          convP += Number(row.convenience || 0)
+          bonusP += Number(row.bonus || 0)
+        }
       })
 
       const allAE = aeSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.date >= sd && a.date <= ed)
