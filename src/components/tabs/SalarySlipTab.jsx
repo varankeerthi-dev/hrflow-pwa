@@ -480,6 +480,61 @@ export default function SalarySlipTab() {
       }
     }));
   };
+
+  const { data: salaryPayments = {}, isLoading: isPaymentsLoading } = useQuery({
+    queryKey: ['salaryPayments', user?.orgId, summaryMonth],
+    queryFn: async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'salaryPayments'), where('month', '==', summaryMonth));
+      const snap = await getDocs(q);
+      const data = {};
+      snap.docs.forEach(d => {
+        data[d.data().employeeId] = d.data();
+      });
+      return data;
+    },
+    enabled: !!user?.orgId && (summarySubTab === 'payment' || summarySubTab === 'overview')
+  });
+
+  useEffect(() => {
+    if (salaryPayments) {
+      setPaymentDetails(salaryPayments);
+    }
+  }, [salaryPayments]);
+
+  const savePaymentsMutation = useMutation({
+    mutationFn: async (data) => {
+      const batch = [];
+      for (const [empId, values] of Object.entries(data)) {
+        const docId = `${summaryMonth}_${empId}`;
+        batch.push(setDoc(doc(db, 'organisations', user.orgId, 'salaryPayments', docId), {
+          employeeId: empId,
+          month: summaryMonth,
+          paidAmount: Number(values.paidAmount || 0),
+          paymentDate: values.paymentDate || '',
+          paymentMode: values.paymentMode || 'Bank Transfer',
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid
+        }, { merge: true }));
+      }
+      await Promise.all(batch);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['salaryPayments']);
+      alert('Payment details saved successfully!');
+    },
+    onError: (err) => alert('Failed to save payments: ' + err.message)
+  });
+
+  const handlePaymentChange = (empId, field, value) => {
+    setPaymentDetails(prev => ({
+      ...prev,
+      [empId]: {
+        ...prev[empId],
+        [field]: value
+      }
+    }));
+  };
+
   const monthInputRef = useRef(null)
 
   useEffect(() => { if (activeTab === 'salary-summary' && summarySubTab === 'detailed') { if (!isCollapsed) { setIsCollapsed(true); setIsAutoCollapsed(true); } } else { if (isAutoCollapsed) { setIsCollapsed(false); setIsAutoCollapsed(false); } } }, [activeTab, summarySubTab, isCollapsed, isAutoCollapsed])
