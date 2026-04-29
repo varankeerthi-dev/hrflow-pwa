@@ -373,6 +373,8 @@ export default function SalarySlipTab() {
   const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map(c => c.id))
   const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
   const columnPickerRef = useRef(null)
+  const [advExpRows, setAdvExpRows] = useState([])
+  const [paySummaryDates, setPaySummaryDates] = useState({ sundays: [], holidays: [], leaves: [] })
 
   useEffect(() => {
     if (!user?.orgId || !user?.uid) return
@@ -403,8 +405,29 @@ export default function SalarySlipTab() {
     fetchUserSettings()
   }, [user?.orgId, user?.uid])
 
+  const saveDetailedColumnDefaults = async () => {
+    if (!user?.orgId || !user?.uid) return
+    try {
+      await setDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid), { detailedSummaryColumns: selectedDetailedColumns, updatedAt: serverTimestamp() }, { merge: true })
+      alert('Preferences saved for your account!')
+      setShowDetailedColumnPicker(false)
+    } catch (err) { alert('Failed to save preferences') }
+  }
+
+  const toggleAllColumns = () => {
+    if (selectedDetailedColumns.length === DETAILED_SUMMARY_COLUMNS.length) {
+      setSelectedDetailedColumns(DETAILED_SUMMARY_COLUMNS.filter(c => c.mandatory).map(c => c.id))
+    } else {
+      setSelectedDetailedColumns(DETAILED_SUMMARY_COLUMNS.map(c => c.id))
+    }
+  }
+
+  const toggleDetailedSummaryColumn = (id) => {
+    setSelectedDetailedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
   // Query for daily variable pay entries (for the specific entry date)
-  const { data: dailyVariables = {}, isLoading: isDailyVarsLoading } = useQuery({
+  const { data: dailyVariables, isLoading: isDailyVarsLoading } = useQuery({
     queryKey: ['dailyVariablePay', user?.orgId, variableEntryDate],
     queryFn: async () => {
       const q = query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('date', '==', variableEntryDate));
@@ -427,7 +450,7 @@ export default function SalarySlipTab() {
   }, [dailyVariables]);
 
   // Query for monthly variable pay sums (for the salary calculations)
-  const { data: monthlyVariableSums = {} } = useQuery({
+  const { data: monthlyVariableSums } = useQuery({
     queryKey: ['monthlyVariableSums', user?.orgId, summaryMonth],
     queryFn: async () => {
       const q = query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', summaryMonth));
@@ -739,10 +762,6 @@ export default function SalarySlipTab() {
     return groups.map(g => ({ ...g, visibleCount: visibleDetailedSummaryColumns.filter(c => g.columns.includes(c.id)).length })).filter(g => g.visibleCount > 0);
   }, [visibleDetailedSummaryColumns]);
 
-  const toggleDetailedSummaryColumn = (id) => {
-    setSelectedDetailedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
-  };
-
   const renderDetailedCell = (colId, emp) => {
     switch (colId) {
       case 'sno': return emp.sno;
@@ -825,48 +844,74 @@ export default function SalarySlipTab() {
 
   const handleGenerate = async () => {
     if (!selectedEmp || !selectedMonth) return alert('Please select staff and month');
+    if (!user?.orgId) return alert('Organisation context missing. Please re-login.');
+    
+    console.log('Generating payslip for:', selectedEmp, 'Month:', selectedMonth);
     setLoading(true); setSlipData(null); setAdvExpRows([])
+    
     try {
       const emp = employees.find(e => e.id === selectedEmp);
-      if (!emp) throw new Error('Staff data not found');
-      const [y, m] = selectedMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${selectedMonth}-01`, ed = `${selectedMonth}-${end}`
-      const aDataSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('employeeId', '==', selectedEmp)));
-      const aData = aDataSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed);
-      const attByDate = new Map(aData.map(a => [a.date, a]))
-      const slab = increments?.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, pfPercent: 0, esiPercent: 0 }
-      const ts = Number(slab.totalSalary) || 0
-      const [aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap, varLogsSnap] = await Promise.all([
-        getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp))), 
-        getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))), 
-        getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))), 
+      if (!emp) throw new Error('Staff data not found in local state');
+
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const end = new Date(y, m, 0).getDate();
+      const sd = `${selectedMonth}-01`;
+      const ed = `${selectedMonth}-${end}`;
+
+      console.log('Fetching related data...');
+      // Use simpler queries to avoid missing index errors
+      const [aDataSnap, aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap, varLogsSnap] = await Promise.all([
+        getDocs(collection(db, 'organisations', user.orgId, 'attendance')),
+        getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')), 
+        getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))), 
+        getDocs(collection(db, 'organisations', user.orgId, 'fines')), 
         getDoc(doc(db, 'organisations', user.orgId, 'otAdjustments', `${selectedMonth}_${selectedEmp}`)),
         getDoc(doc(db, 'organisations', user.orgId)),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', selectedMonth)))
-      ])
-      const orgData = orgSnap.exists() ? orgSnap.data() : {}
-      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
-      const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
+        getDocs(collection(db, 'organisations', user.orgId, 'variablePayLogs'))
+      ]);
 
-      // Aggregate variable pay logs for the selected employee in the selected month
-      let foodP = 0, convP = 0, bonusP = 0
-      varLogsSnap.docs.forEach(d => {
-        const row = d.data()
-        if (row.employeeId === selectedEmp) {
-          foodP += Number(row.food || 0)
-          convP += Number(row.convenience || 0)
-          bonusP += Number(row.bonus || 0)
-        }
-      })
-
-      const allAE = aeSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.date >= sd && a.date <= ed)
-      setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })))
-      const adv = allAE.filter(a => a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0)
+      console.log('Data fetched. Processing...');
       
-      let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, aOT = 0, sunCount = 0, holCount = 0
-      const sunDates = [], holDates = [], leaveDates = []
+      // Filter attendance in memory
+      const aData = aDataSnap.docs
+        .map(d => d.data())
+        .filter(a => a.employeeId === selectedEmp && a.date >= sd && a.date <= ed);
+      const attByDate = new Map(aData.map(a => [a.date, a]));
+
+      const orgData = orgSnap.exists() ? orgSnap.data() : {};
+      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : [];
+      const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean));
+
+      // Aggregate variable pay logs in memory
+      let foodP = 0, convP = 0, bonusP = 0;
+      varLogsSnap.docs.forEach(d => {
+        const row = d.data();
+        if (row.employeeId === selectedEmp && row.month === selectedMonth) {
+          foodP += Number(row.food || 0);
+          convP += Number(row.convenience || 0);
+          bonusP += Number(row.bonus || 0);
+        }
+      });
+
+      const allAE = aeSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(a => a.employeeId === selectedEmp && a.date >= sd && a.date <= ed);
+      
+      setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })));
+      
+      const adv = allAE.filter(a => a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0);
+      const reimb = allAE.filter(a => a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0);
+      
+      let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, aOT = 0, sunCount = 0, holCount = 0;
+      const sunDates = [], holDates = [], leaveDates = [];
 
       for (let i = 1; i <= end; i++) {
-        const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isH = holidayDates.has(ds) && !isS, r = attByDate.get(ds), status = String(r?.status || '').toLowerCase()
+        const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`;
+        const d = new Date(y, m - 1, i);
+        const isS = d.getDay() === 0;
+        const isH = holidayDates.has(ds) && !isS;
+        const r = attByDate.get(ds);
+        const status = String(r?.status || '').toLowerCase();
         
         if (emp.joinedDate && ds < emp.joinedDate) {
           lop++;
@@ -877,11 +922,11 @@ export default function SalarySlipTab() {
           continue;
         }
         
-        if (isS) sunCount++
-        if (isH) holCount++
+        if (isS) sunCount++;
+        if (isH) holCount++;
         
-        const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
-        const isHD = status === 'half-day' || r?.isHalfDay
+        const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked';
+        const isHD = status === 'half-day' || r?.isHalfDay;
 
         if (status === 'absent' || r?.isAbsent || status === 'leave') {
           lop++;
@@ -907,17 +952,29 @@ export default function SalarySlipTab() {
         }
       }
 
-      setPaySummaryDates({ sundays: sunDates, holidays: holDates, leaves: leaveDates })
+      setPaySummaryDates({ sundays: sunDates, holidays: holDates, leaves: leaveDates });
 
+      const slab = increments?.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, pfPercent: 0, esiPercent: 0 };
+      const ts = Number(slab.totalSalary) || 0;
       const paidDaysValue = end - lop;
-      const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0), fineA = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, f) => s + Number(f.amount || 0), 0)
-      const shiftH = Number(emp.minDailyHours) || 8
-      const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment || 0) : 0, dailyRate = ts / end, otP = (aOT + otAdj) * (dailyRate / shiftH), fullBasic = ts * (Number(slab.basicPercent || 0) / 100), fullHra = ts * (Number(slab.hraPercent || 0) / 100)
-      const b = fullBasic * (paidDaysValue / end), h = fullHra * (paidDaysValue / end), hP = ts * (Number(slab.pfPercent || 0) / 100), esiV = ts * (Number(slab.esiPercent || 0) / 100)
-      const holP = holW * dailyRate
-      const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0) + foodP + convP + bonusP, ded = (hP || 0) + (esiV || 0) + (emi || 0) + (fineA || 0) + (adv || 0)
-      const finalNet = Math.max(0, (gross || 0) - (ded || 0) + (reimb || 0)) // Net: Gross - Deductions + Expense
+      const emi = loanSnap.docs.map(d => d.data()).filter(l => l.employeeId === selectedEmp).reduce((s, l) => s + calcEMI(l, selectedMonth), 0);
+      const fineA = fineSnap.docs.map(d => d.data()).filter(f => f.employeeId === selectedEmp && f.date >= sd && f.date <= ed).reduce((s, f) => s + Number(f.amount || 0), 0);
+      const shiftH = Number(emp.minDailyHours) || 8;
+      const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment || 0) : 0;
+      const dailyRate = ts / end;
+      const otP = (aOT + otAdj) * (dailyRate / shiftH);
+      const fullBasic = ts * (Number(slab.basicPercent || 0) / 100);
+      const fullHra = ts * (Number(slab.hraPercent || 0) / 100);
+      const b = fullBasic * (paidDaysValue / end);
+      const h = fullHra * (paidDaysValue / end);
+      const hP = ts * (Number(slab.pfPercent || 0) / 100);
+      const esiV = ts * (Number(slab.esiPercent || 0) / 100);
+      const holP = holW * dailyRate;
+      const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0) + foodP + convP + bonusP;
+      const ded = (hP || 0) + (esiV || 0) + (emi || 0) + (fineA || 0) + (adv || 0);
+      const finalNet = Math.max(0, (gross || 0) - (ded || 0) + (reimb || 0));
 
+      console.log('Calculation complete. Setting slip data.');
       setSlipData({ 
         employee: emp, month: selectedMonth, slab, 
         paidDays: paidDaysValue, lopDays: lop, 
@@ -933,9 +990,14 @@ export default function SalarySlipTab() {
         sundayCount: sunCount || 0, holidayCount: holCount || 0,
         totalMonthDays: end, workedDaysCount: worked || 0,
         leaveCount: leave || 0
-      })
-      setGenerated(true)
-    } catch (e) { alert(e.message) } finally { setLoading(false) }
+      });
+      setGenerated(true);
+    } catch (e) { 
+      console.error('Payslip Generation Error:', e);
+      alert('Error: ' + e.message); 
+    } finally { 
+      setLoading(false); 
+    }
   }
 
   const handleExportDetailedSummaryPdf = async () => { 
