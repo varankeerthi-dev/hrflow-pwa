@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import { format, parseISO } from 'date-fns'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance, calcOT } from '../../hooks/useAttendance'
@@ -678,33 +681,21 @@ export default function AttendanceTab() {
   const handleGenerate = () => {
     if (!activeEmployees.length) return
     
-    // If we already have existing records for this date, use them instead of generating fresh rows
-    if (existingRecords.length > 0) {
-      const existingIds = new Set(existingRecords.map(r => r.employeeId))
-      const enrichedRecords = existingRecords.map(record => {
-        const emp = employees.find(e => e.id === record.employeeId)
+    // Create a map of existing records for easy lookup
+    const existingMap = new Map(existingRecords.map(r => [r.employeeId, r]))
+    
+    // Map through ALL active employees to ensure everyone is included
+    const mergedRows = activeEmployees.map(emp => {
+      // If we have an existing record, use it (enriched with latest emp data)
+      if (existingMap.has(emp.id)) {
+        const record = existingMap.get(emp.id)
         return {
           ...record,
           minDailyHours: record.minDailyHours || emp?.minDailyHours || 8
         }
-      })
+      }
       
-      const sortedRecords = [...(enrichedRecords || [])].sort((a, b) => {
-        if (!a || !b) return 0
-        if (!Array.isArray(rowOrder) || !rowOrder.length) return String(a.name || '').localeCompare(String(b.name || ''))
-        const idxA = rowOrder.indexOf(a.employeeId)
-        const idxB = rowOrder.indexOf(b.employeeId)
-        if (idxA === -1 && idxB === -1) return String(a.name || '').localeCompare(String(b.name || ''))
-        if (idxA === -1) return 1
-        if (idxB === -1) return -1
-        return idxA - idxB
-      })
-      setRows(sortedRecords)
-      setHasGenerated(true)
-      return
-    }
-    
-    const newRows = activeEmployees.map(emp => {
+      // Otherwise, generate a fresh row for this active employee
       const isBeforeJoined = emp.joinedDate && selectedDate < emp.joinedDate;
       const isAfterInactive = emp.inactiveFrom && selectedDate > emp.inactiveFrom;
       const isAbsentState = isBeforeJoined || isAfterInactive;
@@ -724,10 +715,26 @@ export default function AttendanceTab() {
         sundayHoliday: false,
         shiftType: 'Day',
         status: isAbsentState ? 'Absent' : 'Present',
-        minDailyHours: emp.minDailyHours || 8
+        minDailyHours: emp.minDailyHours || 8,
+        isNew: true // Mark as new so it can be saved
       };
     })
-    setRows(newRows)
+
+    // Sort the merged result
+    const sortedRows = [...mergedRows].sort((a, b) => {
+      if (!a || !b) return 0
+      const idA = a.employeeId || ''
+      const idB = b.employeeId || ''
+      if (!Array.isArray(rowOrder) || !rowOrder.length) return String(a.name || '').localeCompare(String(b.name || ''))
+      const idxA = rowOrder.indexOf(idA)
+      const idxB = rowOrder.indexOf(idB)
+      if (idxA === -1 && idxB === -1) return String(a.name || '').localeCompare(String(b.name || ''))
+      if (idxA === -1) return 1
+      if (idxB === -1) return -1
+      return idxA - idxB
+    })
+
+    setRows(sortedRows)
     setHasGenerated(true)
   }
 
@@ -965,26 +972,31 @@ export default function AttendanceTab() {
           <div className="flex flex-1 justify-between items-center">
             <div className="flex items-center gap-4">
               <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-                <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronLeft size={16} /></button>
-                <div className="relative flex items-center">
-                  <input 
-                    type="date" 
-                    value={selectedDate} 
-                    onChange={e => setSelectedDate(e.target.value)} 
-                    className="font-semibold bg-transparent border-none outline-none px-3 text-sm text-gray-700 h-[32px] cursor-pointer opacity-0 absolute w-full left-0 top-0" 
-                  />
-                  <div 
-                    className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none gap-2"
-                    onClick={(e) => {
-                      const input = e.currentTarget.parentElement.querySelector('input[type="date"]');
-                      input?.showPicker?.();
-                    }}
-                  >
-                    <Calendar size={14} className="text-gray-400" />
-                    {new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </div>
-                </div>
-                <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"><ChevronRight size={16} /></button>
+                <button 
+                  onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} 
+                  className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                
+                <DatePicker
+                  selected={parseISO(selectedDate)}
+                  onChange={(date) => setSelectedDate(formatDateForInput(date))}
+                  dateFormat="dd MMM yyyy"
+                  customInput={
+                    <div className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none gap-2 hover:bg-white hover:shadow-sm rounded-md transition-all">
+                      <Calendar size={14} className="text-gray-400" />
+                      {format(parseISO(selectedDate), 'dd MMM yyyy')}
+                    </div>
+                  }
+                />
+
+                <button 
+                  onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} 
+                  className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
               <div className="flex flex-col">
                 <span className="text-lg font-bold leading-tight">

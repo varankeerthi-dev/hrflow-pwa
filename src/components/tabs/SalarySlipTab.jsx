@@ -197,7 +197,7 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
 };
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
-  <Document><Page size="A4" style={{ padding: 30, fontSize: 9, fontFamily: 'Manrope', color: '#0f172a' }}>
+  <Document><Page size="A4" style={{ padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' }}>
     <View style={{ border: '2pt solid #0f172a', padding: 20, flex: 1 }}>
       <View style={{ borderBottomWidth: 2, borderBottomColor: '#3b82f6', paddingBottom: 15, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <View style={{flexDirection:'row', alignItems:'center'}}>
@@ -238,6 +238,9 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
             <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Sunday Worked</Text><Text>{formatINR(data.sundayPay)}</Text></View>
             <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Holiday Pay</Text><Text>{formatINR(data.holidayPay)}</Text></View>
             <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>OT Pay</Text><Text>{formatINR(data.otPay)}</Text></View>
+            {data.food > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Food Allowance</Text><Text>{formatINR(data.food)}</Text></View>}
+            {data.convenience > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Convenience</Text><Text>{formatINR(data.convenience)}</Text></View>}
+            {data.bonus > 0 && <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>Bonus</Text><Text>{formatINR(data.bonus)}</Text></View>}
           </View>
           <View style={{flex:4, borderRightWidth:1, borderColor:'#e2e8f0'}}>
             <View style={{flexDirection:'row', justifyContent:'space-between', paddingVertical:4, paddingHorizontal:8, borderBottomWidth:1, borderColor:'#f1f5f9'}}><Text style={{fontWeight:'bold'}}>PF</Text><Text>{dashIfZero(data.pf)}</Text></View>
@@ -259,7 +262,7 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
         <View style={{flexDirection:'row', borderTopWidth:1, borderColor:'#0f172a'}}>
           <View style={{flex:5, flexDirection:'row', justifyContent:'space-between', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#e2e8f0', backgroundColor:'#f0fdf4'}}>
             <Text style={{fontSize:8, fontWeight:'bold', color:'#166534'}}>TOTAL EARNINGS</Text>
-            <Text style={{fontSize:8, fontWeight:'bold', color:'#166534'}}>{formatINR((data.basic || 0) + (data.hra || 0) + (data.sundayPay || 0) + (data.holidayPay || 0) + (data.otPay || 0))}</Text>
+            <Text style={{fontSize:8, fontWeight:'bold', color:'#166534'}}>{formatINR((data.basic || 0) + (data.hra || 0) + (data.sundayPay || 0) + (data.holidayPay || 0) + (data.otPay || 0) + (data.food || 0) + (data.convenience || 0) + (data.bonus || 0))}</Text>
           </View>
           <View style={{flex:4, flexDirection:'row', justifyContent:'space-between', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#e2e8f0', backgroundColor:'#fef2f2'}}>
             <Text style={{fontSize:8, fontWeight:'bold', color:'#991b1b'}}>TOTAL DEDUCTIONS</Text>
@@ -326,7 +329,7 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
         <p className="text-slate-500 text-sm">Attendance records have been updated.</p>
       </div>
     )}
-    <div className="px-6 py-4 border-b flex justify-between items-center"><div><h2 className="text-base font-normal">OT Escalation</h2><p className="text-[11px] text-slate-500">{formatMonthDisplay(month)}</p></div><button onClick={onClose}><X size={18} /></button></div><div className="flex-1 overflow-auto p-6"><table className="w-full text-sm"><thead><tr className="text-[10px] uppercase text-slate-400 border-b"><th className="pb-2 text-left font-normal">Employee</th><th className="pb-2 text-center font-normal">Actual</th><th className="pb-2 text-center font-normal">Adjustment</th><th className="pb-2 text-right font-normal">Final</th></tr></thead><tbody className="divide-y">{employees.map(emp => (<tr key={emp.id} className="h-14 hover:bg-slate-50"><td><p className="font-normal">{emp.name}</p></td><td className="text-center font-normal">{Number(emp.ot || 0).toFixed(2)}</td><td className="text-center flex items-center justify-center gap-2 py-2"><button onClick={()=>handleAdjust(emp.id, -1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Minus size={10}/></button><input type="number" step="0.5" className="w-12 text-center font-normal border-0 focus:ring-0" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/><button onClick={()=>handleAdjust(emp.id, 1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Plus size={10}/></button></td><td className="text-right font-normal">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td></tr>))}</tbody></table></div><div className="p-4 border-t bg-slate-50 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-xs font-normal">Cancel</button><button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-normal shadow-lg flex items-center gap-2">
+    <div className="px-6 py-4 border-b flex justify-between items-center"><div><h2 className="text-base font-normal">OT Escalation</h2><p className="text-[11px] text-slate-500">{formatMonthDisplay(month)}</p></div><button onClick={onClose}><X size={18} /></button></div><div className="flex-1 overflow-auto p-6"><table className="w-full text-sm"><thead><tr className="text-[10px] uppercase text-slate-400 border-b"><th className="pb-2 text-left font-normal">Employee</th><th className="pb-2 text-center font-normal">Actual</th><th className="pb-2 text-center font-normal">Adjustment</th><th className="pb-2 text-right font-normal">Final</th></tr></thead><tbody className="divide-y">{employees.map(emp => (<tr key={emp.id} className="h-14 hover:bg-slate-50"><td><p className="font-normal">{emp.name}</p></td><td className="text-center font-normal">{Number(emp.ot || 0).toFixed(2)}</td><td className="text-center flex items-center justify-center gap-2 py-2"><button onClick={()=>handleAdjust(emp.id, -1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Minus size={10}/></button><input type="number" step="0.5" className="w-12 text-center font-normal border-0 focus:ring-0" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/><button onClick={()=>handleAdjust(emp.id, 1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Plus size={10}/></button></td><td className="text-right font-normal">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td></tr>))}</tbody></table></div><div className="p-4 border-t bg-slate-50 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-xs font-normal">Cancel</button><button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-normal shadow-lg shadow-indigo-100 flex items-center gap-2">
       {saveMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : null}
       {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
     </button></div></div></div>)
@@ -358,73 +361,91 @@ export default function SalarySlipTab() {
   const [loading, setLoading] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [slipData, setSlipData] = useState(null)
-
-  useEffect(() => { setGenerated(false); }, [selectedEmp, selectedMonth])
-
-  const [advExpRows, setAdvExpRows] = useState([])
-  const [paySummaryDates, setPaySummaryDates] = useState({ sundays: [], holidays: [] })
-  const [orgLogo, setOrgLogo] = useState('')
-  const [orgData, setOrgData] = useState(null)
-  const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
-  const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
-  const [selectedDetailedColumns, setSelectedDetailedColumns] = useState(() => DETAILED_SUMMARY_COLUMNS.map(c => c.id))
-  const [showDetailedColumnPicker, setShowDetailedColumnPicker] = useState(false)
-  const [employeeRowOrder, setEmployeeRowOrder] = useState([])
-  const columnPickerRef = useRef(null)
-
-  useEffect(() => {
-    if (!user?.orgId || !user?.uid) return
-    const fetchUserSettings = async () => {
-      try {
-        const [userPrefSnap, orgSnap] = await Promise.all([
-          getDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid)),
-          getDoc(doc(db, 'organisations', user.orgId))
-        ])
-        
-        if (orgSnap.exists()) {
-          const orgData = orgSnap.data()
-          if (orgData.employeeRowOrder) setEmployeeRowOrder(orgData.employeeRowOrder)
-          if (orgData.logoURL) setOrgLogo(orgData.logoURL)
-        }
-
-        if (userPrefSnap.exists()) {
-          const data = userPrefSnap.data()
-          if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
-        } else {
-          if (orgSnap.exists()) {
-            const data = orgSnap.data()
-            if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
-          }
-        }
-      } catch (err) { console.error('Error fetching settings:', err) }
-    }
-    fetchUserSettings()
-  }, [user?.orgId, user?.uid])
-
-  useEffect(() => {
-    const handleClickOutside = (e) => { if (columnPickerRef.current && !columnPickerRef.current.contains(e.target)) setShowDetailedColumnPicker(false) }
-    if (showDetailedColumnPicker) document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showDetailedColumnPicker])
-
-  const saveDetailedColumnDefaults = async () => {
-    if (!user?.orgId || !user?.uid) return
-    try {
-      await setDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid), { detailedSummaryColumns: selectedDetailedColumns, updatedAt: serverTimestamp() }, { merge: true })
-      alert('Preferences saved for your account!')
-      setShowDetailedColumnPicker(false)
-    } catch (err) { alert('Failed to save preferences') }
-  }
-
-  const toggleAllColumns = () => {
-    if (selectedDetailedColumns.length === DETAILED_SUMMARY_COLUMNS.length) {
-      setSelectedDetailedColumns(DETAILED_SUMMARY_COLUMNS.filter(c => c.mandatory).map(c => c.id))
-    } else {
-      setSelectedDetailedColumns(DETAILED_SUMMARY_COLUMNS.map(c => c.id))
-    }
-  }
-
   const [isOtModalOpen, setIsOtModalOpen] = useState(false)
+  const [variablePayData, setVariablePayData] = useState({})
+  const [variableEntryDate, setVariableEntryDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [paymentDetails, setPaymentDetails] = useState({})
+  const [downloadAllLoading, setDownloadAllLoading] = useState(false)
+
+  // Query for daily variable pay entries (for the specific entry date)
+  const { data: dailyVariables = {}, isLoading: isDailyVarsLoading } = useQuery({
+    queryKey: ['dailyVariablePay', user?.orgId, variableEntryDate],
+    queryFn: async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('date', '==', variableEntryDate));
+      const snap = await getDocs(q);
+      const data = {};
+      snap.docs.forEach(d => {
+        data[d.data().employeeId] = d.data();
+      });
+      return data;
+    },
+    enabled: !!user?.orgId && summarySubTab === 'variable'
+  });
+
+  useEffect(() => {
+    if (dailyVariables) {
+      setVariablePayData(dailyVariables);
+    } else {
+      setVariablePayData({});
+    }
+  }, [dailyVariables]);
+
+  // Query for monthly variable pay sums (for the salary calculations)
+  const { data: monthlyVariableSums = {} } = useQuery({
+    queryKey: ['monthlyVariableSums', user?.orgId, summaryMonth],
+    queryFn: async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', summaryMonth));
+      const snap = await getDocs(q);
+      const sums = {};
+      snap.docs.forEach(d => {
+        const row = d.data();
+        if (!sums[row.employeeId]) sums[row.employeeId] = { food: 0, convenience: 0, bonus: 0 };
+        sums[row.employeeId].food += Number(row.food || 0);
+        sums[row.employeeId].convenience += Number(row.convenience || 0);
+        sums[row.employeeId].bonus += Number(row.bonus || 0);
+      });
+      return sums;
+    },
+    enabled: !!user?.orgId
+  });
+
+  const saveVariablesMutation = useMutation({
+    mutationFn: async (data) => {
+      const batch = [];
+      const currentMonth = variableEntryDate.substring(0, 7); // YYYY-MM
+      for (const [empId, values] of Object.entries(data)) {
+        const docId = `${variableEntryDate}_${empId}`;
+        batch.push(setDoc(doc(db, 'organisations', user.orgId, 'variablePayLogs', docId), {
+          employeeId: empId,
+          date: variableEntryDate,
+          month: currentMonth,
+          food: Number(values.food || 0),
+          convenience: Number(values.convenience || 0),
+          bonus: Number(values.bonus || 0),
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid
+        }, { merge: true }));
+      }
+      await Promise.all(batch);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['dailyVariablePay']);
+      queryClient.invalidateQueries(['monthlyVariableSums']);
+      queryClient.invalidateQueries(['attendanceSummary']);
+      alert('Variable pay logs saved successfully!');
+    },
+    onError: (err) => alert('Failed to save logs: ' + err.message)
+  });
+
+  const handleVariableChange = (empId, field, value) => {
+    setVariablePayData(prev => ({
+      ...prev,
+      [empId]: {
+        ...prev[empId],
+        [field]: value
+      }
+    }));
+  };
   const monthInputRef = useRef(null)
 
   useEffect(() => { if (activeTab === 'salary-summary' && summarySubTab === 'detailed') { if (!isCollapsed) { setIsCollapsed(true); setIsAutoCollapsed(true); } } else { if (isAutoCollapsed) { setIsCollapsed(false); setIsAutoCollapsed(false); } } }, [activeTab, summarySubTab, isCollapsed, isAutoCollapsed])
@@ -446,14 +467,15 @@ export default function SalarySlipTab() {
     queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
     queryFn: async () => {
       if (!user?.orgId || !sortedEmployees.length) return []; const [y, m] = summaryMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${end}`
-      const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap, sandwichSnap] = await Promise.all([
+      const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap, sandwichSnap, varSnap] = await Promise.all([
         getDocs(collection(db, 'organisations', user.orgId, 'attendance')), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))), 
         getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')), 
         getDocs(collection(db, 'organisations', user.orgId, 'fines')), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth))),
         getDoc(doc(db, 'organisations', user.orgId)),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', summaryMonth)))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', summaryMonth))),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'salaryVariables'), where('month', '==', summaryMonth)))
       ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
@@ -462,6 +484,7 @@ export default function SalarySlipTab() {
       const isSaturdayHoliday = saturdayType !== 'working';
       
       const appliedSandwiches = sandwichSnap.docs.map(d => d.data());
+      const allVariables = varSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data(); return acc; }, {});
 
       const allAtt = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
       
@@ -576,12 +599,16 @@ export default function SalarySlipTab() {
         const ts = Number(slab.totalSalary) || 0, paidDays = end - lop, dailyRate = ts / end, fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
         const shiftH = Number(emp.minDailyHours) || 8
         const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = sunW * dailyRate, holPay = holW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / shiftH)
+        
+        const empVar = allVariables[emp.id] || {};
+        const foodP = Number(empVar.food || 0), convP = Number(empVar.convenience || 0), bonusP = Number(empVar.bonus || 0);
+
         const loanE = allLoans.filter(l => l.employeeId === emp.id).reduce((s, l) => s + calcEMI(l, summaryMonth), 0), adv = allAE.filter(a => a.employeeId === emp.id && a.type === 'Advance').reduce((s, a) => s + Number(a.amount), 0), reimb = allAE.filter(a => a.employeeId === emp.id && a.type === 'Expense' && a.hrApproval === 'Approved').reduce((s, a) => s + Number(a.amount), 0), fine = allFines.filter(f => f.employeeId === emp.id).reduce((s, f) => s + Number(f.amount), 0)
         const pf = ts * (slab.pfPercent || 0) / 100, esi = ts * (slab.esiPercent || 0) / 100
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
-        const totalEarnings = basic + hra + sunPay + holPay + otPay, totalDeductions = pf + esi + loanE + fine + adv
+        const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp, sandwichSundays }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp, sandwichSundays, food: foodP, convenience: convP, bonus: bonusP }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -591,7 +618,6 @@ export default function SalarySlipTab() {
   const dynamicNameWidth = useMemo(() => {
     if (!filteredAttendanceSummaryData.length) return 140;
     const maxChars = Math.max(...filteredAttendanceSummaryData.map(e => (e.name || '').length), 10);
-    // Approx 7.5px per char for 10px bold text, plus padding
     return Math.min(Math.max(maxChars * 7.5 + 20, 120), 300);
   }, [filteredAttendanceSummaryData]);
 
@@ -709,16 +735,20 @@ export default function SalarySlipTab() {
       const attByDate = new Map(aData.map(a => [a.date, a]))
       const slab = increments?.filter(i => i.employeeId === selectedEmp && i.effectiveFrom <= selectedMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[selectedEmp] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, pfPercent: 0, esiPercent: 0 }
       const ts = Number(slab.totalSalary) || 0
-      const [aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap] = await Promise.all([
+      const [aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap, varSnap] = await Promise.all([
         getDocs(query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', selectedEmp))), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('employeeId', '==', selectedEmp), where('status', '==', 'Active'))), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'fines'), where('employeeId', '==', selectedEmp))), 
         getDoc(doc(db, 'organisations', user.orgId, 'otAdjustments', `${selectedMonth}_${selectedEmp}`)),
-        getDoc(doc(db, 'organisations', user.orgId))
+        getDoc(doc(db, 'organisations', user.orgId)),
+        getDoc(doc(db, 'organisations', user.orgId, 'salaryVariables', `${selectedMonth}_${selectedEmp}`))
       ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
+
+      const varData = varSnap.exists() ? varSnap.data() : {}
+      const foodP = Number(varData.food || 0), convP = Number(varData.convenience || 0), bonusP = Number(varData.bonus || 0)
 
       const allAE = aeSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.date >= sd && a.date <= ed)
       setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })))
@@ -775,9 +805,9 @@ export default function SalarySlipTab() {
       const emi = loanSnap.docs.map(d => d.data()).reduce((s, l) => s + calcEMI(l, selectedMonth), 0), fineA = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed).reduce((s, f) => s + Number(f.amount || 0), 0)
       const shiftH = Number(emp.minDailyHours) || 8
       const otAdj = otAdjSnap.exists() ? Number(otAdjSnap.data().adjustment || 0) : 0, dailyRate = ts / end, otP = (aOT + otAdj) * (dailyRate / shiftH), fullBasic = ts * (Number(slab.basicPercent || 0) / 100), fullHra = ts * (Number(slab.hraPercent || 0) / 100)
-      const b = fullBasic * (paidDaysValue / end), h = fullHra * (paidDaysValue / end), p = ts * (Number(slab.pfPercent || 0) / 100), e = ts * (Number(slab.esiPercent || 0) / 100)
+      const b = fullBasic * (paidDaysValue / end), h = fullHra * (paidDaysValue / end), hP = ts * (Number(slab.pfPercent || 0) / 100), esiV = ts * (Number(slab.esiPercent || 0) / 100)
       const holP = holW * dailyRate
-      const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0), ded = (p || 0) + (e || 0) + (emi || 0) + (fineA || 0) + (adv || 0)
+      const gross = (b || 0) + (h || 0) + (sunW * dailyRate) + (holP || 0) + (otP || 0) + foodP + convP + bonusP, ded = (hP || 0) + (esiV || 0) + (emi || 0) + (fineA || 0) + (adv || 0)
       const finalNet = Math.max(0, (gross || 0) - (ded || 0) + (reimb || 0)) // Net: Gross - Deductions + Expense
 
       setSlipData({ 
@@ -788,7 +818,8 @@ export default function SalarySlipTab() {
         expenseReimbursement: reimb || 0, 
         sundayPay: (sunW * dailyRate) || 0, sundayWorkedCount: sunW || 0,
         holidayPay: holP || 0, holidayWorkedCount: holW || 0, 
-        grossEarnings: gross || 0, pf: p || 0, esi: e || 0, advanceDeduction: adv || 0, 
+        food: foodP, convenience: convP, bonus: bonusP,
+        grossEarnings: gross || 0, pf: hP || 0, esi: esiV || 0, advanceDeduction: adv || 0, 
         loanEMI: emi || 0, fineAmount: fineA || 0, totalDeductions: ded || 0, 
         netPay: finalNet, 
         sundayCount: sunCount || 0, holidayCount: holCount || 0,
@@ -817,7 +848,6 @@ export default function SalarySlipTab() {
   }
   const handleExportSalarySlipPdf = async () => { if (!slipData) return; setExportingSlipPdf(true); try { const blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />).toBlob(); downloadPdfBlob(blob, `Slip_${slipData.employee.name}.pdf`); } finally { setExportingSlipPdf(false); } }
 
-  const [downloadAllLoading, setDownloadAllLoading] = useState(false)
   const handleDownloadAllZipped = async () => {
     if (!attendanceSummaryData.length) return;
     setDownloadAllLoading(true);
@@ -835,6 +865,7 @@ export default function SalarySlipTab() {
           expenseReimbursement: empSummary.expenseAmount,
           sundayPay: empSummary.sunPay, sundayWorkedCount: empSummary.sunW,
           holidayPay: empSummary.holPay, holidayWorkedCount: empSummary.holW,
+          food: empSummary.food, convenience: empSummary.convenience, bonus: empSummary.bonus,
           grossEarnings: empSummary.totalEarnings, pf: empSummary.pf, esi: empSummary.esi, advanceDeduction: empSummary.advanceAmount,
           loanEMI: empSummary.loanE, fineAmount: empSummary.fine, totalDeductions: empSummary.totalDeductions,
           netPay: empSummary.salary.net,
@@ -1011,6 +1042,9 @@ export default function SalarySlipTab() {
                           <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Sunday Worked</span><span>{formatINR(slipData.sundayPay)}</span></div>
                           <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Holiday Pay</span><span>{formatINR(slipData.holidayPay)}</span></div>
                           <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">OT Pay</span><span>{formatINR(slipData.otPay)}</span></div>
+                          {slipData.food > 0 && <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Food Allowance</span><span>{formatINR(slipData.food)}</span></div>}
+                          {slipData.convenience > 0 && <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Convenience</span><span>{formatINR(slipData.convenience)}</span></div>}
+                          {slipData.bonus > 0 && <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Bonus</span><span>{formatINR(slipData.bonus)}</span></div>}
                         </div>
                         <div className="col-span-4 p-1 space-y-0.5">
                           <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">PF Contribution</span><span>{dashIfZero(slipData.pf)}</span></div>
@@ -1032,7 +1066,7 @@ export default function SalarySlipTab() {
                       <div className="grid grid-cols-12 border-t border-zinc-900">
                         <div className="col-span-5 flex justify-between p-3 bg-green-50 border-r border-zinc-900">
                           <span className="text-[10px] font-bold text-green-800 uppercase">Total Earnings</span>
-                          <span className="text-[12px] font-bold text-green-800">{formatINR((slipData.basic || 0) + (slipData.hra || 0) + (slipData.sundayPay || 0) + (slipData.holidayPay || 0) + (slipData.otPay || 0))}</span>
+                          <span className="text-[12px] font-bold text-green-800">{formatINR((slipData.basic || 0) + (slipData.hra || 0) + (slipData.sundayPay || 0) + (slipData.holidayPay || 0) + (slipData.otPay || 0) + (slipData.food || 0) + (slipData.convenience || 0) + (slipData.bonus || 0))}</span>
                         </div>
                         <div className="col-span-4 flex justify-between p-3 bg-red-50 border-r border-zinc-900">
                           <span className="text-[10px] font-bold text-red-800 uppercase">Total Deductions</span>
@@ -1115,6 +1149,8 @@ export default function SalarySlipTab() {
                 <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                   {[
                     {id:'overview',l:'Overview'},
+                    {id:'variable',l:'Variable Pay'},
+                    {id:'payment',l:'Payment Details'},
                     {id:'detailed',l:'Full Summary'},
                     {id:'sandwich',l:'Sandwich Rule'}
                   ].map(t=>(<button key={t.id} onClick={()=>setSummarySubTab(t.id)} className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${summarySubTab===t.id?'bg-white text-indigo-600 shadow-sm border border-indigo-100':'text-slate-500 hover:text-slate-900'}`}>{t.l}</button>))}
@@ -1170,7 +1206,7 @@ export default function SalarySlipTab() {
                       <th colSpan={4} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-black tracking-widest bg-gray-500">Performance</th>
                       <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-100">Overtime</th>
                       <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-emerald-900 tracking-widest bg-emerald-100">Holiday Worked</th>
-                      <th colSpan={1} className="px-4 text-center font-black uppercase text-[10px] text-white tracking-widest bg-green-600">Summary</th>
+                      <th colSpan={3} className="px-4 text-center font-black uppercase text-[10px] text-white tracking-widest bg-green-600">Summary & Payment</th>
                       <th className="w-12 bg-zinc-100"></th>
                     </tr>
                     {/* Primary Header Row */}
@@ -1187,14 +1223,21 @@ export default function SalarySlipTab() {
                       <th className="px-2 text-center border-r border-zinc-200 w-24">OT (Hrs)</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-24 font-bold text-emerald-600 bg-emerald-50/10">Sunday Wk</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24 font-bold text-emerald-600 bg-emerald-50/10">Holiday Wk</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-28 bg-green-50/50 text-green-700 font-black">Total Pay Days</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-28 bg-green-50/50 text-green-700 font-black">Net Payout</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-indigo-600 font-black">Status</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-32 text-slate-400">Details</th>
                       <th className="w-12"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200">
                     {isAttendanceLoading ? (
-                       <tr><td colSpan={14} className="py-20 text-center"><Spinner /></td></tr>
-                    ) : filteredAttendanceSummaryData.map((e, idx)=>(
+                       <tr><td colSpan={16} className="py-20 text-center"><Spinner /></td></tr>
+                    ) : filteredAttendanceSummaryData.map((e, idx)=>{
+                      const payment = salaryPayments[e.id] || {};
+                      const isPaid = Number(payment.paidAmount || 0) >= Number(e.salary?.net || 0) && Number(e.salary?.net || 0) > 0;
+                      const isPartial = Number(payment.paidAmount || 0) > 0 && !isPaid;
+
+                      return (
                       <tr key={e.id} className={`hover:bg-zinc-50/80 transition-colors h-[32px] group ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
                         <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-mono text-[10px]">{idx + 1}</td>
                         <td className="px-4 border-r border-zinc-200 font-black text-zinc-900 uppercase text-[11px] tracking-tight truncate w-40">{e.name}</td>
@@ -1213,16 +1256,168 @@ export default function SalarySlipTab() {
                         </td>
                         <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600 bg-emerald-50/5">{e.sunW}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5">{e.holW}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-black text-green-700 bg-green-50/20 text-[12px]">{e.paidDays}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-black text-green-700 bg-green-50/20 text-[12px]">{formatINR(e.salary?.net)}</td>
+                        <td className="px-2 text-center border-r border-zinc-200">
+                          {isPaid ? (
+                            <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[8px] font-black uppercase">Paid</span>
+                          ) : isPartial ? (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[8px] font-black uppercase">Partial</span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase">Pending</span>
+                          )}
+                        </td>
+                        <td className="px-2 text-center border-r border-zinc-200 text-[9px] font-bold text-slate-500 italic">
+                          {payment.paymentDate ? `${formatDateDDMMYYYY(payment.paymentDate)} (${payment.paymentMode})` : '-'}
+                        </td>
                         <td className="px-2 text-center">
                           <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1 hover:bg-zinc-900 hover:text-white rounded transition-all text-zinc-400">
                             <ArrowRight size={14}/>
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
+                </div>
+              ) : summarySubTab === 'variable' ? (
+                <div className="h-full flex flex-col bg-white p-6">
+                  <div className="flex justify-between items-end mb-6">
+                    <div>
+                      <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-raleway">Variable Pay Management</h2>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Enter Food, Convenience, and Bonus for {formatMonthDisplay(summaryMonth)}.</p>
+                    </div>
+                    <button 
+                      onClick={() => saveVariablesMutation.mutate(variablePayData)}
+                      disabled={saveVariablesMutation.isPending}
+                      className="h-9 px-6 bg-indigo-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                      {saveVariablesMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                      Save Variable Data
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto border border-zinc-200 rounded-2xl shadow-sm">
+                    <table className="w-full border-collapse">
+                      <thead className="sticky top-0 bg-slate-50 z-10 border-b border-zinc-200">
+                        <tr className="h-10">
+                          <th className="px-4 text-left text-[10px] font-black uppercase text-slate-500 tracking-widest border-r border-zinc-100">Employee Name</th>
+                          <th className="px-4 text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest border-r border-zinc-100 w-40">Food Allowance</th>
+                          <th className="px-4 text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest border-r border-zinc-100 w-40">Convenience</th>
+                          <th className="px-4 text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest w-40">Bonus / Other</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 bg-white">
+                        {isAttendanceLoading ? (
+                          <tr><td colSpan={4} className="py-20 text-center"><Spinner /></td></tr>
+                        ) : sortedEmployees.map(emp => (
+                          <tr key={emp.id} className="h-12 hover:bg-slate-50 transition-colors">
+                            <td className="px-4 border-r border-zinc-50 font-bold text-slate-900 uppercase text-[11px]">{emp.name}</td>
+                            <td className="px-4 border-r border-zinc-50">
+                              <input 
+                                type="number" 
+                                className="w-full h-8 text-center font-bold text-indigo-600 bg-indigo-50/30 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[11px]" 
+                                value={variablePayData[emp.id]?.food || ''} 
+                                onChange={e => handleVariableChange(emp.id, 'food', e.target.value)}
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="px-4 border-r border-zinc-50">
+                              <input 
+                                type="number" 
+                                className="w-full h-8 text-center font-bold text-indigo-600 bg-indigo-50/30 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[11px]" 
+                                value={variablePayData[emp.id]?.convenience || ''} 
+                                onChange={e => handleVariableChange(emp.id, 'convenience', e.target.value)}
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="px-4">
+                              <input 
+                                type="number" 
+                                className="w-full h-8 text-center font-bold text-indigo-600 bg-indigo-50/30 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[11px]" 
+                                value={variablePayData[emp.id]?.bonus || ''} 
+                                onChange={e => handleVariableChange(emp.id, 'bonus', e.target.value)}
+                                placeholder="0"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : summarySubTab === 'payment' ? (
+                <div className="h-full flex flex-col bg-white p-6">
+                  <div className="flex justify-between items-end mb-6">
+                    <div>
+                      <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-raleway">Payment Disbursement Log</h2>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Record actual payments done to staff for {formatMonthDisplay(summaryMonth)}.</p>
+                    </div>
+                    <button 
+                      onClick={() => savePaymentsMutation.mutate(paymentDetails)}
+                      disabled={savePaymentsMutation.isPending}
+                      className="h-9 px-6 bg-emerald-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                      {savePaymentsMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                      Save Payment Records
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto border border-zinc-200 rounded-2xl shadow-sm">
+                    <table className="w-full border-collapse">
+                      <thead className="sticky top-0 bg-slate-50 z-10 border-b border-zinc-200">
+                        <tr className="h-10">
+                          <th className="px-4 text-left text-[10px] font-black uppercase text-slate-500 tracking-widest border-r border-zinc-100">Employee Name</th>
+                          <th className="px-4 text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest border-r border-zinc-100 w-40">Net Payout</th>
+                          <th className="px-4 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest border-r border-zinc-100 w-48">Paid Amount</th>
+                          <th className="px-4 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest border-r border-zinc-100 w-48">Payment Date</th>
+                          <th className="px-4 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-48">Ref / Mode</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 bg-white">
+                        {isAttendanceLoading ? (
+                          <tr><td colSpan={5} className="py-20 text-center"><Spinner /></td></tr>
+                        ) : attendanceSummaryData.map(emp => (
+                          <tr key={emp.id} className="h-12 hover:bg-slate-50 transition-colors">
+                            <td className="px-4 border-r border-zinc-50 font-bold text-slate-900 uppercase text-[11px]">{emp.name}</td>
+                            <td className="px-4 border-r border-zinc-50 text-center font-black text-slate-400 text-[11px] bg-slate-50/30">
+                              {formatINR(emp.salary?.net)}
+                            </td>
+                            <td className="px-4 border-r border-zinc-50">
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-emerald-600">₹</span>
+                                <input 
+                                  type="number" 
+                                  className="w-full h-8 pl-5 text-right font-black text-emerald-600 bg-emerald-50/30 rounded-lg border-0 focus:ring-2 focus:ring-emerald-500 text-[11px]" 
+                                  value={paymentDetails[emp.id]?.paidAmount || ''} 
+                                  onChange={e => handlePaymentChange(emp.id, 'paidAmount', e.target.value)}
+                                  placeholder="0"
+                                />
+                              </div>
+                            </td>
+                            <td className="px-4 border-r border-zinc-50">
+                              <input 
+                                type="date" 
+                                className="w-full h-8 px-2 font-bold text-slate-600 bg-slate-50 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[10px] uppercase" 
+                                value={paymentDetails[emp.id]?.paymentDate || ''} 
+                                onChange={e => handlePaymentChange(emp.id, 'paymentDate', e.target.value)}
+                              />
+                            </td>
+                            <td className="px-4">
+                              <select 
+                                className="w-full h-8 px-2 font-bold text-slate-600 bg-slate-50 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[10px] uppercase appearance-none cursor-pointer"
+                                value={paymentDetails[emp.id]?.paymentMode || 'Bank Transfer'}
+                                onChange={e => handlePaymentChange(emp.id, 'paymentMode', e.target.value)}
+                              >
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="Cash">Cash</option>
+                                <option value="UPI">UPI / GPay</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="Adjustment">Adjustment</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : summarySubTab === 'sandwich' ? (
                 <div className="h-full overflow-auto bg-white p-4 flex flex-col">
@@ -1314,11 +1509,7 @@ export default function SalarySlipTab() {
                               <tr key={h.id} className="h-[32px] hover:bg-sky-50/30 transition-colors">
                                 <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{(() => {
                                   const emp = employees.find(e => e.id === h.employeeId);
-                                  if (!emp) {
-                                    console.log('Employee not found for ID:', h.employeeId, 'Available employees:', employees.map(e => ({ id: e.id, name: e.name })));
-                                    return 'Unknown staff';
-                                  }
-                                  return emp.name;
+                                  return emp?.name || 'Unknown staff';
                                 })()}</td>
                                 <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(h.date)}</td>
                                 <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
@@ -1401,6 +1592,16 @@ export default function SalarySlipTab() {
       )}
     </div>
       
+      {/* OT Escalation Modal */}
+      <OTEscalationModal 
+        isOpen={isOtModalOpen} 
+        onClose={() => setIsOtModalOpen(false)} 
+        month={summaryMonth} 
+        employees={attendanceSummaryData} 
+        initialAdjustments={attendanceSummaryData.reduce((acc, e) => ({ ...acc, [e.id]: e.otAdjustment }), {})} 
+        orgId={user?.orgId}
+      />
+
       {/* Fallback Status Selection Modal */}
       {showFallbackModal && selectedHistoryItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]">
@@ -1414,10 +1615,7 @@ export default function SalarySlipTab() {
               <button
                 onClick={async () => {
                   try {
-                    // Delete sandwich deduction
                     await deleteDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', selectedHistoryItem.id));
-                    
-                    // Update attendance record to "Holiday"
                     const attendanceQuery = query(
                       collection(db, 'organisations', user.orgId, 'attendance'),
                       where('employeeId', '==', selectedHistoryItem.employeeId),
@@ -1430,28 +1628,21 @@ export default function SalarySlipTab() {
                         isAbsent: false
                       });
                     }
-                    
                     queryClient.invalidateQueries(['sandwichHistory']);
                     queryClient.invalidateQueries(['attendanceSummary']);
                     setShowFallbackModal(false);
                     setSelectedHistoryItem(null);
                     alert('Deduction deleted and marked as Holiday!');
-                  } catch (err) {
-                    alert('Error: ' + err.message);
-                  }
+                  } catch (err) { alert('Error: ' + err.message); }
                 }}
                 className="w-full px-4 py-3 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 transition-colors"
               >
                 Mark as Holiday
               </button>
-              
               <button
                 onClick={async () => {
                   try {
-                    // Delete sandwich deduction
                     await deleteDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', selectedHistoryItem.id));
-                    
-                    // Update attendance record to "Present/Worked"
                     const attendanceQuery = query(
                       collection(db, 'organisations', user.orgId, 'attendance'),
                       where('employeeId', '==', selectedHistoryItem.employeeId),
@@ -1464,26 +1655,19 @@ export default function SalarySlipTab() {
                         isAbsent: false
                       });
                     }
-                    
                     queryClient.invalidateQueries(['sandwichHistory']);
                     queryClient.invalidateQueries(['attendanceSummary']);
                     setShowFallbackModal(false);
                     setSelectedHistoryItem(null);
                     alert('Deduction deleted and marked as Worked!');
-                  } catch (err) {
-                    alert('Error: ' + err.message);
-                  }
+                  } catch (err) { alert('Error: ' + err.message); }
                 }}
                 className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
               >
                 Mark as Worked (1x)
               </button>
-              
               <button
-                onClick={() => {
-                  setShowFallbackModal(false);
-                  setSelectedHistoryItem(null);
-                }}
+                onClick={() => { setShowFallbackModal(false); setSelectedHistoryItem(null); }}
                 className="w-full px-4 py-3 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
               >
                 Cancel

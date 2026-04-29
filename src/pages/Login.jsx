@@ -4,6 +4,7 @@ import { useAuth, formatAuthError } from '../hooks/useAuth'
 import LoginOrgSelector from '../components/ui/LoginOrgSelector'
 import { db } from '../lib/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
+import { LogOut, X, Building2, Plus, ArrowRight } from 'lucide-react'
 
 // Google SVG logo
 const GoogleIcon = () => (
@@ -16,7 +17,7 @@ const GoogleIcon = () => (
 )
 
 // ─── Organisation Setup Modal (Create or Join) ────────────────────────────────
-function OrgSetupModal({ user, onJoin, onCreate, onNavigate }) {
+function OrgSetupModal({ user, onJoin, onCreate, onNavigate, onLogout }) {
   const [modalTab, setModalTab] = useState('join')
   const [orgCode, setOrgCode] = useState('')
   const [orgName, setOrgName] = useState('')
@@ -119,6 +120,28 @@ function OrgSetupModal({ user, onJoin, onCreate, onNavigate }) {
               {loading ? 'Creating…' : 'Create Organisation'}
             </button>
           </form>
+        )}
+
+        {/* LOGOUT BUTTON FOR FIRST-TIME USERS */}
+        {!user?.orgId && (
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <button 
+              onClick={() => {
+                // We need to pass logout to OrgSetupModal or use useAuth directly
+                // Based on Dashboard.jsx, it's passed as onLogout.
+                // But here in Login.jsx, OrgSetupModal doesn't take onLogout yet.
+                if (typeof onLogout === 'function') {
+                  onLogout();
+                } else {
+                  // Fallback if not passed - though we should fix the prop passing
+                  window.location.reload(); 
+                }
+              }} 
+              className="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-3 rounded-xl transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 border border-rose-200 shadow-sm"
+            >
+              <LogOut size={14} /> <span>Sign Out & Exit</span>
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -231,6 +254,7 @@ export default function Login() {
         onJoin={joinOrganisation}
         onCreate={createOrganisation}
         onNavigate={() => navigate('/')}
+        onLogout={logout}
       />
     )
   }

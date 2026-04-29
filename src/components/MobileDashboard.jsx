@@ -146,12 +146,20 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
           </form>
         )}
 
-        <div className="mt-6 pt-4 border-t border-gray-100">
+        <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
+          {!user?.orgId && (
+            <button 
+              onClick={onLogout} 
+              className="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-3.5 rounded-xl transition-all text-[11px] tracking-wider flex items-center justify-center gap-2 border border-rose-200 shadow-sm"
+            >
+              <LogOut size={16} /> <span>Sign Out & Exit</span>
+            </button>
+          )}
           <button
             onClick={onLogout}
             className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 text-[11px] font-semibold tracking-wider"
           >
-            <LogOut size={14} />
+            <X size={14} />
             <span>Back to login</span>
           </button>
         </div>
