@@ -19,6 +19,24 @@ function formatOTHours(otHours) {
   return `${h}h ${m}m`
 }
 
+function calculateWorkingTime(inTime, outTime, inDate, outDate) {
+  if (!inTime || !outTime || !inDate || !outDate) return '-'
+  try {
+    const [inH, inM] = inTime.split(':').map(Number)
+    const [outH, outM] = outTime.split(':').map(Number)
+    const start = new Date(`${inDate}T${String(inH).padStart(2, '0')}:${String(inM).padStart(2, '0')}:00`)
+    const end = new Date(`${outDate}T${String(outH).padStart(2, '0')}:${String(outM).padStart(2, '0')}:00`)
+    const diffMs = end - start
+    if (diffMs <= 0) return '-'
+    const diffMins = Math.floor(diffMs / 60000)
+    const h = Math.floor(diffMins / 60)
+    const m = diffMins % 60
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  } catch (e) {
+    return '-'
+  }
+}
+
 export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = false }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -50,6 +68,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     date: true,
     inTime: true,
     outTime: true,
+    workingTime: true,
     ot: true,
     remarks: false
   })
@@ -407,10 +426,11 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
           {pivotLoading ? (<div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200 shadow-sm"><Spinner /></div>) : (
             <div className="overflow-x-auto max-h-[calc(100vh-210px)] overflow-y-auto bg-white border border-gray-300 rounded-xl shadow-sm">
               {(() => {
-                const colW = { inTime: 56, outTime: 56, ot: 40, remarks: 52 }, gapW = 8
+                const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
                 let blockW = 0
                 if (columnSettings.inTime) blockW += colW.inTime
                 if (columnSettings.outTime) blockW += colW.outTime
+                if (columnSettings.workingTime) blockW += colW.workingTime
                 if (columnSettings.ot) blockW += colW.ot
                 if (columnSettings.remarks) blockW += colW.remarks
                 if (blockW === 0) blockW = 56
@@ -421,11 +441,12 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                       <col style={{ width: '65px' }} />
                       {monthlyViewData.employees?.map(emp => (
                         <React.Fragment key={emp.id}>
-                          {columnSettings.inTime && <col style={{ width: '56px' }} />}
-                          {columnSettings.outTime && <col style={{ width: '56px' }} />}
-                          {columnSettings.ot && <col style={{ width: '40px' }} />}
-                          {columnSettings.remarks && <col style={{ width: '52px' }} />}
-                          {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <col style={{ width: '56px' }} />}
+                          {columnSettings.inTime && <col style={{ width: `${colW.inTime}px` }} />}
+                          {columnSettings.outTime && <col style={{ width: `${colW.outTime}px` }} />}
+                          {columnSettings.workingTime && <col style={{ width: `${colW.workingTime}px` }} />}
+                          {columnSettings.ot && <col style={{ width: `${colW.ot}px` }} />}
+                          {columnSettings.remarks && <col style={{ width: `${colW.remarks}px` }} />}
+                          {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <col style={{ width: '56px' }} />}
                         </React.Fragment>
                       ))}
                     </colgroup>
@@ -433,20 +454,21 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                       <tr>
                         <th className="px-2 py-1 text-center font-bold text-gray-700 border-r border-b border-gray-200 bg-gray-100 sticky left-0 z-40" rowSpan={2}><div className="text-[9px] uppercase tracking-wider text-gray-500">Date</div></th>
                         {monthlyViewData.employees?.map((emp, idx) => {
-                          const cs = getEmployeeHeaderColor(idx), visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
+                          const cs = getEmployeeHeaderColor(idx), visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
                           return (<th key={emp.id} className={`px-1 py-1 text-center font-black text-white border-r-[8px] border-white border-b ${cs.border} ${cs.bg} text-[10px]`} colSpan={visibleCount}><div className="truncate uppercase leading-none">{emp.name}</div></th>)
                         })}
                       </tr>
                       <tr className="bg-white">
                         {monthlyViewData.employees?.map(emp => {
-                          const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.outTime ? 'outTime' : 'inTime'))
+                          const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.workingTime ? 'workingTime' : (columnSettings.outTime ? 'outTime' : 'inTime')))
                           return (
                             <React.Fragment key={emp.id}>
                               {columnSettings.inTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>IN</th>}
                               {columnSettings.outTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'outTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>OUT</th>}
+                              {columnSettings.workingTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'workingTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>WT</th>}
                               {columnSettings.ot && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'ot' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>OT</th>}
                               {columnSettings.remarks && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase truncate border-r-[8px] border-white`} title={remarksLabel}>{remarksLabel.substring(0,3)}</th>}
-                              {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-0 py-1 border-r-[8px] border-white border-b border-gray-300 bg-white">-</th>}
+                              {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-0 py-1 border-r-[8px] border-white border-b border-gray-300 bg-white">-</th>}
                             </React.Fragment>
                           )
                         })}
@@ -464,12 +486,12 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                               const att = monthlyViewData.attendanceMap?.[emp.id]?.[day]
                               const st = getStatusBadge(att, day, emp, monthlyViewData.holidays || [])
                               const isOff = st?.type === 'absent' || st?.type === 'sunday' || st?.type === 'holiday'
-                              const isJoinInactive = (emp.joinedDate && ds < emp.joinedDate) || (emp.inactiveFrom && ds > emp.inactiveFrom)
                               
-                              const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.outTime ? 'outTime' : 'inTime'))
+                              const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.workingTime ? 'workingTime' : (columnSettings.outTime ? 'outTime' : 'inTime')))
+                              const visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
                               return (
                                 <React.Fragment key={emp.id}>
-                                  {isOff ? (<td colSpan={columnSettings.inTime || columnSettings.outTime || columnSettings.ot || columnSettings.remarks ? (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) : 1} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${st.bg}`}><span className={`text-[9px] font-black uppercase ${st.text === 'Holiday' ? 'text-amber-600' : st.color}`}>{st.text}</span></td>) : (
+                                  {isOff ? (<td colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${st.bg}`}><span className={`text-[9px] font-black uppercase ${st.text === 'Holiday' ? 'text-amber-600' : st.color}`}>{st.text}</span></td>) : (
                                     <>
                                       {columnSettings.inTime && (
                                         <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
@@ -494,9 +516,14 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                                           </div>
                                         </td>
                                       )}
+                                      {columnSettings.workingTime && (
+                                        <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-bold text-gray-600 bg-white ${lastCol === 'workingTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
+                                          {calculateWorkingTime(att?.inTime, att?.outTime, att?.date, att?.outDate || att?.date)}
+                                        </td>
+                                      )}
                                       {columnSettings.ot && <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-black text-indigo-600 bg-white whitespace-nowrap overflow-hidden ${lastCol === 'ot' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>{formatOTHours(att?.otHours)}</td>}
                                       {columnSettings.remarks && <td className={`px-1 py-0.5 text-center border-b border-gray-200 text-[9px] font-bold text-gray-600 bg-white truncate border-r-[8px] border-white`} title={att?.remarks}>{att?.remarks || '—'}</td>}
-                                      {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.ot && !columnSettings.remarks && <td className="px-0 py-0.5 text-center border-b border-gray-200 bg-white text-[9px] border-r-[8px] border-white">—</td>}
+                                      {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <td className="px-0 py-0.5 text-center border-b border-gray-200 bg-white text-[9px] border-r-[8px] border-white">—</td>}
                                     </>
                                   )}
                                 </React.Fragment>
@@ -520,7 +547,13 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
             <div className="flex items-center justify-between p-4 border-b border-gray-100"><h3 className="text-sm font-bold text-gray-800">Column Settings</h3><button onClick={() => setShowColumnSettings(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} className="text-gray-500" /></button></div>
             <div className="p-6 space-y-6">
               <div className="space-y-3"><p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Visible Columns</p>
-                <div className="grid grid-cols-1 gap-2">{[{ id: 'inTime', label: 'In Time' }, { id: 'outTime', label: 'Out Time' }, { id: 'ot', label: 'OT Hours' }, { id: 'remarks', label: 'Remarks / Extra Info' }].map(col => (<label key={col.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100"><input type="checkbox" checked={columnSettings[col.id]} onChange={e => setColumnSettings(prev => ({ ...prev, [col.id]: e.target.checked }))} className="w-4 h-4 text-indigo-600 rounded" /><span className="text-[13px] font-medium text-gray-700">{col.label}</span></label>))}</div>
+                <div className="grid grid-cols-1 gap-2">{[
+                  { id: 'inTime', label: 'In Time' }, 
+                  { id: 'outTime', label: 'Out Time' }, 
+                  { id: 'workingTime', label: 'Working Time' },
+                  { id: 'ot', label: 'OT Hours' }, 
+                  { id: 'remarks', label: 'Remarks / Extra Info' }
+                ].map(col => (<label key={col.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100"><input type="checkbox" checked={columnSettings[col.id]} onChange={e => setColumnSettings(prev => ({ ...prev, [col.id]: e.target.checked }))} className="w-4 h-4 text-indigo-600 rounded" /><span className="text-[13px] font-medium text-gray-700">{col.label}</span></label>))}</div>
               </div>
               <div className="space-y-3"><p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Custom Label for Remarks</p><input type="text" value={remarksLabel} onChange={e => setRemarksLabel(e.target.value)} placeholder="e.g. Site Name, Comments..." className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
             </div>
