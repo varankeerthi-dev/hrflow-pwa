@@ -27,6 +27,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
   
   // Main tabs: 'summary' or 'monthlyView'
   const [activeMainTab, setActiveMainTab] = useState(defaultSubTab || 'summary')
+  const [summaryInnerTab, setSummaryInnerTab] = useState('overview')
 
   useEffect(() => {
     if (defaultSubTab) setActiveMainTab(defaultSubTab)
