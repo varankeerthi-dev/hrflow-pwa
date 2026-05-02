@@ -84,7 +84,7 @@ const DETAILED_SUMMARY_COLUMNS = [
 
 // --- PDF COMPONENTS ---
 
-const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibleGroups }) => {
+const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibleGroupsGroup }) => {
   const pdfColWidth = (id) => {
     const c = visibleColumns.find(col => col.id === id);
     if (!c) return 0;
@@ -155,7 +155,7 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
 
         <View style={{ borderWidth: 0.5, borderColor: '#000' }}>
           <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', fontWeight: 'bold', borderBottomWidth: 0.5 }}>
-            {visibleGroups.map(g => {
+            {visibleGroupsGroup.map(g => {
                const width = g.columns.filter(id => visibleColumns.some(c => c.id === id)).reduce((sum, id) => sum + pdfColWidth(id), 0);
                if (width === 0) return null;
                return (
@@ -363,6 +363,7 @@ export default function SalarySlipTab() {
       handleGenerate();
     }
   }, [selectedMonth]);
+
   const [summarySubTab, setSummarySubTab] = useState('overview')
   const [summaryFilterEmpId, setSummaryFilterEmpId] = useState('')
   const [loading, setLoading] = useState(false)
@@ -791,7 +792,7 @@ export default function SalarySlipTab() {
       case 'hraPaid': return dashIfZero(emp.hra);
       case 'salaryPaid': return dashIfZero(emp.basic + emp.hra);
       case 'sundayPay': return dashIfZero(emp.sunPay);
-      case 'holidayPay': return dashIfZero(emp.holPay);
+      case 'holidayPay': return dashIfZero(emp.holidayPay);
       case 'otPay': return dashIfZero(emp.otPay);
       case 'earnings': return Math.round(emp.totalEarnings).toLocaleString('en-IN');
       case 'pf': return dashIfZero(emp.pf);
@@ -866,7 +867,6 @@ export default function SalarySlipTab() {
       const ed = `${selectedMonth}-${end}`;
 
       console.log('Fetching related data...');
-      // Use simpler queries to avoid missing index errors
       const [aDataSnap, aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap, varLogsSnap] = await Promise.all([
         getDocs(collection(db, 'organisations', user.orgId, 'attendance')),
         getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')), 
@@ -879,7 +879,6 @@ export default function SalarySlipTab() {
 
       console.log('Data fetched. Processing...');
       
-      // Filter attendance in memory
       const aData = aDataSnap.docs
         .map(d => d.data())
         .filter(a => a.employeeId === selectedEmp && a.date >= sd && a.date <= ed);
@@ -889,7 +888,6 @@ export default function SalarySlipTab() {
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : [];
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean));
 
-      // Aggregate variable pay logs in memory
       let foodP = 0, convP = 0, bonusP = 0;
       varLogsSnap.docs.forEach(d => {
         const row = d.data();
@@ -1016,7 +1014,7 @@ export default function SalarySlipTab() {
         month={summaryMonth} 
         orgName={user?.orgName} 
         visibleColumns={visibleDetailedSummaryColumns}
-        visibleGroups={visibleGroups}
+        visibleGroupsGroup={visibleGroups}
       />).toBlob(); 
       downloadPdfBlob(blob, `Summary_${summaryMonth}.pdf`); 
     } finally { 
@@ -1083,29 +1081,16 @@ export default function SalarySlipTab() {
           otPay: empSummary.otPay,
           otHoursTotal: (empSummary.ot + empSummary.otAdjustment),
           basic: empSummary.basic,
-          hra: empSummary.hra,
-          basicFull: empSummary.fullBasic,
-          hraFull: empSummary.fullHra,
+          hra: empSummary.hra, basicFull: empSummary.fullBasic, hraFull: empSummary.fullHra,
           expenseReimbursement: empSummary.expenseAmount,
-          sundayPay: empSummary.sunPay,
-          sundayWorkedCount: empSummary.sunW,
-          holidayPay: empSummary.holPay,
-          holidayWorkedCount: empSummary.holW,
-          food: empSummary.food,
-          convenience: empSummary.convenience,
-          bonus: empSummary.bonus,
-          grossEarnings: empSummary.totalEarnings,
-          pf: empSummary.pf,
-          esi: empSummary.esi,
-          advanceDeduction: empSummary.advanceAmount,
-          loanEMI: empSummary.loanE,
-          fineAmount: empSummary.fine,
-          totalDeductions: empSummary.totalDeductions,
+          sundayPay: empSummary.sunPay, sundayWorkedCount: empSummary.sunW,
+          holidayPay: empSummary.holPay, holidayWorkedCount: empSummary.holW,
+          food: empSummary.food, convenience: empSummary.convenience, bonus: empSummary.bonus,
+          grossEarnings: empSummary.totalEarnings, pf: empSummary.pf, esi: empSummary.esi, advanceDeduction: empSummary.advanceAmount,
+          loanEMI: empSummary.loanE, fineAmount: empSummary.fine, totalDeductions: empSummary.totalDeductions,
           netPay: empSummary.salary.net,
-          sundayCount: empSummary.sunday,
-          holidayCount: empSummary.holidays,
-          totalMonthDays: empSummary.totalDays,
-          workedDaysCount: empSummary.worked,
+          sundayCount: empSummary.sunday, holidayCount: empSummary.holidays,
+          totalMonthDays: empSummary.totalDays, workedDaysCount: empSummary.worked,
           leaveCount: empSummary.leave
         };
       });
@@ -1340,63 +1325,82 @@ export default function SalarySlipTab() {
                     </div>
                     
                     <div className="flex-1 overflow-auto bg-gray-50/50 p-4">
-                      <div className="max-w-3xl mx-auto">
-                        <div className="bg-white rounded-[24px] shadow-2xl shadow-indigo-100/20 border-t-4 border-indigo-600 p-6 print-area overflow-hidden relative">
-                          <div className="relative">
-                            <div className="border-b border-dashed border-gray-200 pb-4 mb-6 flex justify-between items-start">
-                              <div className="flex items-center gap-4">
-                                {orgLogo && <img src={orgLogo} alt="Logo" className="w-12 h-12 object-contain grayscale-[0.2]" />}
-                                <div>
-                                  <h1 className="text-lg font-black uppercase tracking-tighter text-slate-900 leading-none mb-1">{user?.orgName}</h1>
-                                  <div className="inline-flex px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-black uppercase tracking-widest">Official Advice</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <h2 className="text-sm font-light uppercase tracking-[0.2em] text-slate-300">Payslip</h2>
-                                <p className="text-[9px] font-black text-slate-800 uppercase mt-1">{formatMonthDisplay(slipData.month)}</p>
-                              </div>
+                      <div className="max-w-4xl mx-auto">
+                        {/* RESTORED DETAILED SALARY SLIP PREVIEW */}
+                        <div className="bg-white rounded-[24px] shadow-2xl m-4 p-8 print-area overflow-hidden relative border-[3px] border-zinc-900" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+                          <div className="border-b border-zinc-200 pb-4 mb-6 flex justify-between items-start">
+                            <div className="flex items-center gap-4">
+                              {orgLogo && <img src={orgLogo} alt="Logo" className="w-12 h-12 object-contain" />}
+                              <h1 className="text-2xl font-black uppercase tracking-tight text-blue-600">{user?.orgName}</h1>
                             </div>
+                            <div className="text-right">
+                              <h2 className="text-lg font-normal uppercase italic text-zinc-500">Salary Slip</h2>
+                              <p className="text-[9px] font-normal text-zinc-600 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-100 uppercase mt-1">{formatMonthDisplay(slipData.month)}</p>
+                            </div>
+                          </div>
 
-                            <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-6">
-                              <div className="space-y-0.5">
-                                {[{l:'Staff Name',v:slipData.employee?.name},{l:'ID',v:slipData.employee?.empCode},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-gray-50 py-1"><span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{r.l}</span><span className={`text-[9px] font-black uppercase ${r.l==='Net Payout'?'text-indigo-600': 'text-slate-800'}`}>{r.v}</span></div>))}
-                              </div>
-                              <div className="space-y-0.5">
-                                {[{l:'Pay Days',v:slipData.paidDays},{l:'Worked',v:slipData.workedDaysCount},{l:'OT Hours',v:slipData.otHoursTotal.toFixed(2)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-gray-50 py-1"><span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{r.l}</span><span className="text-[9px] font-black text-slate-800 uppercase">{r.v}</span></div>))}
-                              </div>
+                          <div className="grid grid-cols-2 gap-x-12 gap-y-0.5 mb-6">
+                            <div className="space-y-0.5">
+                              {[{l:'Staff Name',v:slipData.employee?.name},{l:'Employee ID',v:slipData.employee?.empCode},{l:'Designation',v:slipData.employee?.designation || '-'},{l:'DOJ',v:formatDateDDMMYYYY(slipData.employee?.joinedDate)},{l:'Total days',v:slipData.totalMonthDays},{l:'Net Payout',v:formatINR(slipData.netPay)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
                             </div>
+                            <div className="space-y-0.5">
+                              {[{l:'Total worked days',v:slipData.workedDaysCount},{l:'Leave',v:slipData.lopDays || 0},{l:'No. of Holidays',v:slipData.holidayCount || 0},{l:'Sunday Worked',v:slipData.sundayWorkedCount},{l:'Holiday Worked',v:slipData.holidayWorkedCount},{l:'Total Pay days',v:slipData.paidDays},{l:'OT hours',v:slipData.otHoursTotal.toFixed(2)}].map((r,i)=>(<div key={i} className="flex justify-between border-b border-zinc-100 py-0.5"><span className="text-[12px] font-bold text-slate-700 uppercase tracking-tight">{r.l}</span><span className="text-[12px] font-normal text-zinc-900 uppercase">{r.v}</span></div>))}
+                            </div>
+                          </div>
 
-                            <div className="border border-slate-900 rounded-[16px] overflow-hidden mb-6 shadow-xl shadow-slate-200/50">
-                              <div className="grid grid-cols-12 font-black text-[8px] uppercase tracking-widest border-b border-slate-900">
-                                <div className="col-span-6 p-2.5 border-r border-slate-900 bg-emerald-50 text-emerald-800 flex justify-between"><span>Earnings</span><span>Amount</span></div>
-                                <div className="col-span-6 p-2.5 bg-rose-50 text-rose-800 flex justify-between"><span>Deductions</span><span>Amount</span></div>
+                          <div className="border border-zinc-900 rounded-lg overflow-hidden mb-6">
+                            <div className="grid grid-cols-12 font-black text-[9px] uppercase tracking-widest border-b border-zinc-900">
+                              <div className="col-span-5 p-3 border-r border-zinc-900 bg-green-50 text-green-800 flex justify-between"><span>Earnings (Credit)</span><span>Amount</span></div>
+                              <div className="col-span-4 p-3 border-r border-zinc-900 bg-red-50 text-red-800 flex justify-between"><span>Deductions (Debit)</span><span>Amount</span></div>
+                              <div className="col-span-3 p-3 bg-gradient-to-r from-emerald-50 to-rose-50 text-slate-800 flex justify-between"><span>Advance/Expense</span><span>Amount</span></div>
+                            </div>
+                            <div className="grid grid-cols-12 divide-x divide-zinc-900 bg-white">
+                              <div className="col-span-5 p-1 space-y-0.5">
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Basic Salary</span><span>{formatINR(slipData.basic)}</span></div>
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">HRA</span><span>{formatINR(slipData.hra)}</span></div>
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Sunday Worked</span><span>{formatINR(slipData.sundayPay)}</span></div>
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Holiday Pay</span><span>{formatINR(slipData.holidayPay)}</span></div>
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">OT Pay</span><span>{formatINR(slipData.otPay)}</span></div>
+                                {slipData.food > 0 && <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Food Allowance</span><span>{formatINR(slipData.food)}</span></div>}
+                                {slipData.convenience > 0 && <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Convenience</span><span>{formatINR(slipData.convenience)}</span></div>}
+                                {slipData.bonus > 0 && <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Bonus</span><span>{formatINR(slipData.bonus)}</span></div>}
                               </div>
-                              <div className="grid grid-cols-12 divide-x divide-slate-900 bg-white">
-                                <div className="col-span-6 p-1 space-y-0.5">
-                                  <div className="flex justify-between py-1.5 px-3 text-[10px]"><span className="font-bold text-slate-600">Basic</span><span className="font-black text-slate-900">{formatINR(slipData.basic)}</span></div>
-                                  <div className="flex justify-between py-1.5 px-3 text-[10px]"><span className="font-bold text-slate-600">HRA</span><span className="font-black text-slate-900">{formatINR(slipData.hra)}</span></div>
-                                  <div className="flex justify-between py-1.5 px-3 text-[10px]"><span className="font-bold text-slate-600">OT/Special</span><span className="font-black text-slate-900">{formatINR(slipData.sundayPay + slipData.holidayPay + slipData.otPay)}</span></div>
-                                  {slipData.expenseReimbursement > 0 && <div className="flex justify-between py-1.5 px-3 text-[10px]"><span className="font-bold text-emerald-700">Expense (+)</span><span className="font-black text-emerald-700">{formatINR(slipData.expenseReimbursement)}</span></div>}
-                                </div>
-                                <div className="col-span-6 p-1 space-y-0.5">
-                                  <div className="flex justify-between py-1.5 px-3 text-[10px]"><span className="font-bold text-slate-600">PF/ESI</span><span className="font-black text-slate-900">{formatINR(slipData.pf + slipData.esi)}</span></div>
-                                  <div className="flex justify-between py-1.5 px-3 text-[10px]"><span className="font-bold text-slate-600">Loan/Fine</span><span className="font-black text-slate-900">{formatINR(slipData.loanEMI + slipData.fineAmount)}</span></div>
-                                  <div className="flex justify-between py-1.5 px-3 text-[10px]"><span className="font-bold text-rose-700">Advance (-)</span><span className="font-black text-rose-700">{formatINR(slipData.advanceDeduction)}</span></div>
-                                </div>
+                              <div className="col-span-4 p-1 space-y-0.5">
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">PF Contribution</span><span>{dashIfZero(slipData.pf)}</span></div>
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">ESI Contribution</span><span>{dashIfZero(slipData.esi)}</span></div>
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Loan</span><span>{dashIfZero(slipData.loanEMI)}</span></div>
+                                <div className="flex justify-between py-1 px-3 text-[11px] font-normal"><span className="font-bold">Fine</span><span>{dashIfZero(slipData.fineAmount)}</span></div>
                               </div>
-                              <div className="grid grid-cols-12 border-t border-slate-900">
-                                <div className="col-span-12 flex justify-between p-3 bg-indigo-600">
-                                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Net Disbursement</span>
-                                  <span className="text-[14px] font-black text-white">{formatINR(slipData.netPay)}</span>
+                              <div className="col-span-3 p-1 space-y-0.5 bg-gradient-to-b from-slate-50 to-white">
+                                <div className="flex justify-between py-1 px-2 text-[10px] font-normal border-b border-slate-200">
+                                  <span className="font-bold text-emerald-700">Expense</span>
+                                  <span className="text-emerald-700 font-bold">{formatINR(slipData.expenseReimbursement)}</span>
+                                </div>
+                                <div className="flex justify-between py-1 px-2 text-[10px] font-normal border-b border-slate-200">
+                                  <span className="font-bold text-rose-700">Advance</span>
+                                  <span className="text-rose-700 font-bold">{formatINR(slipData.advanceDeduction)}</span>
                                 </div>
                               </div>
                             </div>
-
-                            <div className="text-center p-4 bg-indigo-50/30 rounded-xl">
-                              <p className="text-[9px] italic text-indigo-900 font-bold uppercase">
-                                {numberToWords(slipData.netPay)} Only
-                              </p>
+                            <div className="grid grid-cols-12 border-t border-zinc-900">
+                              <div className="col-span-5 flex justify-between p-3 bg-green-50 border-r border-zinc-900">
+                                <span className="text-[10px] font-bold text-green-800 uppercase">Total Earnings</span>
+                                <span className="text-[12px] font-bold text-green-800">{formatINR((slipData.basic || 0) + (slipData.hra || 0) + (slipData.sundayPay || 0) + (slipData.holidayPay || 0) + (slipData.otPay || 0) + (slipData.food || 0) + (slipData.convenience || 0) + (slipData.bonus || 0))}</span>
+                              </div>
+                              <div className="col-span-4 flex justify-between p-3 bg-red-50 border-r border-zinc-900">
+                                <span className="text-[10px] font-bold text-red-800 uppercase">Total Deductions</span>
+                                <span className="text-[12px] font-bold text-red-800">{formatINR((slipData.pf || 0) + (slipData.esi || 0) + (slipData.loanEMI || 0) + (slipData.fineAmount || 0))}</span>
+                              </div>
+                              <div className="col-span-3 flex justify-between p-3 bg-slate-100">
+                                <span className="text-[10px] font-bold text-slate-800 uppercase">NET</span>
+                                <span className="text-[12px] font-bold text-slate-800">{formatINR((slipData.advanceDeduction || 0) - (slipData.expenseReimbursement || 0))}</span>
+                              </div>
                             </div>
+                          </div>
+                          <div className="text-center pt-4 border-t border-dashed border-zinc-200">
+                            <p className="text-[9px] font-normal text-slate-400 uppercase mb-2">Net Disbursement</p>
+                            <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 inline-block shadow-sm font-normal text-[18px] text-zinc-900">{formatINR(slipData.netPay)}</div>
+                            <p className="text-[10px] italic text-zinc-500 mt-3 uppercase tracking-tight">Indian Rupee {numberToWords(slipData.netPay)} Only</p>
                           </div>
                         </div>
                       </div>
