@@ -150,6 +150,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     if (!att) return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
     const isSun = new Date(y, m - 1, day).getDay() === 0, isHol = holidays.some(h => h.date === ds)
     if (att.sundayWorked) return { bg: 'bg-amber-50', text: 'SW', color: 'text-amber-600', type: 'sunworked' }
+    if (att.holidayWorked) return { bg: 'bg-indigo-50', text: 'HW', color: 'text-indigo-600', type: 'holworked' }
     if (att.isAbsent || isHol || isSun) {
       let label = isHol ? 'Holiday' : (isSun ? 'Sunday' : 'Absent')
       return { bg: 'bg-red-50', text: label, color: 'text-red-600', type: isSun ? 'sunday' : (isHol ? 'holiday' : 'absent') }

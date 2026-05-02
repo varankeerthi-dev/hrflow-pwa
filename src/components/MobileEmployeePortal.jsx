@@ -923,6 +923,8 @@ export default function MobileEmployeePortal() {
             if (record) {
               if (record.isAbsent) statusColor = 'bg-rose-100'
               else if (record.isOnLeave) statusColor = 'bg-blue-100'
+              else if (record.holidayWorked) statusColor = 'bg-purple-100'
+              else if (record.sundayWorked) statusColor = 'bg-amber-100'
               else if (record.outTime) statusColor = 'bg-emerald-100'
               else if (record.inTime) statusColor = 'bg-indigo-100'
             }

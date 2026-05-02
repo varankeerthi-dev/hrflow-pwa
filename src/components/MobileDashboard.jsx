@@ -354,10 +354,18 @@ export default function MobileDashboard() {
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(c => c.status === 'pending')
         
+        const presentToday = todayAttendance.filter(d => 
+          d.status === 'Present' || 
+          d.status === 'Worked' || 
+          d.status === 'SunWorked' ||
+          d.holidayWorked === true ||
+          d.sundayWorked === true
+        ).length
+
         setStats({
           totalEmployees: activeEmployees.length,
-          presentToday: todayAttendance.filter(d => d.status === 'Present').length,
-          absentToday: todayAttendance.filter(d => d.status === 'Absent').length,
+          presentToday,
+          absentToday: todayAttendance.filter(d => d.status === 'Absent' || d.isAbsent === true).length,
           pendingCorrections: pendingCorrections.length
         })
       } catch (err) {

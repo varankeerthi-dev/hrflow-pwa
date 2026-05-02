@@ -724,7 +724,7 @@ export default function CorrectionTab() {
       const isSunHoliday = inlineForm.status === 'SunHoliday'
       const isWorked = inlineForm.status === 'Worked'  // Holiday worked (2x)
       const isNotWorkedHoliday = inlineForm.status === 'Holiday'  // Holiday not worked (1x)
-      const otHours = (isAbsent || isHalfDay) ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, row.minDailyHours || inlineForm.minDailyHours || 8)
+      const otHours = (isAbsent || isHalfDay || isSunHoliday || isNotWorkedHoliday) ? '00:00' : calcOT(inlineForm.inTime, inlineForm.outTime, inlineForm.inDate, inlineForm.outDate, row.minDailyHours || inlineForm.minDailyHours || 8)
       
       const rows = [{
         employeeId: row.id,
@@ -738,7 +738,7 @@ export default function CorrectionTab() {
         remarks: inlineForm.site,
         isAbsent,
         isHalfDay,
-        status: isAbsent ? 'Absent' : (isHalfDay ? 'Half-Day' : (isSunWorked ? 'SunWorked' : (isSunHoliday ? 'SunHoliday' : (isWorked ? 'Worked' : (isNotWorkedHoliday ? 'Holiday' : 'Present'))))),
+        status: inlineForm.status,
         sundayWorked: isSunWorked,
         sundayHoliday: isSunHoliday,
         holidayWorked: isWorked,
@@ -748,12 +748,12 @@ export default function CorrectionTab() {
       
       const newVals = {
         inDate: inlineForm.inDate,
-        inTime: inlineForm.inTime || '',
+        inTime: (isAbsent || isSunHoliday || isNotWorkedHoliday) ? '' : inlineForm.inTime,
         outDate: inlineForm.outDate,
-        outTime: inlineForm.outTime || '',
+        outTime: (isAbsent || isSunHoliday || isNotWorkedHoliday) ? '' : inlineForm.outTime,
         otHours,
         site: inlineForm.site,
-        status: isAbsent ? 'ABSENT' : 'PRESENT',
+        status: inlineForm.status,
       }
       
       await logCorrection(row.id, row.name, row.date, oldVals, newVals, 'Inline Edit', '')

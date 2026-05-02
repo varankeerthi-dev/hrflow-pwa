@@ -1236,7 +1236,7 @@ export default function AttendanceTab() {
                                 { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }
                               ] : []),
                               ...(isConfiguredHoliday ? [
-                                { id: 'Worked', label: 'Worked (2x)', color: 'amber' },
+                                { id: 'Worked', label: 'Holiday Worked (2x)', color: 'amber' },
                                 { id: 'Holiday', label: 'Holiday', color: 'indigo' }
                               ] : [])
                             ].map(st => (
