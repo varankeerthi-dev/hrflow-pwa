@@ -356,6 +356,13 @@ export default function SalarySlipTab() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
+  
+  useEffect(() => {
+    setSummaryMonth(selectedMonth);
+    if (selectedEmp) {
+      handleGenerate();
+    }
+  }, [selectedMonth]);
   const [summarySubTab, setSummarySubTab] = useState('overview')
   const [summaryFilterEmpId, setSummaryFilterEmpId] = useState('')
   const [loading, setLoading] = useState(false)
