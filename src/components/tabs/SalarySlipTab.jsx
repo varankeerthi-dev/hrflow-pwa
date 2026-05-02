@@ -329,7 +329,7 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
         <p className="text-slate-500 text-sm">Attendance records have been updated.</p>
       </div>
     )}
-    <div className="px-6 py-4 border-b flex justify-between items-center"><div><h2 className="text-base font-normal">OT Escalation</h2><p className="text-[11px] text-slate-500">{formatMonthDisplay(month)}</p></div><button onClick={onClose}><X size={18} /></button></div><div className="flex-1 overflow-auto p-6"><table className="w-full text-sm"><thead><tr className="text-[10px] uppercase text-slate-400 border-b"><th className="pb-2 text-left font-normal">Employee</th><th className="pb-2 text-center font-normal">Actual</th><th className="pb-2 text-center font-normal">Adjustment</th><th className="pb-2 text-right font-normal">Final</th></tr></thead><tbody className="divide-y">{employees.map(emp => (<tr key={emp.id} className="h-14 hover:bg-slate-50"><td><p className="font-normal">{emp.name}</p></td><td className="text-center font-normal">{Number(emp.ot || 0).toFixed(2)}</td><td className="text-center flex items-center justify-center gap-2 py-2"><button onClick={()=>handleAdjust(emp.id, -1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Minus size={10}/></button><input type="number" step="0.5" className="w-12 text-center font-normal border-0 focus:ring-0" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/><button onClick={()=>handleAdjust(emp.id, 1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Plus size={10}/></button></td><td className="text-right font-normal">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td></tr>))}</tbody></table></div><div className="p-4 border-t bg-slate-50 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-xs font-normal">Cancel</button><button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-normal shadow-lg shadow-indigo-100 flex items-center gap-2">
+    <div className="px-6 py-4 border-b flex justify-between items-center"><div><h2 className="text-base font-normal">OT Escalation</h2><p className="text-[11px] text-slate-500">{formatMonthDisplay(month)}</p></div><button onClick={onClose}><X size={18} /></button></div><div className="flex-1 overflow-auto p-6"><table className="w-full text-sm"><thead><tr className="text-[10px] uppercase text-slate-400 border-b"><th className="pb-2 text-left font-normal">Employee</th><th className="pb-2 text-center font-normal">Actual</th><th className="pb-2 text-center font-normal">Adjustment</th><th className="pb-2 text-right font-normal">Final</th></tr></thead><tbody className="divide-y">{employees.map(emp => (<tr key={emp.id} className="h-14 hover:bg-slate-50"><td><p className="font-normal">{emp.name}</p></td><td className="text-center font-normal">{Number(emp.ot || 0).toFixed(2)}</td><td className="text-center flex items-center justify-center gap-2 py-2"><button onClick={()=>handleAdjust(emp.id, -1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Minus size={10}/></button><input type="number" step="0.5" className="w-12 text-center font-normal border-0 focus:ring-0" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/><button onClick={()=>handleAdjust(emp.id, 1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Plus size={10}/></button></td><td className="text-right font-normal">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td></tr>))}</tbody></table></div><div className="p-4 border-t bg-slate-50 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-xs font-normal">Cancel</button><button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-normal shadow-md flex items-center gap-2">
       {saveMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : null}
       {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
     </button></div></div></div>)
@@ -784,7 +784,7 @@ export default function SalarySlipTab() {
       case 'hraPaid': return dashIfZero(emp.hra);
       case 'salaryPaid': return dashIfZero(emp.basic + emp.hra);
       case 'sundayPay': return dashIfZero(emp.sunPay);
-      case 'holidayPay': return dashIfZero(emp.holPay);
+      case 'holidayPay': return dashIfZero(emp.holidayPay);
       case 'otPay': return dashIfZero(emp.otPay);
       case 'earnings': return Math.round(emp.totalEarnings).toLocaleString('en-IN');
       case 'pf': return dashIfZero(emp.pf);
@@ -1444,8 +1444,7 @@ export default function SalarySlipTab() {
             </div>
           </div>
         )}
-          </div>
-        )}
+
         {activeTab === 'salary-summary' && (
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-50">
