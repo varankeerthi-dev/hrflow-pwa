@@ -364,7 +364,6 @@ export default function SalarySlipTab() {
   const [isOtModalOpen, setIsOtModalOpen] = useState(false)
   const [variablePayData, setVariablePayData] = useState({})
   const [variableEntryDate, setVariableEntryDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [paymentDetails, setPaymentDetails] = useState({})
   const [downloadAllLoading, setDownloadAllLoading] = useState(false)
   const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
   const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
@@ -506,61 +505,9 @@ export default function SalarySlipTab() {
     }));
   };
 
-  const { data: salaryPayments = {}, isLoading: isPaymentsLoading } = useQuery({
-    queryKey: ['salaryPayments', user?.orgId, summaryMonth],
-    queryFn: async () => {
-      const q = query(collection(db, 'organisations', user.orgId, 'salaryPayments'), where('month', '==', summaryMonth));
-      const snap = await getDocs(q);
-      const data = {};
-      snap.docs.forEach(d => {
-        data[d.data().employeeId] = d.data();
-      });
-      return data;
-    },
-    enabled: !!user?.orgId && (summarySubTab === 'payment' || summarySubTab === 'overview')
-  });
-
-  useEffect(() => {
-    if (salaryPayments) {
-      setPaymentDetails(salaryPayments);
-    }
-  }, [salaryPayments]);
-
-  const savePaymentsMutation = useMutation({
-    mutationFn: async (data) => {
-      const batch = [];
-      for (const [empId, values] of Object.entries(data)) {
-        const docId = `${summaryMonth}_${empId}`;
-        batch.push(setDoc(doc(db, 'organisations', user.orgId, 'salaryPayments', docId), {
-          employeeId: empId,
-          month: summaryMonth,
-          paidAmount: Number(values.paidAmount || 0),
-          paymentDate: values.paymentDate || '',
-          paymentMode: values.paymentMode || 'Bank Transfer',
-          updatedAt: serverTimestamp(),
-          updatedBy: user.uid
-        }, { merge: true }));
-      }
-      await Promise.all(batch);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['salaryPayments']);
-      alert('Payment details saved successfully!');
-    },
-    onError: (err) => alert('Failed to save payments: ' + err.message)
-  });
-
-  const handlePaymentChange = (empId, field, value) => {
-    setPaymentDetails(prev => ({
-      ...prev,
-      [empId]: {
-        ...prev[empId],
-        [field]: value
-      }
-    }));
-  };
-
   const monthInputRef = useRef(null)
+
+  useEffect(() => { setDetectedSandwiches([]); setSelectedSandwichDays(new Set()); }, [summaryMonth])
 
   useEffect(() => { if (activeTab === 'salary-summary' && summarySubTab === 'detailed') { if (!isCollapsed) { setIsCollapsed(true); setIsAutoCollapsed(true); } } else { if (isAutoCollapsed) { setIsCollapsed(false); setIsAutoCollapsed(false); } } }, [activeTab, summarySubTab, isCollapsed, isAutoCollapsed])
 
@@ -626,7 +573,6 @@ export default function SalarySlipTab() {
         const attByDate = new Map(empAtt.map(a => [normalizeDate(a.date), a]));
         
         let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
-        const potentialSandwichDays = [];
         const appliedForThisEmp = appliedSandwiches.filter(s => s.employeeId === emp.id);
 
         const normalizedJoined = normalizeDate(emp.joinedDate)
@@ -656,39 +602,11 @@ export default function SalarySlipTab() {
           if (isS) sunCount++
           if (isH) holCount++
 
-          // Sandwich Detection
-          // Skip if employee is marked as hidden (MD/Partner)
+          // Sandwich: if already applied as deduction, count as LOP
           if (!emp.hideInAttendance && (isS || isH || (isSat && isSaturdayHoliday)) && !isWorkedAttendanceRecord(r)) {
-            // Find last working day before
-            let prevWorkingDay = new Date(y, m - 1, i - 1);
-            while (prevWorkingDay.getDate() > 0 && isDateAHoliday(prevWorkingDay)) {
-              prevWorkingDay.setDate(prevWorkingDay.getDate() - 1);
-            }
-            
-            // Find next working day after
-            let nextWorkingDay = new Date(y, m - 1, i + 1);
-            while (nextWorkingDay.getDate() <= end && isDateAHoliday(nextWorkingDay)) {
-              nextWorkingDay.setDate(nextWorkingDay.getDate() + 1);
-            }
-
-            const prevDS = `${prevWorkingDay.getFullYear()}-${String(prevWorkingDay.getMonth()+1).padStart(2, '0')}-${String(prevWorkingDay.getDate()).padStart(2, '0')}`;
-            const nextDS = `${nextWorkingDay.getFullYear()}-${String(nextWorkingDay.getMonth()+1).padStart(2, '0')}-${String(nextWorkingDay.getDate()).padStart(2, '0')}`;
-            
-            const rPrev = attByDate.get(prevDS);
-            const rNext = attByDate.get(nextDS);
-            
-            // If they are absent on both the previous actual working day AND the next actual working day
-            const isPrevAbsent = (!rPrev || rPrev.status?.toLowerCase() === 'absent' || rPrev.isAbsent);
-            const isNextAbsent = (!rNext || rNext.status?.toLowerCase() === 'absent' || rNext.isAbsent);
-
-            if (isPrevAbsent && isNextAbsent) {
-              const typeLabel = isS ? 'Sunday' : (isSat ? 'Saturday' : 'Holiday');
-              potentialSandwichDays.push({ date: dateStr, type: typeLabel });
-              // If already applied, add to LOP
-              if (appliedForThisEmp.some(s => s.date === dateStr)) {
-                lop++;
-                continue;
-              }
+            if (appliedForThisEmp.some(s => s.date === dateStr)) {
+              lop++;
+              continue;
             }
           }
           
@@ -731,7 +649,7 @@ export default function SalarySlipTab() {
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
         const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, potentialSandwichDays, appliedSandwichDays: appliedForThisEmp, sandwichSundays, food: foodP, convenience: convP, bonus: bonusP }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, sandwichSundays, food: foodP, convenience: convP, bonus: bonusP }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -1064,7 +982,96 @@ export default function SalarySlipTab() {
   const [sandwichHistoryFilterEmp, setSandwichHistoryFilterEmp] = useState('');
   const [showFallbackModal, setShowFallbackModal] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
+  const [detectedSandwiches, setDetectedSandwiches] = useState([]);
+  const [detectingSandwiches, setDetectingSandwiches] = useState(false);
+  const [sandwichIncludeFuture, setSandwichIncludeFuture] = useState(false);
   
+  const detectSandwiches = async () => {
+    if (!user?.orgId || !attendanceSummaryData.length) return;
+    setDetectingSandwiches(true);
+    try {
+      const [y, m] = summaryMonth.split('-').map(Number);
+      const end = new Date(y, m, 0).getDate();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const orgDoc = await getDoc(doc(db, 'organisations', user.orgId));
+      const orgData = orgDoc.exists() ? orgDoc.data() : {};
+      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : [];
+      const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean));
+      const saturdayType = orgData.saturdayType || 'working';
+      const isSaturdayHoliday = saturdayType !== 'working';
+
+      const attSnap = await getDocs(collection(db, 'organisations', user.orgId, 'attendance'));
+      const allAtt = attSnap.docs.map(d => d.data()).filter(a => a.date >= `${summaryMonth}-01` && a.date <= `${summaryMonth}-${String(end).padStart(2, '0')}`);
+      const appliedSnap = await getDocs(query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', summaryMonth)));
+      const appliedSandwiches = appliedSnap.docs.map(d => d.data());
+
+      const normalizeDate = (dateStr) => {
+        if (!dateStr || dateStr === '-') return null;
+        const parts = dateStr.split(/[-/]/);
+        if (parts.length === 3) {
+          if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+        return dateStr;
+      };
+
+      const results = [];
+      attendanceSummaryData.forEach(emp => {
+        if (emp.hideInAttendance) return;
+        const empAtt = allAtt.filter(a => a.employeeId === emp.id);
+        const attByDate = new Map(empAtt.map(a => [normalizeDate(a.date), a]));
+        const appliedForThisEmp = appliedSandwiches.filter(s => s.employeeId === emp.id);
+
+        const isDateAHoliday = (dateObj) => {
+          const ds = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          const day = dateObj.getDay();
+          if (day === 0) return true;
+          if (day === 6 && isSaturdayHoliday) return true;
+          if (holidayDates.has(ds)) return true;
+          return false;
+        };
+
+        for (let i = 1; i <= end; i++) {
+          const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`;
+          const d = new Date(y, m - 1, i);
+          const isS = d.getDay() === 0;
+          const isSat = d.getDay() === 6;
+          const isH = holidayDates.has(dateStr) && !isS;
+          const r = attByDate.get(dateStr);
+
+          if (!sandwichIncludeFuture && dateStr > todayStr) continue;
+          if (!isDateAHoliday(d) || isWorkedAttendanceRecord(r)) continue;
+
+          let prevWorkingDay = new Date(y, m - 1, i - 1);
+          while (prevWorkingDay.getDate() > 0 && isDateAHoliday(prevWorkingDay)) prevWorkingDay.setDate(prevWorkingDay.getDate() - 1);
+          let nextWorkingDay = new Date(y, m - 1, i + 1);
+          while (nextWorkingDay.getDate() <= end && isDateAHoliday(nextWorkingDay)) nextWorkingDay.setDate(nextWorkingDay.getDate() + 1);
+
+          const prevDS = `${prevWorkingDay.getFullYear()}-${String(prevWorkingDay.getMonth() + 1).padStart(2, '0')}-${String(prevWorkingDay.getDate()).padStart(2, '0')}`;
+          const nextDS = `${nextWorkingDay.getFullYear()}-${String(nextWorkingDay.getMonth() + 1).padStart(2, '0')}-${String(nextWorkingDay.getDate()).padStart(2, '0')}`;
+          const rPrev = attByDate.get(prevDS);
+          const rNext = attByDate.get(nextDS);
+          const isPrevAbsent = (!rPrev || rPrev.status?.toLowerCase() === 'absent' || rPrev.isAbsent);
+          const isNextAbsent = (!rNext || rNext.status?.toLowerCase() === 'absent' || rNext.isAbsent);
+
+          if (isPrevAbsent && isNextAbsent) {
+            const isAlreadyApplied = appliedForThisEmp.some(s => s.date === dateStr);
+            if (!isAlreadyApplied) {
+              const typeLabel = isS ? 'Sunday' : (isSat ? 'Saturday' : 'Holiday');
+              results.push({ date: dateStr, type: typeLabel, empId: emp.id, empName: emp.name });
+            }
+          }
+        }
+      });
+
+      setDetectedSandwiches(results);
+      setSelectedSandwichDays(new Set());
+    } finally {
+      setDetectingSandwiches(false);
+    }
+  };
+
   const processSandwichMutation = useMutation({
     mutationFn: async (selectedDays) => {
       const batch = [];
@@ -1085,23 +1092,11 @@ export default function SalarySlipTab() {
       queryClient.invalidateQueries(['attendanceSummary']);
       queryClient.invalidateQueries(['sandwichHistory']);
       setSelectedSandwichDays(new Set());
+      setDetectedSandwiches(prev => prev.filter(s => !selectedSandwichDays.has(`${s.empId}_${s.date}`)));
       alert('Sandwich deductions applied successfully!');
     },
     onError: (err) => alert('Failed to apply: ' + err.message)
   });
-
-  const allPotentialSandwiches = useMemo(() => {
-    const list = [];
-    attendanceSummaryData.forEach(emp => {
-      (emp.potentialSandwichDays || []).forEach(day => {
-        const isApplied = (emp.appliedSandwichDays || []).some(s => s.date === day.date);
-        if (!isApplied) {
-          list.push({ ...day, empId: emp.id, empName: emp.name });
-        }
-      });
-    });
-    return list;
-  }, [attendanceSummaryData]);
 
   const { data: sandwichHistory = [], isLoading: isHistoryLoading } = useQuery({
     queryKey: ['sandwichHistory', user?.orgId, summaryMonth],
@@ -1320,7 +1315,6 @@ export default function SalarySlipTab() {
                   {[
                     {id:'overview',l:'Overview'},
                     {id:'variable',l:'Variable Pay'},
-                    {id:'payment',l:'Payment Details'},
                     {id:'detailed',l:'Full Summary'},
                     {id:'sandwich',l:'Sandwich Rule'}
                   ].map(t=>(<button key={t.id} onClick={()=>setSummarySubTab(t.id)} className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${summarySubTab===t.id?'bg-white text-indigo-600 shadow-sm border border-indigo-100':'text-slate-500 hover:text-slate-900'}`}>{t.l}</button>))}
@@ -1403,9 +1397,6 @@ export default function SalarySlipTab() {
                     {isAttendanceLoading ? (
                        <tr><td colSpan={16} className="py-20 text-center"><Spinner /></td></tr>
                     ) : filteredAttendanceSummaryData.map((e, idx)=>{
-                      const payment = salaryPayments[e.id] || {};
-                      const isPaid = Number(payment.paidAmount || 0) >= Number(e.salary?.net || 0) && Number(e.salary?.net || 0) > 0;
-                      const isPartial = Number(payment.paidAmount || 0) > 0 && !isPaid;
 
                       return (
                       <tr key={e.id} className={`hover:bg-zinc-50/80 transition-colors h-[32px] group ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
@@ -1428,16 +1419,10 @@ export default function SalarySlipTab() {
                         <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5">{e.holW}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-black text-green-700 bg-green-50/20 text-[12px]">{formatINR(e.salary?.net)}</td>
                         <td className="px-2 text-center border-r border-zinc-200">
-                          {isPaid ? (
-                            <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[8px] font-black uppercase">Paid</span>
-                          ) : isPartial ? (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[8px] font-black uppercase">Partial</span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase">Pending</span>
-                          )}
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase">Pending</span>
                         </td>
                         <td className="px-2 text-center border-r border-zinc-200 text-[9px] font-bold text-slate-500 italic">
-                          {payment.paymentDate ? `${formatDateDDMMYYYY(payment.paymentDate)} (${payment.paymentMode})` : '-'}
+                          -
                         </td>
                         <td className="px-2 text-center">
                           <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1 hover:bg-zinc-900 hover:text-white rounded transition-all text-zinc-400">
@@ -1544,113 +1529,54 @@ export default function SalarySlipTab() {
                     </table>
                   </div>
                 </div>
-              ) : summarySubTab === 'payment' ? (
-                <div className="h-full flex flex-col bg-white p-6">
-                  <div className="flex justify-between items-end mb-6">
-                    <div>
-                      <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-raleway">Payment Disbursement Log</h2>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Record actual payments done to staff for {formatMonthDisplay(summaryMonth)}.</p>
-                    </div>
-                    <button 
-                      onClick={() => savePaymentsMutation.mutate(paymentDetails)}
-                      disabled={savePaymentsMutation.isPending}
-                      className="h-9 px-6 bg-emerald-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-2"
-                    >
-                      {savePaymentsMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                      Save Payment Records
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-auto border border-zinc-200 rounded-2xl shadow-sm">
-                    <table className="w-full border-collapse">
-                      <thead className="sticky top-0 bg-slate-50 z-10 border-b border-zinc-200">
-                        <tr className="h-10">
-                          <th className="px-4 text-left text-[10px] font-black uppercase text-slate-500 tracking-widest border-r border-zinc-100">Employee Name</th>
-                          <th className="px-4 text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest border-r border-zinc-100 w-40">Net Payout</th>
-                          <th className="px-4 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest border-r border-zinc-100 w-48">Paid Amount</th>
-                          <th className="px-4 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest border-r border-zinc-100 w-48">Payment Date</th>
-                          <th className="px-4 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-48">Ref / Mode</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-100 bg-white">
-                        {isAttendanceLoading ? (
-                          <tr><td colSpan={5} className="py-20 text-center"><Spinner /></td></tr>
-                        ) : attendanceSummaryData.map(emp => (
-                          <tr key={emp.id} className="h-12 hover:bg-slate-50 transition-colors">
-                            <td className="px-4 border-r border-zinc-50 font-bold text-slate-900 uppercase text-[11px]">{emp.name}</td>
-                            <td className="px-4 border-r border-zinc-50 text-center font-black text-slate-400 text-[11px] bg-slate-50/30">
-                              {formatINR(emp.salary?.net)}
-                            </td>
-                            <td className="px-4 border-r border-zinc-50">
-                              <div className="relative">
-                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-emerald-600">₹</span>
-                                <input 
-                                  type="number" 
-                                  className="w-full h-8 pl-5 text-right font-black text-emerald-600 bg-emerald-50/30 rounded-lg border-0 focus:ring-2 focus:ring-emerald-500 text-[11px]" 
-                                  value={paymentDetails[emp.id]?.paidAmount || ''} 
-                                  onChange={e => handlePaymentChange(emp.id, 'paidAmount', e.target.value)}
-                                  placeholder="0"
-                                />
-                              </div>
-                            </td>
-                            <td className="px-4 border-r border-zinc-50">
-                              <input 
-                                type="date" 
-                                className="w-full h-8 px-2 font-bold text-slate-600 bg-slate-50 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[10px] uppercase" 
-                                value={paymentDetails[emp.id]?.paymentDate || ''} 
-                                onChange={e => handlePaymentChange(emp.id, 'paymentDate', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-4">
-                              <select 
-                                className="w-full h-8 px-2 font-bold text-slate-600 bg-slate-50 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[10px] uppercase appearance-none cursor-pointer"
-                                value={paymentDetails[emp.id]?.paymentMode || 'Bank Transfer'}
-                                onChange={e => handlePaymentChange(emp.id, 'paymentMode', e.target.value)}
-                              >
-                                <option value="Bank Transfer">Bank Transfer</option>
-                                <option value="Cash">Cash</option>
-                                <option value="UPI">UPI / GPay</option>
-                                <option value="Cheque">Cheque</option>
-                                <option value="Adjustment">Adjustment</option>
-                              </select>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
               ) : summarySubTab === 'sandwich' ? (
                 <div className="h-full overflow-auto bg-white p-4 flex flex-col">
                   {/* Detection Section */}
                   <div className="mb-6">
                     <div className="mb-4 flex justify-between items-end">
                       <div>
-                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Sandwich Detection</h2>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Detected Sundays/Holidays sandwiched between absences.</p>
+                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-['Raleway']">Sandwich Rule</h2>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Detect Sundays/Holidays sandwiched between absences, then apply manually.</p>
+                        <label className="inline-flex items-center gap-1.5 mt-2 cursor-pointer">
+                          <input type="checkbox" checked={sandwichIncludeFuture} onChange={e => setSandwichIncludeFuture(e.target.checked)} className="w-3 h-3 rounded border-zinc-300 text-indigo-600" />
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">Include future dates</span>
+                        </label>
                       </div>
-                      {allPotentialSandwiches.length > 0 && (
+                      <div className="flex gap-2">
                         <button 
-                          onClick={() => processSandwichMutation.mutate(selectedSandwichDays)} 
-                          disabled={selectedSandwichDays.size === 0 || processSandwichMutation.isPending}
-                          className="h-7 px-4 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                          onClick={detectSandwiches}
+                          disabled={detectingSandwiches}
+                          className="h-7 px-4 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center gap-2"
                         >
-                          {processSandwichMutation.isPending ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
-                          Apply Selected ({selectedSandwichDays.size})
+                          {detectingSandwiches ? <RefreshCw size={12} className="animate-spin" /> : <Search size={12} />}
+                          {detectedSandwiches.length > 0 ? `Re-detect (${detectedSandwiches.length})` : 'Detect'}
                         </button>
-                      )}
+                        {detectedSandwiches.length > 0 && (
+                          <button 
+                            onClick={() => processSandwichMutation.mutate(selectedSandwichDays)} 
+                            disabled={selectedSandwichDays.size === 0 || processSandwichMutation.isPending}
+                            className="h-7 px-4 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                          >
+                            {processSandwichMutation.isPending ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
+                            Apply Selected ({selectedSandwichDays.size})
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    {allPotentialSandwiches.length === 0 ? (
+                    {detectingSandwiches ? (
+                      <div className="py-12 text-center"><Spinner /></div>
+                    ) : detectedSandwiches.length === 0 ? (
                       <div className="py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                        <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-4 opacity-20" />
-                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">No potential sandwiches detected</p>
+                        <Search size={48} className="mx-auto text-slate-300 mb-4 opacity-30" />
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Click "Detect" to find sandwich days</p>
                       </div>
                     ) : (
                       <div className="border border-zinc-200 rounded-sm overflow-hidden shadow-sm">
                         <table className="w-full border-collapse">
                           <thead className="bg-zinc-50 font-['Raleway']">
                             <tr className="h-8 border-b border-zinc-200">
-                              <th className="px-3 border-r border-zinc-200 text-left w-10 bg-zinc-50"><input type="checkbox" checked={selectedSandwichDays.size === allPotentialSandwiches.length} onChange={(e) => {
-                                if (e.target.checked) setSelectedSandwichDays(new Set(allPotentialSandwiches.map(s => `${s.empId}_${s.date}`)));
+                              <th className="px-3 border-r border-zinc-200 text-left w-10 bg-zinc-50"><input type="checkbox" checked={selectedSandwichDays.size === detectedSandwiches.length} onChange={(e) => {
+                                if (e.target.checked) setSelectedSandwichDays(new Set(detectedSandwiches.map(s => `${s.empId}_${s.date}`)));
                                 else setSelectedSandwichDays(new Set());
                               }} className="w-3 h-3 rounded border-zinc-300" /></th>
                               <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
@@ -1660,7 +1586,7 @@ export default function SalarySlipTab() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-200 bg-white">
-                            {allPotentialSandwiches.map(s => (
+                            {detectedSandwiches.map(s => (
                               <tr key={`${s.empId}_${s.date}`} className="h-[32px] hover:bg-sky-50/30 transition-colors">
                                 <td className="px-3 border-r border-zinc-100"><input type="checkbox" checked={selectedSandwichDays.has(`${s.empId}_${s.date}`)} onChange={() => {
                                   const next = new Set(selectedSandwichDays);

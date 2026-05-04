@@ -4,7 +4,7 @@ import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
 import Spinner from '../ui/Spinner'
 import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X, ArrowRight, Table } from 'lucide-react'
-import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
@@ -58,7 +58,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
   const [summaryData, setSummaryData] = useState([])
-  const [monthlyViewData, setMonthlyViewData] = useState({ employees: [], attendanceMap: {}, shiftMap: {}, daysInMonth: 31, holidays: [] })
+  const [monthlyViewData, setMonthlyViewData] = useState({ employees: [], attendanceMap: {}, shiftMap: {}, daysInMonth: 31, holidays: [], sandwichSet: new Set() })
   const [pivotLoading, setPivotLoading] = useState(false)
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [displayOrder, setDisplayOrder] = useState([])
@@ -101,63 +101,65 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     fetchMonthlySummary(selectedMonth).then(setSummaryData)
   }, [user?.orgId, selectedMonth])
 
-  const fetchPivotData = async () => {
-    if (!user?.orgId || !selectedMonth) return
+  useEffect(() => {
+    if (activeMainTab !== 'monthlyView' || !user?.orgId || !selectedMonth) return
     setPivotLoading(true)
-    try {
-      const [empSnap, attSnap, shiftSnap, orgSnap] = await Promise.all([
-        getDocs(collection(db, 'organisations', user.orgId, 'employees')),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'attendance'), where('date', '>=', selectedMonth + '-01'), where('date', '<=', selectedMonth + '-31'))),
-        getDocs(collection(db, 'organisations', user.orgId, 'shifts')),
-        getDoc(doc(db, 'organisations', user.orgId))
-      ])
-      const shiftMap = {}
-      shiftSnap.docs.forEach(d => { shiftMap[d.id] = d.data() })
-      const orgData = orgSnap.exists() ? orgSnap.data() : {}
-      const holidays = orgData.holidays || []
-      const [year, month] = selectedMonth.split('-').map(Number)
-      const daysInMonth = new Date(year, month, 0).getDate()
+
+    const [year, month] = selectedMonth.split('-').map(Number)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`
+
+    const attQuery = query(
+      collection(db, 'organisations', user.orgId, 'attendance'),
+      where('date', '>=', `${selectedMonth}-01`),
+      where('date', '<=', endDate)
+    )
+
+    const unsubAttendance = onSnapshot(attQuery, (attSnap) => {
       const attendanceMap = {}
+      const employeesWithAttendance = new Set()
       attSnap.docs.forEach(d => {
         const data = d.data()
         const day = parseInt(data.date.split('-')[2], 10)
         if (!attendanceMap[data.employeeId]) attendanceMap[data.employeeId] = {}
         attendanceMap[data.employeeId][day] = data
+        employeesWithAttendance.add(data.employeeId)
       })
-      const filteredEmployees = empSnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(emp => {
+
+      Promise.all([
+        getDocs(collection(db, 'organisations', user.orgId, 'employees')),
+        getDocs(collection(db, 'organisations', user.orgId, 'shifts')),
+        getDoc(doc(db, 'organisations', user.orgId)),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', selectedMonth)))
+      ]).then(([eSnap, sSnap, oSnap, sandSnap]) => {
+        const shiftMap = {}
+        sSnap.docs.forEach(d => { shiftMap[d.id] = d.data() })
+        const orgData = oSnap.exists() ? oSnap.data() : {}
+        const holidays = orgData.holidays || []
+        const sandwichSet = new Set(sandSnap.docs.map(d => `${d.data().employeeId}_${d.data().date}`))
+        const allEmployees = eSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        const filteredEmployees = allEmployees.filter(emp => {
           if (emp.hideInAttendance) return false
           if (isEmployeeActiveStatus(emp.status)) return true
-          if (emp.joinedDate && new Date(emp.joinedDate) <= new Date(year, month - 1, daysInMonth)) return true
-          if (attendanceMap[emp.id]) return Object.keys(attendanceMap[emp.id]).length > 0
-          return false
+          return employeesWithAttendance.has(emp.id)
         })
-      const savedOrder = Array.isArray(orgData.employeeOrder) ? orgData.employeeOrder : []
-      const orderedEmployees = [...filteredEmployees].sort((a, b) => {
-        const idxA = savedOrder.indexOf(a.id), idxB = savedOrder.indexOf(b.id)
-        if (idxA === -1 && idxB === -1) return 0
-        return idxA === -1 ? 1 : (idxB === -1 ? -1 : idxA - idxB)
-      })
-      setDisplayOrder(orderedEmployees.map(e => e.id))
-      setMonthlyViewData({ employees: orderedEmployees, attendanceMap, shiftMap, daysInMonth, holidays })
-    } catch (err) { console.error(err) } finally { setPivotLoading(false) }
-  }
+        const savedOrder = Array.isArray(orgData.employeeOrder) ? orgData.employeeOrder : []
+        const orderedEmployees = [...filteredEmployees].sort((a, b) => {
+          const idxA = savedOrder.indexOf(a.id), idxB = savedOrder.indexOf(b.id)
+          if (idxA === -1 && idxB === -1) return 0
+          return idxA === -1 ? 1 : (idxB === -1 ? -1 : idxA - idxB)
+        })
+        setDisplayOrder(orderedEmployees.map(e => e.id))
+        setMonthlyViewData(prev => ({ ...prev, employees: orderedEmployees, shiftMap, daysInMonth, holidays, sandwichSet, attendanceMap }))
+      }).catch(console.error).finally(() => setPivotLoading(false))
+    })
 
-  useEffect(() => {
-    if (activeMainTab !== 'monthlyView') return
-    fetchPivotData()
+    return () => { unsubAttendance() }
   }, [user?.orgId, selectedMonth, activeMainTab])
-
-  const navigateMonth = (direction) => {
-    const [year, month] = selectedMonth.split('-').map(Number)
-    const newDate = new Date(year, month - 1 + direction, 1)
-    setSelectedMonth(`${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}`)
-  }
 
   const formatMonth = (m) => new Date(m.split('-')[0], parseInt(m.split('-')[1]) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
-  const getStatusBadge = (att, day, emp, holidays = []) => {
+  const getStatusBadge = (att, day, emp, holidays = [], sandwichSet = new Set()) => {
     const [y, m] = selectedMonth.split('-').map(Number), ds = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const isBeforeJoined = emp.joinedDate && ds < emp.joinedDate;
     const isAfterInactive = emp.inactiveFrom && ds > emp.inactiveFrom;
@@ -170,6 +172,13 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     const isSun = new Date(y, m - 1, day).getDay() === 0, isHol = holidays.some(h => h.date === ds)
     if (att.sundayWorked) return { bg: 'bg-amber-50', text: 'SW', color: 'text-amber-600', type: 'sunworked' }
     if (att.holidayWorked) return { bg: 'bg-indigo-50', text: 'HW', color: 'text-indigo-600', type: 'holworked' }
+    if (sandwichSet.has(`${att.employeeId}_${ds}`)) {
+      return { bg: 'bg-rose-100', text: 'Absent (S)', color: 'text-rose-600', type: 'sandwich' }
+    }
+    if (att.isHalfDay) {
+      let label = isHol ? 'Half-Day' : (isSun ? 'Half-Day' : 'Half-Day')
+      return { bg: 'bg-amber-50', text: label, color: 'text-amber-600', type: 'halfday' }
+    }
     if (att.isAbsent || isHol || isSun) {
       let label = isHol ? 'Holiday' : (isSun ? 'Sunday' : 'Absent')
       return { bg: 'bg-red-50', text: label, color: 'text-red-600', type: isSun ? 'sunday' : (isHol ? 'holiday' : 'absent') }
@@ -484,14 +493,14 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                             <td className={`px-2 py-0.5 text-center font-bold sticky left-0 z-20 border-r border-b border-gray-200 ${dateCls}`}><div className="flex items-baseline justify-center gap-1"><span className="text-[11px]">{String(day).padStart(2, '0')}</span><span className="text-[8px] text-gray-400 uppercase">{cD.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></td>
                             {monthlyViewData.employees?.map(emp => {
                               const att = monthlyViewData.attendanceMap?.[emp.id]?.[day]
-                              const st = getStatusBadge(att, day, emp, monthlyViewData.holidays || [])
-                              const isOff = st?.type === 'absent' || st?.type === 'sunday' || st?.type === 'holiday'
+                              const st = getStatusBadge(att, day, emp, monthlyViewData.holidays || [], monthlyViewData.sandwichSet || new Set())
+                              const isOff = st?.type === 'absent' || st?.type === 'sunday' || st?.type === 'holiday' || st?.type === 'sandwich'
                               
                               const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.workingTime ? 'workingTime' : (columnSettings.outTime ? 'outTime' : 'inTime')))
                               const visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
                               return (
                                 <React.Fragment key={emp.id}>
-                                  {isOff ? (<td colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${st.bg}`}><span className={`text-[9px] font-black uppercase ${st.text === 'Holiday' ? 'text-amber-600' : st.color}`}>{st.text}</span></td>) : (
+                                  {isOff ? (<td colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${st.bg}`}><span className={`${st.text === 'Holiday' ? 'text-amber-600' : st.color} ${st.type === 'sandwich' ? 'text-[7px] font-black' : 'text-[9px] font-black uppercase'}`}>{st.text}</span></td>) : (
                                     <>
                                       {columnSettings.inTime && (
                                         <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
