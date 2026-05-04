@@ -325,7 +325,7 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
       outTime: row.out || '',
       otHours: row.ot || '00:00',
       site: row.site || '',
-      status: row.status === 'PRESENT' ? 'Present' : row.status === 'ABSENT' ? 'Absent' : row.status === 'SUNDAY' ? 'Holiday' : 'Present',
+      status: row.status === 'PRESENT' ? 'Present' : row.status === 'ABSENT' ? 'Absent' : row.status === 'HALF-DAY' ? 'Half-Day' : row.status === 'SUNDAY' ? 'Holiday' : 'Present',
       isAbsent: row.status === 'ABSENT',
       notes: '',
     }
@@ -623,8 +623,9 @@ export default function CorrectionTab() {
           out: record?.outTime || (record.sundayHoliday ? 'HOLIDAY' : record.sundayWorked ? 'WORKED' : '-'),
           ot: record?.otHours || '-',
           site: record?.remarks || '-',
-          status: record.isAbsent ? 'ABSENT' : record.sundayHoliday ? 'SUNDAY' : record.sundayWorked ? 'SUNWORKED' : 'PRESENT',
+          status: record.isAbsent ? 'ABSENT' : record.isHalfDay ? 'HALF-DAY' : record.sundayHoliday ? 'SUNDAY' : record.sundayWorked ? 'SUNWORKED' : 'PRESENT',
           isAbsent: record?.isAbsent || false,
+          isHalfDay: record?.isHalfDay || false,
           sundayHoliday: record?.sundayHoliday || false,
           sundayWorked: record?.sundayWorked || false,
           clockStatus,
@@ -694,7 +695,7 @@ export default function CorrectionTab() {
       outTime: row.out === '-' ? '' : row.out,
       ot: row.ot === '-' ? '00:00' : row.ot,
       site: row.site === '-' ? '' : row.site,
-      status: row.status === 'ABSENT' ? 'Absent' : row.status === 'SUNDAY' || row.status === 'SUNWORKED' ? 'SunWorked' : row.status === 'SUNHOLIDAY' ? 'SunHoliday' : row.status === 'WORKED' ? 'Worked' : row.status === 'HOLIDAY' ? 'Holiday' : 'Present',
+      status: row.status === 'ABSENT' ? 'Absent' : row.status === 'HALF-DAY' ? 'Half-Day' : row.status === 'SUNDAY' || row.status === 'SUNWORKED' ? 'SunWorked' : row.status === 'SUNHOLIDAY' ? 'SunHoliday' : row.status === 'WORKED' ? 'Worked' : row.status === 'HOLIDAY' ? 'Holiday' : 'Present',
       shiftType: row.shiftType || 'Day',
       minDailyHours: row.minDailyHours || 8,
     })
@@ -784,11 +785,12 @@ export default function CorrectionTab() {
         }
         
         const isAbsent = updates.isAbsent
+        const isHalfDay = updates.status === 'Half-Day'
         const inDate = updates.inDate || row.inDate
         const outDate = updates.outDate || row.outDate
         const inTime = isAbsent ? '' : (updates.inTime || row.in)
         const outTime = isAbsent ? '' : (updates.outTime || row.out)
-        const otHours = isAbsent ? '00:00' : calcOT(inTime, outTime, inDate, outDate, row.minDailyHours || 8)
+        const otHours = (isAbsent || isHalfDay) ? '00:00' : calcOT(inTime, outTime, inDate, outDate, row.minDailyHours || 8)
         
         const rows = [{
           employeeId: row.id,
@@ -801,7 +803,8 @@ export default function CorrectionTab() {
           otHours,
           remarks: updates.site || row.site,
           isAbsent,
-          status: isAbsent ? 'Absent' : 'Present',
+          isHalfDay,
+          status: updates.status || (isAbsent ? 'Absent' : 'Present'),
           sundayWorked: false,
           sundayHoliday: false,
         }]
@@ -815,7 +818,7 @@ export default function CorrectionTab() {
           outTime,
           otHours,
           site: updates.site || row.site,
-          status: isAbsent ? 'ABSENT' : 'PRESENT',
+          status: updates.status || (isAbsent ? 'ABSENT' : 'PRESENT'),
         }
         
         await logCorrection(row.id, row.name, row.date, oldVals, newVals, 'Bulk Edit', '')
@@ -834,18 +837,20 @@ export default function CorrectionTab() {
     setSaving(true)
     try {
       const isAbsent = newVals.isAbsent
+      const isHalfDay = newVals.status === 'Half-Day'
       const rows = [{
         employeeId: row.id,
         name: row.name,
         date: row.date,
         inDate: newVals.inDate,
-        inTime: isAbsent ? '' : newVals.inTime,
+        inTime: (isAbsent || isHalfDay) ? '' : newVals.inTime,
         outDate: newVals.outDate,
-        outTime: isAbsent ? '' : newVals.outTime,
+        outTime: (isAbsent || isHalfDay) ? '' : newVals.outTime,
         otHours: newVals.otHours,
         remarks: newVals.site,
         isAbsent,
-        status: isAbsent ? 'Absent' : 'Present',
+        isHalfDay,
+        status: newVals.status,
         sundayWorked: false,
         sundayHoliday: false,
       }]
