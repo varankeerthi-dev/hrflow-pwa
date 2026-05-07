@@ -343,7 +343,7 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
 export default function AttendanceTab() {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId, true)
-  const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange } = useAttendance(user?.orgId)
+  const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
 
   const [activeSubTab, setActiveSubTab] = useState('daily') // 'daily' or 'reports'
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
@@ -508,7 +508,10 @@ export default function AttendanceTab() {
 
     setFixingHistory(true)
     try {
+      const { upsertAttendance, deleteIndividualAttendance } = useAttendance(user.orgId)
       const updates = []
+      const deletes = []
+
       for (const row of reportData) {
         const emp = employees.find(e => e.id === row.employeeId)
         if (emp) {
@@ -532,22 +535,35 @@ export default function AttendanceTab() {
               checkIn: null,
               checkOut: null
             });
-          } else if (!shouldBeAbsent && row.status === 'Absent' && (row.inTime || row.checkIn)) {
-            // Restore incorrectly marked records
-            updates.push({
-              ...row,
-              status: 'Present',
-              isAbsent: false
-            });
+          } else if (!shouldBeAbsent && row.status === 'Absent') {
+            // This record shouldn't be absent based on current joining/inactive dates.
+            if (row.inTime || row.checkIn) {
+              // If there's time data, just restore the status to Present
+              updates.push({
+                ...row,
+                status: 'Present',
+                isAbsent: false
+              });
+            } else {
+              // If there's NO time data, this was likely created by the bug.
+              // We should delete it to "undo" the mistake.
+              deletes.push({ date: row.date, employeeId: row.employeeId });
+            }
           }
         }
       }
       
       if (updates.length > 0) {
-        // Break into chunks of 50 for upsertAttendance if needed, 
-        // but upsertAttendance already handles the records array.
         await upsertAttendance(updates)
-        alert(`Successfully fixed ${updates.length} records in the current range.`)
+      }
+      
+      if (deletes.length > 0) {
+        const deleteBatch = deletes.map(d => deleteIndividualAttendance(d.date, d.employeeId))
+        await Promise.all(deleteBatch)
+      }
+
+      if (updates.length > 0 || deletes.length > 0) {
+        alert(`Successfully fixed ${updates.length} records and cleaned up ${deletes.length} mistaken absences.`)
         handleFilterSubmit()
       } else {
         alert("No records found that need fixing in the current report range.")
