@@ -480,12 +480,30 @@ export default function AttendanceTab() {
     
     const normalizeDate = (dateStr) => {
       if (!dateStr || dateStr === '-') return null;
+      // If already YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+      
       const parts = dateStr.split(/[-/]/);
       if (parts.length === 3) {
-        if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        let y, m, d;
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD or YYYY-M-D
+          y = parts[0]; m = parts[1]; d = parts[2];
+        } else {
+          // DD-MM-YYYY or D-M-YYYY
+          d = parts[0]; m = parts[1]; y = parts[2];
+        }
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
       }
-      return dateStr;
+      
+      try {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString().split('T')[0];
+        }
+      } catch (e) {}
+      
+      return null;
     };
 
     setFixingHistory(true)
