@@ -918,6 +918,68 @@ export default function AttendanceTab() {
     setShowCopyModal(false); setSelectedEmps([]); setActiveCopyEmpId(null);
   }
 
+  const handleMarkAllHoliday = async () => {
+    if (!rows.length) return
+    setSaving(true)
+    try {
+      const status = isSunday ? 'SunHoliday' : 'Holiday'
+      const updatedRows = rows.map(r => {
+        if (!r.employeeId) return r;
+        return {
+          ...r,
+          status: status,
+          isAbsent: false,
+          sundayWorked: false,
+          sundayHoliday: true,
+          holidayWorked: false,
+          inTime: '',
+          outTime: '',
+          otHours: '00:00'
+        }
+      })
+      
+      const toUpsert = updatedRows.filter(r => r.employeeId && !r.isPlaceholder)
+      if (toUpsert.length > 0) {
+        await upsertAttendance(toUpsert)
+        await logActivity(user?.orgId, user, {
+          module: 'Attendance',
+          action: `Marked all as ${status} for ${selectedDate}`,
+          detail: `${toUpsert.length} records updated`
+        })
+      }
+
+      const updatedRecords = await fetchByDate(selectedDate)
+      setExistingRecords(updatedRecords)
+      
+      const enrichedUpdated = updatedRecords.map(record => {
+        const emp = employees.find(e => e.id === record.employeeId)
+        return {
+          ...record,
+          minDailyHours: record.minDailyHours || emp?.minDailyHours || 8
+        }
+      })
+      
+      const sortedUpdated = [...(enrichedUpdated || [])].sort((a, b) => {
+        if (!a || !b) return 0
+        if (!Array.isArray(rowOrder) || !rowOrder.length) return String(a.name || '').localeCompare(String(b.name || ''))
+        const idxA = rowOrder.indexOf(a.employeeId)
+        const idxB = rowOrder.indexOf(b.employeeId)
+        if (idxA === -1 && idxB === -1) return String(a.name || '').localeCompare(String(b.name || ''))
+        if (idxA === -1) return 1
+        if (idxB === -1) return -1
+        return idxA - idxB
+      })
+
+      setRows(sortedUpdated)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (error) {
+      console.error('Error marking all as holiday:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // Handle Reset All
   const handleResetAll = async () => {
     if (!rows.length) {
@@ -1004,9 +1066,19 @@ export default function AttendanceTab() {
                   <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
                 </span>
                 {(isSunday || isConfiguredHoliday) && (
-                  <span className={`text-xs font-semibold uppercase tracking-wide flex items-center gap-1 ${isSunday ? 'text-orange-600' : 'text-purple-600'}`}>
-                    {isSunday ? '★ Sunday' : '★ Holiday'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold uppercase tracking-wide flex items-center gap-1 ${isSunday ? 'text-orange-600' : 'text-purple-600'}`}>
+                      {isSunday ? '★ Sunday' : '★ Holiday'}
+                    </span>
+                    <button
+                      onClick={handleMarkAllHoliday}
+                      disabled={saving || !rows.length}
+                      className="h-[15px] px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[9px] font-bold uppercase tracking-wider rounded border border-indigo-200 flex items-center gap-1 transition-all disabled:opacity-50"
+                    >
+                      {saving ? <Spinner size="w-2 h-2" color="border-t-indigo-600" /> : <Check size={10} />}
+                      Mark All as Holiday
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
