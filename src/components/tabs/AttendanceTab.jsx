@@ -1156,14 +1156,14 @@ export default function AttendanceTab({ defaultSubTab }) {
           <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
             <div className="overflow-x-visible pb-[400px]">
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-[73px] z-10 bg-gray-50">
+                <thead className="sticky top-[98px] z-50 bg-gray-50">
                   <tr className="h-10 border-b border-gray-200">
-                    <th className="px-4 text-xs font-semibold uppercase tracking-wider text-left w-[22%] bg-orange-50" style={{ color: '#da7025' }}>Employee Name</th>
-                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-left w-[80px] bg-orange-50" style={{ color: '#da7025' }}>
-                        <div className="flex items-center gap-3">
+                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-left w-[140px] bg-orange-50" style={{ color: '#da7025' }}>Employee Name</th>
+                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-left w-[70px] bg-orange-50" style={{ color: '#da7025' }}>
+                        <div className="flex items-center gap-2">
                           <span>Shift</span>
                           <div className="flex flex-col">
-                            <span className="relative w-[48px] h-3 rounded-md bg-gray-200 flex items-center" title="Left=Day, Center=D+N, Right=Night">
+                            <span className="relative w-[40px] h-3 rounded-md bg-gray-200 flex items-center" title="Left=Day, Center=D+N, Right=Night">
                               <span className="absolute left-0.5 top-0.5 w-2 h-2 rounded-full bg-white shadow-sm"></span>
                             </span>
                             <div className="flex text-[7px] font-bold justify-between px-1">
@@ -1174,12 +1174,12 @@ export default function AttendanceTab({ defaultSubTab }) {
                           </div>
                         </div>
                       </th>
-                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>In Time</th>
-                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>Out Time</th>
-                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[60px] bg-orange-50" style={{ color: '#da7025' }}>OT</th>
-                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[15%] bg-orange-50" style={{ color: '#da7025' }}>{remarksLabel}</th>
-                    <th className="px-4 text-xs font-semibold uppercase tracking-wider text-center w-[120px] bg-orange-50" style={{ color: '#da7025' }}>Status</th>
-                    <th className="px-2 text-xs font-semibold uppercase tracking-wider w-[40px] bg-orange-50" style={{ color: '#da7025' }}></th>
+                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[80px] bg-orange-50" style={{ color: '#da7025' }}>In</th>
+                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[80px] bg-orange-50" style={{ color: '#da7025' }}>Out</th>
+                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[50px] bg-orange-50" style={{ color: '#da7025' }}>OT</th>
+                    <th className="px-0 text-xs font-semibold uppercase tracking-wider text-center w-[120px] bg-orange-50" style={{ color: '#da7025' }}>{remarksLabel}</th>
+                    <th className="px-0 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>Status</th>
+                    <th className="px-1 text-xs font-semibold uppercase tracking-wider w-[36px] bg-orange-50" style={{ color: '#da7025' }}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1617,7 +1617,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                 <h3 className="text-sm font-semibold text-gray-900">Employee Statistics ({reportDays.length || 0} Days)</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+<table className="w-full min-w-[1100px] text-left border-collapse">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr className="h-10">
                       <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
