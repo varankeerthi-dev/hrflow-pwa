@@ -182,10 +182,15 @@ function convertShorthand(val, period) {
     h = parseInt(digits.slice(0, 2));
     m = parseInt(digits.slice(2));
   } else if (digits.length === 2) {
-    // Current hour context
-    h = new Date().getHours() % 12 || 12;
-    m = parseInt(digits);
-    if (m > 59) m = 50;
+    // If 2 digits could be hour (e.g., "10a" -> "10"), treat as hour:00
+    const num = parseInt(digits);
+    if (num <= 12) {
+      h = num;
+      m = 0;
+    } else {
+      h = new Date().getHours() % 12 || 12;
+      m = num > 59 ? 50 : num;
+    }
   } else if (digits.length === 1) {
     h = parseInt(digits);
     m = 0;
@@ -243,8 +248,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
         style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
       >
         <div 
-          className="flex-1 flex flex-col items-center min-w-0 py-0.5 cursor-pointer"
-          onClick={(e) => { if (!disabled) onShowPicker(); }}
+          className="flex-1 flex flex-col items-center min-w-0 py-0.5 cursor-text"
         >
           <input
             type="text"
@@ -261,11 +265,20 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
             disabled={disabled}
             data-row={rowIdx}
             data-field={field}
-            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-pointer"
+            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-text"
             placeholder={placeholder || "--:--"}
           />
           {extra}
         </div>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); if (!disabled) onShowPicker(); }}
+          disabled={disabled}
+          className="pr-2 text-gray-400 hover:text-indigo-600 cursor-pointer text-xs"
+          title="Open time picker"
+        >
+          🕐
+        </button>
       </div>
       {error && <span className="text-[9px] text-red-500 font-bold uppercase leading-none text-center animate-in fade-in duration-300">{error}</span>}
     </div>

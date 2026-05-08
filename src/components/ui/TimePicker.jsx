@@ -88,20 +88,20 @@ export default function TimePicker({ value, onChange, onClose }) {
       </div>
 
       {/* Scroll columns */}
-      <div className="flex px-1.5 py-1.5 gap-1">
+      <div className="flex px-1 py-1 gap-0.5">
         {/* Hours column */}
-        <div ref={hourRef} className="flex-1 overflow-y-auto h-[160px] rounded-lg custom-scrollbar">
+        <div ref={hourRef} className="flex-1 overflow-y-auto h-[120px] rounded-lg custom-scrollbar">
           {hours.map(h => (
-            <div key={h} data-val={h} onClick={() => setHour(h)} className={`text-center py-1.5 text-[11px] font-bold rounded cursor-pointer mb-0.5 transition-all ${hour === h ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-100'}`}>
+            <div key={h} data-val={h} onClick={() => setHour(h)} className={`text-center py-0.5 text-[11px] font-bold rounded cursor-pointer transition-all ${hour === h ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-100'}`}>
               {h}
             </div>
           ))}
         </div>
 
         {/* Minutes column */}
-        <div ref={minuteRef} className="flex-1 overflow-y-auto h-[160px] rounded-lg custom-scrollbar">
+        <div ref={minuteRef} className="flex-1 overflow-y-auto h-[120px] rounded-lg custom-scrollbar">
           {minutes.map(m => (
-            <div key={m} data-val={m} onClick={() => setMinute(m)} className={`text-center py-1.5 text-[11px] font-bold rounded cursor-pointer mb-0.5 transition-all ${minute === m ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-100'}`}>
+            <div key={m} data-val={m} onClick={() => setMinute(m)} className={`text-center py-0.5 text-[11px] font-bold rounded cursor-pointer transition-all ${minute === m ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-100'}`}>
               {m}
             </div>
           ))}
