@@ -3,8 +3,9 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
 import { attendanceCol } from '../../lib/firestore'
-import { db } from '../../lib/firebase'
-import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, deleteDoc, doc } from 'firebase/firestore'
+import { db, storage } from '../../lib/firebase'
+import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, deleteDoc, doc, setDoc } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ImageViewer from '../ui/ImageViewer'
@@ -44,7 +45,8 @@ import {
   Info,
   Play,
   Square,
-  MessageSquare
+  MessageSquare,
+  Camera
 } from 'lucide-react'
 
 export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashboard' }) {
@@ -822,9 +824,9 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
             <div className="flex flex-col md:flex-row items-center gap-8 mb-12">
               <div className="relative group">
                 <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-white shadow-xl ring-1 ring-gray-100">
-                  {employee?.photoURL ? (
+                  {(employee?.photoURL || user?.photoURL) ? (
                     <img 
-                      src={employee.photoURL} 
+                      src={employee?.photoURL || user?.photoURL} 
                       alt={user?.name} 
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                     />
@@ -834,6 +836,52 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                     </div>
                   )}
                 </div>
+                <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files[0]
+                      if (!file) return
+                      if (!user?.orgId) { alert('No organization found'); return }
+                      
+                      try {
+                        // Resize image before upload
+                        const img = new Image()
+                        img.src = URL.createObjectURL(file)
+                        await new Promise(r => img.onload = r)
+                        
+                        const canvas = document.createElement('canvas')
+                        const maxSize = 200
+                        const scale = Math.min(maxSize / img.width, maxSize / img.height)
+                        canvas.width = img.width * scale
+                        canvas.height = img.height * scale
+                        const ctx = canvas.getContext('2d')
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+                        
+                        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8))
+                        
+                        // Upload to Firebase Storage - using temp path that has existing permissions
+                        const timestamp = Date.now()
+                        const storageRef = ref(storage, `organisations/${user.orgId}/temp_selfies/${user?.uid}/profile_${timestamp}.jpg`)
+                        await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' })
+                        const photoUrl = await getDownloadURL(storageRef)
+                        
+                        // Save to org-specific user document with RBAC
+                        await setDoc(doc(db, 'organisations', user.orgId, 'users', user?.uid), 
+                          { photoUrl, updatedAt: new Date().toISOString() }, { merge: true })
+                        
+                        alert('Profile photo updated!')
+                        window.location.reload()
+                      } catch (err) {
+                        console.error('Photo upload error:', err)
+                        alert('Failed to upload photo: ' + err.message)
+                      }
+                    }}
+                  />
+                  <Camera size={24} className="text-white" />
+                </label>
                 <div className={`absolute bottom-2 right-2 w-5 h-5 rounded-full border-2 border-white shadow-sm ${isEmployeeActiveStatus(employee?.status) ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
               </div>
 

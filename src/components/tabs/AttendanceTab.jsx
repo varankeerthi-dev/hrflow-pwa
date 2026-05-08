@@ -1080,8 +1080,7 @@ export default function AttendanceTab() {
                   onChange={(date) => setSelectedDate(formatDateForInput(date))}
                   dateFormat="dd MMM yyyy"
                   customInput={
-                    <div className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none gap-2 hover:bg-white hover:shadow-sm rounded-md transition-all">
-                      <Calendar size={14} className="text-gray-400" />
+                    <div className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none hover:bg-white hover:shadow-sm rounded-md transition-all">
                       {format(parseISO(selectedDate), 'dd MMM yyyy')}
                     </div>
                   }

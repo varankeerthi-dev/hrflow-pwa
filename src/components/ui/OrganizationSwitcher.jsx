@@ -182,31 +182,31 @@ export default function OrganizationSwitcher() {
           onClick={() => { if (canSwitch) setIsOpen(!isOpen); else setShowJoinModal(true) }}
           disabled={isLoading}
           className={`
-            flex items-center gap-2 px-3 py-2 rounded-lg transition-all
+            flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all
             ${canSwitch ? 'hover:bg-zinc-100 cursor-pointer' : 'hover:bg-zinc-100 cursor-pointer'}
             ${isLoading ? 'opacity-70' : ''}
-            ${isOpen ? 'bg-zinc-100' : 'bg-white border border-zinc-200'}
+            ${isOpen ? 'bg-zinc-100' : ''}
           `}
           title={canSwitch ? `Current: ${currentOrg.orgName} (${currentOrg.role})` : currentOrg.orgName}
         >
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700">
-            <Building2 size={18} />
+          <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700">
+            <Building2 size={14} />
           </div>
           <div className="hidden sm:flex flex-col items-start">
-            <span className="text-xs font-bold text-zinc-900 leading-tight max-w-[140px] truncate">
+            <span className="text-[10px] font-semibold text-zinc-900 leading-tight max-w-[100px] truncate">
               {currentOrg.orgName}
             </span>
-            <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">
+            <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-wide">
               {currentOrg.role}
             </span>
           </div>
           {canSwitch && (
             <ChevronDown 
-              size={16} 
+              size={12} 
               className={`text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
             />
           )}
-          {isLoading && <Loader2 size={16} className="animate-spin text-zinc-400" />}
+          {isLoading && <Loader2 size={12} className="animate-spin text-zinc-400" />}
         </button>
 
         {/* Dropdown Menu */}

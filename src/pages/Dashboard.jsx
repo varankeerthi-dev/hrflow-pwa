@@ -467,7 +467,6 @@ export default function Dashboard() {
 
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/80 h-14 shrink-0 px-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={toggleSidebar} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 hidden md:block transition-all duration-200"><PanelLeft size={18} /></button>
           <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 md:hidden transition-all duration-200"><Menu size={18} /></button>
           <div className="flex items-center gap-2.5">
             {orgSettings?.logoURL ? (
@@ -511,20 +510,20 @@ export default function Dashboard() {
           {user?.orgId && <OrganizationSwitcher />}
           <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
           
-          <button onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all group">
-            <div className="flex flex-col items-end text-right">
-              <span className="text-[13px] font-black text-gray-800 tracking-tight group-hover:text-indigo-600 transition-colors leading-none">{user?.name}</span>
-              <span className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.1em] mt-1">{user?.email || user?.role || 'Staff'}</span>
+          <button onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} title="Profile" className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all group">
+            <div className="flex flex-col items-start text-left">
+              <span className="text-[13px] font-black tracking-tight group-hover:text-indigo-600 transition-colors leading-none border-b border-transparent group-hover:border-indigo-300" style={{ color: '#7d6be1' }}>{user?.name?.split(' ').map((n, i) => i === 0 ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : n.toLowerCase()).join(' ')}</span>
+              <span className="text-[8px] text-gray-400 font-bold mt-1 lowercase">{user?.email || user?.role || 'Staff'}</span>
             </div>
-            {currentEmployee?.photoURL ? (
-              <img src={currentEmployee.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100" />
+            {(currentEmployee?.photoURL || user?.photoURL) ? (
+              <img src={currentEmployee?.photoURL || user?.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100" />
             ) : (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm border border-gray-100" style={{ backgroundColor: getAvatarColor(user?.uid) }}>{getInitials(user?.name)}</div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-black text-[10px] font-black shadow-sm border border-gray-100 bg-gray-200">{getInitials(user?.name)}</div>
             )}
           </button>
           <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
-          <button onClick={() => setShowLog(s => !s)} className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}><History size={16} /></button>
-          <button onClick={logout} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"><LogOut size={16} /></button>
+          <button onClick={() => setShowLog(s => !s)} title="Activity Log" className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}><History size={16} /></button>
+          <button onClick={logout} title="Logout" className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"><LogOut size={16} /></button>
         </div>
       </header>
 
@@ -541,15 +540,6 @@ export default function Dashboard() {
           <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
             {renderMenu()}
           </nav>
-          <div className="p-3 border-t border-gray-200/80 shrink-0 bg-gray-50/50">
-            <button 
-              onClick={toggleSidebar} 
-              className={`w-full flex items-center rounded-xl text-gray-500 hover:text-indigo-700 hover:bg-indigo-50/80 transition-all duration-200 ${isCollapsed ? 'justify-center py-2.5' : 'px-3 py-2.5 gap-3'}`}
-            >
-              <PanelLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform duration-300`} />
-              {!isCollapsed && <span className="text-[11px] font-semibold">Collapse Sidebar</span>}
-            </button>
-          </div>
         </aside>
         <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
           <main className="flex-1 overflow-auto bg-[#F8FAFC] relative flex flex-col">
