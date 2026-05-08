@@ -1159,7 +1159,21 @@ export default function AttendanceTab({ defaultSubTab }) {
                 <thead className="sticky top-[73px] z-10 bg-gray-50">
                   <tr className="h-10 border-b border-gray-200">
                     <th className="px-4 text-xs font-semibold uppercase tracking-wider text-left w-[22%] bg-orange-50" style={{ color: '#da7025' }}>Employee Name</th>
-                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-left w-[80px] bg-orange-50" style={{ color: '#da7025' }}>Shift</th>
+                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-left w-[80px] bg-orange-50" style={{ color: '#da7025' }}>
+                        <div className="flex items-center gap-3">
+                          <span>Shift</span>
+                          <div className="flex flex-col">
+                            <span className="relative w-[48px] h-3 rounded-md bg-gray-200 flex items-center" title="Left=Day, Center=D+N, Right=Night">
+                              <span className="absolute left-0.5 top-0.5 w-2 h-2 rounded-full bg-white shadow-sm"></span>
+                            </span>
+                            <div className="flex text-[7px] font-bold justify-between px-1">
+                              <span className="text-emerald-600">D</span>
+                              <span className="text-indigo-600">D+N</span>
+                              <span className="text-slate-700">N</span>
+                            </div>
+                          </div>
+                        </div>
+                      </th>
                     <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>In Time</th>
                     <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>Out Time</th>
                     <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[60px] bg-orange-50" style={{ color: '#da7025' }}>OT</th>
@@ -1224,12 +1238,10 @@ export default function AttendanceTab({ defaultSubTab }) {
                               </>
                             )}
 
-                            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 pointer-events-none ${
+                            <span className={`absolute top-1.5 w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-all duration-200 pointer-events-none ${
                               row.shiftType === 'Night' ? 'left-[49.5px]' : row.shiftType === 'DN' ? 'left-[26px]' : 'left-0.5'
                             }`}></span>
-                            <span className={`absolute top-1.5 text-[9px] font-black tracking-tight pointer-events-none ${
-                              row.shiftType === 'Night' ? 'left-1.5 text-white' : row.shiftType === 'DN' ? 'left-1.5 text-white' : 'right-2 text-white'
-                            }`} style={{ fontFamily: "'Inter', sans-serif" }}>
+                            <span className={`absolute font-black tracking-tight pointer-events-none ${row.shiftType === 'DN' ? 'text-[8px] left-1.5 text-white top-1' : row.shiftType === 'Night' ? 'text-[9px] left-1.5 text-white top-1' : 'text-[9px] right-2 text-white top-1'}`} style={{ fontFamily: "'Inter', sans-serif" }}>
                               {row.shiftType === 'Night' ? 'NIGHT' : row.shiftType === 'DN' ? 'D+N' : 'DAY'}
                             </span>
                           </div>
