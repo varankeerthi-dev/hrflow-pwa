@@ -396,9 +396,14 @@ export default function SalarySlipTab() {
   const { data: loanActivities = [] } = useQuery({
     queryKey: ['loanActivities', user?.orgId],
     queryFn: async () => {
-      const q = query(collection(db, 'organisations', user.orgId, 'activityLogs'), where('module', '==', 'Loan'), orderBy('timestamp', 'desc'), limit(15))
+      // Fetch latest logs without where clause to avoid index requirement
+      const q = query(collection(db, 'organisations', user.orgId, 'activityLogs'), orderBy('timestamp', 'desc'), limit(100))
       const snap = await getDocs(q)
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      // Filter for 'Loan' module in memory
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(act => act.module === 'Loan')
+        .slice(0, 15)
     },
     enabled: !!user?.orgId
   })

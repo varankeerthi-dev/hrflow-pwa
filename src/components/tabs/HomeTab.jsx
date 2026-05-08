@@ -295,7 +295,7 @@ export default function HomeTab() {
   return (
     <div className="p-6 font-inter space-y-6">
       {/* Quick Access Grid */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="bg-white shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Access</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {quickAccessItems.map(item => {

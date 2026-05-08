@@ -76,16 +76,26 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (isOpen && step === 'entry') {
+    // Only initialize if data is empty and modal is open
+    // This prevents the 'Back' button from resetting already entered data
+    if (isOpen && Object.keys(data).length === 0) {
       const initial = {}
       employees.forEach(e => {
         initial[e.id] = { advance: '', expense: '', verified: false, name: e.name, empCode: e.empCode, designation: e.designation }
       })
       setData(initial)
       setHiddenEmps(new Set())
+    }
+  }, [isOpen, employees])
+
+  // Reset state when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setData({})
+      setStep('entry')
       setSearchTerm('')
     }
-  }, [isOpen, employees, step])
+  }, [isOpen])
 
   const handleUpdate = (empId, field, val) => {
     setData(prev => ({
