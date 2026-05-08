@@ -221,11 +221,20 @@ export default function Dashboard() {
     const saved = localStorage.getItem('isFeaturesExpanded')
     return saved === 'true'
   })
+  const [isReportsExpanded, setIsReportsExpanded] = useState(() => {
+    const saved = localStorage.getItem('isReportsExpanded')
+    return saved === 'true'
+  })
 
   // Persist Features expansion state
   useEffect(() => {
     localStorage.setItem('isFeaturesExpanded', isFeaturesExpanded)
   }, [isFeaturesExpanded])
+
+  // Persist Reports expansion state
+  useEffect(() => {
+    localStorage.setItem('isReportsExpanded', isReportsExpanded)
+  }, [isReportsExpanded])
 
   // Load Plus Jakarta Sans font (Enterprise SaaS design system)
   useEffect(() => {
@@ -271,8 +280,10 @@ export default function Dashboard() {
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
+    { id: 'reports', label: 'Reports', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Reports', children: ['attendance-reports'] },
     { id: 'accountant', label: 'Accountant', icon: <Banknote size={18} strokeWidth={1.75} />, module: 'Finance' },
     { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
+    { id: 'attendance-reports', label: 'Attendance Reports', icon: <FileText size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
     { id: 'help', label: 'Help', icon: <LifeBuoy size={18} strokeWidth={1.75} />, module: 'Settings' },
   ], [])
@@ -285,8 +296,8 @@ export default function Dashboard() {
     if (isAdmin) return allTabs
     
     return allTabs.filter(tab => {
-      // Always show home and portal
-      if (tab.id === 'home' || tab.id === 'portal') return true
+      // Always show home, portal, reports, and attendance reports
+      if (tab.id === 'home' || tab.id === 'portal' || tab.id === 'reports' || tab.id === 'attendance-reports') return true
       
       // Check module permissions
       const modulePerms = userPermissions[tab.module]
@@ -382,6 +393,33 @@ export default function Dashboard() {
 
         <div className="mt-auto pt-2 border-t border-gray-200/80 space-y-0.5">
           {visibleTabs.find(t => t.id === 'accountant') && renderMenuItem(visibleTabs.find(t => t.id === 'accountant'), activeTab === 'accountant', () => { setActiveTab('accountant'); setTabSearchParams({ tab: 'accountant' }); setIsMobileMenuOpen(false) })}
+          
+          {/* Reports Collapsible */}
+          {visibleTabs.find(t => t.id === 'reports') && (
+            <div>
+              <button
+                onClick={() => setIsReportsExpanded(!isReportsExpanded)}
+                className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+              >
+                <span className="shrink-0 text-gray-400 group-hover:text-indigo-600">
+                  <BarChart3 size={18} strokeWidth={2} />
+                </span>
+                {!isCollapsed && (
+                  <span className="text-[14px] font-semibold truncate leading-none flex-1 text-left">Reports</span>
+                )}
+                {!isCollapsed && (
+                  <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
+                )}
+              </button>
+              
+              {isReportsExpanded && (
+                <div className={`${isCollapsed ? 'ml-0 pl-0 border-l-0' : 'ml-3 pl-3 border-l-2 border-gray-100'} space-y-0.5`}>
+                  {visibleTabs.find(t => t.id === 'attendance-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'attendance-reports'), activeTab === 'attendance-reports', () => { setActiveTab('attendance-reports'); setTabSearchParams({ tab: 'attendance-reports' }); setIsMobileMenuOpen(false) }, '12px')}
+                </div>
+              )}
+            </div>
+          )}
+          
           {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { setActiveTab('settings'); setTabSearchParams({ tab: 'settings' }); setIsMobileMenuOpen(false) })}
           {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { setActiveTab('help'); setTabSearchParams({ tab: 'help' }); setIsMobileMenuOpen(false) })}
         </div>
@@ -418,6 +456,7 @@ export default function Dashboard() {
       case 'home': return <HomeTab onTabChange={(t) => { setActiveTab(t); setTabSearchParams({ tab: t }); }} />
       case 'attendance':
       case 'attendance-list': return <AttendanceTab />
+      case 'attendance-reports': return <AttendanceTab defaultSubTab="reports" />
       case 'correction': return <CorrectionTab />
       case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />

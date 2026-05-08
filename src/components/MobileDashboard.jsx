@@ -292,6 +292,7 @@ export default function MobileDashboard() {
       
       // Account modules
       { id: 'portal', label: 'My Portal', icon: <User className="h-4 w-4" />, module: 'EmployeePortal', color: 'text-indigo-400' },
+      { id: 'attendance-reports', label: 'Attendance Reports', icon: <BarChart3 className="h-4 w-4" />, module: 'Attendance', color: 'text-green-400' },
       { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400' },
       { id: 'help', label: 'HELP', icon: <LifeBuoy className="h-4 w-4" />, module: 'Settings', color: 'text-slate-400' },
     ], [stats.pendingCorrections, unreadChatCount, pendingTaskCount])
@@ -301,8 +302,8 @@ export default function MobileDashboard() {
     const isAdmin = user?.role?.toLowerCase() === 'admin'
     
     return allModules.filter(mod => {
-      // Always allow portal for logged in users
-      if (mod.id === 'portal') return true
+      // Always allow portal and attendance-reports for logged in users
+      if (mod.id === 'portal' || mod.id === 'attendance-reports') return true
       
       // Admin bypass
       if (isAdmin) return true
@@ -470,6 +471,8 @@ export default function MobileDashboard() {
         return renderHomeDashboard()
       case 'attendance':
         return <AttendanceTab />
+      case 'attendance-reports':
+        return <AttendanceTab defaultSubTab="reports" />
       case 'correction':
         return <CorrectionTab />
       case 'leave':

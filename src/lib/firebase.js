@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
 import { initializeFirestore, enableIndexedDbPersistence } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
@@ -14,6 +14,10 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
+// Set auth persistence to local (survives browser close)
+setPersistence(auth, browserLocalPersistence).catch(err => {
+  console.warn('Auth persistence warning:', err)
+})
 // Initialize Firestore with long polling to prevent ERR_BLOCKED_BY_CLIENT errors from ad-blockers
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,

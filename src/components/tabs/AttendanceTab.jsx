@@ -340,12 +340,12 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
   );
 }
 
-export default function AttendanceTab() {
+export default function AttendanceTab({ defaultSubTab }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId, true)
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
 
-  const [activeSubTab, setActiveSubTab] = useState('daily') // 'daily' or 'reports'
+  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' ? 'reports' : 'daily') // 'daily' or 'reports'
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
   
   // Reports Filter States
