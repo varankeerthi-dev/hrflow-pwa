@@ -53,14 +53,8 @@ export default function OrganizationSwitcher() {
     setIsLoading(true)
     setError('')
     try {
-      // Clear all cached data before switching
-      clearAllCachedData()
-      
       await switchOrganisation(orgId)
       setIsOpen(false)
-      
-      // Force a full page reload with cache bypass
-      window.location.href = window.location.origin + '/?nocache=' + Date.now()
     } catch (err) {
       setError(err.message || 'Failed to switch organization')
     } finally {
@@ -148,9 +142,6 @@ export default function OrganizationSwitcher() {
       await joinOrganisation(orgCode.trim())
       setShowJoinModal(false)
       setOrgCode('')
-      // Clear cache and reload with new org
-      clearAllCachedData()
-      window.location.href = window.location.origin + '/?nocache=' + Date.now()
     } catch (err) {
       setError(err.message || 'Failed to join organization')
       setIsLoading(false)
@@ -167,9 +158,6 @@ export default function OrganizationSwitcher() {
       await createOrganisation(orgName.trim())
       setShowCreateModal(false)
       setOrgName('')
-      // Clear cache and reload with new org
-      clearAllCachedData()
-      window.location.href = window.location.origin + '/?nocache=' + Date.now()
     } catch (err) {
       setError(err.message || 'Failed to create organization')
       setIsLoading(false)
@@ -191,11 +179,11 @@ export default function OrganizationSwitcher() {
       <div className="relative" ref={dropdownRef}>
         {/* Current Organization Button */}
         <button
-          onClick={() => canSwitch && setIsOpen(!isOpen)}
+          onClick={() => { if (canSwitch) setIsOpen(!isOpen); else setShowJoinModal(true) }}
           disabled={isLoading}
           className={`
             flex items-center gap-2 px-3 py-2 rounded-lg transition-all
-            ${canSwitch ? 'hover:bg-zinc-100 cursor-pointer' : 'cursor-default'}
+            ${canSwitch ? 'hover:bg-zinc-100 cursor-pointer' : 'hover:bg-zinc-100 cursor-pointer'}
             ${isLoading ? 'opacity-70' : ''}
             ${isOpen ? 'bg-zinc-100' : 'bg-white border border-zinc-200'}
           `}

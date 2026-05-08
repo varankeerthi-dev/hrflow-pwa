@@ -266,9 +266,13 @@ export default function Login() {
         user={user}
         memberships={user.memberships}
         onSelect={async (orgId) => {
-          await switchOrganisation(orgId)
-          // Use window.location for full page reload with cache bypass
-          window.location.href = window.location.origin + '/?nocache=' + Date.now()
+          try {
+            await switchOrganisation(orgId)
+            // Use replace: true to avoid history stack issues
+            navigate('/', { replace: true })
+          } catch (err) {
+            alert('Failed to switch: ' + err.message)
+          }
         }}
         onJoin={joinOrganisation}
         onCreate={createOrganisation}
@@ -278,7 +282,8 @@ export default function Login() {
   }
 
   if (user) {
-    navigate('/')
+    // Use redirect instead of navigate to avoid setState during render
+    window.location.href = '/'
     return null
   }
 

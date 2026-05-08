@@ -82,9 +82,16 @@ async function readUserDoc(uid, targetOrgId = null) {
           userData.permissions = roleDoc.data().permissions || defaultPermissions
         } else if (currentRole.toLowerCase() === 'admin') {
           userData.permissions = defaultPermissions
+        } else if (currentRole.toLowerCase() === 'employee') {
+          // Give employees basic permissions by default
+          const employeePerms = {}
+          modules.forEach(m => {
+            employeePerms[m] = { view: true, create: false, edit: false, delete: false, approve: false, export: true, full: false }
+          })
+          userData.permissions = employeePerms
         } else {
           // Minimal fallback for non-admin unknown roles
-          userData.permissions = {}
+          userData.permissions = defaultPermissions
         }
 
         // Sync currentOrgId back to Firestore if it changed or wasn't set
@@ -279,10 +286,13 @@ export function AuthProvider({ children }) {
     if (!user?.uid) return
     setLoading(true)
     try {
+      console.log('Switching to org:', orgId)
       const updatedUser = await readUserDoc(user.uid, orgId)
+      console.log('Switch result:', updatedUser)
       if (updatedUser) setUser(updatedUser)
     } catch (err) {
       console.error('switchOrganisation error:', err)
+      alert('Failed to switch organization: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -306,17 +316,22 @@ export function AuthProvider({ children }) {
       createdAt: new Date().toISOString(),
     }
 
-    const newMembership = { orgId: code, role: 'admin', orgName: orgName.trim() }
-    const updatedMemberships = [...memberships, newMembership]
+const newMembership = { orgId: code, role: 'admin', orgName: orgName.trim() }
+      const updatedMemberships = [...memberships, newMembership]
 
-    try {
-      if (!auth.currentUser) throw new Error('Session expired. Please log in again.')
-      
-      await setDoc(doc(db, 'organisations', code), orgData)
-      await setDoc(doc(db, 'users', firebaseUser.uid), { 
-        currentOrgId: code,
-        memberships: updatedMemberships 
-      }, { merge: true })
+      try {
+        if (!auth.currentUser) throw new Error('Session expired. Please log in again.')
+        
+        console.log('Creating org with memberships:', JSON.stringify(updatedMemberships))
+        await setDoc(doc(db, 'organisations', code), orgData)
+        await setDoc(doc(db, 'users', firebaseUser.uid), { 
+          currentOrgId: code,
+          memberships: updatedMemberships 
+        }, { merge: true })
+        
+        // Verify the save
+        const verifySnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+        console.log('Verified memberships after create:', verifySnap.data()?.memberships)
       
       const updatedUser = await readUserDoc(firebaseUser.uid, code)
       setUser(updatedUser)
@@ -347,10 +362,15 @@ export function AuthProvider({ children }) {
       const newMembership = { orgId: code.trim(), role: 'employee', orgName: orgData.name }
       const updatedMemberships = [...memberships, newMembership]
 
+      console.log('Saving memberships:', JSON.stringify(updatedMemberships))
       await setDoc(doc(db, 'users', firebaseUser.uid), { 
         currentOrgId: code.trim(),
         memberships: updatedMemberships 
       }, { merge: true })
+      
+      // Verify the save
+      const verifySnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+      console.log('Verified memberships:', verifySnap.data()?.memberships)
       
       const updatedUser = await readUserDoc(firebaseUser.uid, code.trim())
       setUser(updatedUser)
