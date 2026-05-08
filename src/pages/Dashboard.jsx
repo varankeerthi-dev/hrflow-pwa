@@ -283,7 +283,7 @@ export default function Dashboard() {
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Reports', children: ['attendance-reports'] },
     { id: 'accountant', label: 'Accountant', icon: <Banknote size={18} strokeWidth={1.75} />, module: 'Finance' },
     { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
-    { id: 'attendance-reports', label: 'Attendance Reports', icon: <FileText size={18} strokeWidth={1.75} />, module: 'Attendance' },
+    { id: 'attendance-reports', label: 'Attendance Reports', icon: null, module: 'Attendance' },
     { id: 'settings', label: 'Settings', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
     { id: 'help', label: 'Help', icon: <LifeBuoy size={18} strokeWidth={1.75} />, module: 'Settings' },
   ], [])
@@ -338,7 +338,7 @@ export default function Dashboard() {
       className={`w-full flex transition-all duration-200 group rounded-xl ${isCollapsed ? 'flex-col items-center justify-center py-2 gap-1' : 'items-center px-3 py-2.5 gap-3'} ${isActive ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
     >
       <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
-        {React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
+        {tab.icon && React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
       </span>
       <span 
         className={`font-semibold truncate transition-all duration-300 leading-none ${isActive ? 'text-white' : ''}`} 
@@ -414,7 +414,7 @@ export default function Dashboard() {
               
               {isReportsExpanded && (
                 <div className={`${isCollapsed ? 'ml-0 pl-0 border-l-0' : 'ml-3 pl-3 border-l-2 border-gray-100'} space-y-0.5`}>
-                  {visibleTabs.find(t => t.id === 'attendance-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'attendance-reports'), activeTab === 'attendance-reports', () => { setActiveTab('attendance-reports'); setTabSearchParams({ tab: 'attendance-reports' }); setIsMobileMenuOpen(false) }, '12px')}
+                  {visibleTabs.find(t => t.id === 'attendance-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'attendance-reports'), activeTab === 'attendance-reports', () => { setActiveTab('attendance-reports'); setTabSearchParams({ tab: 'attendance-reports' }); setIsMobileMenuOpen(false) }, '11px')}
                 </div>
               )}
             </div>

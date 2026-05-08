@@ -242,7 +242,10 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
         className={`relative flex items-center rounded-md border min-h-[32px] transition-all overflow-hidden ${error ? 'border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]' : 'border-gray-200'}`}
         style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
       >
-        <div className="flex-1 flex flex-col items-center min-w-0 py-0.5">
+        <div 
+          className="flex-1 flex flex-col items-center min-w-0 py-0.5 cursor-pointer"
+          onClick={(e) => { if (!disabled) onShowPicker(); }}
+        >
           <input
             type="text"
             value={tempValue}
@@ -258,20 +261,11 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
             disabled={disabled}
             data-row={rowIdx}
             data-field={field}
-            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7"
+            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-pointer"
             placeholder={placeholder || "--:--"}
           />
           {extra}
         </div>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onShowPicker(); }}
-          disabled={disabled}
-          className="pr-2 text-[14px] cursor-pointer hover:scale-125 transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Open time picker"
-        >
-          🕐
-        </button>
       </div>
       {error && <span className="text-[9px] text-red-500 font-bold uppercase leading-none text-center animate-in fade-in duration-300">{error}</span>}
     </div>
@@ -470,6 +464,8 @@ export default function AttendanceTab({ defaultSubTab }) {
   const [selectedEmps, setSelectedEmps] = useState([])
   const [showInTimePicker, setShowInTimePicker] = useState(null)
   const [showOutTimePicker, setShowOutTimePicker] = useState(null)
+  const inTimeCellRef = useRef(null)
+  const outTimeCellRef = useRef(null)
   const [validationErrors, setValidationErrors] = useState({})
 
   const [fixingHistory, setFixingHistory] = useState(false)
@@ -1047,14 +1043,7 @@ export default function AttendanceTab({ defaultSubTab }) {
       <div className="bg-white px-6 py-4 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-10 gap-[40px]">
         <div className="flex items-center gap-6">
           <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-            <button 
-              onClick={() => setActiveSubTab('daily')}
-              className={`px-4 py-1.5 text-[11px] font-black uppercase tracking-widest rounded-md transition-all ${activeSubTab === 'daily' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Daily Entry
-            </button>
-          </div>
+          
         </div>
         
         {/* Date & Action Bar moved here */}
@@ -1073,6 +1062,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                   selected={parseISO(selectedDate)}
                   onChange={(date) => setSelectedDate(formatDateForInput(date))}
                   dateFormat="dd MMM yyyy"
+                  popperClassName="z-[100]"
                   customInput={
                     <div className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none hover:bg-white hover:shadow-sm rounded-md transition-all">
                       {format(parseISO(selectedDate), 'dd MMM yyyy')}

@@ -1,40 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 
-export default function TimePicker({ value, onChange, onClose, anchorEl }) {
+export default function TimePicker({ value, onChange, onClose }) {
   // value is in 24h format "HH:mm" — internally uses 12h display, saves 24h
   const [hour, setHour] = useState('09');
   const [minute, setMinute] = useState('00');
   const [period, setPeriod] = useState('AM');
-  const [coords, setCoords] = useState({ top: 0, left: 0, origin: 'top' });
 
   const pickerRef = useRef(null);
   const hourRef = useRef(null);
   const minuteRef = useRef(null);
-
-  // Calculate position relative to anchorEl
-  useEffect(() => {
-    if (anchorEl) {
-      const rect = anchorEl.getBoundingClientRect();
-      
-      // Determine if it should open above or below
-      let top = rect.bottom + 4;
-      let left = rect.left + (rect.width / 2) - 85; // 85 is half of picker width (170)
-      let origin = 'top';
-
-      // Prevent going off screen right
-      if (left + 170 > window.innerWidth) left = window.innerWidth - 180;
-      if (left < 10) left = 10;
-
-      // If near bottom, open above
-      if (top + 250 > window.innerHeight) {
-        top = rect.top - 240;
-        origin = 'bottom';
-      }
-
-      setCoords({ top, left, origin });
-    }
-  }, [anchorEl]);
 
   // Parse incoming 24h value to 12h state
   useEffect(() => {
@@ -99,15 +73,11 @@ export default function TimePicker({ value, onChange, onClose, anchorEl }) {
     setPeriod(p);
   };
 
-  const pickerContent = (
+  return (
     <div
       ref={pickerRef}
-      className={`fixed z-[9999] bg-white rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)] border border-zinc-200 font-['Roboto',sans-serif] animate-in fade-in zoom-in-95 duration-200 origin-${coords.origin}`}
-      style={{ 
-        width: '170px', 
-        top: coords.top, 
-        left: coords.left 
-      }}
+      className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white rounded-xl shadow-lg border border-zinc-200 font-['Roboto',sans-serif] animate-in fade-in zoom-in-95 duration-200"
+      style={{ width: '170px' }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header preview */}
@@ -154,6 +124,4 @@ export default function TimePicker({ value, onChange, onClose, anchorEl }) {
       </div>
     </div>
   );
-
-  return createPortal(pickerContent, document.body);
 }
