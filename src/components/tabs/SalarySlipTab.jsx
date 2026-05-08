@@ -375,6 +375,94 @@ export default function SalarySlipTab() {
   const [advExpRows, setAdvExpRows] = useState([])
   const [paySummaryDates, setPaySummaryDates] = useState({ sundays: [], holidays: [], leaves: [] })
 
+  // --- LOAN STATES ---
+  const [loanActiveModule, setLoanActiveModule] = useState('Active Schedules')
+  const [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' })
+  const [editingLoanId, setEditingLoanId] = useState(null)
+  const [selectedLoan, setSelectedLoan] = useState(null)
+  const [overrideForm, setOverrideForm] = useState({ month: selectedMonth, amount: '', skip: false })
+
+  // --- LOAN QUERIES ---
+  const { data: loans = [], refetch: refetchLoans } = useQuery({
+    queryKey: ['loans', user?.orgId],
+    queryFn: async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))
+      const snap = await getDocs(q)
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    },
+    enabled: !!user?.orgId
+  })
+
+  const { data: loanActivities = [] } = useQuery({
+    queryKey: ['loanActivities', user?.orgId],
+    queryFn: async () => {
+      const q = query(collection(db, 'organisations', user.orgId, 'activityLogs'), where('module', '==', 'Loan'), orderBy('timestamp', 'desc'), limit(15))
+      const snap = await getDocs(q)
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    },
+    enabled: !!user?.orgId
+  })
+
+  const handleCreateLoan = async () => {
+    if (!loanForm.employeeId || !loanForm.totalAmount || !loanForm.emiAmount) return alert('Fill required fields')
+    setLoading(true)
+    try {
+      const emp = employees.find(e => e.id === loanForm.employeeId)
+      const payload = {
+        ...loanForm,
+        employeeName: emp?.name,
+        remainingAmount: Number(loanForm.totalAmount),
+        status: 'Active',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }
+      if (editingLoanId) {
+        await updateDoc(doc(db, 'organisations', user.orgId, 'loans', editingLoanId), payload)
+        await logActivity(user.orgId, user, { module: 'Loan', action: 'Updated', detail: `Updated loan schedule for ${emp.name}` })
+      } else {
+        await addDoc(collection(db, 'organisations', user.orgId, 'loans'), payload)
+        await logActivity(user.orgId, user, { module: 'Loan', action: 'Created', detail: `Activated new loan for ${emp.name} - ₹${loanForm.totalAmount}` })
+      }
+      alert('Loan schedule saved!')
+      setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' })
+      setEditingLoanId(null)
+      setLoanActiveModule('Active Schedules')
+      refetchLoans()
+    } catch (e) { alert(e.message) } finally { setLoading(false) }
+  }
+
+  const handleEditLoan = (l) => {
+    setEditLoanForm({ employeeId: l.employeeId, totalAmount: l.totalAmount, emiAmount: l.emiAmount, remarks: l.remarks })
+    setEditingLoanId(l.id)
+    setLoanActiveModule('Configuration')
+  }
+
+  const handleDeleteLoan = async (id, name) => {
+    if (!window.confirm(`Delete loan schedule for ${name}?`)) return
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, 'loans', id), { status: 'Deleted', updatedAt: serverTimestamp() })
+      await logActivity(user.orgId, user, { module: 'Loan', action: 'Deleted', detail: `Cancelled loan recovery for ${name}` })
+      refetchLoans()
+    } catch (e) { alert(e.message) }
+  }
+
+  const handleUpdateOverride = async (loanId) => {
+    if (!overrideForm.month || (!overrideForm.skip && !overrideForm.amount)) return alert('Fill adjustment details')
+    try {
+      const docId = `${loanId}_${overrideForm.month}`
+      await setDoc(doc(db, 'organisations', user.orgId, 'loanOverrides', docId), {
+        loanId,
+        month: overrideForm.month,
+        amount: overrideForm.skip ? 0 : Number(overrideForm.amount),
+        skip: overrideForm.skip,
+        updatedAt: serverTimestamp()
+      })
+      alert('Adjustment applied!')
+      setSelectedLoan(null)
+      setOverrideForm({ month: selectedMonth, amount: '', skip: false })
+    } catch (e) { alert(e.message) }
+  }
+
   useEffect(() => {
     if (!user?.orgId || !user?.uid) return
     const fetchUserSettings = async () => {
@@ -1711,11 +1799,164 @@ export default function SalarySlipTab() {
           </div>
         )}
         {activeTab === 'loan' && (
-          <div className="flex-1 overflow-auto flex flex-col items-center justify-center p-20 bg-slate-50/50">
-            <div className="w-20 h-20 bg-slate-100 rounded-3xl border-2 border-slate-200 flex items-center justify-center mb-6 shadow-inner"><Wallet size={40} className="text-slate-300" /></div>
-            <p className="text-[13px] font-black uppercase tracking-[0.2em] text-slate-400 text-center max-w-sm leading-relaxed">Loan Configuration & Recovery Module under development...</p>
-        </div>
-      )}
+          <div className="max-w-full space-y-4 flex flex-col h-full overflow-hidden">
+            <div className="flex border-b border-gray-200 overflow-x-auto shrink-0 bg-white">
+              {['Configuration', 'Active Schedules', 'Activity'].map(mod => {
+                const isActive = loanActiveModule === mod
+                return (
+                  <button
+                    key={mod}
+                    onClick={() => setLoanActiveModule(mod)}
+                    className={`whitespace-nowrap px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all ${
+                      isActive ? 'border-b-2 border-indigo-600 text-indigo-700 bg-indigo-50/50' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                    }`}
+                  >
+                    {mod}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex-1 overflow-auto p-4">
+              {loanActiveModule === 'Configuration' && (
+                <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">      
+                  <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden">       
+                    <div className="p-6 bg-slate-950 text-white flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-black uppercase font-google-sans tracking-tight">Loan Setup</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Lifecycle tracking for advances</p>
+                      </div>
+                      <Settings className="text-indigo-500" size={24} />
+                    </div>
+                    <div className="p-8 space-y-6">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Employee</label>
+                        <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 transition-all">
+                          <option value="">Choose Employee...</option>
+                          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Principal Amount (₹)</label>
+                          <input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 font-black bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none text-indigo-600 text-lg" placeholder="0.00" />    
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monthly EMI (₹)</label>
+                          <input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 font-black bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-lg" placeholder="0.00" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Recovery Remarks</label>
+                        <input type="text" value={loanForm.remarks} onChange={e => setEditLoanForm({...loanForm, remarks: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-600" placeholder="Reason for loan..." />
+                      </div>
+                      <div className="pt-4 flex gap-4">
+                        <button onClick={() => { setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' }); setEditingLoanId(null); setLoanActiveModule('Active Schedules'); }} className="flex-1 h-12 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[11px] tracking-widest hover:bg-slate-200 transition-all">Cancel</button>
+                        <button onClick={handleCreateLoan} disabled={loading} className="flex-2 h-12 bg-indigo-600 text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 active:scale-95 transition-all">
+                          {editingLoanId ? 'Update Recovery Plan' : 'Activate Loan Schedule'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {loanActiveModule === 'Active Schedules' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="bg-white rounded-[32px] border border-gray-200 shadow-xl overflow-hidden">    
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse font-inter">
+                        <thead>
+                          <tr className="bg-slate-950 text-[10px] font-black uppercase tracking-widest text-slate-400 h-14">
+                            <th className="px-8 border-r border-slate-800">Employee</th>
+                            <th className="px-8 border-r border-slate-800 text-right">Remaining Principal</th>  
+                            <th className="px-8 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {loans.length === 0 ? (
+                            <tr><td colSpan={3} className="px-8 py-20 text-center text-slate-300 font-black uppercase tracking-widest italic opacity-50">No active recovery schedules</td></tr>
+                          ) : loans.map(l => (
+                            <tr key={l.id} className="hover:bg-slate-50/50 transition-colors h-16 group">       
+                              <td className="px-8 border-r border-slate-50 font-black text-slate-900 text-sm uppercase">{l.employeeName}</td>
+                              <td className="px-8 border-r border-slate-50 text-right font-black text-emerald-600 text-base tabular-nums">{formatINR(l.remainingAmount)}</td>
+                              <td className="px-8 text-right">
+                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                  <button onClick={() => handleEditLoan(l)} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm" title="Edit Schedule"><Edit2 size={16}/></button>
+                                  <button onClick={() => setSelectedLoan(l)} className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm" title="Manual Override"><RefreshCw size={16}/></button>
+                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm" title="Delete Plan"><Trash2 size={16}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {selectedLoan && (
+                    <div className="bg-white rounded-[32px] border-2 border-amber-400 p-8 shadow-2xl animate-in slide-in-from-top-4 duration-500 max-w-4xl mx-auto">
+                      <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-amber-100 rounded-2xl text-amber-700"><Info size={24}/></div>  
+                          <div>
+                            <h3 className="font-black text-slate-900 uppercase font-google-sans tracking-tight">Manual Override</h3>
+                            <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">Adjusting: {selectedLoan.employeeName}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => setSelectedLoan(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all"><X size={20}/></button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Month</label>
+                          <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-12 border border-slate-200 rounded-2xl px-4 font-black text-slate-800 bg-slate-50 focus:ring-2 focus:ring-amber-500 outline-none"/>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Override EMI (₹)</label>
+                          <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-12 border border-slate-200 rounded-2xl px-4 font-black text-indigo-600 bg-slate-50 focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-50"/>
+                        </div>
+                        <div className="flex items-center gap-3 h-12 bg-amber-50 px-4 rounded-2xl border border-amber-100">
+                          <input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-5 h-5 rounded-lg text-amber-600 border-amber-300 focus:ring-amber-500 transition-all"/>
+                          <label htmlFor="skipEMI" className="text-[11px] font-black text-amber-700 uppercase cursor-pointer">Skip EMI</label>
+                        </div>
+                        <button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-12 bg-amber-600 text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-lg shadow-amber-600/20 hover:bg-amber-700 active:scale-95 transition-all">Apply Adjustment</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {loanActiveModule === 'Activity' && (
+                <div className="max-w-3xl mx-auto space-y-4 animate-in fade-in duration-500">
+                  <div className="bg-white rounded-[32px] border border-gray-200 shadow-xl overflow-hidden p-8">
+                    <div className="flex items-center gap-3 mb-8">
+                      <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600"><History size={24}/></div>  
+                      <h3 className="text-xl font-black text-slate-900 uppercase font-google-sans tracking-tight">Recent Activity</h3>
+                    </div>
+                    <div className="space-y-6 relative">
+                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100"></div>
+                      {loanActivities.map((act, i) => (
+                        <div key={act.id} className="relative pl-10">
+                          <div className={`absolute left-2.5 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm transition-colors ${
+                            act.action === 'Deleted' ? 'bg-rose-500' : act.action === 'Updated' ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`}></div>
+                          <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 hover:border-indigo-200 transition-all">
+                            <div className="flex justify-between items-start gap-4">
+                              <span className="text-[13px] font-bold text-slate-800 leading-relaxed">{act.detail}</span>
+                              <span className="text-[9px] font-black text-slate-400 uppercase whitespace-nowrap bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
+                                {act.timestamp?.toDate ? act.timestamp.toDate().toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) : 'Just now'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
     </div>
       
       {/* OT Escalation Modal */}
