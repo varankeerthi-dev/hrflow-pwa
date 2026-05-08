@@ -244,17 +244,18 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
   return (
     <div className="flex flex-col w-full gap-1">
       <div 
-        className={`relative flex items-center rounded-md border min-h-[32px] transition-all overflow-hidden ${error ? 'border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]' : 'border-gray-200'}`}
+        className={`relative flex items-center rounded-md border min-h-[32px] transition-all ${error ? 'border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]' : 'border-gray-200'}`}
         style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
       >
         <div 
           className="flex-1 flex flex-col items-center min-w-0 py-0.5 cursor-text"
         >
-          <input
-            type="text"
-            value={tempValue}
-            onChange={(e) => { setTempValue(e.target.value); setIsEditing(true); }}
-            onFocus={(e) => { 
+          <div className="relative group w-full">
+            <input
+              type="text"
+              value={tempValue}
+              onChange={(e) => { setTempValue(e.target.value); setIsEditing(true); }}
+              onFocus={(e) => { 
               setIsEditing(true); 
               e.target.select();
             }}
@@ -267,8 +268,11 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
             data-field={field}
             className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-text"
             placeholder={placeholder || "--:--"}
-          />
-          {extra}
+            />
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-gray-500 bg-gray-800/50 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+              Type 08a for 08:00 AM, 1210p for 12:10 PM
+            </span>
+          </div>
         </div>
         <button
           type="button"
@@ -1091,9 +1095,8 @@ export default function AttendanceTab({ defaultSubTab }) {
                 </button>
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-bold leading-tight">
-                  <span className="text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</span>
-                  <span className="text-gray-600"> {formatDate(selectedDate).split(' ').slice(1).join(' ')}</span>
+                <span className="text-lg font-bold leading-tight text-indigo-600">
+                  {formatDate(selectedDate).split(' ')[0]}
                 </span>
                 {(isSunday || isConfiguredHoliday) && (
                   <div className="flex items-center gap-2">
