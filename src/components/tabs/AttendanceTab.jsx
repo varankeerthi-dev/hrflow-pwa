@@ -1057,7 +1057,7 @@ export default function AttendanceTab({ defaultSubTab }) {
   return (
     <div className="flex flex-col h-full gap-3" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {/* Title Header - Sticky */}
-      <div className="bg-white px-6 py-4 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-10 gap-[40px]">
+      <div className="bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-10 gap-[40px]">
         <div className="flex items-center gap-6">
           <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
           
@@ -1146,28 +1146,6 @@ export default function AttendanceTab({ defaultSubTab }) {
 
       {activeSubTab === 'daily' ? (
         <>
-          {/* Submit Records Button - Above Table */}
-          {hasGenerated && rows.length > 0 && (
-            <div className="flex justify-end items-center gap-4 mb-3 px-1">
-              <div className="flex gap-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday).length}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Absent: {rows.filter(r => r.isAbsent).length}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                {saved && <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium" style={{ fontFamily: "'Inter', sans-serif" }}><Check size={14} /> Submitted successfully</div>}
-                <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="h-9 px-5 bg-emerald-600 text-white font-medium rounded-lg text-xs shadow-md hover:bg-emerald-700 transition-all disabled:opacity-50" style={{ fontFamily: "'Inter', sans-serif" }}>
-                  {saving ? 'Processing...' : 'Submit Records'}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Main Table Card */}
           <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
             <div className="overflow-x-visible pb-[400px]">
@@ -1190,8 +1168,8 @@ export default function AttendanceTab({ defaultSubTab }) {
                           </div>
                         </div>
                       </th>
-                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[80px] bg-orange-50" style={{ color: '#da7025' }}>In</th>
-                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[80px] bg-orange-50" style={{ color: '#da7025' }}>Out</th>
+                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[95px] bg-orange-50" style={{ color: '#da7025' }}>In Time</th>
+                    <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[95px] bg-orange-50" style={{ color: '#da7025' }}>Out Time</th>
                     <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[50px] bg-orange-50" style={{ color: '#da7025' }}>OT</th>
                     <th className="px-0 text-xs font-semibold uppercase tracking-wider text-center w-[120px] bg-orange-50" style={{ color: '#da7025' }}>{remarksLabel}</th>
                     <th className="px-0 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>Status</th>
@@ -1205,7 +1183,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                     <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium text-lg">Ready to generate attendance</td></tr>
                   ) : (
                     rows.map((row, idx) => (
-                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[48px]' : 'h-[40px]'}`}>
+                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[56px]' : 'h-[40px]'}`}>
                         <td className="px-4">
                           {row.employeeId ? (
                             <div className="flex items-center gap-2">
@@ -1283,7 +1261,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                             )}
                           </div>
                         </td>
-                        <td className="px-3 text-center">
+                        <td className="px-3 text-center align-top">
                           <div className="flex items-center justify-center relative flex-col">
                             <TimeEditableCell
                               value={row.outTime}
@@ -1295,13 +1273,13 @@ export default function AttendanceTab({ defaultSubTab }) {
                               field="outTime"
                               placeholder="09:00 PM"
                               error={validationErrors[row.employeeId]}
-                              extra={(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime && (
-                                <div className="flex items-center gap-1 text-[9px] text-orange-600/70 font-bold whitespace-nowrap pr-1">
-                                  <ArrowRight size={8} />
-                                  <span>{displayShortDate(row.outDate)}</span>
-                                </div>
-                              )}
                             />
+                            {(row.shiftType === 'Night' || row.shiftType === 'DN') && (
+                              <div className="flex items-center gap-1 text-[9px] text-orange-600/70 font-bold whitespace-nowrap mt-0.5">
+                                <ArrowRight size={8} />
+                                <span>{displayShortDate(row.outDate)}</span>
+                              </div>
+                            )}
                             {showOutTimePicker === row.employeeId && (
                               <TimePicker
                                 value={row.outTime || '21:00'}
@@ -1399,7 +1377,7 @@ export default function AttendanceTab({ defaultSubTab }) {
           </div>
 
           {/* Bottom Footer Card - Stats and Submit Button */}
-          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center sticky bottom-0">
+          <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center sticky bottom-0 z-40">
             <div className="flex gap-6 px-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>

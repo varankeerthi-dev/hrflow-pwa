@@ -582,11 +582,11 @@ export default function Dashboard() {
         </aside>
         <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
           <main className="flex-1 overflow-auto bg-[#F8FAFC] relative flex flex-col">
-            <ErrorBoundary>
-              <div className="w-full flex-1 p-4">
-                {renderTabContent()}
-              </div>
-            </ErrorBoundary>
+<ErrorBoundary>
+                <div className="w-full max-w-[1200px] mx-auto flex-1 p-4">
+                  {renderTabContent()}
+                </div>
+              </ErrorBoundary>
           </main>
         </div>
       </div>
