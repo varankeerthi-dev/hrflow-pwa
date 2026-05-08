@@ -1158,14 +1158,14 @@ export default function AttendanceTab({ defaultSubTab }) {
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-[73px] z-10 bg-gray-50">
                   <tr className="h-10 border-b border-gray-200">
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[22%]">Employee Name</th>
-                    <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[80px]">Shift</th>
-                    <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[100px]">In Time</th>
-                    <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[100px]">Out Time</th>
-                    <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center w-[60px]">OT</th>
-                    <th className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[15%]">{remarksLabel}</th>
-                    <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right w-[120px]">Status</th>
-                    <th className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[40px]"></th>
+                    <th className="px-4 text-xs font-semibold uppercase tracking-wider text-left w-[22%] bg-orange-50" style={{ color: '#da7025' }}>Employee Name</th>
+                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-left w-[80px] bg-orange-50" style={{ color: '#da7025' }}>Shift</th>
+                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>In Time</th>
+                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>Out Time</th>
+                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[60px] bg-orange-50" style={{ color: '#da7025' }}>OT</th>
+                    <th className="px-3 text-xs font-semibold uppercase tracking-wider text-center w-[15%] bg-orange-50" style={{ color: '#da7025' }}>{remarksLabel}</th>
+                    <th className="px-4 text-xs font-semibold uppercase tracking-wider text-center w-[120px] bg-orange-50" style={{ color: '#da7025' }}>Status</th>
+                    <th className="px-2 text-xs font-semibold uppercase tracking-wider w-[40px] bg-orange-50" style={{ color: '#da7025' }}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1197,7 +1197,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                         </td>
                         <td className="px-3 text-center">
                           <div
-                            className={`relative w-[72px] h-6 rounded-full transition-all duration-200 shadow-sm ${
+                            className={`relative w-[72px] h-6 rounded-md transition-all duration-200 shadow-sm ${
                               row.isAbsent || row.status === 'SunHoliday' || !row.employeeId ? 'opacity-50 cursor-not-allowed' : ''
                             } ${
                               row.shiftType === 'DN' ? 'bg-indigo-600' : row.shiftType === 'Night' ? 'bg-slate-700' : 'bg-emerald-500'
@@ -1224,10 +1224,10 @@ export default function AttendanceTab({ defaultSubTab }) {
                               </>
                             )}
 
-                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200 pointer-events-none ${
+                            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 pointer-events-none ${
                               row.shiftType === 'Night' ? 'left-[49.5px]' : row.shiftType === 'DN' ? 'left-[26px]' : 'left-0.5'
                             }`}></span>
-                            <span className={`absolute top-1 text-[9px] font-black tracking-tight pointer-events-none ${
+                            <span className={`absolute top-1.5 text-[9px] font-black tracking-tight pointer-events-none ${
                               row.shiftType === 'Night' ? 'left-1.5 text-white' : row.shiftType === 'DN' ? 'left-1.5 text-white' : 'right-2 text-white'
                             }`} style={{ fontFamily: "'Inter', sans-serif" }}>
                               {row.shiftType === 'Night' ? 'NIGHT' : row.shiftType === 'DN' ? 'D+N' : 'DAY'}
