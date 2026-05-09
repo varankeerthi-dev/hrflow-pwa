@@ -1055,7 +1055,7 @@ export default function AttendanceTab({ defaultSubTab }) {
   }
 
   return (
-    <div className="flex flex-col h-full gap-3" style={{ fontFamily: "'Roboto', sans-serif" }}>
+    <div className="flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {/* Title Header - Sticky */}
       <div className="bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-10 gap-[40px]">
         <div className="flex items-center gap-6">
@@ -1377,8 +1377,8 @@ export default function AttendanceTab({ defaultSubTab }) {
           </div>
 
           {/* Bottom Footer Card - Stats and Submit Button */}
-          <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center sticky bottom-0 z-40">
-            <div className="flex gap-6 px-4">
+          <div className="fixed left-1/2 bottom-4 -translate-x-1/2 bg-white border border-gray-200 shadow-lg flex justify-between items-center z-50" style={{ width: '1168px', height: '53.6px', paddingLeft: '100px', paddingRight: '16px', borderRadius: '14px' }}>
+            <div className="flex gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Present: {rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</span>
@@ -1392,7 +1392,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                 <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>Total: {rows.filter(r => !r.isPlaceholder).length}</span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 min-w-[280px]">
               <div className="text-xs text-gray-400 italic">
                 {hasGenerated ? 'Records ready to submit' : 'Click "Generate Active" to populate'}
               </div>
