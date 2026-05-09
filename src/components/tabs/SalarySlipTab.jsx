@@ -421,6 +421,8 @@ export default function SalarySlipTab() {
   const [isOtModalOpen, setIsOtModalOpen] = useState(false)
   const [variablePayData, setVariablePayData] = useState({})
   const [variableEntryDate, setVariableEntryDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [showAddVariable, setShowAddVariable] = useState(false)
+  const [newVariable, setNewVariable] = useState({ employeeId: '', date: '', food: '', convenience: '', bonus: '' })
   const [downloadAllLoading, setDownloadAllLoading] = useState(false)
   const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
   const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
@@ -437,7 +439,7 @@ export default function SalarySlipTab() {
   const [loanForm, setEditLoanForm] = useState({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' })
   const [editingLoanId, setEditingLoanId] = useState(null)
   const [selectedLoan, setSelectedLoan] = useState(null)
-  const [overrideForm, setOverrideForm] = useState({ month: selectedMonth, amount: '', skip: false })
+  const [overrideForm, setOverrideForm] = useState({ month: new Date().toISOString().slice(0, 7), amount: '', skip: false })
 
   // --- LOAN QUERIES ---
   const { data: loans = [], refetch: refetchLoans } = useQuery({
@@ -464,6 +466,30 @@ export default function SalarySlipTab() {
     },
     enabled: !!user?.orgId
   })
+
+  const { data: loanOverrides = [] } = useQuery({
+    queryKey: ['loanOverrides', user?.orgId],
+    queryFn: async () => {
+      const snap = await getDocs(collection(db, 'organisations', user.orgId, 'loanOverrides'))
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    },
+    enabled: !!user?.orgId
+  })
+
+  // Pre-populate override form when loan is selected
+  useEffect(() => {
+    if (selectedLoan && loanOverrides) {
+      const thisMonth = new Date().toISOString().slice(0, 7)
+      const existingOverride = loanOverrides.find(o => o.loanId === selectedLoan.id && o.month === thisMonth)
+      setOverrideForm({
+        month: thisMonth,
+        amount: existingOverride ? existingOverride.amount : (selectedLoan.emiAmount || ''),
+        skip: existingOverride ? existingOverride.skip : false
+      })
+    }
+  }, [selectedLoan, loanOverrides])
+
+  const [loanHistoryFilter, setLoanHistoryFilter] = useState({ employeeId: '', month: '' })
 
   const handleCreateLoan = async () => {
     if (!loanForm.employeeId || !loanForm.totalAmount || !loanForm.emiAmount) return alert('Fill required fields')
@@ -521,7 +547,7 @@ export default function SalarySlipTab() {
       })
       alert('Adjustment applied!')
       setSelectedLoan(null)
-      setOverrideForm({ month: selectedMonth, amount: '', skip: false })
+      setOverrideForm({ month: new Date().toISOString().slice(0, 7), amount: '', skip: false })
     } catch (e) { alert(e.message) }
   }
 
@@ -604,15 +630,7 @@ export default function SalarySlipTab() {
     queryFn: async () => {
       const q = query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', summaryMonth));
       const snap = await getDocs(q);
-      const sums = {};
-      snap.docs.forEach(d => {
-        const row = d.data();
-        if (!sums[row.employeeId]) sums[row.employeeId] = { food: 0, convenience: 0, bonus: 0 };
-        sums[row.employeeId].food += Number(row.food || 0);
-        sums[row.employeeId].convenience += Number(row.convenience || 0);
-        sums[row.employeeId].bonus += Number(row.bonus || 0);
-      });
-      return sums;
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(v => v.food || v.convenience || v.bonus);
     },
     enabled: !!user?.orgId
   });
@@ -620,12 +638,15 @@ export default function SalarySlipTab() {
   const saveVariablesMutation = useMutation({
     mutationFn: async (data) => {
       const batch = [];
-      const currentMonth = variableEntryDate.substring(0, 7); // YYYY-MM
       for (const [empId, values] of Object.entries(data)) {
-        const docId = `${variableEntryDate}_${empId}`;
+        const entryDate = values.date || variableEntryDate;
+        const currentMonth = entryDate.substring(0, 7);
+        const emp = sortedEmployees.find(e => e.id === empId)
+        const docId = `${entryDate}_${empId}`;
         batch.push(setDoc(doc(db, 'organisations', user.orgId, 'variablePayLogs', docId), {
           employeeId: empId,
-          date: variableEntryDate,
+          employeeName: emp?.name || values.employeeName || '',
+          date: entryDate,
           month: currentMonth,
           food: Number(values.food || 0),
           convenience: Number(values.convenience || 0),
@@ -640,9 +661,20 @@ export default function SalarySlipTab() {
       queryClient.invalidateQueries(['dailyVariablePay']);
       queryClient.invalidateQueries(['monthlyVariableSums']);
       queryClient.invalidateQueries(['attendanceSummary']);
-      alert('Variable pay logs saved successfully!');
+      alert('Variable pay saved successfully!');
     },
-    onError: (err) => alert('Failed to save logs: ' + err.message)
+    onError: (err) => alert('Failed to save: ' + err.message)
+  });
+
+  const deleteVariableMutation = useMutation({
+    mutationFn: async (docId) => {
+      await deleteDoc(doc(db, 'organisations', user.orgId, 'variablePayLogs', docId));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['monthlyVariableSums']);
+      queryClient.invalidateQueries(['attendanceSummary']);
+    },
+    onError: (err) => alert('Failed to delete: ' + err.message)
   });
 
   const handleVariableChange = (empId, field, value) => {
@@ -757,11 +789,12 @@ export default function SalarySlipTab() {
           if (isS) sunCount++
 if (isH) { holCount++; holDatesList.push(i); }
 
-          // Sandwich: if already applied as deduction, count as LOP
-          if (!emp.hideInAttendance && (isS || isH || (isSat && isSaturdayHoliday)) && !isWorkedAttendanceRecord(r)) {
-            if (appliedForThisEmp.some(s => s.date === dateStr)) {
+          // Sandwich: if sandwich rule applied on a worked Sunday/Holiday (including sundayWorked/holidayWorked), count as LOP
+          if (!emp.hideInAttendance && (isS || isH || (isSat && isSaturdayHoliday))) {
+            const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked';
+            if (isPresent && appliedForThisEmp.some(s => s.date === dateStr)) {
               lop++; lopDatesList.push(i);
-              continue;
+              continue; // Skip - no Sunday/Holiday pay, counted as LOP
             }
           }
           
@@ -771,7 +804,13 @@ if (isH) { holCount++; holDatesList.push(i); }
           if (status === 'absent' || r?.isAbsent || status === 'leave') { lop++; lopDatesList.push(i); }
           else if (isHD) { 
             hd++; lop += 0.5; lopDatesList.push(i);
-            if (isS) { sunW += 0.5; sunWDatesList.push(i); } else if (isH) { holW += 0.5; holWDatesList.push(i); } else worked += 0.5;
+            // If sandwich rule applied on half-day Sunday/Holiday, don't count as worked (count as LOP instead)
+            const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked';
+            if ((isS || isH) && appliedForThisEmp.some(s => s.date === dateStr)) {
+              // Sandwich rule applies - don't add to sunW/holW, already counted as LOP above
+            } else {
+              if (isS) { sunW += 0.5; sunWDatesList.push(i); } else if (isH) { holW += 0.5; holWDatesList.push(i); } else worked += 0.5;
+            }
           } 
           else if (isS) { if (isPresent) { sunW++; sunWDatesList.push(i); } }
           else if (isH) { if (isPresent) { holW++; holWDatesList.push(i); } }
@@ -787,16 +826,26 @@ if (isH) { holCount++; holDatesList.push(i); }
             if (otHrs > 0) otDatesList.push({ date: i, hours: otHrs.toFixed(2) });
           }
         }
-        // Calculate sandwich Sundays count
+// Calculate sandwich Sundays count
         const sandwichSundays = appliedForThisEmp.filter(s => {
           const date = new Date(s.date);
           return date.getDay() === 0; // Sunday
         }).length;
         
+        // Calculate sandwich Holidays count (for current month)
+        const sandwichHolidays = appliedForThisEmp.filter(s => {
+          const dateStr = s.date?.substring(0, 7);
+          return dateStr === summaryMonth && new Date(s.date).getDay() !== 0; // Not Sunday = Holiday
+        }).length;
+
+        // Adjust worked days: exclude sandwich Sundays/Holidays from Sunday/Holiday pay
+        const adjustedSunW = Math.max(0, sunW - sandwichSundays);
+        const adjustedHolW = Math.max(0, holW - sandwichHolidays);
+        
         const slab = increments?.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20 };
         const ts = Number(slab.totalSalary) || 0, paidDays = end - lop, dailyRate = ts / end, fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
         const shiftH = Number(emp.minDailyHours) || 8
-        const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = sunW * dailyRate, holPay = holW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / shiftH)
+        const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = adjustedSunW * dailyRate, holPay = adjustedHolW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / shiftH)
         
         const empVar = allVariables[emp.id] || {};
         const foodP = Number(empVar.food || 0), convP = Number(empVar.convenience || 0), bonusP = Number(empVar.bonus || 0);
@@ -806,7 +855,7 @@ if (isH) { holCount++; holDatesList.push(i); }
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
         const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, sandwichSundays, food: foodP, convenience: convP, bonus: bonusP }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW: adjustedSunW, holW: adjustedHolW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, sandwichSundays, sandwichHolidays, food: foodP, convenience: convP, bonus: bonusP }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -1142,6 +1191,39 @@ if (isH) { holCount++; holDatesList.push(i); }
   const [detectedSandwiches, setDetectedSandwiches] = useState([]);
   const [detectingSandwiches, setDetectingSandwiches] = useState(false);
   const [sandwichIncludeFuture, setSandwichIncludeFuture] = useState(false);
+  const [showManualSandwichModal, setShowManualSandwichModal] = useState(false);
+  const [manualSandwichEntry, setManualSandwichEntry] = useState({ employeeId: '', date: '', type: 'Sunday' });
+
+  const addManualSandwichMutation = useMutation({
+    mutationFn: async () => {
+      const { employeeId, date, type } = manualSandwichEntry;
+      if (!employeeId || !date) {
+        throw new Error('Please select employee and date');
+      }
+      const emp = employees.find(e => e.id === employeeId);
+      const entryDate = date;
+      const currentMonth = entryDate.substring(0, 7);
+      const docId = `${currentMonth}_${employeeId}_${entryDate}`;
+      await setDoc(doc(db, 'organisations', user.orgId, 'sandwichDeductions', docId), {
+        employeeId,
+        employeeName: emp?.name || '',
+        month: currentMonth,
+        date: entryDate,
+        type,
+        isManual: true,
+        appliedAt: serverTimestamp(),
+        appliedBy: user.uid
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['attendanceSummary']);
+      queryClient.invalidateQueries(['sandwichHistory']);
+      setShowManualSandwichModal(false);
+      setManualSandwichEntry({ employeeId: '', date: '', type: 'Sunday' });
+      alert('Sandwich rule added successfully!');
+    },
+    onError: (err) => alert('Failed to add: ' + err.message)
+  });
   
   const detectSandwiches = async () => {
     if (!user?.orgId || !attendanceSummaryData.length) return;
@@ -1470,9 +1552,9 @@ if (isH) { holCount++; holDatesList.push(i); }
               <div className="flex gap-2 items-center">
                 <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                   {[
-                    {id:'overview',l:'Overview'},
-                    {id:'variable',l:'Variable Pay'},
+                    {id:'overview',l:'Days Overview'},
                     {id:'detailed',l:'Full Summary'},
+                    {id:'variable',l:'Variable Pay'},
                     {id:'sandwich',l:'Sandwich Rule'}
                   ].map(t=>(<button key={t.id} onClick={()=>setSummarySubTab(t.id)} className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${summarySubTab===t.id?'bg-white text-indigo-600 shadow-sm border border-indigo-100':'text-slate-500 hover:text-slate-900'}`}>{t.l}</button>))}
                 </div>
@@ -1544,7 +1626,7 @@ if (isH) { holCount++; holDatesList.push(i); }
                       <th className="px-2 text-center border-r border-zinc-200 w-24 text-indigo-600">OT (Hrs)</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-24 font-bold text-emerald-600 bg-emerald-50/10">Sunday Wk</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24 font-bold text-emerald-600 bg-emerald-50/10">Holiday Wk</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-28 bg-green-50/50 text-green-700 font-black">Net Payout</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-40 bg-green-50/50 text-green-700 font-black">Net Payout</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24 text-green-700 font-black">Status</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-32 text-green-600">Details</th>
                       <th className="w-12"></th>
@@ -1600,7 +1682,7 @@ if (isH) { holCount++; holDatesList.push(i); }
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-green-700 bg-green-50/20 text-[12px] font-inter">{formatINR(e.salary?.net)}</td>
+                        <td className="px-2 text-right border-r border-zinc-200 font-bold text-green-700 bg-green-50/20 text-[12px] font-inter pr-3">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="px-2 text-center border-r border-zinc-200 font-inter">
                           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase">Pending</span>
                         </td>
@@ -1619,98 +1701,246 @@ if (isH) { holCount++; holDatesList.push(i); }
                 </div>
               ) : summarySubTab === 'variable' ? (
                 <div className="h-full flex flex-col bg-white p-6">
-                  <div className="flex justify-between items-end mb-6">
-                    <div className="flex items-end gap-6">
-                      <div>
-                        <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight font-raleway">Variable Pay Management</h2>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Log Food, Convenience, and Bonus for specific dates.</p>
-                      </div>
-                      
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest ml-1">Entry Date</span>
-                        <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
-                          <button 
-                            onClick={() => setVariableEntryDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return nd.toISOString().split('T')[0]; })} 
-                            className="p-1 hover:bg-white hover:shadow-sm rounded text-gray-500 transition-all"
-                          >
-                            <ChevronLeft size={14} />
-                          </button>
-                          <input 
-                            type="date" 
-                            value={variableEntryDate} 
-                            onChange={e => setVariableEntryDate(e.target.value)}
-                            className="bg-transparent border-0 text-[10px] font-black uppercase outline-none focus:ring-0 w-28 text-center cursor-pointer"
-                          />
-                          <button 
-                            onClick={() => setVariableEntryDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return nd.toISOString().split('T')[0]; })} 
-                            className="p-1 hover:bg-white hover:shadow-sm rounded text-gray-500 transition-all"
-                          >
-                            <ChevronRight size={14} />
-                          </button>
-                        </div>
-                      </div>
+                  <div className="flex justify-between items-start mb-6 border-b border-[#e5e5e5] pb-4">
+                    <div>
+                      <h2 className="text-base font-semibold text-[#171717]">Variable Pay Entry</h2>
+                      <p className="text-[11px] text-[#525252] mt-0.5">Add Food, Convenience & Bonus allowances for specific employees & dates</p>
                     </div>
-
-                    <button 
-                      onClick={() => saveVariablesMutation.mutate(variablePayData)}
-                      disabled={saveVariablesMutation.isPending || isDailyVarsLoading}
-                      className="h-9 px-6 bg-indigo-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2"
-                    >
-                      {saveVariablesMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                      Save for {formatDateDDMMYYYY(variableEntryDate)}
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setShowAddVariable(true)} className="h-8 px-4 bg-[#171717] text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
+                        <Plus size={14} /> Add Entry
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 overflow-auto border border-zinc-200 rounded-2xl shadow-sm relative">
-                    {isDailyVarsLoading && (
-                      <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-20 flex items-center justify-center">
-                        <Spinner />
-                      </div>
-                    )}
-                    <table className="w-full border-collapse">
-                      <thead className="sticky top-0 bg-slate-50 z-10 border-b border-zinc-200">
+                  
+                  <div className="flex-1 overflow-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-white z-10 border-b border-[#e5e5e5]">
                         <tr className="h-10">
-                          <th className="px-4 text-left text-[10px] font-black uppercase text-slate-500 tracking-widest border-r border-zinc-100">Employee Name</th>
-                          <th className="px-4 text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest border-r border-zinc-100 w-40">Food Allowance</th>
-                          <th className="px-4 text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest border-r border-zinc-100 w-40">Convenience</th>
-                          <th className="px-4 text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest w-40">Bonus / Other</th>
+                          <th className="px-4 font-semibold text-[11px] text-[#525252]">Employee</th>
+                          <th className="px-4 font-semibold text-[11px] text-[#525252]">Date</th>
+                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
+                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
+                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
+                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Total (₹)</th>
+                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-100 bg-white">
-                        {sortedEmployees.map(emp => (
-                          <tr key={emp.id} className="h-12 hover:bg-slate-50 transition-colors">
-                            <td className="px-4 border-r border-zinc-50 font-bold text-slate-900 uppercase text-[11px]">{emp.name}</td>
-                            <td className="px-4 border-r border-zinc-50">
-                              <input 
-                                type="number" 
-                                className="w-full h-8 text-center font-bold text-indigo-600 bg-indigo-50/30 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[11px]" 
-                                value={variablePayData[emp.id]?.food || ''} 
-                                onChange={e => handleVariableChange(emp.id, 'food', e.target.value)}
-                                placeholder="0"
-                              />
-                            </td>
-                            <td className="px-4 border-r border-zinc-50">
-                              <input 
-                                type="number" 
-                                className="w-full h-8 text-center font-bold text-indigo-600 bg-indigo-50/30 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[11px]" 
-                                value={variablePayData[emp.id]?.convenience || ''} 
-                                onChange={e => handleVariableChange(emp.id, 'convenience', e.target.value)}
-                                placeholder="0"
-                              />
-                            </td>
-                            <td className="px-4">
-                              <input 
-                                type="number" 
-                                className="w-full h-8 text-center font-bold text-indigo-600 bg-indigo-50/30 rounded-lg border-0 focus:ring-2 focus:ring-indigo-500 text-[11px]" 
-                                value={variablePayData[emp.id]?.bonus || ''} 
-                                onChange={e => handleVariableChange(emp.id, 'bonus', e.target.value)}
-                                placeholder="0"
-                              />
+                      <tbody className="divide-y divide-[#e5e5e5]">
+                        {monthlyVariableSums?.length > 0 ? monthlyVariableSums.map(v => {
+                          const emp = sortedEmployees.find(e => e.id === v.employeeId) || {}
+                          return (
+                            <tr key={v.id} className="hover:bg-[#f5f5f5]">
+                              <td className="px-4 py-3">
+                                <span className="text-[13px] font-semibold text-[#171717]">{v.employeeName}</span>
+                              </td>
+                              <td className="px-4">
+                                <span className="text-[12px] text-[#525252]">{formatDateDDMMYYYY(v.date)}</span>
+                              </td>
+                              <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{Number(v.food || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{Number(v.convenience || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{Number(v.bonus || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 text-right text-[12px] font-bold text-indigo-600">{(Number(v.food||0) + Number(v.convenience||0) + Number(v.bonus||0)).toLocaleString('en-IN')}</td>
+                              <td className="px-4 text-right">
+                                <button onClick={() => {
+                                  if (confirm('Delete this entry?')) {
+                                    deleteVariableMutation.mutate(v.id)
+                                  }
+                                }} className="p-1 text-[#525252] hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        }) : (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-12 text-center text-[12px] text-[#525252]">
+                              No variable pay entries yet. Click "Add Entry" to add Food, Convenience or Bonus for employees.
                             </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
+
+                  {showAddVariable && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                      <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-3xl border border-[#e5e5e5] max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5] shrink-0">
+                          <div>
+                            <h3 className="text-sm font-semibold text-[#171717]">Variable Pay Entry</h3>
+                            <p className="text-[11px] text-[#525252] mt-0.5">Add Food, Convenience & Bonus for multiple employees</p>
+                          </div>
+                          <button onClick={() => setShowAddVariable(false)} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded"><X size={16} /></button>
+                        </div>
+                        
+                        <div className="px-5 py-3 border-b border-[#e5e5e5] bg-gray-50 shrink-0">
+                          <div className="flex gap-4">
+                            <div className="w-48">
+                              <label className="block text-[10px] font-medium text-[#525252] mb-1">Select Date</label>
+                              <input 
+                                type="date" 
+                                value={newVariable.date}
+                                onChange={e => setNewVariable({...newVariable, date: e.target.value})}
+                                className="w-full h-8 px-2 border border-[#d4d4d4] rounded text-[12px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-[10px] font-medium text-[#525252] mb-1">Common Amount (apply to all)</label>
+                              <div className="flex gap-2">
+                                <input 
+                                  type="number" 
+                                  value={newVariable.food}
+                                  onChange={e => setNewVariable({...newVariable, food: e.target.value})}
+                                  className="flex-1 h-8 px-2 border border-[#d4d4d4] rounded text-[12px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                                  placeholder="Food"
+                                />
+                                <input 
+                                  type="number" 
+                                  value={newVariable.convenience}
+                                  onChange={e => setNewVariable({...newVariable, convenience: e.target.value})}
+                                  className="flex-1 h-8 px-2 border border-[#d4d4d4] rounded text-[12px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                                  placeholder="Convenience"
+                                />
+                                <input 
+                                  type="number" 
+                                  value={newVariable.bonus}
+                                  onChange={e => setNewVariable({...newVariable, bonus: e.target.value})}
+                                  className="flex-1 h-8 px-2 border border-[#d4d4d4] rounded text-[12px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                                  placeholder="Bonus"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 overflow-auto p-5">
+                          <table className="w-full text-left border-collapse">
+                            <thead className="sticky top-0 bg-white z-10 border-b border-[#e5e5e5]">
+                              <tr className="h-9">
+                                <th className="px-3 font-semibold text-[11px] text-[#525252] w-8">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={newVariable.selectedAll}
+                                    onChange={e => setNewVariable({
+                                      ...newVariable, 
+                                      selectedAll: e.target.checked,
+                                      selectedEmps: e.target.checked ? sortedEmployees.map(e => e.id) : []
+                                    })}
+                                    className="rounded border-gray-300"
+                                  />
+                                </th>
+                                <th className="px-3 font-semibold text-[11px] text-[#525252]">Employee</th>
+                                <th className="px-3 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
+                                <th className="px-3 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
+                                <th className="px-3 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#e5e5e5]">
+                              {sortedEmployees.map(emp => (
+                                <tr key={emp.id} className="hover:bg-[#f5f5f5]">
+                                  <td className="px-3 py-2">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={newVariable.selectedEmps?.includes(emp.id)}
+                                      onChange={e => {
+                                        const selected = newVariable.selectedEmps || []
+                                        const updated = e.target.checked 
+                                          ? [...selected, emp.id]
+                                          : selected.filter(id => id !== emp.id)
+                                        setNewVariable({...newVariable, selectedEmps: updated, selectedAll: updated.length === sortedEmployees.length})
+                                      }}
+                                      className="rounded border-gray-300"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-[13px] font-medium text-[#171717]">{emp.name}</td>
+                                  <td className="px-3 py-2 text-right">
+                                    <input 
+                                      type="number" 
+                                      value={newVariable.empData?.[emp.id]?.food ?? newVariable.food}
+                                      onChange={e => setNewVariable({
+                                        ...newVariable,
+                                        empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], food: e.target.value}}
+                                      })}
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-[#d4d4d4] rounded focus:outline-none focus:border-[#171717]"
+                                      placeholder={newVariable.food || '0'}
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <input 
+                                      type="number" 
+                                      value={newVariable.empData?.[emp.id]?.convenience ?? newVariable.convenience}
+                                      onChange={e => setNewVariable({
+                                        ...newVariable,
+                                        empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], convenience: e.target.value}}
+                                      })}
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-[#d4d4d4] rounded focus:outline-none focus:border-[#171717]"
+                                      placeholder={newVariable.convenience || '0'}
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <input 
+                                      type="number" 
+                                      value={newVariable.empData?.[emp.id]?.bonus ?? newVariable.bonus}
+                                      onChange={e => setNewVariable({
+                                        ...newVariable,
+                                        empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], bonus: e.target.value}}
+                                      })}
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-[#d4d4d4] rounded focus:outline-none focus:border-[#171717]"
+                                      placeholder={newVariable.bonus || '0'}
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="px-5 py-4 border-t border-[#e5e5e5] bg-gray-50 flex justify-between items-center shrink-0">
+                          <span className="text-[11px] text-[#525252]">
+                            {newVariable.selectedEmps?.length || 0} employees selected
+                          </span>
+                          <div className="flex gap-3">
+                            <button onClick={() => {
+                              setShowAddVariable(false)
+                              setNewVariable({ employeeId: '', date: '', food: '', convenience: '', bonus: '', selectedEmps: [], selectedAll: false, empData: {} })
+                            }} className="px-4 py-2 text-xs font-medium text-[#525252] hover:bg-gray-100 rounded-md border border-[#d4d4d4]">Cancel</button>
+                            <button 
+                              onClick={() => {
+                                if (!newVariable.date) {
+                                  alert('Please select a date')
+                                  return
+                                }
+                                if (!newVariable.selectedEmps?.length) {
+                                  alert('Please select at least one employee')
+                                  return
+                                }
+                                const dataToSave = {}
+                                newVariable.selectedEmps.forEach(empId => {
+                                  const emp = sortedEmployees.find(e => e.id === empId)
+                                  const empSpecific = newVariable.empData?.[empId]
+                                  dataToSave[empId] = {
+                                    food: empSpecific?.food ?? newVariable.food,
+                                    convenience: empSpecific?.convenience ?? newVariable.convenience,
+                                    bonus: empSpecific?.bonus ?? newVariable.bonus,
+                                    employeeName: emp?.name,
+                                    date: newVariable.date
+                                  }
+                                })
+                                saveVariablesMutation.mutate(dataToSave)
+                                setShowAddVariable(false)
+                                setNewVariable({ employeeId: '', date: '', food: '', convenience: '', bonus: '', selectedEmps: [], selectedAll: false, empData: {} })
+                              }}
+                              disabled={saveVariablesMutation.isPending}
+                              className="px-4 py-2 bg-[#171717] text-white rounded-md text-xs font-medium hover:bg-black"
+                            >
+                              {saveVariablesMutation.isPending ? 'Saving...' : 'Save for Selected'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : summarySubTab === 'sandwich' ? (
                 <div className="h-full overflow-auto bg-white p-4 flex flex-col">
@@ -1726,6 +1956,13 @@ if (isH) { holCount++; holDatesList.push(i); }
                         </label>
                       </div>
                       <div className="flex gap-2">
+                        <button 
+                          onClick={() => setShowManualSandwichModal(true)}
+                          className="h-7 px-3 bg-amber-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-amber-600 transition-all flex items-center gap-1.5"
+                        >
+                          <Plus size={12} />
+                          Add Manual
+                        </button>
                         <button 
                           onClick={detectSandwiches}
                           disabled={detectingSandwiches}
@@ -1789,6 +2026,84 @@ if (isH) { holCount++; holDatesList.push(i); }
                     )}
                   </div>
 
+                  {/* Manual Add Modal */}
+                  {showManualSandwichModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-zinc-200">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-amber-50 rounded-t-lg">
+                          <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">Add Sandwich Rule</h3>
+                          <button onClick={() => setShowManualSandwichModal(false)} className="p-1 hover:bg-zinc-100 rounded"><X size={16} className="text-zinc-500" /></button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Employee</label>
+                            <select 
+                              value={manualSandwichEntry.employeeId}
+                              onChange={e => setManualSandwichEntry({...manualSandwichEntry, employeeId: e.target.value})}
+                              className="w-full h-9 px-3 border border-zinc-300 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500"
+                            >
+                              <option value="">Select Employee</option>
+                              {sortedEmployees.map(emp => (
+                                <option key={emp.id} value={emp.id}>{emp.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Date</label>
+                            <input 
+                              type="date" 
+                              value={manualSandwichEntry.date}
+                              onChange={e => setManualSandwichEntry({...manualSandwichEntry, date: e.target.value})}
+                              className="w-full h-9 px-3 border border-zinc-300 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Type</label>
+                            <div className="flex gap-3">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                  type="radio" 
+                                  name="sandwichType" 
+                                  value="Sunday"
+                                  checked={manualSandwichEntry.type === 'Sunday'}
+                                  onChange={e => setManualSandwichEntry({...manualSandwichEntry, type: e.target.value})}
+                                  className="w-3 h-3 text-indigo-600"
+                                />
+                                <span className="text-xs font-medium text-slate-700">Sunday</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                  type="radio" 
+                                  name="sandwichType" 
+                                  value="Holiday"
+                                  checked={manualSandwichEntry.type === 'Holiday'}
+                                  onChange={e => setManualSandwichEntry({...manualSandwichEntry, type: e.target.value})}
+                                  className="w-3 h-3 text-amber-600"
+                                />
+                                <span className="text-xs font-medium text-slate-700">Holiday</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50 rounded-b-lg flex justify-end gap-2">
+                          <button 
+                            onClick={() => setShowManualSandwichModal(false)}
+                            className="px-4 py-2 text-xs font-bold uppercase text-zinc-600 hover:bg-zinc-100 rounded-md"
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            onClick={() => addManualSandwichMutation.mutate()}
+                            disabled={addManualSandwichMutation.isPending || !manualSandwichEntry.employeeId || !manualSandwichEntry.date}
+                            className="px-4 py-2 bg-amber-500 text-white text-xs font-bold uppercase rounded-md hover:bg-amber-600 disabled:opacity-50"
+                          >
+                            {addManualSandwichMutation.isPending ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* History Section */}
                   <div className="flex-1 flex flex-col">
                     <div className="flex justify-between items-center mb-4">
@@ -1807,20 +2122,34 @@ if (isH) { holCount++; holDatesList.push(i); }
                             <tr className="h-8 border-b border-zinc-200">
                               <th className="px-3 border-r border-zinc-200 text-left text-[10px] font-black uppercase text-emerald-600 tracking-widest">Staff Name</th>
                               <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-32">Date</th>
-                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-48">Applied On</th>
-                              <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-20">Action</th>
+                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-24">Type</th>
+                              <th className="px-3 border-r border-zinc-200 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-40">Applied On</th>
+                              <th className="px-3 text-center text-[10px] font-black uppercase text-emerald-600 tracking-widest w-16">Action</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-200 bg-white">
                             {filteredHistory.length === 0 ? (
-                              <tr><td colSpan={4} className="py-20 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No records found</td></tr>
+                              <tr><td colSpan={5} className="py-20 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No records found</td></tr>
                             ) : filteredHistory.map(h => (
                               <tr key={h.id} className="h-[32px] hover:bg-sky-50/30 transition-colors">
                                 <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{(() => {
                                   const emp = employees.find(e => e.id === h.employeeId);
-                                  return emp?.name || 'Unknown staff';
+                                  return emp?.name || h.employeeName || 'Unknown staff';
                                 })()}</td>
                                 <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(h.date)}</td>
+                                <td className="px-3 border-r border-zinc-100 text-center">
+                                  {(() => {
+                                    const dateObj = h.date ? new Date(h.date) : null;
+                                    const isSunday = dateObj && dateObj.getDay() === 0;
+                                    const type = h.type || (isSunday ? 'Sunday' : 'Holiday');
+                                    return (
+                                      <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${type === 'Sunday' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                                        {type}
+                                        {h.isManual && <span className="ml-1 text-[8px]">(M)</span>}
+                                      </span>
+                                    );
+                                  })()}
+                                </td>
                                 <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
                                 <td className="px-3 text-center">
                                   <button 
@@ -1894,16 +2223,16 @@ if (isH) { holCount++; holDatesList.push(i); }
           </div>
         )}
         {activeTab === 'loan' && (
-          <div className="max-w-full space-y-4 flex flex-col h-full overflow-hidden">
-            <div className="flex border-b border-gray-200 overflow-x-auto shrink-0 bg-white">
-              {['Configuration', 'Active Schedules', 'Activity'].map(mod => {
+          <div className="flex flex-col h-full overflow-hidden bg-white">
+            <div className="flex border-b border-[#e5e5e5] overflow-x-auto shrink-0 px-4">
+              {['Configuration', 'Active Schedules', 'History'].map(mod => {
                 const isActive = loanActiveModule === mod
                 return (
                   <button
                     key={mod}
                     onClick={() => setLoanActiveModule(mod)}
-                    className={`whitespace-nowrap px-6 py-3 text-[11px] font-black uppercase tracking-widest transition-all ${
-                      isActive ? 'border-b-2 border-indigo-600 text-indigo-700 bg-indigo-50/50' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                    className={`whitespace-nowrap px-4 py-3 text-[12px] font-medium transition-all border-b-2 ${
+                      isActive ? 'border-[#525252] text-[#171717]' : 'border-transparent text-[#737373] hover:text-[#171717]'
                     }`}
                   >
                     {mod}
@@ -1912,43 +2241,42 @@ if (isH) { holCount++; holDatesList.push(i); }
               })}
             </div>
 
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-6">
               {loanActiveModule === 'Configuration' && (
-                <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">      
-                  <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden">       
-                    <div className="p-6 bg-slate-950 text-white flex justify-between items-center">
+                <div className="max-w-2xl mx-auto">      
+                  <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden">       
+                    <div className="px-5 py-4 border-b border-[#e5e5e5] bg-[#fafafa] flex justify-between items-center">
                       <div>
-                        <h3 className="text-lg font-black uppercase font-google-sans tracking-tight">Loan Setup</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Lifecycle tracking for advances</p>
+                        <h3 className="text-base font-semibold text-[#171717]">Loan Setup</h3>
+                        <p className="text-[11px] text-[#525252] mt-0.5">Create and manage loan recovery schedules</p>
                       </div>
-                      <Settings className="text-indigo-500" size={24} />
                     </div>
-                    <div className="p-8 space-y-6">
+                    <div className="p-5 space-y-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Employee</label>
-                        <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 transition-all">
+                        <label className="text-[11px] font-medium text-[#525252]">Target Employee</label>
+                        <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 bg-white focus:outline-none focus:border-[#171717] text-[13px] text-[#171717]">
                           <option value="">Choose Employee...</option>
                           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                       </div>
-                      <div className="grid grid-cols-2 gap-6">
+                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Principal Amount (₹)</label>
-                          <input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 font-black bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none text-indigo-600 text-lg" placeholder="0.00" />    
+                          <label className="text-[11px] font-medium text-[#525252]">Principal Amount (₹)</label>
+                          <input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 bg-white focus:outline-none focus:border-[#171717] text-[13px] font-medium text-[#171717]" placeholder="0.00" />    
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monthly EMI (₹)</label>
-                          <input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 font-black bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-lg" placeholder="0.00" />
+                          <label className="text-[11px] font-medium text-[#525252]">Monthly EMI (₹)</label>
+                          <input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 bg-white focus:outline-none focus:border-[#171717] text-[13px] font-medium text-[#171717]" placeholder="0.00" />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Recovery Remarks</label>
-                        <input type="text" value={loanForm.remarks} onChange={e => setEditLoanForm({...loanForm, remarks: e.target.value})} className="w-full h-12 border border-gray-200 rounded-2xl px-4 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-600" placeholder="Reason for loan..." />
+                        <label className="text-[11px] font-medium text-[#525252]">Recovery Remarks</label>
+                        <input type="text" value={loanForm.remarks} onChange={e => setEditLoanForm({...loanForm, remarks: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 bg-white focus:outline-none focus:border-[#171717] text-[13px] font-medium text-[#171717]" placeholder="Reason for loan..." />
                       </div>
-                      <div className="pt-4 flex gap-4">
-                        <button onClick={() => { setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' }); setEditingLoanId(null); setLoanActiveModule('Active Schedules'); }} className="flex-1 h-12 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[11px] tracking-widest hover:bg-slate-200 transition-all">Cancel</button>
-                        <button onClick={handleCreateLoan} disabled={loading} className="flex-2 h-12 bg-indigo-600 text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 active:scale-95 transition-all">
-                          {editingLoanId ? 'Update Recovery Plan' : 'Activate Loan Schedule'}
+                      <div className="pt-2 flex gap-3">
+                        <button onClick={() => { setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' }); setEditingLoanId(null); setLoanActiveModule('Active Schedules'); }} className="flex-1 h-9 border border-[#d4d4d4] rounded-md bg-white text-[13px] font-medium text-[#525252] hover:bg-[#f5f5f5] transition-all">Cancel</button>
+                        <button onClick={handleCreateLoan} disabled={loading} className="flex-1 h-9 bg-[#171717] text-white rounded-md text-[13px] font-medium hover:bg-black transition-all">
+                          {editingLoanId ? 'Update Schedule' : 'Activate Loan'}
                         </button>
                       </div>
                     </div>
@@ -1957,29 +2285,32 @@ if (isH) { holCount++; holDatesList.push(i); }
               )}
 
               {loanActiveModule === 'Active Schedules' && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="bg-white rounded-[32px] border border-gray-200 shadow-xl overflow-hidden">    
+                <div className="space-y-4">
+                  <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden">    
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse font-inter">
+                      <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-slate-950 text-[10px] font-black uppercase tracking-widest text-slate-400 h-14">
-                            <th className="px-8 border-r border-slate-800">Employee</th>
-                            <th className="px-8 border-r border-slate-800 text-right">Remaining Principal</th>  
-                            <th className="px-8 text-right">Actions</th>
+                          <tr className="bg-[#fafafa] text-[11px] font-medium text-[#525252] h-10 border-b border-[#e5e5e5]">
+                            <th className="px-4 border-r border-[#e5e5e5]">Employee</th>
+                            <th className="px-4 border-r border-[#e5e5e5] text-right">Principal (₹)</th>
+                            <th className="px-4 border-r border-[#e5e5e5] text-right">EMI (₹)</th>
+                            <th className="px-4 border-r border-[#e5e5e5] text-center">This Month</th>
+                            <th className="px-4 text-right">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-[#e5e5e5]">
                           {loans.length === 0 ? (
-                            <tr><td colSpan={3} className="px-8 py-20 text-center text-slate-300 font-black uppercase tracking-widest italic opacity-50">No active recovery schedules</td></tr>
+                            <tr><td colSpan={5} className="px-4 py-16 text-center text-[12px] text-[#525252]">No active loan schedules</td></tr>
                           ) : loans.map(l => (
-                            <tr key={l.id} className="hover:bg-slate-50/50 transition-colors h-16 group">       
-                              <td className="px-8 border-r border-slate-50 font-black text-slate-900 text-sm uppercase">{l.employeeName}</td>
-                              <td className="px-8 border-r border-slate-50 text-right font-black text-emerald-600 text-base tabular-nums">{formatINR(l.remainingAmount)}</td>
-                              <td className="px-8 text-right">
-                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                  <button onClick={() => handleEditLoan(l)} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm" title="Edit Schedule"><Edit2 size={16}/></button>
-                                  <button onClick={() => setSelectedLoan(l)} className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm" title="Manual Override"><RefreshCw size={16}/></button>
-                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm" title="Delete Plan"><Trash2 size={16}/></button>
+                            <tr key={l.id} className="hover:bg-[#f5f5f5] transition-colors h-12 group">       
+                              <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717]">{l.employeeName}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717]">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-emerald-600">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 text-right">
+                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                  <button onClick={() => handleEditLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Edit"><Edit2 size={14}/></button>
+                                  <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Override"><RefreshCw size={14}/></button>
+                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-[#525252] hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
                                 </div>
                               </td>
                             </tr>
@@ -1990,61 +2321,174 @@ if (isH) { holCount++; holDatesList.push(i); }
                   </div>
 
                   {selectedLoan && (
-                    <div className="bg-white rounded-[32px] border-2 border-amber-400 p-8 shadow-2xl animate-in slide-in-from-top-4 duration-500 max-w-4xl mx-auto">
-                      <div className="flex justify-between items-center mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className="p-3 bg-amber-100 rounded-2xl text-amber-700"><Info size={24}/></div>  
-                          <div>
-                            <h3 className="font-black text-slate-900 uppercase font-google-sans tracking-tight">Manual Override</h3>
-                            <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">Adjusting: {selectedLoan.employeeName}</p>
-                          </div>
+                    <div className="bg-white rounded-lg border border-amber-300 p-5 shadow-sm max-w-3xl mx-auto">
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <h3 className="text-sm font-semibold text-[#171717]">Manual Override</h3>
+                          <p className="text-[11px] text-amber-600">Adjusting: {selectedLoan.employeeName}</p>
                         </div>
-                        <button onClick={() => setSelectedLoan(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all"><X size={20}/></button>
+                        <button onClick={() => setSelectedLoan(null)} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded"><X size={16}/></button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Month</label>
-                          <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-12 border border-slate-200 rounded-2xl px-4 font-black text-slate-800 bg-slate-50 focus:ring-2 focus:ring-amber-500 outline-none"/>
+                      <div className="grid grid-cols-3 gap-4 items-end">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-medium text-[#525252]">Target Month</label>
+                          <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 text-[13px] text-[#171717] focus:outline-none focus:border-[#171717]"/>
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Override EMI (₹)</label>
-                          <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-12 border border-slate-200 rounded-2xl px-4 font-black text-indigo-600 bg-slate-50 focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-50"/>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-medium text-[#525252]">Override EMI (₹)</label>
+                          <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 text-[13px] font-medium text-[#171717] focus:outline-none focus:border-[#171717] disabled:opacity-50"/>
                         </div>
-                        <div className="flex items-center gap-3 h-12 bg-amber-50 px-4 rounded-2xl border border-amber-100">
-                          <input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-5 h-5 rounded-lg text-amber-600 border-amber-300 focus:ring-amber-500 transition-all"/>
-                          <label htmlFor="skipEMI" className="text-[11px] font-black text-amber-700 uppercase cursor-pointer">Skip EMI</label>
+                        <div className="flex items-center gap-2 h-9">
+                          <input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-4 h-4 rounded border-[#d4d4d4] text-[#171717]"/>
+                          <label htmlFor="skipEMI" className="text-[12px] font-medium text-[#525252]">Skip EMI</label>
                         </div>
-                        <button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-12 bg-amber-600 text-white font-black rounded-2xl uppercase text-[11px] tracking-widest shadow-lg shadow-amber-600/20 hover:bg-amber-700 active:scale-95 transition-all">Apply Adjustment</button>
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-9 px-5 bg-amber-500 text-white rounded-md text-[13px] font-medium hover:bg-amber-600 transition-all">Apply</button>
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {loanActiveModule === 'Activity' && (
-                <div className="max-w-3xl mx-auto space-y-4 animate-in fade-in duration-500">
-                  <div className="bg-white rounded-[32px] border border-gray-200 shadow-xl overflow-hidden p-8">
-                    <div className="flex items-center gap-3 mb-8">
-                      <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600"><History size={24}/></div>  
-                      <h3 className="text-xl font-black text-slate-900 uppercase font-google-sans tracking-tight">Recent Activity</h3>
+              {loanActiveModule === 'History' && (
+                <div className="space-y-4">
+                  {/* Filters */}
+                  <div className="flex gap-4 items-center">
+                    <div className="w-64">
+                      <select 
+                        value={loanHistoryFilter.employeeId}
+                        onChange={e => setLoanHistoryFilter({...loanHistoryFilter, employeeId: e.target.value})}
+                        className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 text-[13px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                      >
+                        <option value="">All Employees</option>
+{loans.map(l => {
+                              const thisMonth = new Date().toISOString().slice(0, 7)
+                              const monthOverride = loanOverrides.find(o => o.loanId === l.id && o.month === thisMonth)
+                              return (
+                            <tr key={l.id} className="hover:bg-[#f5f5f5] transition-colors h-12 group">       
+                              <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717]">{l.employeeName}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717]">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-emerald-600">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-center">
+                                {monthOverride ? (
+                                  monthOverride.skip ? (
+                                    <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">Skipped</span>
+                                  ) : (
+                                    <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">Custom</span>
+                                  )
+                                ) : (
+                                  <span className="text-[10px] text-[#a3a3a3]">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 text-right">
+                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                  <button onClick={() => handleEditLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Edit"><Edit2 size={14}/></button>
+                                  <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Override"><RefreshCw size={14}/></button>
+                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-[#525252] hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          )})}
+                      </select>
                     </div>
-                    <div className="space-y-6 relative">
-                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100"></div>
-                      {loanActivities.map((act, i) => (
-                        <div key={act.id} className="relative pl-10">
-                          <div className={`absolute left-2.5 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm transition-colors ${
-                            act.action === 'Deleted' ? 'bg-rose-500' : act.action === 'Updated' ? 'bg-amber-500' : 'bg-emerald-500'
-                          }`}></div>
-                          <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 hover:border-indigo-200 transition-all">
-                            <div className="flex justify-between items-start gap-4">
-                              <span className="text-[13px] font-bold text-slate-800 leading-relaxed">{act.detail}</span>
-                              <span className="text-[9px] font-black text-slate-400 uppercase whitespace-nowrap bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
-                                {act.timestamp?.toDate ? act.timestamp.toDate().toLocaleDateString('en-US', { day: '2-digit', month: 'short' }) : 'Just now'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="w-40">
+                      <input 
+                        type="month" 
+                        value={loanHistoryFilter.month}
+                        onChange={e => setLoanHistoryFilter({...loanHistoryFilter, month: e.target.value})}
+                        className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 text-[13px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                      />
+                    </div>
+                    {(loanHistoryFilter.employeeId || loanHistoryFilter.month) && (
+                      <button 
+                        onClick={() => setLoanHistoryFilter({ employeeId: '', month: '' })}
+                        className="text-[12px] text-[#525252] hover:text-[#171717]"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+
+                  {/* History Table */}
+                  <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-[#fafafa] text-[11px] font-medium text-[#525252] h-10 border-b border-[#e5e5e5]">
+                            <th className="px-4 border-r border-[#e5e5e5]">Employee</th>
+                            <th className="px-4 border-r border-[#e5e5e5]">Month</th>
+                            <th className="px-4 border-r border-[#e5e5e5] text-right">Scheduled EMI</th>
+                            <th className="px-4 border-r border-[#e5e5e5] text-right">Paid Amount</th>
+                            <th className="px-4 border-r border-[#e5e5e5] text-center">Status</th>
+                            <th className="px-4 text-right">Remaining</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#e5e5e5]">
+                          {loans.length === 0 ? (
+                            <tr><td colSpan={6} className="px-4 py-12 text-center text-[12px] text-[#525252]">No loans found</td></tr>
+                          ) : (
+                            loans
+                              .filter(l => !loanHistoryFilter.employeeId || l.employeeId === loanHistoryFilter.employeeId)
+                              .map(l => {
+                                const overrides = loanOverrides.filter(o => o.loanId === l.id)
+                                const monthlyEMI = Number(l.emiAmount || 0)
+                                const totalPaid = overrides.filter(o => !o.skip).reduce((s, o) => s + (o.amount || monthlyEMI), 0)
+                                const remaining = Number(l.totalAmount || 0) - totalPaid
+                                const skippedCount = overrides.filter(o => o.skip).length
+                                
+                                // Generate monthly breakdown
+                                const months = []
+                                const startDate = l.createdAt?.toDate ? l.createdAt.toDate() : new Date()
+                                const currentDate = new Date()
+                                let balance = Number(l.totalAmount || 0)
+                                
+                                for (let d = new Date(startDate); d <= currentDate; d.setMonth(d.getMonth() + 1)) {
+                                  const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                                  const override = overrides.find(o => o.month === monthStr)
+                                  const isCurrentMonth = monthStr === loanHistoryFilter.month
+                                  
+                                  if (!loanHistoryFilter.month || monthStr === loanHistoryFilter.month) {
+                                    months.push({
+                                      month: monthStr,
+                                      override,
+                                      isCurrentMonth
+                                    })
+                                  }
+                                }
+
+                                return months.map((m, idx) => {
+                                  const paid = m.override ? (m.override.skip ? 0 : m.override.amount) : (idx < months.length - 1 ? monthlyEMI : 0)
+                                  balance -= paid
+                                  const showRow = !loanHistoryFilter.month || m.month === loanHistoryFilter.month
+                                  
+                                  if (!showRow) return null
+                                  
+                                  return (
+                                    <tr key={`${l.id}_${m.month}`} className={`h-11 hover:bg-[#f5f5f5] ${m.isCurrentMonth ? 'bg-amber-50' : ''}`}>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717]">{l.employeeName}</td>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-[12px] text-[#525252]">{m.month}</td>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] text-[#525252]">{monthlyEMI.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717]">{paid.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-center">
+                                        {m.override?.skip ? (
+                                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">Skipped</span>
+                                        ) : m.override?.amount && m.override.amount !== monthlyEMI ? (
+                                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">Custom</span>
+                                        ) : paid > 0 ? (
+                                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700">Paid</span>
+                                        ) : (
+                                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">Pending</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 text-right text-[13px] font-semibold text-[#171717]">{Math.max(0, balance).toLocaleString('en-IN')}</td>
+                                    </tr>
+                                  )
+                                })
+                              }).flat()
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
