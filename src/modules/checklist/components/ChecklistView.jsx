@@ -241,19 +241,20 @@ export default function ChecklistView({ user }) {
     if (isFuture) return
     const rect = event.currentTarget.getBoundingClientRect()
     setPopover({ templateId, dateId, anchor: { top: rect.top, left: rect.left, bottom: rect.bottom } })
-    setDraftStatus(log?.status || 'done')
+    setDraftStatus(log?.status && STATUSES.includes(log.status) ? log.status : 'done')
     setDraftNote(log?.note || '')
   }
 
   const saveCell = async (newStatus = draftStatus, newNote = draftNote) => {
     if (!popover) return
+    const validStatus = STATUSES.includes(newStatus) ? newStatus : 'done'
     setSavingCell(true)
     setActionError('')
     try {
       await logsApi.upsertLog({
         templateId: popover.templateId,
         date: popover.dateId,
-        status: newStatus,
+        status: validStatus,
         note: newNote.trim() ? newNote.trim() : null,
       })
       setPopover(null)
@@ -324,58 +325,51 @@ export default function ChecklistView({ user }) {
                 <div className="inline-flex items-center gap-2 text-slate-500 text-[12px]"><Loader2 size={14} className="animate-spin" /> Loading checklist...</div>
               </div>
             ) : rows.length === 0 ? (
-              <div className="flex-1 border border-[#eaeaea] rounded-xl bg-white flex items-center justify-center px-6 text-[13px] text-slate-500 text-center">No checklist yet - add one from the left panel to start tracking.</div>
+              <div className="flex-1 border border-[#eaeaea] rounded-xl bg-white flex items-center justify-center px-6 text-[13px] text-gray-600 text-center">No checklist yet - add one from the left panel to start tracking.</div>
             ) : (
-              <div className="flex-1 border border-[#eaeaea] rounded-xl bg-white overflow-x-auto">
-                <div style={{ minWidth: gridMinWidth }}>
-                  <div className="grid border-b border-slate-200 bg-slate-50" style={{ gridTemplateColumns }}>
-                    <div className="h-12 px-3 border-r border-slate-200 flex items-center text-[11px] font-semibold uppercase tracking-wide text-slate-600">Checklist Item</div>
-                    {columns.map((col) => (
-                      <div key={col.id} className={`h-12 border-r border-slate-200 last:border-r-0 flex flex-col items-center justify-center ${col.isToday ? 'bg-emerald-50' : ''}`} title={col.label}>
-                        <span className="text-[11px] font-semibold text-slate-700 leading-none">{col.top}</span>
-                        <span className="text-[10px] text-slate-400 mt-1 leading-none">{col.bottom}</span>
+              <div className="flex-1 border border-[#eaeaea] rounded-xl bg-white flex overflow-hidden">
+                {/* Sticky left column - Checklist Item */}
+                <div className="w-[240px] shrink-0 flex flex-col border-r border-gray-200">
+                  <div className="h-12 px-3 border-b border-gray-200 bg-gray-50 flex items-center text-[11px] font-semibold uppercase tracking-wide text-gray-700 sticky top-0 z-10">Checklist Item</div>
+                  <div className="overflow-y-auto" style={{ height: VIEW_HEIGHT }} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
+                    {visibleRows.map((row, i) => (
+                      <div key={row.id} style={{ height: ROW_HEIGHT }} className="px-2 py-1.5 border-b border-gray-100 flex items-center justify-between gap-1 bg-white hover:bg-gray-50/60">
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-semibold text-gray-900 truncate">{row.name}</p>
+                          <p className="text-[10px] text-gray-500">{frequency === 'daily' ? 'Daily' : 'Weekly'}</p>
+                        </div>
+                        <button onClick={() => bulkDone(row.id)} className="h-5 px-1.5 rounded border border-gray-300 text-gray-500 text-[9px] font-medium shrink-0">Done All</button>
                       </div>
                     ))}
                   </div>
-                  <div className="overflow-y-auto" style={{ height: VIEW_HEIGHT }} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
-                    <div style={{ height: rows.length * ROW_HEIGHT, position: 'relative' }}>
-                      {visibleRows.map((row, i) => {
-                        const rowIndex = start + i
-                        return (
-                          <div
-                            key={row.id}
-                            style={{
-                              position: 'absolute',
-                              top: rowIndex * ROW_HEIGHT,
-                              left: 0,
-                              right: 0,
-                              height: ROW_HEIGHT,
-                              gridTemplateColumns,
-                            }}
-                            className="grid border-b border-slate-100 bg-white hover:bg-slate-50/60 transition-colors duration-200"
-                          >
-                            <div className="px-3 py-2.5 border-r border-slate-100 flex items-center justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-[12px] font-semibold text-slate-800 truncate">{row.name}</p>
-                                <p className="text-[11px] text-slate-400">{frequency === 'daily' ? 'Daily' : 'Weekly'}</p>
-                              </div>
-                              <button onClick={() => bulkDone(row.id)} className="h-7 px-2.5 rounded-md border border-slate-300 text-slate-600 text-[10px] font-semibold">Done All</button>
+                </div>
+                
+                {/* Scrollable right columns - Dates */}
+                <div className="flex-1 overflow-auto">
+                  <div className="flex border-b border-gray-200 bg-gray-50" style={{ minWidth: columns.length * colWidth + 'px' }}>
+                    {columns.map((col) => (
+                      <div key={col.id} className={`w-[44px] h-12 border-r border-slate-200 flex flex-col items-center justify-center ${col.isToday ? 'bg-emerald-50' : ''}`} title={col.label}>
+                        <span className="text-[11px] font-semibold text-gray-800 leading-none">{col.top}</span>
+                        <span className="text-[10px] text-gray-600 mt-1 leading-none">{col.bottom}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="overflow-y-auto" style={{ height: VIEW_HEIGHT }}>
+                    {visibleRows.map((row, i) => (
+                      <div key={row.id} className="flex border-b border-gray-100 hover:bg-gray-50/60" style={{ minWidth: columns.length * colWidth + 'px' }}>
+                        {columns.map((col) => {
+                          const log = byCell[`${row.id}_${col.id}`]
+                          const status = log?.status || null
+                          const tone = statusTone(status, col.isPast, col.isFuture)
+                          const title = `${row.name} - ${col.label}: ${status || 'empty'}${log?.note ? ` | ${log.note}` : ''}`
+                          return (
+                            <div key={col.id} className="w-[44px] h-[54px] flex items-center justify-center border-r border-slate-100">
+                              <button disabled={col.isFuture} onClick={(e) => openCell(e, row.id, col.id, log, col.isFuture)} title={title} className={`w-7 h-7 rounded-full border inline-flex items-center justify-center transition-all duration-200 ${tone}`}>{statusIcon(status)}</button>
                             </div>
-                            {columns.map((col) => {
-                              const log = byCell[`${row.id}_${col.id}`]
-                              const status = log?.status || null
-                              const tone = statusTone(status, col.isPast, col.isFuture)
-                              const title = `${row.name} - ${col.label}: ${status || 'empty'}${log?.note ? ` | ${log.note}` : ''}`
-                              return (
-                                <div key={col.id} className="flex items-center justify-center border-r border-slate-100 last:border-r-0">
-                                  <button disabled={col.isFuture} onClick={(e) => openCell(e, row.id, col.id, log, col.isFuture)} title={title} className={`w-7 h-7 rounded-full border inline-flex items-center justify-center transition-all duration-200 ${tone}`}>{statusIcon(status)}</button>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      })}
-                    </div>
+                          )
+                        })}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -404,77 +398,78 @@ export default function ChecklistView({ user }) {
       )}
 
       {showConfigureModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowConfigureModal(false)}></div>
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Configure Templates</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Manage your checklist items</p>
+                <h2 className="text-base font-bold text-gray-900">Configure Templates</h2>
+                <p className="text-[11px] text-gray-600 mt-0.5">Manage your checklist items</p>
               </div>
-              <button onClick={() => setShowConfigureModal(false)} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                <X size={20} />
+              <button onClick={() => setShowConfigureModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <X size={18} />
               </button>
             </div>
 
-            <div className="px-6 pt-4">
-              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
+            <div className="px-5 pt-4">
+              <div className="flex gap-1.5 p-1 bg-gray-100 rounded-lg">
                 <button
                   onClick={() => setConfigureTab('daily')}
-                  className={`flex-1 h-10 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 ${configureTab === 'daily' ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/25' : 'text-slate-600 hover:bg-slate-200'}`}
+                  className={`flex-1 h-9 rounded-md text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 ${configureTab === 'daily' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
                 >
-                  <CalendarIcon size={16} /> Daily
+                  <CalendarIcon size={14} /> Daily
                 </button>
                 <button
                   onClick={() => setConfigureTab('weekly')}
-                  className={`flex-1 h-10 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 ${configureTab === 'weekly' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25' : 'text-slate-600 hover:bg-slate-200'}`}
+                  className={`flex-1 h-9 rounded-md text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 ${configureTab === 'weekly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
                 >
-                  <Layout size={16} /> Weekly
+                  <Layout size={14} /> Weekly
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="flex-1 overflow-y-auto px-5 py-4">
               {(() => {
                 const kind = configureTab
                 const list = kind === 'daily' ? daily : weekly
                 return (
                   <div>
                     {list.length === 0 ? (
-                      <div className="py-8 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center">
-                        <p className="text-sm text-slate-500 mb-3">No {kind} items yet</p>
+                      <div className="py-8 px-4 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-center">
+                        <p className="text-xs text-gray-700 mb-3">No {kind} items yet</p>
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {list.map((t) => (
                           <div 
                             key={t.id} 
                             onDragOver={(e) => { e.preventDefault(); if (dragging?.kind === kind) setDragOverId(t.id) }} 
                             onDrop={(e) => { e.preventDefault(); reorder(t.id, kind) }} 
-                            className={`group border rounded-xl transition-all duration-200 ${dragOverId === t.id ? 'border-emerald-400 bg-emerald-50/70 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'}`}
+                            className={`group border rounded-lg transition-all duration-200 ${dragOverId === t.id ? 'border-emerald-400 bg-emerald-50/70' : 'border-gray-200 bg-white hover:border-gray-300'}`}
                           >
-                            <div className="px-3 py-2.5 flex items-center gap-2">
+                            <div className="px-3 py-2 flex items-center gap-2">
                               <button 
                                 draggable 
                                 onDragStart={() => setDragging({ id: t.id, kind })} 
                                 onDragEnd={() => { setDragging(null); setDragOverId(null) }} 
-                                className="p-1.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing hover:bg-slate-50 rounded-lg transition-colors"
+                                className="p-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing hover:bg-gray-50 rounded transition-colors"
                               >
-                                <GripVertical size={14} />
+                                <GripVertical size={12} />
                               </button>
                               <button 
                                 onClick={() => setExpanded((p) => ({ ...p, [t.id]: !p[t.id] }))} 
-                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
                               >
-                                <ChevronRight size={14} className={`${expanded[t.id] ? 'rotate-90' : ''} transition-transform duration-200`} />
+                                <ChevronRight size={12} className={`${expanded[t.id] ? 'rotate-90' : ''} transition-transform duration-200`} />
                               </button>
-                              <p className="flex-1 text-sm font-medium text-slate-700 truncate">{t.name}</p>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                              <p className="flex-1 text-[13px] font-medium text-gray-900 truncate">{t.name}</p>
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
                                 <button 
                                   onClick={() => { setEditingId(t.id); setEditingName(t.name || '') }} 
-                                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                   title="Edit"
                                 >
-                                  <Pencil size={14} />
+                                  <Pencil size={12} />
                                 </button>
                                 <button
                                   onClick={async () => {
@@ -484,26 +479,26 @@ export default function ChecklistView({ user }) {
                                       setActionError(error?.message || 'Unable to delete checklist')
                                     }
                                   }}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                  className="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
                                   title="Delete"
                                 >
-                                  <Trash2 size={14} />
+                                  <Trash2 size={12} />
                                 </button>
                               </div>
                             </div>
                             {expanded[t.id] && (
-                              <div className="border-t border-slate-100 px-3 py-3 bg-slate-50/50 space-y-2">
+                              <div className="border-t border-gray-100 px-3 py-2.5 bg-gray-50/50 space-y-2">
                                 {editingId === t.id ? (
                                   <>
                                     <input 
                                       value={editingName} 
                                       onChange={(e) => setEditingName(e.target.value)} 
-                                      className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                                      className="w-full h-8 px-2.5 text-[13px] border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" 
                                       autoFocus
                                     />
-                                    <div className="flex gap-2">
-                                      <button onClick={() => saveEdit(t.id)} className="h-8 px-4 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors">Save</button>
-                                      <button onClick={() => { setEditingId(null); setEditingName('') }} className="h-8 px-4 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+                                    <div className="flex gap-1.5">
+                                      <button onClick={() => saveEdit(t.id)} className="h-7 px-3 rounded-md bg-indigo-600 text-white text-[11px] font-medium hover:bg-indigo-700 transition-colors">Save</button>
+                                      <button onClick={() => { setEditingId(null); setEditingName('') }} className="h-7 px-3 rounded-md border border-gray-300 text-gray-600 text-[11px] font-medium hover:bg-gray-50 transition-colors">Cancel</button>
                                     </div>
                                   </>
                                 ) : null}
@@ -520,27 +515,27 @@ export default function ChecklistView({ user }) {
                           value={newNames[kind]} 
                           onChange={(e) => { setNewNames((p) => ({ ...p, [kind]: e.target.value })); if (nameErrors[kind]) setNameErrors((p) => ({ ...p, [kind]: '' })) }} 
                           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTemplate(kind) } }} 
-                          className="flex-1 h-10 px-3 text-sm border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400" 
-                          placeholder={`Add new ${kind} item...`} 
+                          className="flex-1 h-9 px-3 text-[13px] border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-gray-400" 
+                          placeholder={`Add new ${kind} item...`} style={{ color: '#6b7280' }} 
                         />
                         <button 
                           onClick={() => addTemplate(kind)} 
-                          className="h-10 px-4 rounded-xl bg-slate-900 text-white text-sm font-medium inline-flex items-center gap-1.5 hover:bg-slate-800 transition-colors"
+                          className="h-9 px-3.5 rounded-lg bg-indigo-600 text-white text-[13px] font-medium inline-flex items-center gap-1 hover:bg-indigo-700 transition-colors"
                         >
-                          <Plus size={16} />
+                          <Plus size={14} />
                         </button>
                       </div>
-                      {nameErrors[kind] && <p className="mt-1.5 text-xs text-rose-500">{nameErrors[kind]}</p>}
+                      {nameErrors[kind] && <p className="mt-1.5 text-[11px] text-red-500">{nameErrors[kind]}</p>}
                     </div>
                   </div>
                 )
               })()}
             </div>
 
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
+            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/50">
               <button 
                 onClick={() => setShowConfigureModal(false)} 
-                className="w-full h-11 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
+                className="w-full h-10 rounded-lg bg-indigo-600 text-white text-[13px] font-semibold hover:bg-indigo-700 transition-colors"
               >
                 Done
               </button>

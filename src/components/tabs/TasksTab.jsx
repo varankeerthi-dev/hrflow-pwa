@@ -68,7 +68,7 @@ const TABS = [
   { id: 'checklist', label: 'Checklist', icon: <CheckSquare size={14} /> }
 ]
 
-export default function TasksTab() {
+export default function TasksTab({ defaultSubTab }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -77,7 +77,7 @@ export default function TasksTab() {
   
   const loading = tasksLoading || remindersLoading
   
-  const [activeTab, setActiveTab] = useState('team')
+  const [activeTab, setActiveTab] = useState(defaultSubTab || 'team')
   const [viewMode, setViewMode] = useState('board')
   const [calendarDate, setCalendarDate] = useState(new Date())
   const [statusFilter, setStatusFilter] = useState({

@@ -214,6 +214,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('attendance')
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [summarySubTab, setSummarySubTab] = useState('summary')
+  const [tasksSubTab, setTasksSubTab] = useState('checklist')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
@@ -472,7 +473,7 @@ export default function Dashboard() {
       case 'engage': return <EngagementTab />
       case 'chat': return <ChatTab />
       case 'shift-planning': return <ShiftPlanningTab />
-      case 'tasks': return <TasksTab />
+      case 'tasks': return <TasksTab defaultSubTab={tasksSubTab} />
       case 'portal': return <EmployeePortalTab portalSubTab={portalSubTab} />
       case 'settings': return <SettingsTab />
       case 'help': return <HelpTab />
@@ -525,6 +526,7 @@ export default function Dashboard() {
               { label: 'Add Employee', tab: 'settings', icon: <Users size={14} />, module: 'Employees', right: 'create' },
               { label: 'Advances', tab: 'advance', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
               { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={14} />, module: 'Summary', right: 'view' },
+              { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
             ].filter(action => {
               if (isAdmin) return true
               if (action.module === 'Employees') return userPerms['Employees']?.create === true || userPerms['Settings']?.create === true
@@ -535,7 +537,7 @@ export default function Dashboard() {
             return (
               <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200/80">
                 {quickActions.map(item => (
-                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab) }} className={`px-4 h-9 rounded-none text-[13px] font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === item.tab ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-600 hover:bg-indigo-50/50'}`}>
+                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab); if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) }} className={`px-4 h-9 rounded-none text-[13px] font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === item.tab ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-600 hover:bg-indigo-50/50'}`}>
                     {item.label}
                   </button>
                 ))}
