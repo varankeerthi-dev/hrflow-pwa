@@ -34,6 +34,16 @@ const formatMonthDisplay = (monthStr) => {
   return monthStr;
 };
 
+const formatMonthShort = (monthStr) => {
+  if (!monthStr) return '-';
+  if (monthStr.match(/^\d{4}-\d{2}$/)) {
+    const [year, month] = monthStr.split('-');
+    const date = new Date(year, parseInt(month) - 1);
+    return date.toLocaleDateString('en-US', { month: 'long' });
+  }
+  return monthStr;
+};
+
 const formatSummaryCurrency = (value) => `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`
 
 const downloadPdfBlob = (blob, fileName) => {
@@ -318,21 +328,68 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
       }, 1500);
     }
   });
-  if (!isOpen) return null;
-  return (<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden relative">
-    {showSuccess && (
-      <div className="absolute inset-0 z-[110] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
-        <div className="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4">
-          <CheckCircle2 size={40} />
+if (!isOpen) return null;
+  return (<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden border border-[#e5e5e5]">
+      {showSuccess && (
+        <div className="absolute inset-0 z-[110] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+          <div className="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4">
+            <CheckCircle2 size={40} />
+          </div>
+          <h3 className="text-lg font-semibold text-[#171717]">OT Escalation Saved!</h3>
+          <p className="text-sm text-[#525252]">Attendance records have been updated.</p>
         </div>
-        <h3 className="text-xl font-bold text-slate-900">OT Escalation Saved!</h3>
-        <p className="text-slate-500 text-sm">Attendance records have been updated.</p>
+      )}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5]">
+        <div>
+          <h2 className="text-sm font-semibold text-[#171717]">OT Escalation</h2>
+          <p className="text-[11px] text-[#525252]">{formatMonthDisplay(month)}</p>
+        </div>
+        <button onClick={onClose} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded-md transition-colors">
+          <X size={18} />
+        </button>
       </div>
-    )}
-    <div className="px-6 py-4 border-b flex justify-between items-center"><div><h2 className="text-base font-normal">OT Escalation</h2><p className="text-[11px] text-slate-500">{formatMonthDisplay(month)}</p></div><button onClick={onClose}><X size={18} /></button></div><div className="flex-1 overflow-auto p-6"><table className="w-full text-sm"><thead><tr className="text-[10px] uppercase text-slate-400 border-b"><th className="pb-2 text-left font-normal">Employee</th><th className="pb-2 text-center font-normal">Actual</th><th className="pb-2 text-center font-normal">Adjustment</th><th className="pb-2 text-right font-normal">Final</th></tr></thead><tbody className="divide-y">{employees.map(emp => (<tr key={emp.id} className="h-14 hover:bg-slate-50"><td><p className="font-normal">{emp.name}</p></td><td className="text-center font-normal">{Number(emp.ot || 0).toFixed(2)}</td><td className="text-center flex items-center justify-center gap-2 py-2"><button onClick={()=>handleAdjust(emp.id, -1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Minus size={10}/></button><input type="number" step="0.5" className="w-12 text-center font-normal border-0 focus:ring-0" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/><button onClick={()=>handleAdjust(emp.id, 1)} className="h-5 w-5 flex items-center justify-center border rounded hover:bg-slate-100 transition-colors"><Plus size={10}/></button></td><td className="text-right font-normal">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td></tr>))}</tbody></table></div><div className="p-4 border-t bg-slate-50 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-xs font-normal">Cancel</button><button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-normal shadow-lg shadow-indigo-100 flex items-center gap-2">
-      {saveMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : null}
-      {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
-    </button></div></div></div>)
+      <div className="flex-1 overflow-auto">
+        <table className="w-full text-left border-collapse">
+          <thead className="sticky top-0 bg-white z-10">
+            <tr className="h-10 bg-white border-b border-[#e5e5e5]">
+              <th className="px-4 font-semibold text-[12px] text-[#525252]">Staff Member</th>
+              <th className="px-4 font-semibold text-[12px] text-[#525252] text-center">Actual (Hrs)</th>
+              <th className="px-4 font-semibold text-[12px] text-[#525252] text-center">Adjustment</th>
+              <th className="px-4 font-semibold text-[12px] text-[#525252] text-right">Final (Hrs)</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#e5e5e5]">
+            {employees.map(emp => (
+              <tr key={emp.id} className="group h-12 hover:bg-[#f5f5f5] bg-white transition-colors">
+                <td className="px-4">
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-semibold text-[#171717]">{emp.name}</span>
+                  </div>
+                </td>
+                <td className="px-4 text-center text-[13px] text-[#525252] font-medium">{Number(emp.ot || 0).toFixed(2)}</td>
+                <td className="px-4">
+                  <div className="flex items-center justify-center gap-1">
+                    <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-6 w-6 flex items-center justify-center border border-[#d4d4d4] rounded hover:bg-[#f5f5f5] text-[#525252] transition-colors">-</button>
+                    <input type="number" step="0.5" className="w-12 text-center text-xs border border-[#d4d4d4] rounded py-1 focus:ring-1 focus:border-[#171717] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/>
+                    <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-6 w-6 flex items-center justify-center border border-[#d4d4d4] rounded hover:bg-[#f5f5f5] text-[#525252] transition-colors">+</button>
+                  </div>
+                </td>
+                <td className="px-4 text-right text-[13px] font-semibold text-[#171717]">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="px-5 py-4 border-t border-[#e5e5e5] bg-white flex justify-end gap-3">
+        <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-[#525252] hover:bg-[#f5f5f5] rounded-md border border-[#d4d4d4] transition-colors">Cancel</button>
+        <button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-4 py-2 bg-[#171717] text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
+          {saveMutation.isPending && <RefreshCw size={12} className="animate-spin" />}
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>)
 }
 
 const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
@@ -666,6 +723,11 @@ export default function SalarySlipTab() {
         const attByDate = new Map(empAtt.map(a => [normalizeDate(a.date), a]));
         
         let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
+        const holDatesList = []
+        const lopDatesList = []
+        const sunWDatesList = []
+        const holWDatesList = []
+        const otDatesList = []
         const appliedForThisEmp = appliedSandwiches.filter(s => s.employeeId === emp.id);
 
         const normalizedJoined = normalizeDate(emp.joinedDate)
@@ -684,21 +746,21 @@ export default function SalarySlipTab() {
           const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isSat = d.getDay() === 6, isH = holidayDates.has(dateStr) && !isS, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
           
           if (normalizedJoined && dateStr < normalizedJoined) {
-            lop++;
+            lop++; lopDatesList.push(i);
             continue;
           }
           if (normalizedInactive && dateStr > normalizedInactive) {
-            lop++;
+            lop++; lopDatesList.push(i);
             continue;
           }
           
           if (isS) sunCount++
-          if (isH) holCount++
+if (isH) { holCount++; holDatesList.push(i); }
 
           // Sandwich: if already applied as deduction, count as LOP
           if (!emp.hideInAttendance && (isS || isH || (isSat && isSaturdayHoliday)) && !isWorkedAttendanceRecord(r)) {
             if (appliedForThisEmp.some(s => s.date === dateStr)) {
-              lop++;
+              lop++; lopDatesList.push(i);
               continue;
             }
           }
@@ -706,21 +768,23 @@ export default function SalarySlipTab() {
           const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
           const isHD = status === 'half-day' || r?.isHalfDay
 
-          if (status === 'absent' || r?.isAbsent || status === 'leave') lop++; 
+          if (status === 'absent' || r?.isAbsent || status === 'leave') { lop++; lopDatesList.push(i); }
           else if (isHD) { 
-            hd++; lop += 0.5; 
-            if (isS) sunW += 0.5; else if (isH) holW += 0.5; else worked += 0.5;
+            hd++; lop += 0.5; lopDatesList.push(i);
+            if (isS) { sunW += 0.5; sunWDatesList.push(i); } else if (isH) { holW += 0.5; holWDatesList.push(i); } else worked += 0.5;
           } 
-          else if (isS) { if (isPresent) sunW++; }
-          else if (isH) { if (isPresent) holW++; }
+          else if (isS) { if (isPresent) { sunW++; sunWDatesList.push(i); } }
+          else if (isH) { if (isPresent) { holW++; holWDatesList.push(i); } }
           else if (isPresent) worked++; 
-          else if (!isS && !isH) lop++;
+          else if (!isS && !isH) { lop++; lopDatesList.push(i); }
 
           if (r?.otHours) { 
             const [h, mi] = r.otHours.split(':').map(Number); 
             const totalMins = (h || 0) * 60 + (mi || 0);
             const roundedMins = Math.ceil(totalMins / 5) * 5;
-            otH += roundedMins / 60;
+            const otHrs = roundedMins / 60;
+            otH += otHrs;
+            if (otHrs > 0) otDatesList.push({ date: i, hours: otHrs.toFixed(2) });
           }
         }
         // Calculate sandwich Sundays count
@@ -742,7 +806,7 @@ export default function SalarySlipTab() {
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
         const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, sandwichSundays, food: foodP, convenience: convP, bonus: bonusP }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, sandwichSundays, food: foodP, convenience: convP, bonus: bonusP }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -1467,22 +1531,22 @@ export default function SalarySlipTab() {
                       <th className="w-12 bg-zinc-100"></th>
                     </tr>
                     {/* Primary Header Row */}
-                    <tr className="bg-white text-[10px] uppercase font-bold text-zinc-500 tracking-tighter h-[35px] border-b-2 border-zinc-300">
-                      <th className="px-3 text-center border-r border-zinc-200 w-10">#</th>
-                      <th className="px-4 text-left border-r border-zinc-200 w-40">Employee Name</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24">Total Days</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-20">Sunday</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-20">Holiday</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24">Worked</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-[50px] whitespace-pre-line">HALF{"\n"}DAY</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-20">Leave</th>
+                    <tr className="bg-white text-[10px] uppercase font-bold text-zinc-500 tracking-tighter h-[35px] border-b-2 border-zinc-300 font-inter">
+                      <th className="px-3 text-center border-r border-zinc-200 w-10 text-blue-800">#</th>
+                      <th className="px-4 text-left border-r border-zinc-200 w-40 text-blue-800">Employee Name</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-orange-700">Total Days</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-orange-700">Sunday</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-orange-700">Holiday</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-gray-600">Worked</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-[50px] whitespace-pre-line text-gray-600">HALF{"\n"}DAY</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-gray-600">Leave</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20 text-rose-500">Loss of pay</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24">OT (Hrs)</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-indigo-600">OT (Hrs)</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-24 font-bold text-emerald-600 bg-emerald-50/10">Sunday Wk</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24 font-bold text-emerald-600 bg-emerald-50/10">Holiday Wk</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-28 bg-green-50/50 text-green-700 font-black">Net Payout</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-indigo-600 font-black">Status</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-32 text-slate-400">Details</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-green-700 font-black">Status</th>
+                      <th className="px-2 text-center border-r border-zinc-200 w-32 text-green-600">Details</th>
                       <th className="w-12"></th>
                     </tr>
                   </thead>
@@ -1492,32 +1556,58 @@ export default function SalarySlipTab() {
                     ) : filteredAttendanceSummaryData.map((e, idx)=>{
 
                       return (
-                      <tr key={e.id} className={`hover:bg-zinc-50/80 transition-colors h-[32px] group ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-mono text-[10px]">{idx + 1}</td>
-                        <td className="px-4 border-r border-zinc-200 font-black text-zinc-900 uppercase text-[11px] tracking-tight truncate w-40">{e.name}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-semibold">{e.totalDays}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.sundays}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400">{e.holidays}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.worked}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800">{e.hd}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600">{e.leave}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600">{e.lop}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-inter font-normal text-[11px]">
+                      <tr key={e.id} className={`hover:bg-zinc-50/80 transition-colors h-[32px] ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 text-[10px] font-inter">{idx + 1}</td>
+                        <td className="px-4 border-r border-zinc-200 text-zinc-900 text-[11px] font-semibold tracking-tight truncate w-40 font-inter">{e.name}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-inter">{e.totalDays}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-inter">{e.sundays}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-inter" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800 font-inter">{e.worked}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800 font-inter">{e.hd}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-inter">{e.leave}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600 font-inter relative group">
+                          {e.lop}
+                          {e.lopDates?.length > 0 && (
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                              <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.lopDates.join(', ')}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-inter text-[11px] relative group">
                           {Number(e.ot || 0).toFixed(2)}
                           {e.otAdjustment !== 0 && (
                             <span className="text-emerald-600 ml-1 font-bold">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
                           )}
+                          {e.otDates?.length > 0 && (
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                              {e.otDates.map(o => <div key={o.date} className="flex justify-between" style={{ minWidth: '80px' }}><span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)} {o.date}</span><span>{o.hours}h</span></div>)}
+                            </span>
+                          )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600 bg-emerald-50/5">{e.sunW}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5">{e.holW}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-black text-green-700 bg-green-50/20 text-[12px]">{formatINR(e.salary?.net)}</td>
-                        <td className="px-2 text-center border-r border-zinc-200">
+                        <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600 bg-emerald-50/5 font-inter relative group">
+                          {e.sunW}
+                          {e.sunWDates?.length > 0 && (
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                              <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.sunWDates.join(', ')}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5 font-inter relative group">
+                          {e.holW}
+                          {e.holWDates?.length > 0 && (
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                              <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.holWDates.join(', ')}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-green-700 bg-green-50/20 text-[12px] font-inter">{formatINR(e.salary?.net)}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-inter">
                           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase">Pending</span>
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-200 text-[9px] font-bold text-slate-500 italic">
+                        <td className="px-2 text-center border-r border-zinc-200 text-[9px] font-bold text-slate-500 italic font-inter">
                           -
                         </td>
-                        <td className="px-2 text-center">
+                        <td className="px-2 text-center font-inter">
                           <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1 hover:bg-zinc-900 hover:text-white rounded transition-all text-zinc-400">
                             <ArrowRight size={14}/>
                           </button>
