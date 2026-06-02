@@ -422,7 +422,13 @@ export default function SalarySlipTab() {
   const [variablePayData, setVariablePayData] = useState({})
   const [variableEntryDate, setVariableEntryDate] = useState(() => new Date().toISOString().split('T')[0])
   const [showAddVariable, setShowAddVariable] = useState(false)
-  const [newVariable, setNewVariable] = useState({ employeeId: '', date: '', food: '', convenience: '', bonus: '' })
+  const [newVariable, setNewVariable] = useState({ employeeId: '', date: '', endDate: '', isRange: false, food: '', convenience: '', bonus: '', selectedEmps: [], selectedAll: false, empData: {} })
+  const [variableSearchTerm, setVariableSearchTerm] = useState('')
+  const [variableDateFilter, setVariableDateFilter] = useState('')
+  const [variableViewGroup, setVariableViewGroup] = useState('individual') // 'individual' | 'staff' | 'date'
+  const [expandedVariableGroups, setExpandedVariableGroups] = useState(new Set())
+  const [variableDrafts, setVariableDrafts] = useState({}) // { docId: { food, convenience, bonus } }
+  const [editingVariable, setEditingVariable] = useState(null)
   const [downloadAllLoading, setDownloadAllLoading] = useState(false)
   const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
   const [exportingDetailedPdf, setExportingDetailedPdf] = useState(false)
@@ -551,17 +557,22 @@ export default function SalarySlipTab() {
     } catch (e) { alert(e.message) }
   }
 
+  const { data: orgData } = useQuery({
+    queryKey: ['organisation', user?.orgId],
+    queryFn: async () => {
+      const snap = await getDoc(doc(db, 'organisations', user.orgId));
+      return snap.exists() ? snap.data() : {};
+    },
+    enabled: !!user?.orgId
+  });
+
   useEffect(() => {
     if (!user?.orgId || !user?.uid) return
     const fetchUserSettings = async () => {
       try {
-        const [userPrefSnap, orgSnap] = await Promise.all([
-          getDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid)),
-          getDoc(doc(db, 'organisations', user.orgId))
-        ])
+        const userPrefSnap = await getDoc(doc(db, 'organisations', user.orgId, 'userPreferences', user.uid));
         
-        if (orgSnap.exists()) {
-          const orgData = orgSnap.data()
+        if (orgData) {
           if (orgData.employeeRowOrder) setEmployeeRowOrder(orgData.employeeRowOrder)
           if (orgData.logoURL) setOrgLogo(orgData.logoURL)
         }
@@ -570,15 +581,12 @@ export default function SalarySlipTab() {
           const data = userPrefSnap.data()
           if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
         } else {
-          if (orgSnap.exists()) {
-            const data = orgSnap.data()
-            if (data.detailedSummaryColumns) setSelectedDetailedColumns(data.detailedSummaryColumns)
-          }
+          if (orgData?.detailedSummaryColumns) setSelectedDetailedColumns(orgData.detailedSummaryColumns)
         }
       } catch (err) { console.error('Error fetching settings:', err) }
     }
     fetchUserSettings()
-  }, [user?.orgId, user?.uid])
+  }, [user?.orgId, user?.uid, orgData])
 
   const saveDetailedColumnDefaults = async () => {
     if (!user?.orgId || !user?.uid) return
@@ -638,22 +646,38 @@ export default function SalarySlipTab() {
   const saveVariablesMutation = useMutation({
     mutationFn: async (data) => {
       const batch = [];
+      const getDatesInRange = (startDate, endDate) => {
+        const dates = [];
+        let curr = new Date(startDate);
+        const end = new Date(endDate);
+        while (curr <= end) {
+          dates.push(curr.toISOString().split('T')[0]);
+          curr.setDate(curr.getDate() + 1);
+        }
+        return dates;
+      };
+
       for (const [empId, values] of Object.entries(data)) {
-        const entryDate = values.date || variableEntryDate;
-        const currentMonth = entryDate.substring(0, 7);
-        const emp = sortedEmployees.find(e => e.id === empId)
-        const docId = `${entryDate}_${empId}`;
-        batch.push(setDoc(doc(db, 'organisations', user.orgId, 'variablePayLogs', docId), {
-          employeeId: empId,
-          employeeName: emp?.name || values.employeeName || '',
-          date: entryDate,
-          month: currentMonth,
-          food: Number(values.food || 0),
-          convenience: Number(values.convenience || 0),
-          bonus: Number(values.bonus || 0),
-          updatedAt: serverTimestamp(),
-          updatedBy: user.uid
-        }, { merge: true }));
+        const emp = sortedEmployees.find(e => e.id === empId);
+        const dates = (newVariable.isRange && newVariable.endDate) 
+          ? getDatesInRange(values.date || variableEntryDate, newVariable.endDate)
+          : [values.date || variableEntryDate];
+
+        for (const entryDate of dates) {
+          const currentMonth = entryDate.substring(0, 7);
+          const docId = `${entryDate}_${empId}`;
+          batch.push(setDoc(doc(db, 'organisations', user.orgId, 'variablePayLogs', docId), {
+            employeeId: empId,
+            employeeName: emp?.name || values.employeeName || '',
+            date: entryDate,
+            month: currentMonth,
+            food: Number(values.food || 0),
+            convenience: Number(values.convenience || 0),
+            bonus: Number(values.bonus || 0),
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
+          }, { merge: true }));
+        }
       }
       await Promise.all(batch);
     },
@@ -661,7 +685,7 @@ export default function SalarySlipTab() {
       queryClient.invalidateQueries(['dailyVariablePay']);
       queryClient.invalidateQueries(['monthlyVariableSums']);
       queryClient.invalidateQueries(['attendanceSummary']);
-      alert('Variable pay saved successfully!');
+      alert('Variable pay records processed successfully!');
     },
     onError: (err) => alert('Failed to save: ' + err.message)
   });
@@ -691,7 +715,19 @@ export default function SalarySlipTab() {
 
   useEffect(() => { setDetectedSandwiches([]); setSelectedSandwichDays(new Set()); }, [summaryMonth])
 
-  useEffect(() => { if (activeTab === 'salary-summary' && summarySubTab === 'detailed') { if (!isCollapsed) { setIsCollapsed(true); setIsAutoCollapsed(true); } } else { if (isAutoCollapsed) { setIsCollapsed(false); setIsAutoCollapsed(false); } } }, [activeTab, summarySubTab, isCollapsed, isAutoCollapsed])
+  useEffect(() => { 
+    if (activeTab === 'salary-summary' && summarySubTab === 'detailed') { 
+      if (!isCollapsed) { 
+        setIsCollapsed(true); 
+        setIsAutoCollapsed(true); 
+      } 
+    } else { 
+      if (isAutoCollapsed) { 
+        setIsCollapsed(false); 
+        setIsAutoCollapsed(false); 
+      } 
+    } 
+  }, [activeTab, summarySubTab])
 
   const sortedEmployees = useMemo(() => {
     const base = employees.filter(e => e.includeInSalary !== false);
@@ -727,6 +763,7 @@ export default function SalarySlipTab() {
       const isSaturdayHoliday = saturdayType !== 'working';
       
       const appliedSandwiches = sandwichSnap.docs.map(d => d.data());
+      const payrollVersion = orgData?.payrollVersions?.[summaryMonth] || 'legacy';
       
       // Aggregate variable pay logs for the month
       const allVariables = {};
@@ -765,15 +802,6 @@ export default function SalarySlipTab() {
         const normalizedJoined = normalizeDate(emp.joinedDate)
         const normalizedInactive = normalizeDate(emp.inactiveFrom)
 
-        const isDateAHoliday = (dateObj) => {
-          const ds = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-          const day = dateObj.getDay(); // 0: Sun, 6: Sat
-          if (day === 0) return true;
-          if (day === 6 && isSaturdayHoliday) return true;
-          if (holidayDates.has(ds)) return true;
-          return false;
-        };
-
         for (let i = 1; i <= end; i++) {
           const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isSat = d.getDay() === 6, isH = holidayDates.has(dateStr) && !isS, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
           
@@ -787,30 +815,41 @@ export default function SalarySlipTab() {
           }
           
           if (isS) sunCount++
-if (isH) { holCount++; holDatesList.push(i); }
+          if (isH) { holCount++; holDatesList.push(i); }
 
-          // Sandwich: if sandwich rule applied on a worked Sunday/Holiday (including sundayWorked/holidayWorked), count as LOP
+          // Sandwich Rule
           if (!emp.hideInAttendance && (isS || isH || (isSat && isSaturdayHoliday))) {
-            const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked';
-            if (isPresent && appliedForThisEmp.some(s => s.date === dateStr)) {
+            if (appliedForThisEmp.some(s => s.date === dateStr)) {
               lop++; lopDatesList.push(i);
-              continue; // Skip - no Sunday/Holiday pay, counted as LOP
+              if (payrollVersion === 'v2') {
+                if (isS) sunCount--;
+                else if (isH) holCount--;
+              }
+              continue; 
             }
           }
           
           const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
           const isHD = status === 'half-day' || r?.isHalfDay
 
-          if (status === 'absent' || r?.isAbsent || status === 'leave') { lop++; lopDatesList.push(i); }
+          if (status === 'absent' || r?.isAbsent || status === 'leave') { 
+            lop++; lopDatesList.push(i); 
+            if (payrollVersion === 'v2') {
+              if (isS) sunCount--;
+              else if (isH) holCount--;
+            }
+          }
           else if (isHD) { 
             hd++; lop += 0.5; lopDatesList.push(i);
-            // If sandwich rule applied on half-day Sunday/Holiday, don't count as worked (count as LOP instead)
-            const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked';
-            if ((isS || isH) && appliedForThisEmp.some(s => s.date === dateStr)) {
-              // Sandwich rule applies - don't add to sunW/holW, already counted as LOP above
-            } else {
-              if (isS) { sunW += 0.5; sunWDatesList.push(i); } else if (isH) { holW += 0.5; holWDatesList.push(i); } else worked += 0.5;
-            }
+            if (isS) { 
+              sunW += 0.5; sunWDatesList.push(i); 
+              if (payrollVersion === 'v2') sunCount -= 0.5;
+            } 
+            else if (isH) { 
+              holW += 0.5; holWDatesList.push(i); 
+              if (payrollVersion === 'v2') holCount -= 0.5;
+            } 
+            else worked += 0.5;
           } 
           else if (isS) { if (isPresent) { sunW++; sunWDatesList.push(i); } }
           else if (isH) { if (isPresent) { holW++; holWDatesList.push(i); } }
@@ -826,26 +865,11 @@ if (isH) { holCount++; holDatesList.push(i); }
             if (otHrs > 0) otDatesList.push({ date: i, hours: otHrs.toFixed(2) });
           }
         }
-// Calculate sandwich Sundays count
-        const sandwichSundays = appliedForThisEmp.filter(s => {
-          const date = new Date(s.date);
-          return date.getDay() === 0; // Sunday
-        }).length;
-        
-        // Calculate sandwich Holidays count (for current month)
-        const sandwichHolidays = appliedForThisEmp.filter(s => {
-          const dateStr = s.date?.substring(0, 7);
-          return dateStr === summaryMonth && new Date(s.date).getDay() !== 0; // Not Sunday = Holiday
-        }).length;
 
-        // Adjust worked days: exclude sandwich Sundays/Holidays from Sunday/Holiday pay
-        const adjustedSunW = Math.max(0, sunW - sandwichSundays);
-        const adjustedHolW = Math.max(0, holW - sandwichHolidays);
-        
         const slab = increments?.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20 };
         const ts = Number(slab.totalSalary) || 0, paidDays = end - lop, dailyRate = ts / end, fullBasic = ts * (slab.basicPercent / 100), fullHra = ts * (slab.hraPercent / 100)
         const shiftH = Number(emp.minDailyHours) || 8
-        const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = adjustedSunW * dailyRate, holPay = adjustedHolW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / shiftH)
+        const basic = fullBasic * (paidDays / end), hra = fullHra * (paidDays / end), sunPay = sunW * dailyRate, holPay = holW * dailyRate, otPay = (otH + (otAdjs[emp.id] || 0)) * (dailyRate / shiftH)
         
         const empVar = allVariables[emp.id] || {};
         const foodP = Number(empVar.food || 0), convP = Number(empVar.convenience || 0), bonusP = Number(empVar.bonus || 0);
@@ -855,7 +879,7 @@ if (isH) { holCount++; holDatesList.push(i); }
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
         const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: Math.max(0, sunCount - sandwichSundays), holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW: adjustedSunW, holW: adjustedHolW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, sandwichSundays, sandwichHolidays, food: foodP, convenience: convP, bonus: bonusP }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -868,11 +892,24 @@ if (isH) { holCount++; holDatesList.push(i); }
     return Math.min(Math.max(maxChars * 7.5 + 20, 120), 300);
   }, [filteredAttendanceSummaryData]);
 
-  const visibleDetailedSummaryColumns = useMemo(() => 
-    DETAILED_SUMMARY_COLUMNS.filter(c => selectedDetailedColumns.includes(c.id)).map(c => 
-      c.id === 'name' ? { ...c, width: dynamicNameWidth } : c
-    ), 
-  [selectedDetailedColumns, dynamicNameWidth])
+  const visibleDetailedSummaryColumns = useMemo(() => {
+    let currentLeft = 0;
+    const stickyIds = ['sno', 'empNo', 'name', 'designation'];
+    
+    return DETAILED_SUMMARY_COLUMNS
+      .filter(c => selectedDetailedColumns.includes(c.id))
+      .map(c => {
+        const colWidth = c.id === 'name' ? dynamicNameWidth : c.width;
+        const isSticky = stickyIds.includes(c.id);
+        const leftOffset = isSticky ? currentLeft : undefined;
+        
+        if (isSticky) {
+          currentLeft += colWidth;
+        }
+        
+        return { ...c, width: colWidth, leftOffset };
+      });
+  }, [selectedDetailedColumns, dynamicNameWidth]);
   
   const visibleGroups = useMemo(() => {
     const groups = [
@@ -890,7 +927,7 @@ if (isH) { holCount++; holDatesList.push(i); }
     switch (colId) {
       case 'sno': return emp.sno;
       case 'empNo': return <span className="font-mono text-[10px]">{emp.empId}</span>;
-      case 'name': return <span className="font-bold text-gray-900 uppercase">{emp.name}</span>;
+      case 'name': return <span className="font-bold text-gray-900">{emp.name}</span>;
       case 'designation': return emp.designation;
       case 'basicCtc': return Math.round(emp.fullBasic).toLocaleString('en-IN');
       case 'hraCtc': return Math.round(emp.fullHra).toLocaleString('en-IN');
@@ -933,28 +970,29 @@ if (isH) { holCount++; holDatesList.push(i); }
     if (!group) return '';
     const color = group.color;
     if (type === 'bg') {
-      if (color === 'blue') return 'bg-blue-50/50';
-      if (color === 'purple') return 'bg-purple-50/50';
-      if (color === 'amber') return 'bg-amber-50/50';
-      if (color === 'emerald') return 'bg-green-100';
-      if (color === 'red') return 'bg-red-50/50';
+      if (color === 'blue') return 'bg-blue-50/30';
+      if (color === 'purple') return 'bg-purple-50/30';
+      if (color === 'amber') return 'bg-amber-50/30';
+      if (color === 'emerald') return 'bg-emerald-50/30';
+      if (color === 'red') return 'bg-red-50/30';
       if (color === 'green') return 'bg-green-600';
       return '';
     }
     if (type === 'border') {
-      if (color === 'blue') return 'border-blue-100';
-      if (color === 'purple') return 'border-purple-100';
-      if (color === 'amber') return 'border-amber-100';
-      if (color === 'emerald') return 'border-green-200';
-      if (color === 'red') return 'border-red-100';
-      return 'border-gray-200';
+      if (color === 'blue') return 'border-blue-100/50';
+      if (color === 'purple') return 'border-purple-100/50';
+      if (color === 'amber') return 'border-amber-100/50';
+      if (color === 'emerald') return 'border-emerald-100/50';
+      if (color === 'red') return 'border-red-100/50';
+      return 'border-zinc-100';
     }
     if (type === 'text') {
       if (color === 'green') return 'text-white';
-      if (color === 'emerald') return 'text-black';
-      if (color === 'red') return 'text-red-600';
-      if (color === 'purple') return 'text-purple-700';
-      return 'text-gray-900';
+      if (color === 'emerald') return 'text-emerald-900';
+      if (color === 'red') return 'text-rose-600';
+      if (color === 'purple') return 'text-purple-900';
+      if (color === 'blue') return 'text-blue-900';
+      return 'text-zinc-700';
     }
     return '';
   }
@@ -984,18 +1022,22 @@ if (isH) { holCount++; holDatesList.push(i); }
 
       console.log('Fetching related data...');
       // Use simpler queries to avoid missing index errors
-      const [aDataSnap, aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap, varLogsSnap] = await Promise.all([
+      const [aDataSnap, aeSnap, loanSnap, fineSnap, otAdjSnap, orgSnap, varLogsSnap, sandwichSnap] = await Promise.all([
         getDocs(collection(db, 'organisations', user.orgId, 'attendance')),
         getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))), 
         getDocs(collection(db, 'organisations', user.orgId, 'fines')), 
         getDoc(doc(db, 'organisations', user.orgId, 'otAdjustments', `${selectedMonth}_${selectedEmp}`)),
         getDoc(doc(db, 'organisations', user.orgId)),
-        getDocs(collection(db, 'organisations', user.orgId, 'variablePayLogs'))
+        getDocs(collection(db, 'organisations', user.orgId, 'variablePayLogs')),
+        getDocs(query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', selectedMonth)))
       ]);
 
       console.log('Data fetched. Processing...');
       
+      const appliedSandwiches = sandwichSnap.docs.map(d => d.data());
+      const appliedForThisEmp = appliedSandwiches.filter(s => s.employeeId === selectedEmp);
+
       // Filter attendance in memory
       const aData = aDataSnap.docs
         .map(d => d.data())
@@ -1005,6 +1047,8 @@ if (isH) { holCount++; holDatesList.push(i); }
       const orgData = orgSnap.exists() ? orgSnap.data() : {};
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : [];
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean));
+      const saturdayType = orgData.saturdayType || 'working';
+      const isSaturdayHoliday = saturdayType !== 'working';
 
       // Aggregate variable pay logs in memory
       let foodP = 0, convP = 0, bonusP = 0;
@@ -1033,6 +1077,7 @@ if (isH) { holCount++; holDatesList.push(i); }
         const ds = `${selectedMonth}-${String(i).padStart(2, '0')}`;
         const d = new Date(y, m - 1, i);
         const isS = d.getDay() === 0;
+        const isSat = d.getDay() === 6;
         const isH = holidayDates.has(ds) && !isS;
         const r = attByDate.get(ds);
         const status = String(r?.status || '').toLowerCase();
@@ -1048,6 +1093,16 @@ if (isH) { holCount++; holDatesList.push(i); }
         
         if (isS) sunCount++;
         if (isH) holCount++;
+
+        // Sandwich Rule logic
+        if (!emp.hideInAttendance && (isS || isH || (isSat && isSaturdayHoliday))) {
+          if (appliedForThisEmp.some(s => s.date === ds)) {
+            lop++; leaveDates.push(i);
+            if (isS) sunCount--;
+            else if (isH) holCount--;
+            continue;
+          }
+        }
         
         const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked';
         const isHD = status === 'half-day' || r?.isHalfDay;
@@ -1055,10 +1110,14 @@ if (isH) { holCount++; holDatesList.push(i); }
         if (status === 'absent' || r?.isAbsent || status === 'leave') {
           lop++;
           leaveDates.push(i);
+          if (isS) sunCount--;
+          else if (isH) holCount--;
         }
         else if (isHD) { 
           hd++; lop += 0.5; 
-          if (isS) { sunW += 0.5; sunDates.push(i); } else if (isH) { holW += 0.5; holDates.push(i); } else worked += 0.5;
+          if (isS) { sunW += 0.5; sunDates.push(i); sunCount -= 0.5; } 
+          else if (isH) { holW += 0.5; holDates.push(i); holCount -= 0.5; } 
+          else worked += 0.5;
         } 
         else if (isS) { if (isPresent) { sunW++; sunDates.push(i); } }
         else if (isH) { if (isPresent) { holW++; holDates.push(i); } }
@@ -1368,9 +1427,9 @@ if (isH) { holCount++; holDatesList.push(i); }
               <button 
                 key={t.id} 
                 onClick={() => setActiveTab(t.id)} 
-                className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-[12px] font-bold tracking-tight transition-all duration-200 ${
+                className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-[12px] font-bold tracking-tight transition-all duration-200 hover:scale-105 active:scale-95 ${
                   activeTab === t.id 
-                    ? 'text-indigo-600 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-indigo-100/50 scale-[1.02]' 
+                    ? 'text-indigo-600 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-indigo-100/50' 
                     : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
                 }`}
               >
@@ -1388,7 +1447,7 @@ if (isH) { holCount++; holDatesList.push(i); }
           </div>
         )}
         {activeTab === 'salary-slip' && (
-          <div className="max-w-6xl mx-auto w-full space-y-4 h-full flex flex-col overflow-hidden">
+          <div className="w-full space-y-4 h-full flex flex-col overflow-hidden">
             <div className="flex gap-4 items-end shrink-0 mb-2 mt-1">
               <div className="flex-1 max-w-xs">
                 <EmployeeSearchableDropdown employees={sortedEmployees} selectedId={selectedEmp} onSelect={setSelectedEmp} />
@@ -1398,8 +1457,8 @@ if (isH) { holCount++; holDatesList.push(i); }
               </div>
               <div className="flex gap-2">
                 <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-4 bg-zinc-800 text-white rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-green-600 active:scale-95 transition-all flex items-center gap-2">
-                  {generated && <CheckCircle2 size={12} />}
-                  {generated ? 'Advice Generated' : 'Generate'}
+                  {loading ? <RefreshCw size={12} className="animate-spin" /> : (generated && <CheckCircle2 size={12} />)}
+                  {loading ? 'Generating...' : (generated ? 'Advice Generated' : 'Generate')}
                 </button>
                 <button onClick={handleDownloadAllZipped} disabled={downloadAllLoading || !attendanceSummaryData.length} className="h-7 px-4 border border-zinc-200 bg-white text-zinc-900 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-50 active:scale-95 transition-all flex items-center gap-2">
                   {downloadAllLoading ? <RefreshCw size={12} className="animate-spin" /> : <Download size={12} />}
@@ -1550,13 +1609,25 @@ if (isH) { holCount++; holDatesList.push(i); }
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-50">
               <div className="flex gap-2 items-center">
-                <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 gap-0.5">
                   {[
-                    {id:'overview',l:'Days Overview'},
-                    {id:'detailed',l:'Full Summary'},
-                    {id:'variable',l:'Variable Pay'},
+                    {id:'overview',l:'Overview'},
+                    {id:'detailed',l:'Detailed Summary'},
+                    {id:'variable',l:'Vouchers'},
                     {id:'sandwich',l:'Sandwich Rule'}
-                  ].map(t=>(<button key={t.id} onClick={()=>setSummarySubTab(t.id)} className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${summarySubTab===t.id?'bg-white text-indigo-600 shadow-sm border border-indigo-100':'text-slate-500 hover:text-slate-900'}`}>{t.l}</button>))}
+                  ].map(t=>(
+                    <button 
+                      key={t.id} 
+                      onClick={()=>setSummarySubTab(t.id)} 
+                      className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 ${
+                        summarySubTab===t.id
+                          ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100/50'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-white/40'
+                      }`}
+                    >
+                      {t.l}
+                    </button>
+                  ))}
                 </div>
                 <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
                   <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
@@ -1604,7 +1675,7 @@ if (isH) { holCount++; holDatesList.push(i); }
                   <thead className="sticky top-0 z-40 shadow-sm font-raleway">
                     {/* Group Headers Row */}
                     <tr className="h-[40px] border-b border-zinc-200">
-                      <th colSpan={2} className="px-4 text-left border-r border-zinc-200 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-100">Staff Profile</th>
+                      <th colSpan={2} className="px-4 text-left border-r border-zinc-200 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-100 sticky left-0 z-50 border-b border-blue-200">Staff Profile</th>
                       <th colSpan={3} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-orange-900 tracking-widest bg-orange-100">Period Status</th>
                       <th colSpan={4} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-black tracking-widest bg-gray-500">Performance</th>
                       <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-100">Overtime</th>
@@ -1613,9 +1684,9 @@ if (isH) { holCount++; holDatesList.push(i); }
                       <th className="w-12 bg-zinc-100"></th>
                     </tr>
                     {/* Primary Header Row */}
-                    <tr className="bg-white text-[10px] uppercase font-bold text-zinc-500 tracking-tighter h-[35px] border-b-2 border-zinc-300 font-inter">
-                      <th className="px-3 text-center border-r border-zinc-200 w-10 text-blue-800">#</th>
-                      <th className="px-4 text-left border-r border-zinc-200 w-40 text-blue-800">Employee Name</th>
+                    <tr className="bg-white text-[11px] uppercase font-bold text-zinc-500 tracking-tighter h-[35px] border-b-2 border-zinc-300 font-inter">
+                      <th className="px-3 text-center border-r border-zinc-200 w-10 text-blue-800 sticky left-0 bg-white z-50">#</th>
+                      <th className="px-4 text-left border-r border-zinc-200 w-40 text-blue-800 sticky left-10 bg-white z-50">Employee Name</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-24 text-orange-700">Total Days</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20 text-orange-700">Sunday</th>
                       <th className="px-2 text-center border-r border-zinc-200 w-20 text-orange-700">Holiday</th>
@@ -1638,59 +1709,59 @@ if (isH) { holCount++; holDatesList.push(i); }
                     ) : filteredAttendanceSummaryData.map((e, idx)=>{
 
                       return (
-                      <tr key={e.id} className={`hover:bg-zinc-50/80 transition-colors h-[32px] ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 text-[10px] font-inter">{idx + 1}</td>
-                        <td className="px-4 border-r border-zinc-200 text-zinc-900 text-[11px] font-semibold tracking-tight truncate w-40 font-inter">{e.name}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-inter">{e.totalDays}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-inter">{e.sundays}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-inter" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800 font-inter">{e.worked}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800 font-inter">{e.hd}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-inter">{e.leave}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600 font-inter relative group">
+                      <tr key={e.id} className={`hover:bg-blue-50 transition-colors h-[36px] group ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 text-[11px] font-inter sticky left-0 z-20 bg-inherit group-hover:bg-blue-50">{idx + 1}</td>
+                        <td className="px-4 border-r border-zinc-200 text-zinc-900 text-[12px] font-bold tracking-tight truncate w-40 font-inter sticky left-10 z-20 bg-inherit group-hover:bg-blue-50">{e.name}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-inter text-[11px]">{e.totalDays}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-inter text-[11px]">{e.sundays}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-inter text-[11px]" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800 font-inter text-[11px]">{e.worked}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800 font-inter text-[11px]">{e.hd}</td>
+                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-inter text-[11px]">{e.leave}</td>
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600 font-inter text-[11px] relative group/tooltip">
                           {e.lop}
                           {e.lopDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                               <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.lopDates.join(', ')}
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-inter text-[11px] relative group">
+                        <td className="px-2 text-center border-r border-zinc-200 font-inter text-[11px] relative group/tooltip">
                           {Number(e.ot || 0).toFixed(2)}
                           {e.otAdjustment !== 0 && (
                             <span className="text-emerald-600 ml-1 font-bold">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
                           )}
                           {e.otDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
                               {e.otDates.map(o => <div key={o.date} className="flex justify-between" style={{ minWidth: '80px' }}><span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)} {o.date}</span><span>{o.hours}h</span></div>)}
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600 bg-emerald-50/5 font-inter relative group">
+                        <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600 bg-emerald-50/5 font-inter text-[11px] relative group/tooltip">
                           {e.sunW}
                           {e.sunWDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                               <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.sunWDates.join(', ')}
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5 font-inter relative group">
+                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5 font-inter text-[11px] relative group/tooltip">
                           {e.holW}
                           {e.holWDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                               <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.holWDates.join(', ')}
                             </span>
                           )}
                         </td>
                         <td className="px-2 text-right border-r border-zinc-200 font-bold text-green-700 bg-green-50/20 text-[12px] font-inter pr-3">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-inter">
+                        <td className="px-2 text-center border-r border-zinc-200 font-inter text-[11px]">
                           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase">Pending</span>
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-200 text-[9px] font-bold text-slate-500 italic font-inter">
+                        <td className="px-2 text-center border-r border-zinc-200 text-[10px] font-bold text-slate-500 italic font-inter">
                           -
                         </td>
                         <td className="px-2 text-center font-inter">
-                          <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1 hover:bg-zinc-900 hover:text-white rounded transition-all text-zinc-400">
+                          <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1.5 hover:bg-zinc-900 hover:text-white rounded transition-all text-zinc-400">
                             <ArrowRight size={14}/>
                           </button>
                         </td>
@@ -1707,7 +1778,74 @@ if (isH) { holCount++; holDatesList.push(i); }
                       <p className="text-[11px] text-[#525252] mt-0.5">Add Food, Convenience & Bonus allowances for specific employees & dates</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <button onClick={() => setShowAddVariable(true)} className="h-8 px-4 bg-[#171717] text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
+                      <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200 gap-2">
+                        <div className="relative">
+                          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input 
+                            type="text" 
+                            placeholder="Search staff..." 
+                            value={variableSearchTerm}
+                            onChange={e => setVariableSearchTerm(e.target.value)}
+                            className="h-8 pl-8 pr-3 bg-white border border-gray-200 rounded-md text-[11px] font-medium outline-none focus:border-indigo-500 w-48 transition-all"
+                          />
+                        </div>
+                        <input 
+                          type="date" 
+                          value={variableDateFilter}
+                          onChange={e => setVariableDateFilter(e.target.value)}
+                          className="h-8 px-2 bg-white border border-gray-200 rounded-md text-[11px] font-medium outline-none focus:border-indigo-500 transition-all"
+                        />
+                        {(variableSearchTerm || variableDateFilter) && (
+                          <button 
+                            onClick={() => { setVariableSearchTerm(''); setVariableDateFilter(''); }}
+                            className="p-1.5 hover:bg-white rounded-md text-gray-400 hover:text-red-500 transition-all"
+                            title="Clear Filters"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 gap-0.5">
+                        {[
+                          {id:'individual', l:'Individual'},
+                          {id:'staff', l:'By Staff'},
+                          {id:'date', l:'By Date'}
+                        ].map(g => (
+                          <button 
+                            key={g.id}
+                            onClick={() => setVariableViewGroup(g.id)}
+                            className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${
+                              variableViewGroup === g.id 
+                                ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' 
+                                : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                          >
+                            {g.l}
+                          </button>
+                        ))}
+                      </div>
+
+                      {Object.keys(variableDrafts).length > 0 && (
+                        <button 
+                          onClick={() => {
+                            const dataToSave = {};
+                            Object.entries(variableDrafts).forEach(([docId, vals]) => {
+                              const [date, empId] = docId.split('_');
+                              dataToSave[empId] = { ...vals, date };
+                            });
+                            saveVariablesMutation.mutate(dataToSave);
+                            setVariableDrafts({});
+                          }}
+                          disabled={saveVariablesMutation.isPending}
+                          className="h-9 px-4 bg-emerald-600 text-white rounded-md text-xs font-bold uppercase hover:bg-emerald-700 shadow-md transition-all flex items-center gap-2 animate-in zoom-in-95"
+                        >
+                          <Save size={14} />
+                          Save ({Object.keys(variableDrafts).length})
+                        </button>
+                      )}
+
+                      <button onClick={() => setShowAddVariable(true)} className="h-9 px-4 bg-[#171717] text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
                         <Plus size={14} /> Add Entry
                       </button>
                     </div>
@@ -1717,51 +1855,281 @@ if (isH) { holCount++; holDatesList.push(i); }
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 bg-white z-10 border-b border-[#e5e5e5]">
                         <tr className="h-10">
-                          <th className="px-4 font-semibold text-[11px] text-[#525252]">Employee</th>
-                          <th className="px-4 font-semibold text-[11px] text-[#525252]">Date</th>
-                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
-                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
-                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
-                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Total (₹)</th>
-                          <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Actions</th>
+                          {variableViewGroup === 'individual' ? (
+                            <>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252]">Employee</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252]">Date</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Total (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Actions</th>
+                            </>
+                          ) : variableViewGroup === 'staff' ? (
+                            <>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252]">Employee Name</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-center">Entries</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right font-black">Grand Total (₹)</th>
+                            </>
+                          ) : (
+                            <>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252]">Date</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-center">Staff Count</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right font-black">Daily Total (₹)</th>
+                            </>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#e5e5e5]">
-                        {monthlyVariableSums?.length > 0 ? monthlyVariableSums.map(v => {
-                          const emp = sortedEmployees.find(e => e.id === v.employeeId) || {}
-                          return (
-                            <tr key={v.id} className="hover:bg-[#f5f5f5]">
-                              <td className="px-4 py-3">
-                                <span className="text-[13px] font-semibold text-[#171717]">{v.employeeName}</span>
-                              </td>
-                              <td className="px-4">
-                                <span className="text-[12px] text-[#525252]">{formatDateDDMMYYYY(v.date)}</span>
-                              </td>
-                              <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{Number(v.food || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{Number(v.convenience || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{Number(v.bonus || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 text-right text-[12px] font-bold text-indigo-600">{(Number(v.food||0) + Number(v.convenience||0) + Number(v.bonus||0)).toLocaleString('en-IN')}</td>
-                              <td className="px-4 text-right">
-                                <button onClick={() => {
-                                  if (confirm('Delete this entry?')) {
-                                    deleteVariableMutation.mutate(v.id)
-                                  }
-                                }} className="p-1 text-[#525252] hover:text-red-600 hover:bg-red-50 rounded transition-colors">
-                                  <Trash2 size={14} />
-                                </button>
+                        {(() => {
+                          const filtered = (monthlyVariableSums || [])
+                            .filter(v => {
+                              const matchName = v.employeeName?.toLowerCase().includes(variableSearchTerm.toLowerCase());
+                              const matchDate = !variableDateFilter || v.date === variableDateFilter;
+                              return matchName && matchDate;
+                            });
+
+                          if (variableViewGroup === 'staff') {
+                            const staffGroups = {};
+                            filtered.forEach(v => {
+                              if (!staffGroups[v.employeeId]) staffGroups[v.employeeId] = { name: v.employeeName, count: 0, food: 0, convenience: 0, bonus: 0, entries: [] };
+                              staffGroups[v.employeeId].count++;
+                              staffGroups[v.employeeId].food += Number(v.food || 0);
+                              staffGroups[v.employeeId].convenience += Number(v.convenience || 0);
+                              staffGroups[v.employeeId].bonus += Number(v.bonus || 0);
+                              staffGroups[v.employeeId].entries.push(v);
+                            });
+                            return Object.entries(staffGroups).map(([id, g]) => {
+                              const isExpanded = expandedVariableGroups.has(id);
+                              const toggle = () => {
+                                const next = new Set(expandedVariableGroups);
+                                if (isExpanded) next.delete(id); else next.add(id);
+                                setExpandedVariableGroups(next);
+                              };
+                              return (
+                                <React.Fragment key={id}>
+                                  <tr className="hover:bg-[#f5f5f5] cursor-pointer group" onClick={toggle}>
+                                    <td className="px-4 py-3 font-semibold text-[#171717]">
+                                      <div className="flex items-center gap-2">
+                                        <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                                          <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
+                                        </div>
+                                        {g.name}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 text-center text-xs text-slate-500 font-bold">{g.count} logs</td>
+                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.food.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.convenience.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.bonus.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[13px] font-black text-indigo-600">{(g.food + g.convenience + g.bonus).toLocaleString('en-IN')}</td>
+                                  </tr>
+                                  {isExpanded && g.entries.sort((a,b) => b.date.localeCompare(a.date)).map(v => (
+                                    <tr key={v.id} className="bg-slate-50/50 border-l-2 border-indigo-200 animate-in slide-in-from-top-1 duration-200">
+                                      <td className="px-10 py-2 text-[11px] text-slate-500 font-medium italic">Entry Detail</td>
+                                      <td className="px-4 text-[12px] text-slate-600 font-mono">{formatDateDDMMYYYY(v.date)}</td>
+                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.food||0).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.convenience||0).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.bonus||0).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[11px] font-bold text-slate-400">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
+                                    </tr>
+                                  ))}
+                                </React.Fragment>
+                              );
+                            });
+                          }
+
+                          if (variableViewGroup === 'date') {
+                            const dateGroups = {};
+                            filtered.forEach(v => {
+                              if (!dateGroups[v.date]) dateGroups[v.date] = { date: v.date, count: 0, food: 0, convenience: 0, bonus: 0, entries: [] };
+                              dateGroups[v.date].count++;
+                              dateGroups[v.date].food += Number(v.food || 0);
+                              dateGroups[v.date].convenience += Number(v.convenience || 0);
+                              dateGroups[v.date].bonus += Number(v.bonus || 0);
+                              dateGroups[v.date].entries.push(v);
+                            });
+                            return Object.entries(dateGroups).sort((a, b) => b[0].localeCompare(a[0])).map(([d, g]) => {
+                              const isExpanded = expandedVariableGroups.has(d);
+                              const toggle = () => {
+                                const next = new Set(expandedVariableGroups);
+                                if (isExpanded) next.delete(d); else next.add(d);
+                                setExpandedVariableGroups(next);
+                              };
+                              return (
+                                <React.Fragment key={d}>
+                                  <tr className="hover:bg-[#f5f5f5] cursor-pointer group" onClick={toggle}>
+                                    <td className="px-4 py-3 font-semibold text-[#171717]">
+                                      <div className="flex items-center gap-2">
+                                        <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                                          <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
+                                        </div>
+                                        {formatDateDDMMYYYY(g.date)}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 text-center text-xs text-slate-500 font-bold">{g.count} staff</td>
+                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.food.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.convenience.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.bonus.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[13px] font-black text-indigo-600">{(g.food + g.convenience + g.bonus).toLocaleString('en-IN')}</td>
+                                  </tr>
+                                  {isExpanded && g.entries.sort((a,b) => a.employeeName.localeCompare(b.employeeName)).map(v => (
+                                    <tr key={v.id} className="bg-slate-50/50 border-l-2 border-indigo-200 animate-in slide-in-from-top-1 duration-200">
+                                      <td className="px-10 py-2 text-[12px] text-slate-900 font-semibold">{v.employeeName}</td>
+                                      <td className="px-4 text-[11px] text-slate-400 uppercase font-bold italic text-center">Individual Log</td>
+                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.food||0).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.convenience||0).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.bonus||0).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[11px] font-bold text-slate-400">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
+                                    </tr>
+                                  ))}
+                                </React.Fragment>
+                              );
+                            });
+                          }
+
+                          return filtered.length > 0 ? filtered.map(v => {
+                            const docId = `${v.date}_${v.employeeId}`;
+                            const draft = variableDrafts[docId] || {};
+                            const food = draft.food ?? v.food;
+                            const convenience = draft.convenience ?? v.convenience;
+                            const bonus = draft.bonus ?? v.bonus;
+
+                            const handleCellEdit = (field, value) => {
+                              setVariableDrafts(prev => ({
+                                ...prev,
+                                [docId]: {
+                                  ...(prev[docId] || { food: v.food, convenience: v.convenience, bonus: v.bonus }),
+                                  [field]: value
+                                }
+                              }));
+                            };
+
+                            return (
+                              <tr key={v.id} className={`hover:bg-[#f5f5f5] ${Object.keys(draft).length > 0 ? 'bg-amber-50/50' : ''}`}>
+                                <td className="px-4 py-2">
+                                  <span className="text-[13px] font-semibold text-[#171717]">{v.employeeName}</span>
+                                </td>
+                                <td className="px-4">
+                                  <span className="text-[12px] text-[#525252] font-mono">{formatDateDDMMYYYY(v.date)}</span>
+                                </td>
+                                <td className="px-4 text-right">
+                                  <input 
+                                    type="number" 
+                                    value={food} 
+                                    onChange={e => handleCellEdit('food', e.target.value)}
+                                    className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
+                                  />
+                                </td>
+                                <td className="px-4 text-right">
+                                  <input 
+                                    type="number" 
+                                    value={convenience} 
+                                    onChange={e => handleCellEdit('convenience', e.target.value)}
+                                    className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
+                                  />
+                                </td>
+                                <td className="px-4 text-right">
+                                  <input 
+                                    type="number" 
+                                    value={bonus} 
+                                    onChange={e => handleCellEdit('bonus', e.target.value)}
+                                    className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
+                                  />
+                                </td>
+                                <td className="px-4 text-right text-[12px] font-bold text-indigo-600">{(Number(food||0) + Number(convenience||0) + Number(bonus||0)).toLocaleString('en-IN')}</td>
+                                <td className="px-4 text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <button 
+                                      onClick={() => setEditingVariable(v)}
+                                      className="p-1 text-[#525252] hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                    >
+                                      <Edit2 size={14} />
+                                    </button>
+                                    <button onClick={() => {
+                                      if (confirm('Delete this entry?')) {
+                                        deleteVariableMutation.mutate(v.id)
+                                      }
+                                    }} className="p-1 text-[#525252] hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          }) : (
+                            <tr>
+                              <td colSpan={7} className="px-4 py-12 text-center text-[12px] text-[#525252]">
+                                No variable pay entries yet. Click "Add Entry" to add Food, Convenience or Bonus for employees.
                               </td>
                             </tr>
-                          )
-                        }) : (
-                          <tr>
-                            <td colSpan={7} className="px-4 py-12 text-center text-[12px] text-[#525252]">
-                              No variable pay entries yet. Click "Add Entry" to add Food, Convenience or Bonus for employees.
-                            </td>
-                          </tr>
-                        )}
+                          );
+                        })()}
                       </tbody>
                     </table>
                   </div>
+
+                  {editingVariable && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-[#e5e5e5] overflow-hidden">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5] bg-indigo-50">
+                          <div>
+                            <h3 className="text-sm font-black uppercase text-[#171717] tracking-tight">Edit Variable Entry</h3>
+                            <p className="text-[10px] text-indigo-600 font-bold uppercase">{editingVariable.employeeName} • {formatDateDDMMYYYY(editingVariable.date)}</p>
+                          </div>
+                          <button onClick={() => setEditingVariable(null)} className="p-1 text-[#525252] hover:bg-white rounded"><X size={16} /></button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                          <div className="grid grid-cols-1 gap-4">
+                            <div className="space-y-1">
+                              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Food Allowance (₹)</label>
+                              <input 
+                                type="number" 
+                                value={editingVariable.food}
+                                onChange={e => setEditingVariable({...editingVariable, food: e.target.value})}
+                                className="w-full h-10 px-3 border border-[#d4d4d4] rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Convenience (₹)</label>
+                              <input 
+                                type="number" 
+                                value={editingVariable.convenience}
+                                onChange={e => setEditingVariable({...editingVariable, convenience: e.target.value})}
+                                className="w-full h-10 px-3 border border-[#d4d4d4] rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Bonus (₹)</label>
+                              <input 
+                                type="number" 
+                                value={editingVariable.bonus}
+                                onChange={e => setEditingVariable({...editingVariable, bonus: e.target.value})}
+                                className="w-full h-10 px-3 border border-[#d4d4d4] rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-5 py-4 border-t border-[#e5e5e5] bg-gray-50 flex justify-end gap-3">
+                          <button onClick={() => setEditingVariable(null)} className="px-4 py-2 text-[10px] font-black uppercase text-[#525252] hover:bg-gray-100 rounded-md border border-[#d4d4d4]">Cancel</button>
+                          <button 
+                            onClick={() => {
+                              saveVariablesMutation.mutate({ [editingVariable.employeeId]: editingVariable });
+                              setEditingVariable(null);
+                            }}
+                            className="px-6 py-2 bg-indigo-600 text-white rounded-md text-[10px] font-black uppercase hover:bg-indigo-700 shadow-md transition-all active:scale-95"
+                          >
+                            Save Changes
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {showAddVariable && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -1774,41 +2142,82 @@ if (isH) { holCount++; holDatesList.push(i); }
                           <button onClick={() => setShowAddVariable(false)} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded"><X size={16} /></button>
                         </div>
                         
-                        <div className="px-5 py-3 border-b border-[#e5e5e5] bg-gray-50 shrink-0">
-                          <div className="flex gap-4">
-                            <div className="w-48">
-                              <label className="block text-[10px] font-medium text-[#525252] mb-1">Select Date</label>
+                        <div className="px-5 py-4 border-b border-[#e5e5e5] bg-gray-50 shrink-0 space-y-4">
+                          {/* Row 1: Date Selection */}
+                          <div className="flex gap-6 items-end">
+                            <div className="w-44">
+                              <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 tracking-wider">Start Date</label>
                               <input 
                                 type="date" 
                                 value={newVariable.date}
                                 onChange={e => setNewVariable({...newVariable, date: e.target.value})}
-                                className="w-full h-8 px-2 border border-[#d4d4d4] rounded text-[12px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                                className="w-full h-9 px-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold shadow-sm"
                               />
                             </div>
-                            <div className="flex-1">
-                              <label className="block text-[10px] font-medium text-[#525252] mb-1">Common Amount (apply to all)</label>
-                              <div className="flex gap-2">
+                            <div className="flex items-center gap-2 h-9 pb-1">
+                              <input 
+                                type="checkbox" 
+                                id="isRangeToggle"
+                                checked={newVariable.isRange}
+                                onChange={e => setNewVariable({...newVariable, isRange: e.target.checked})}
+                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              />
+                              <label htmlFor="isRangeToggle" className="text-[10px] font-black uppercase text-indigo-600 cursor-pointer tracking-wider hover:text-indigo-700 transition-colors">Multiple Days?</label>
+                            </div>
+                            {newVariable.isRange && (
+                              <div className="w-44 animate-in zoom-in-95 fade-in slide-in-from-left-4 duration-200">
+                                <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 tracking-wider flex items-center gap-1.5">
+                                  Till Date <ArrowRight size={10} className="text-indigo-300" />
+                                </label>
+                                <input 
+                                  type="date" 
+                                  value={newVariable.endDate}
+                                  onChange={e => setNewVariable({...newVariable, endDate: e.target.value})}
+                                  className="w-full h-9 px-3 border border-indigo-200 rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-indigo-50/30 shadow-sm"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Row 2: Common Amounts */}
+                          <div className="pt-2 border-t border-gray-200/60">
+                            <label className="block text-[10px] font-black uppercase text-slate-500 mb-2 tracking-wider flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                              Common Amount (Auto-applied to selected staff)
+                            </label>
+                            <div className="flex gap-3">
+                              <div className="flex-1 relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
                                 <input 
                                   type="number" 
                                   value={newVariable.food}
                                   onChange={e => setNewVariable({...newVariable, food: e.target.value})}
-                                  className="flex-1 h-8 px-2 border border-[#d4d4d4] rounded text-[12px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                                  className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
                                   placeholder="Food"
                                 />
+                                <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Food</div>
+                              </div>
+                              <div className="flex-1 relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
                                 <input 
                                   type="number" 
                                   value={newVariable.convenience}
                                   onChange={e => setNewVariable({...newVariable, convenience: e.target.value})}
-                                  className="flex-1 h-8 px-2 border border-[#d4d4d4] rounded text-[12px] text-[#171717] focus:outline-none focus:border-[#171717]"
-                                  placeholder="Convenience"
+                                  className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                  placeholder="Conv."
                                 />
+                                <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Conv.</div>
+                              </div>
+                              <div className="flex-1 relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
                                 <input 
                                   type="number" 
                                   value={newVariable.bonus}
                                   onChange={e => setNewVariable({...newVariable, bonus: e.target.value})}
-                                  className="flex-1 h-8 px-2 border border-[#d4d4d4] rounded text-[12px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                                  className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
                                   placeholder="Bonus"
                                 />
+                                <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Bonus</div>
                               </div>
                             </div>
                           </div>
@@ -2172,11 +2581,13 @@ if (isH) { holCount++; holDatesList.push(i); }
                 </div>
               ) : (
                 <div className="min-w-max h-full overflow-auto relative">
-                  <table className="w-full text-[10px] border-collapse detailed-summary-table bg-white">
+                  <table className="w-full text-[11px] border-collapse detailed-summary-table bg-white">
                     <thead className="sticky top-0 z-40 font-raleway">
                       <tr className="h-[55px] border-b-2 border-gray-950">
                         {visibleGroups.map(g=>(
                           <th key={g.id} colSpan={g.visibleCount} className={`px-2 border-r-2 ${getColumnColorClass(g.columns[0], 'border')} text-center font-black uppercase tracking-[0.15em] text-[11px] ${
+                            g.id === 'basic' ? 'sticky left-0 z-50 border-b-blue-200' : ''
+                          } ${
                             g.color === 'blue' ? 'bg-blue-100 text-blue-900' : 
                             g.color === 'purple' ? 'bg-purple-100 text-purple-900' : 
                             g.color === 'amber' ? 'bg-amber-100 text-amber-900' : 
@@ -2190,7 +2601,13 @@ if (isH) { holCount++; holDatesList.push(i); }
                       </tr>
                       <tr className="h-10 bg-white border-b-2 border-gray-900 shadow-sm">
                         {visibleDetailedSummaryColumns.map(c=>(
-                          <th key={c.id} style={{ width: c.width, minWidth: c.width }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-bold text-[9px] uppercase tracking-[-0.05em] whitespace-pre-line ${c.id === 'net' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-gray-500'}`}>
+                          <th key={c.id} style={{ 
+                            width: c.width, 
+                            minWidth: c.width,
+                            left: c.leftOffset
+                          }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-bold text-[10px] uppercase tracking-[-0.05em] whitespace-pre-line ${
+                            c.leftOffset !== undefined ? 'sticky z-50 bg-white' : ''
+                          } ${c.id === 'net' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-gray-500'}`}>
                             {c.label}
                           </th>
                         ))}
@@ -2198,13 +2615,19 @@ if (isH) { holCount++; holDatesList.push(i); }
                     </thead>
                     <tbody>
                       {filteredAttendanceSummaryData.map((e, idx)=>(
-                        <tr key={e.id} className={`border-b border-slate-200 h-[32px] transition-colors hover:bg-indigo-50/50 group`}>
+                        <tr key={e.id} className={`border-b border-slate-200 h-[36px] transition-colors hover:bg-blue-50/50 group`}>
                           {visibleDetailedSummaryColumns.map(c=>(
-                            <td key={c.id} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'bg')} ${getColumnColorClass(c.id, 'border')} ${
+                            <td key={c.id} style={{
+                              left: c.leftOffset
+                            }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'bg')} ${getColumnColorClass(c.id, 'border')} ${
                               ['sno', 'empNo', 'days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'text-center' : 
                               ['name', 'designation'].includes(c.id) ? 'text-left' : 'text-right'
-                            } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[11px] shadow-inner' : (c.id === 'earnings' ? 'font-black' : 'font-medium')}`}>
-                              {renderDetailedCell(c.id, e)}
+                            } ${
+                              c.leftOffset !== undefined ? 'sticky z-20 bg-inherit group-hover:bg-blue-50' : ''
+                            } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[12px] shadow-inner' : (c.id === 'earnings' ? 'font-black' : 'font-medium')}`}>
+                              {c.id === 'name' ? (
+                                <div className="truncate w-full" title={e.name}>{renderDetailedCell(c.id, e)}</div>
+                              ) : renderDetailedCell(c.id, e)}
                             </td>
                           ))}
                         </tr>
