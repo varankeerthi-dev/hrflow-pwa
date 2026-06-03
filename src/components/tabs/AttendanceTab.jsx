@@ -890,6 +890,11 @@ export default function AttendanceTab({ defaultSubTab }) {
       updated.holidayWorked = newStatus === 'Worked'
       if (updated.isAbsent || updated.sundayHoliday || updated.holidayWorked === false) {
         updated.inTime = ''; updated.outTime = ''; updated.otHours = '00:00'
+        if (updated.isAbsent) {
+          updated.remarks = ''
+          updated.checkIn = null
+          updated.checkOut = null
+        }
       }
       return updated
     }))
@@ -1326,7 +1331,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                             value={row.remarks || ''}
                             onChange={val => updateRow(row.employeeId, 'remarks', val)}
                             options={remarksOptions}
-                            disabled={!row.employeeId}
+                            disabled={!row.employeeId || row.isAbsent}
                           />
                         </td>
                         <td className="px-4">

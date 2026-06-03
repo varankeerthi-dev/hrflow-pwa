@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { ChevronDown, X, Check } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 
 export default function RemarksDropdown({ value, onChange, options = [], disabled, className }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -18,14 +18,23 @@ export default function RemarksDropdown({ value, onChange, options = [], disable
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Close dropdown and reset search when disabled
+  useEffect(() => {
+    if (disabled) {
+      setIsOpen(false)
+      setSearchTerm('')
+    }
+  }, [disabled])
+
   const filteredOptions = options.filter(opt =>
     opt.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const exactMatch = options.some(opt => opt.toLowerCase() === searchTerm.toLowerCase())
-  const showAddNew = searchTerm.trim() !== '' && !exactMatch
+  const showAddNew = searchTerm.trim() !== '' && !exactMatch && !disabled
 
   const handleSelect = (val) => {
+    if (disabled) return
     onChange(val)
     setIsOpen(false)
     setSearchTerm('')
@@ -34,8 +43,12 @@ export default function RemarksDropdown({ value, onChange, options = [], disable
   return (
     <div className={`relative w-full ${className || ''}`} ref={containerRef}>
       <div
-        className={`w-full min-h-[28px] bg-zinc-100 border rounded-md px-2 py-1 flex items-center gap-1 cursor-pointer transition-colors ${
-          isOpen ? 'border-indigo-300 bg-white ring-1 ring-indigo-100' : 'border-zinc-200 hover:bg-zinc-200/70'
+        className={`w-full min-h-[28px] border rounded-md px-2 py-1 flex items-center gap-1 transition-colors ${
+          disabled
+            ? 'bg-zinc-50 border-zinc-100 cursor-not-allowed opacity-60'
+            : isOpen
+              ? 'bg-white border-indigo-300 ring-1 ring-indigo-100 cursor-pointer'
+              : 'bg-zinc-100 border-zinc-200 hover:bg-zinc-200/70 cursor-pointer'
         }`}
         onClick={() => {
           if (disabled) return
@@ -44,37 +57,37 @@ export default function RemarksDropdown({ value, onChange, options = [], disable
         }}
       >
         {value ? (
-          <span className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-800 text-[11px] font-medium px-2 py-0.5 rounded">
+          <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded ${disabled ? 'bg-zinc-200 text-zinc-500' : 'bg-indigo-100 text-indigo-800'}`}>
             {value}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onChange('')
-              }}
-              className="hover:bg-indigo-200 rounded-full p-0.5"
-            >
-              <X size={10} />
-            </button>
+            {!disabled && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onChange('')
+                }}
+                className="hover:bg-indigo-200 rounded-full p-0.5"
+              >
+                <X size={10} />
+              </button>
+            )}
           </span>
-        ) : (
-          <span className="text-xs text-zinc-400">Add remark...</span>
-        )}
+        ) : null}
         <input
           ref={inputRef}
           type="text"
           value={searchTerm}
           onChange={(e) => {
+            if (disabled) return
             setSearchTerm(e.target.value)
             if (!isOpen) setIsOpen(true)
           }}
           onFocus={() => !disabled && setIsOpen(true)}
           disabled={disabled}
-          className="border-none bg-transparent p-0 text-xs focus:ring-0 text-zinc-700 w-full outline-none min-w-[60px]"
+          className="border-none bg-transparent p-0 text-xs focus:ring-0 text-zinc-700 w-full outline-none min-w-[60px] disabled:cursor-not-allowed"
         />
-        <ChevronDown size={12} className={`text-zinc-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-md shadow-xl z-[50] max-h-56 overflow-auto">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((opt, idx) => (

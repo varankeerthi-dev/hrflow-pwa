@@ -1521,7 +1521,8 @@ export default function SettingsTab() {
     try {
       await setDoc(doc(db, 'organisations', user.orgId), orgSettings, { merge: true })
       setSaved(true)
-      alert(msg || 'Organisation settings saved successfully!')
+      const successMsg = typeof msg === 'string' && msg ? msg : 'Organisation settings saved successfully!'
+      alert(successMsg)
       
       // Refresh org settings from database
       const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
@@ -2636,7 +2637,7 @@ export default function SettingsTab() {
 
                 {/* Save Button */}
                 <button
-                  onClick={handleSaveOrg}
+                  onClick={() => handleSaveOrg()}
                   disabled={saving}
                   className={`flex h-12 w-full items-center justify-center rounded-[20px] text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all ${
                     saved ? 'bg-emerald-500' : 'bg-slate-950 hover:-translate-y-0.5 hover:shadow-2xl'
