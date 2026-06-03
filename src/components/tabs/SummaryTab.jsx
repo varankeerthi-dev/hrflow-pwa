@@ -439,7 +439,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
         <div className="space-y-3 animate-in fade-in duration-500">
           <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Detailed Daily Attendance Grid</h3>
           {pivotLoading ? (<div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200 shadow-sm"><Spinner /></div>) : (
-            <div className="overflow-x-auto max-h-[calc(100vh-210px)] overflow-y-auto bg-white border border-gray-300 rounded-xl shadow-sm">
+            <div className="overflow-x-auto max-h-[85vh] overflow-y-auto bg-white border border-gray-300 rounded-xl shadow-sm">
               {(() => {
                 const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
                 let blockW = 0
