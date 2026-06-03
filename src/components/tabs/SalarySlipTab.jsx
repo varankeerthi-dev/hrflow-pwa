@@ -95,11 +95,36 @@ const DETAILED_SUMMARY_COLUMNS = [
 // --- PDF COMPONENTS ---
 
 const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibleGroups }) => {
-  const pdfColWidth = (id) => {
-    const c = visibleColumns.find(col => col.id === id);
+  // Filter to only visible columns and groups
+  const activeColumns = visibleColumns;
+  const activeGroups = visibleGroups.filter(g =>
+    g.columns.some(id => activeColumns.some(c => c.id === id))
+  );
+
+  // Calculate total table width based on visible columns
+  const colWidth = (id) => {
+    const c = activeColumns.find(col => col.id === id);
     if (!c) return 0;
-    return c.width * 0.55; 
+    return c.width * 0.55; // Scale factor for PDF units
   };
+
+  // Calculate total width of all visible columns
+  const totalWidth = activeColumns.reduce((sum, c) => sum + colWidth(c.id), 0);
+
+  // Auto-orient: If total width > 550 use A3 landscape, else A4 landscape
+  // If it fits in A4 portrait (under 480) use A4 portrait
+  let pageSize = 'A4';
+  let orientation = 'landscape';
+  if (totalWidth > 700) {
+    pageSize = 'A3';
+    orientation = 'landscape';
+  } else if (totalWidth <= 480) {
+    pageSize = 'A4';
+    orientation = 'portrait';
+  } else {
+    pageSize = 'A4';
+    orientation = 'landscape';
+  }
 
   const getPdfVal = (colId, row) => {
     switch (colId) {
@@ -136,7 +161,14 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
       case 'net': return Math.round(row.salary?.net || 0).toLocaleString('en-IN');
       default: return '-';
     }
-  }
+  };
+
+  // Determine text alignment per column type
+  const getAlignment = (colId) => {
+    if (colId === 'name' || colId === 'designation') return 'left';
+    if (['sno', 'empNo', 'days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'lop', 'paidDays'].includes(colId)) return 'center';
+    return 'right'; // All currency values right-aligned
+  };
 
   const getGroupColor = (color) => {
     switch(color) {
@@ -152,59 +184,63 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
 
   return (
     <Document>
-      <Page size="A3" orientation="landscape" style={{ padding: 10, fontSize: 5, fontFamily: 'Helvetica' }}>
-        <View style={{ marginBottom: 10, borderBottom: 1, borderColor: '#000', paddingBottom: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <Page size={pageSize} orientation={orientation} style={{ padding: 12, fontSize: 6, fontFamily: 'Helvetica', color: '#0f172a' }}>
+        {/* Header */}
+        <View style={{ marginBottom: 10, borderBottomWidth: 1, borderColor: '#0f172a', paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <View>
             <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{orgName}</Text>
             <Text style={{ fontSize: 8, marginTop: 2, textTransform: 'uppercase', letterSpacing: 1 }}>MASTER PAYROLL RECONCILIATION - {formatMonthDisplay(month)}</Text>
           </View>
           <View style={{ textAlign: 'right' }}>
-            <Text style={{ fontSize: 6, color: '#666' }}>Engine v2.0 • Generated on {new Date().toLocaleString()}</Text>
+            <Text style={{ fontSize: 6, color: '#64748b' }}>Generated on {new Date().toLocaleDateString()} | {pageSize} {orientation} | {data.length} employees</Text>
           </View>
         </View>
 
-        <View style={{ borderWidth: 0.5, borderColor: '#000' }}>
-          <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', fontWeight: 'bold', borderBottomWidth: 0.5 }}>
-            {visibleGroups.map(g => {
-               const width = g.columns.filter(id => visibleColumns.some(c => c.id === id)).reduce((sum, id) => sum + pdfColWidth(id), 0);
+        {/* Table */}
+        <View style={{ borderWidth: 0.5, borderColor: '#0f172a' }}>
+          {/* Group Headers Row */}
+          <View style={{ flexDirection: 'row', backgroundColor: '#f1f5f9', fontWeight: 'bold', borderBottomWidth: 0.5, borderColor: '#0f172a' }}>
+            {activeGroups.map(g => {
+               const width = g.columns.filter(id => activeColumns.some(c => c.id === id)).reduce((sum, id) => sum + colWidth(id), 0);
                if (width === 0) return null;
                return (
-                 <Text key={g.id} style={{ width, padding: 2, borderRightWidth: 0.5, textAlign: 'center', backgroundColor: getGroupColor(g.color), color: g.color === 'green' ? '#fff' : '#000' }}>
+                 <Text key={g.id} style={{ width, padding: 3, borderRightWidth: 0.5, borderColor: '#0f172a', textAlign: 'center', backgroundColor: getGroupColor(g.color), color: g.color === 'green' ? '#ffffff' : '#0f172a', fontSize: 6 }}>
                    {g.label.toUpperCase()}
                  </Text>
                );
             })}
           </View>
 
-          <View style={{ flexDirection: 'row', backgroundColor: '#fff', fontWeight: 'bold', borderBottomWidth: 0.5 }}>
-            {visibleColumns.map(c => (
-              <Text key={c.id} style={{ width: pdfColWidth(c.id), padding: 1.5, borderRightWidth: 0.5, textAlign: c.id === 'name' ? 'left' : 'center', backgroundColor: c.id === 'net' ? '#22c55e' : '#fff', color: c.id === 'net' ? '#fff' : '#4b5563' }}>
-                {c.label.replace('\n', ' ')}
+          {/* Column Headers Row */}
+          <View style={{ flexDirection: 'row', backgroundColor: '#ffffff', fontWeight: 'bold', borderBottomWidth: 0.5, borderColor: '#0f172a' }}>
+            {activeColumns.map(c => (
+              <Text key={c.id} style={{ width: colWidth(c.id), padding: 2.5, borderRightWidth: 0.5, borderColor: '#cbd5e1', textAlign: getAlignment(c.id), backgroundColor: c.id === 'net' ? '#22c55e' : '#ffffff', color: c.id === 'net' ? '#ffffff' : '#475569', fontSize: 5.5 }}>
+                {c.label.replace('\n', ' ').toUpperCase()}
               </Text>
             ))}
           </View>
 
+          {/* Data Rows */}
           {data.map((row, i) => (
-            <View key={i} style={{ flexDirection: 'row', borderBottomWidth: 0.5, backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-              {visibleColumns.map(c => (
-                <Text key={c.id} style={{ width: pdfColWidth(c.id), padding: 1.5, borderRightWidth: 0.5, textAlign: ['name', 'designation'].includes(c.id) ? 'left' : (['sno', 'empNo', 'days', 'worked', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'center' : 'right'), fontWeight: c.id === 'name' || c.id === 'net' ? 'bold' : 'normal' }}>
+            <View key={i} style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderColor: '#e2e8f0', backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+              {activeColumns.map(c => (
+                <Text key={c.id} style={{ width: colWidth(c.id), padding: 2, borderRightWidth: 0.5, borderColor: '#e2e8f0', textAlign: getAlignment(c.id), fontWeight: c.id === 'name' || c.id === 'net' ? 'bold' : 'normal', backgroundColor: c.id === 'net' ? '#dcfce7' : 'transparent', color: c.id === 'net' ? '#15803d' : '#0f172a' }}>
                   {getPdfVal(c.id, row)}
                 </Text>
               ))}
             </View>
           ))}
+        </View>
 
-          <View style={{ flexDirection: 'row', backgroundColor: '#000', color: '#fff', fontWeight: 'bold' }}>
-            <Text style={{ flex: 1, padding: 4, textAlign: 'right', fontSize: 7 }}>ORGANIZATION DISBURSEMENT TOTAL:</Text>
-            <Text style={{ width: pdfColWidth('net'), padding: 4, textAlign: 'right', fontSize: 8, backgroundColor: '#16a34a' }}>
-              {formatSummaryCurrency(data.reduce((sum, r) => sum + (r.salary?.net || 0), 0))}
-            </Text>
-          </View>
+        {/* Footer */}
+        <View style={{ marginTop: 8, paddingTop: 6, borderTopWidth: 0.5, borderColor: '#cbd5e1', flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={{ fontSize: 6, color: '#64748b' }}>HRFlow PWA • Confidential Payroll Document</Text>
+          <Text style={{ fontSize: 6, color: '#64748b' }}>Page 1 of 1</Text>
         </View>
       </Page>
     </Document>
-  );
-};
+  )
+}
 
 const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
   <Document><Page size="A4" style={{ padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#0f172a' }}>
