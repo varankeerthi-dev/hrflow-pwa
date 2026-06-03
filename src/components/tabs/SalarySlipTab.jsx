@@ -379,9 +379,9 @@ if (!isOpen) return null;
                   <div className="flex items-center justify-end gap-2">
                     {(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}
                     <button 
-                      onClick={() => setAdjustments({...adjustments, [emp.id]: 0})}
+                      onClick={() => setAdjustments({...adjustments, [emp.id]: -Number(emp.ot || 0)})}
                       className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
-                      title="Reset Adjustment"
+                      title="Reset OT to Zero"
                     >
                       <RotateCcw size={14} />
                     </button>
@@ -1687,30 +1687,31 @@ export default function SalarySlipTab() {
                 <table className="w-full text-sm border-separate border-spacing-0 bg-white border border-zinc-200 shadow-sm rounded-xl overflow-hidden">
                   <thead className="sticky top-0 z-40 font-raleway">
                     {/* Group Headers Row */}
-                    <tr className="h-[44px]">
-                      <th colSpan={2} className="px-4 text-left border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-50/80 sticky left-0 z-50">Staff Profile</th>
-                      <th colSpan={3} className="px-4 text-center border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-orange-900 tracking-widest bg-orange-50/80">Period Status</th>
-                      <th colSpan={4} className="px-4 text-center border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-zinc-700 tracking-widest bg-zinc-100/80">Performance</th>
-                      <th colSpan={1} className="px-4 text-center border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-50/80">Overtime</th>
-                      <th colSpan={2} className="px-4 text-center border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-emerald-900 tracking-widest bg-emerald-50/80">Sunday/Holiday</th>
-                      <th colSpan={3} className="px-4 text-center border-b-2 border-green-600 font-black uppercase text-[10px] text-white tracking-widest bg-green-600">Summary & Payout</th>
+                    <tr className="h-[48px]">
+                      <th colSpan={2} className="px-5 text-left border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-50/90 sticky left-0 z-50 backdrop-blur-sm shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Staff Profile</th>
+                      <th colSpan={3} className="px-4 text-center border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-orange-900 tracking-widest bg-orange-50/90 backdrop-blur-sm">Period Status</th>
+                      <th colSpan={5} className="px-4 text-center border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-zinc-700 tracking-widest bg-zinc-100/90 backdrop-blur-sm">Performance</th>
+                      <th colSpan={1} className="px-4 text-center border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-50/90 backdrop-blur-sm">Overtime</th>
+                      <th colSpan={2} className="px-4 text-center border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-emerald-900 tracking-widest bg-emerald-50/90 backdrop-blur-sm">Sunday/Holiday</th>
+                      <th colSpan={3} className="px-4 text-center border-b-2 border-green-600 font-black uppercase text-[10px] text-white tracking-widest bg-green-600/95 backdrop-blur-sm">Summary & Payout</th>
                       <th className="w-12 bg-zinc-50 border-b-2 border-zinc-200"></th>
                     </tr>
                     {/* Primary Header Row */}
-                    <tr className="bg-white/95 backdrop-blur-md text-[10px] uppercase font-black text-zinc-400 tracking-widest h-[40px] border-b border-zinc-200">
-                      <th className="px-3 text-center border-r border-zinc-100 w-10 sticky left-0 bg-inherit z-50 shadow-[1px_0_0_0_#e4e4e7]">#</th>
-                      <th className="px-4 text-left border-r border-zinc-100 w-52 sticky left-10 bg-inherit z-50 shadow-[1px_0_0_0_#e4e4e7]">Employee Name</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-orange-700/70">Total Days</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-20 text-orange-700/70">Sunday</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-20 text-orange-700/70">Holiday</th>
+                    <tr className="bg-white/95 backdrop-blur-md text-[9px] uppercase font-black text-zinc-400 tracking-[0.15em] h-[44px] border-b border-zinc-200">
+                      <th className="px-3 text-center border-r border-zinc-100 w-10 sticky left-0 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">#</th>
+                      <th className="px-5 text-left border-r border-zinc-100 w-56 sticky left-10 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Employee Name</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-orange-700/60">Total Days</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-20 text-orange-700/60">Sunday</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-20 text-orange-700/60">Holiday</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-24">Worked</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-20">HD</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-20">Leave</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-rose-500/80">LOP</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-indigo-600/80">OT (Hrs)</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-28 text-emerald-600/80">Sunday Wk</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-28 text-emerald-600/80">Holiday Wk</th>
-                      <th className="px-4 text-right border-r border-zinc-100 w-44 bg-green-50/30 text-green-700">Net Payout</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-rose-500/70">LOP</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-emerald-600/80">Paid Days</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-indigo-600/70">OT (Actual)</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-28 text-emerald-600/70">Sunday Wk</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-28 text-emerald-600/70">Holiday Wk</th>
+                      <th className="px-5 text-right border-r border-zinc-100 w-48 bg-green-50/20 text-green-700">Net Payout</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-24 text-green-700">Status</th>
                       <th className="px-2 text-center border-r border-zinc-100 w-32 text-green-600">Sync</th>
                       <th className="w-12"></th>
@@ -1718,19 +1719,19 @@ export default function SalarySlipTab() {
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
                     {isAttendanceLoading ? (
-                       <tr><td colSpan={16} className="py-20 text-center"><Spinner /></td></tr>
+                       <tr><td colSpan={17} className="py-20 text-center"><Spinner /></td></tr>
                     ) : filteredAttendanceSummaryData.map((e, idx)=>{
                       return (
                       <tr key={e.id} className={`hover:bg-indigo-50/50 transition-all duration-200 h-[48px] group ${idx%2===0?'bg-white':'bg-zinc-50/40'}`}>
-                        <td className="px-3 text-center border-r border-zinc-50 text-zinc-400 text-[11px] font-bold font-mono sticky left-0 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5]">{idx + 1}</td>
-                        <td className="px-4 border-r border-zinc-100 text-zinc-800 text-[13px] font-bold tracking-tight truncate w-52 font-inter sticky left-10 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5]">{e.name}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 font-mono text-[11px]">{e.totalDays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 font-mono text-[11px]">{e.sundays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 font-mono text-[11px]" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-zinc-700 font-mono text-[12px]">{e.worked}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-zinc-600 font-mono text-[11px]">{e.hd}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 font-mono text-[11px]">{e.leave}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-rose-600 bg-rose-50/20 font-mono text-[12px] relative group/tooltip">
+                        <td className="px-3 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-bold font-inter sticky left-0 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5]">{idx + 1}</td>
+                        <td className="px-4 border-r border-zinc-100 text-zinc-800 text-[12px] font-bold tracking-tight truncate w-52 font-inter sticky left-10 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5]">{e.name}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 text-[12px] font-inter">{e.totalDays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-inter">{e.sundays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-inter" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-zinc-700 text-[12px] font-inter">{e.worked}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-zinc-600 text-[12px] font-inter">{e.hd}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 text-[12px] font-inter">{e.leave}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-rose-600 bg-rose-50/20 text-[12px] font-inter relative group/tooltip">
                           {e.lop}
                           {e.lopDates?.length > 0 && (
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
@@ -1738,13 +1739,16 @@ export default function SalarySlipTab() {
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-indigo-600/80 font-mono text-[11px] relative group/tooltip">
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-emerald-600 bg-emerald-50/10 text-[12px] font-inter">
+                          {e.paidDays}
+                        </td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-indigo-600/80 text-[12px] font-inter relative group/tooltip">
                           {Number(e.ot || 0).toFixed(2)}
                           {e.otAdjustment !== 0 && (
                             <span className="text-indigo-400 ml-1 font-black text-[9px]">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-emerald-600 bg-emerald-50/10 font-mono text-[12px] relative group/tooltip">
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-emerald-600 bg-emerald-50/10 text-[12px] font-inter relative group/tooltip">
                           {e.sunW}
                           {e.sunWDates?.length > 0 && (
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
@@ -1752,7 +1756,7 @@ export default function SalarySlipTab() {
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-100 font-black text-emerald-600 bg-emerald-50/10 font-mono text-[12px] relative group/tooltip">
+                        <td className="px-2 text-center border-r border-zinc-100 font-black text-emerald-600 bg-emerald-50/10 text-[12px] font-inter relative group/tooltip">
                           {e.holW}
                           {e.holWDates?.length > 0 && (
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
@@ -1760,8 +1764,8 @@ export default function SalarySlipTab() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 text-right border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[14px] font-mono tracking-tighter pr-5">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-inter text-[11px]">
+                        <td className="px-4 text-right border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[12px] font-inter tracking-tight pr-5">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-[12px] font-inter">
                           <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-tighter">Draft</span>
                         </td>
                         <td className="px-2 text-center border-r border-zinc-50">

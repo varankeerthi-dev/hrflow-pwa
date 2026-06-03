@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useEmployees } from '../hooks/useEmployees'
 import { db } from '../lib/firebase'
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore'
+import { doc, getDoc, collection, getDocs, onSnapshot } from 'firebase/firestore'
 import {
   Car,
   Calendar,
@@ -258,9 +258,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user?.orgId) {
-      getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
+      const unsub = onSnapshot(doc(db, 'organisations', user.orgId), (snap) => {
         if (snap.exists()) setOrgSettings(snap.data())
       })
+      return () => unsub()
     }
   }, [user?.orgId])
 

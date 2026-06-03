@@ -57,6 +57,12 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
+  const navigateMonth = (direction) => {
+    const [y, m] = selectedMonth.split('-').map(Number)
+    const d = new Date(y, m - 1 + direction, 1)
+    setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+
   const [summaryData, setSummaryData] = useState([])
   const [monthlyViewData, setMonthlyViewData] = useState({ employees: [], attendanceMap: {}, shiftMap: {}, daysInMonth: 31, holidays: [], sandwichSet: new Set() })
   const [pivotLoading, setPivotLoading] = useState(false)

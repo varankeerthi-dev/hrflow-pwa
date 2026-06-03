@@ -1057,7 +1057,7 @@ export default function AttendanceTab({ defaultSubTab }) {
   return (
     <div className="flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {/* Title Header - Sticky */}
-      <div className="bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-10 gap-[40px]">
+      <div className="bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-50 gap-[40px]">
         <div className="flex items-center gap-6">
           <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
           
@@ -1079,7 +1079,8 @@ export default function AttendanceTab({ defaultSubTab }) {
                   selected={parseISO(selectedDate)}
                   onChange={(date) => setSelectedDate(formatDateForInput(date))}
                   dateFormat="dd MMM yyyy"
-                  popperClassName="z-[100]"
+                  popperClassName="z-[9999]"
+                  popperProps={{ strategy: 'fixed' }}
                   customInput={
                     <div className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none hover:bg-white hover:shadow-sm rounded-md transition-all">
                       {format(parseISO(selectedDate), 'dd MMM yyyy')}
