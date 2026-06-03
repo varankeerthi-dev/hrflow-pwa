@@ -18,7 +18,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        maximumFileSizeToCacheInBytes: 5000000, // 5MB
+        maximumFileSizeToCacheInBytes: 10485760, // 10MB
       },
       manifest: {
         name: 'HRFlow',
