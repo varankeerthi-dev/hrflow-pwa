@@ -10,6 +10,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
+import RemarksDropdown from '../ui/RemarksDropdown'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
@@ -358,6 +359,17 @@ export default function AttendanceTab({ defaultSubTab }) {
 
   const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' ? 'reports' : 'daily') // 'daily' or 'reports'
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
+  const [remarksOptions, setRemarksOptions] = useState([])
+  useEffect(() => {
+    const fetchOrgSettings = async () => {
+      if (!user?.orgId) return
+      const snap = await getDoc(doc(db, 'organisations', user.orgId))
+      if (snap.exists()) {
+        setRemarksOptions(snap.data().remarksOptions || [])
+      }
+    }
+    fetchOrgSettings()
+  }, [user?.orgId])
   
   // Reports Filter States
   const [filterStartDate, setFilterStartDate] = useState(formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1)))
@@ -1310,17 +1322,12 @@ export default function AttendanceTab({ defaultSubTab }) {
                           })()}
                         </td>
                         <td className="px-3">
-                          <div className="bg-zinc-100 border border-zinc-200 rounded-md px-2 py-1">
-                            <input
-                              type="text"
-                              value={row.remarks || ''}
-                              onChange={e => updateRow(row.employeeId, 'remarks', e.target.value)}
-                              disabled={!row.employeeId}
-                              className="border-none bg-transparent p-0 text-xs focus:ring-0 text-zinc-600 w-full placeholder-zinc-400 disabled:opacity-50"
-                              placeholder="..."
-                              style={{ fontFamily: "'Inter', sans-serif" }}
-                            />
-                          </div>
+                          <RemarksDropdown
+                            value={row.remarks || ''}
+                            onChange={val => updateRow(row.employeeId, 'remarks', val)}
+                            options={remarksOptions}
+                            disabled={!row.employeeId}
+                          />
                         </td>
                         <td className="px-4">
                           <div className="flex items-center gap-2 justify-end">

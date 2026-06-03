@@ -285,7 +285,9 @@ export default function SettingsTab() {
     name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: '', code: '', shiftStrategy: 'Day', logoURL: '',
     advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
     holidays: [],
-    saturdayType: 'working' // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
+    saturdayType: 'working', // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
+    remarksOptions: [],
+    newRemarkOption: ''
   })
   const [sites, setSites] = useState([])
   const [editingSiteId, setEditingSiteId] = useState(null)
@@ -2488,6 +2490,63 @@ export default function SettingsTab() {
                       )}
                     </div>
                   ))}
+
+                  {/* Attendance Remarks Options */}
+                  <div>
+                    <label className={settingsSectionLabelClassName}>Attendance Remarks Options</label>
+                    <p className="text-[10px] text-gray-400 mb-2">Add site names or client names. They will appear as a searchable dropdown in the Attendance Remarks column. Deleting an option will not affect old entries already saved with that name.</p>
+
+                    {/* Chip List */}
+                    {(orgSettings.remarksOptions || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2 p-2 bg-zinc-50 border border-zinc-200 rounded-md min-h-[40px]">
+                        {(orgSettings.remarksOptions || []).map((opt, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-800 text-[11px] font-medium pl-2.5 pr-1 py-1 rounded-full">
+                            {opt}
+                            <button
+                              type="button"
+                              onClick={() => setOrgSettings(s => ({ ...s, remarksOptions: s.remarksOptions.filter((_, i) => i !== idx) }))}
+                              className="hover:bg-indigo-200 rounded-full p-0.5 text-indigo-600 hover:text-indigo-900 transition-colors"
+                              title={`Remove ${opt}`}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add New Input */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={orgSettings.newRemarkOption || ''}
+                        onChange={e => setOrgSettings(s => ({ ...s, newRemarkOption: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            const val = (orgSettings.newRemarkOption || '').trim()
+                            if (val && !(orgSettings.remarksOptions || []).includes(val)) {
+                              setOrgSettings(s => ({ ...s, remarksOptions: [...(s.remarksOptions || []), val], newRemarkOption: '' }))
+                            }
+                          }
+                        }}
+                        className={settingsInputClassName}
+                        placeholder="Type a name and press Enter..."
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = (orgSettings.newRemarkOption || '').trim()
+                          if (val && !(orgSettings.remarksOptions || []).includes(val)) {
+                            setOrgSettings(s => ({ ...s, remarksOptions: [...(s.remarksOptions || []), val], newRemarkOption: '' }))
+                          }
+                        }}
+                        className="px-4 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wider rounded-md hover:bg-indigo-700 transition-colors shrink-0"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -5191,3 +5250,4 @@ export default function SettingsTab() {
     </div>
   )
 }
+
