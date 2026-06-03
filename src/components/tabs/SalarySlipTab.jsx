@@ -422,12 +422,12 @@ export default function SalarySlipTab() {
   const [variablePayData, setVariablePayData] = useState({})
   const [variableEntryDate, setVariableEntryDate] = useState(() => new Date().toISOString().split('T')[0])
   const [showAddVariable, setShowAddVariable] = useState(false)
-  const [newVariable, setNewVariable] = useState({ employeeId: '', date: '', endDate: '', isRange: false, food: '', convenience: '', bonus: '', selectedEmps: [], selectedAll: false, empData: {} })
+  const [newVariable, setNewVariable] = useState({ employeeId: '', date: '', endDate: '', isRange: false, food: '', convenience: '', bonus: '', isSettled: false, selectedEmps: [], selectedAll: false, empData: {} })
   const [variableSearchTerm, setVariableSearchTerm] = useState('')
   const [variableDateFilter, setVariableDateFilter] = useState('')
   const [variableViewGroup, setVariableViewGroup] = useState('individual') // 'individual' | 'staff' | 'date'
   const [expandedVariableGroups, setExpandedVariableGroups] = useState(new Set())
-  const [variableDrafts, setVariableDrafts] = useState({}) // { docId: { food, convenience, bonus } }
+  const [variableDrafts, setVariableDrafts] = useState({}) // { docId: { food, convenience, bonus, isSettled } }
   const [editingVariable, setEditingVariable] = useState(null)
   const [downloadAllLoading, setDownloadAllLoading] = useState(false)
   const [exportingSlipPdf, setExportingSlipPdf] = useState(false)
@@ -674,6 +674,7 @@ export default function SalarySlipTab() {
             food: Number(values.food || 0),
             convenience: Number(values.convenience || 0),
             bonus: Number(values.bonus || 0),
+            isSettled: !!values.isSettled,
             updatedAt: serverTimestamp(),
             updatedBy: user.uid
           }, { merge: true }));
@@ -765,10 +766,11 @@ export default function SalarySlipTab() {
       const appliedSandwiches = sandwichSnap.docs.map(d => d.data());
       const payrollVersion = orgData?.payrollVersions?.[summaryMonth] || 'legacy';
       
-      // Aggregate variable pay logs for the month
+      // Aggregate variable pay logs for the month (only if not settled separately)
       const allVariables = {};
       varSnap.docs.forEach(d => {
         const row = d.data();
+        if (row.isSettled) return; // Skip if paid via GPay/Cash separately
         if (!allVariables[row.employeeId]) allVariables[row.employeeId] = { food: 0, convenience: 0, bonus: 0 };
         allVariables[row.employeeId].food += Number(row.food || 0);
         allVariables[row.employeeId].convenience += Number(row.convenience || 0);
@@ -1050,11 +1052,11 @@ export default function SalarySlipTab() {
       const saturdayType = orgData.saturdayType || 'working';
       const isSaturdayHoliday = saturdayType !== 'working';
 
-      // Aggregate variable pay logs in memory
+      // Aggregate variable pay logs in memory (only if not settled separately)
       let foodP = 0, convP = 0, bonusP = 0;
       varLogsSnap.docs.forEach(d => {
         const row = d.data();
-        if (row.employeeId === selectedEmp && row.month === selectedMonth) {
+        if (row.employeeId === selectedEmp && row.month === selectedMonth && !row.isSettled) {
           foodP += Number(row.food || 0);
           convP += Number(row.convenience || 0);
           bonusP += Number(row.bonus || 0);
@@ -1609,7 +1611,7 @@ export default function SalarySlipTab() {
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-50">
               <div className="flex gap-2 items-center">
-                <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 gap-0.5">
+                <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60 gap-1">
                   {[
                     {id:'overview',l:'Overview'},
                     {id:'detailed',l:'Detailed Summary'},
@@ -1619,10 +1621,10 @@ export default function SalarySlipTab() {
                     <button 
                       key={t.id} 
                       onClick={()=>setSummarySubTab(t.id)} 
-                      className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 ${
+                      className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${
                         summarySubTab===t.id
-                          ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100/50'
-                          : 'text-slate-500 hover:text-slate-900 hover:bg-white/40'
+                          ? 'bg-white text-indigo-600 shadow-md border border-indigo-100/50'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
                       }`}
                     >
                       {t.l}
@@ -1863,24 +1865,23 @@ export default function SalarySlipTab() {
                               <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
                               <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
                               <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Total (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-emerald-600 text-center">Settled?</th>
                               <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Actions</th>
                             </>
                           ) : variableViewGroup === 'staff' ? (
                             <>
                               <th className="px-4 font-semibold text-[11px] text-[#525252]">Employee Name</th>
                               <th className="px-4 font-semibold text-[11px] text-[#525252] text-center">Entries</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right text-emerald-600">Outside Payroll (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right text-indigo-600">In Salary (₹)</th>
                               <th className="px-4 font-semibold text-[11px] text-[#525252] text-right font-black">Grand Total (₹)</th>
                             </>
                           ) : (
                             <>
                               <th className="px-4 font-semibold text-[11px] text-[#525252]">Date</th>
                               <th className="px-4 font-semibold text-[11px] text-[#525252] text-center">Staff Count</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right text-emerald-600">Outside Payroll (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right text-indigo-600">In Salary (₹)</th>
                               <th className="px-4 font-semibold text-[11px] text-[#525252] text-right font-black">Daily Total (₹)</th>
                             </>
                           )}
@@ -1898,11 +1899,12 @@ export default function SalarySlipTab() {
                           if (variableViewGroup === 'staff') {
                             const staffGroups = {};
                             filtered.forEach(v => {
-                              if (!staffGroups[v.employeeId]) staffGroups[v.employeeId] = { name: v.employeeName, count: 0, food: 0, convenience: 0, bonus: 0, entries: [] };
+                              if (!staffGroups[v.employeeId]) staffGroups[v.employeeId] = { name: v.employeeName, count: 0, settled: 0, inSalary: 0 };
                               staffGroups[v.employeeId].count++;
-                              staffGroups[v.employeeId].food += Number(v.food || 0);
-                              staffGroups[v.employeeId].convenience += Number(v.convenience || 0);
-                              staffGroups[v.employeeId].bonus += Number(v.bonus || 0);
+                              const total = Number(v.food||0) + Number(v.convenience||0) + Number(v.bonus||0);
+                              if (v.isSettled) staffGroups[v.employeeId].settled += total;
+                              else staffGroups[v.employeeId].inSalary += total;
+                              if (!staffGroups[v.employeeId].entries) staffGroups[v.employeeId].entries = [];
                               staffGroups[v.employeeId].entries.push(v);
                             });
                             return Object.entries(staffGroups).map(([id, g]) => {
@@ -1924,18 +1926,16 @@ export default function SalarySlipTab() {
                                       </div>
                                     </td>
                                     <td className="px-4 text-center text-xs text-slate-500 font-bold">{g.count} logs</td>
-                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.food.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.convenience.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.bonus.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[13px] font-black text-indigo-600">{(g.food + g.convenience + g.bonus).toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 bg-emerald-50/20">{g.settled.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 bg-indigo-50/20">{g.inSalary.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[13px] font-black text-slate-900">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
                                   </tr>
                                   {isExpanded && g.entries.sort((a,b) => b.date.localeCompare(a.date)).map(v => (
                                     <tr key={v.id} className="bg-slate-50/50 border-l-2 border-indigo-200 animate-in slide-in-from-top-1 duration-200">
                                       <td className="px-10 py-2 text-[11px] text-slate-500 font-medium italic">Entry Detail</td>
                                       <td className="px-4 text-[12px] text-slate-600 font-mono">{formatDateDDMMYYYY(v.date)}</td>
-                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.food||0).toLocaleString('en-IN')}</td>
-                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.convenience||0).toLocaleString('en-IN')}</td>
-                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.bonus||0).toLocaleString('en-IN')}</td>
+                                      <td className={`px-4 text-right text-[11px] font-bold ${v.isSettled ? 'text-emerald-600' : 'text-slate-300'}`}>{v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
+                                      <td className={`px-4 text-right text-[11px] font-bold ${!v.isSettled ? 'text-indigo-600' : 'text-slate-300'}`}>{!v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
                                       <td className="px-4 text-right text-[11px] font-bold text-slate-400">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
                                     </tr>
                                   ))}
@@ -1947,18 +1947,18 @@ export default function SalarySlipTab() {
                           if (variableViewGroup === 'date') {
                             const dateGroups = {};
                             filtered.forEach(v => {
-                              if (!dateGroups[v.date]) dateGroups[v.date] = { date: v.date, count: 0, food: 0, convenience: 0, bonus: 0, entries: [] };
+                              if (!dateGroups[v.date]) dateGroups[v.date] = { date: v.date, count: 0, settled: 0, inSalary: 0, entries: [] };
                               dateGroups[v.date].count++;
-                              dateGroups[v.date].food += Number(v.food || 0);
-                              dateGroups[v.date].convenience += Number(v.convenience || 0);
-                              dateGroups[v.date].bonus += Number(v.bonus || 0);
+                              const total = Number(v.food||0) + Number(v.convenience||0) + Number(v.bonus||0);
+                              if (v.isSettled) dateGroups[v.date].settled += total;
+                              else dateGroups[v.date].inSalary += total;
                               dateGroups[v.date].entries.push(v);
                             });
                             return Object.entries(dateGroups).sort((a, b) => b[0].localeCompare(a[0])).map(([d, g]) => {
                               const isExpanded = expandedVariableGroups.has(d);
                               const toggle = () => {
                                 const next = new Set(expandedVariableGroups);
-                                if (isExpanded) next.delete(d); else next.add(d);
+                                if (isExpanded) next.delete(d); else next.add(id);
                                 setExpandedVariableGroups(next);
                               };
                               return (
@@ -1973,18 +1973,16 @@ export default function SalarySlipTab() {
                                       </div>
                                     </td>
                                     <td className="px-4 text-center text-xs text-slate-500 font-bold">{g.count} staff</td>
-                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.food.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.convenience.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[12px] font-medium text-[#171717]">{g.bonus.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[13px] font-black text-indigo-600">{(g.food + g.convenience + g.bonus).toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 bg-emerald-50/20">{g.settled.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 bg-indigo-50/20">{g.inSalary.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[13px] font-black text-slate-900">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
                                   </tr>
                                   {isExpanded && g.entries.sort((a,b) => a.employeeName.localeCompare(b.employeeName)).map(v => (
                                     <tr key={v.id} className="bg-slate-50/50 border-l-2 border-indigo-200 animate-in slide-in-from-top-1 duration-200">
                                       <td className="px-10 py-2 text-[12px] text-slate-900 font-semibold">{v.employeeName}</td>
                                       <td className="px-4 text-[11px] text-slate-400 uppercase font-bold italic text-center">Individual Log</td>
-                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.food||0).toLocaleString('en-IN')}</td>
-                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.convenience||0).toLocaleString('en-IN')}</td>
-                                      <td className="px-4 text-right text-[11px] text-slate-500">{Number(v.bonus||0).toLocaleString('en-IN')}</td>
+                                      <td className={`px-4 text-right text-[11px] font-bold ${v.isSettled ? 'text-emerald-600' : 'text-slate-300'}`}>{v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
+                                      <td className={`px-4 text-right text-[11px] font-bold ${!v.isSettled ? 'text-indigo-600' : 'text-slate-300'}`}>{!v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
                                       <td className="px-4 text-right text-[11px] font-bold text-slate-400">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
                                     </tr>
                                   ))}
@@ -1999,12 +1997,13 @@ export default function SalarySlipTab() {
                             const food = draft.food ?? v.food;
                             const convenience = draft.convenience ?? v.convenience;
                             const bonus = draft.bonus ?? v.bonus;
+                            const isSettled = draft.isSettled ?? v.isSettled;
 
                             const handleCellEdit = (field, value) => {
                               setVariableDrafts(prev => ({
                                 ...prev,
                                 [docId]: {
-                                  ...(prev[docId] || { food: v.food, convenience: v.convenience, bonus: v.bonus }),
+                                  ...(prev[docId] || { food: v.food, convenience: v.convenience, bonus: v.bonus, isSettled: v.isSettled }),
                                   [field]: value
                                 }
                               }));
@@ -2043,6 +2042,14 @@ export default function SalarySlipTab() {
                                   />
                                 </td>
                                 <td className="px-4 text-right text-[12px] font-bold text-indigo-600">{(Number(food||0) + Number(convenience||0) + Number(bonus||0)).toLocaleString('en-IN')}</td>
+                                <td className="px-4 text-center">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isSettled}
+                                    onChange={e => handleCellEdit('isSettled', e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                  />
+                                </td>
                                 <td className="px-4 text-right">
                                   <div className="flex justify-end gap-2">
                                     <button 
@@ -2064,7 +2071,7 @@ export default function SalarySlipTab() {
                             )
                           }) : (
                             <tr>
-                              <td colSpan={7} className="px-4 py-12 text-center text-[12px] text-[#525252]">
+                              <td colSpan={8} className="px-4 py-12 text-center text-[12px] text-[#525252]">
                                 No variable pay entries yet. Click "Add Entry" to add Food, Convenience or Bonus for employees.
                               </td>
                             </tr>
@@ -2112,6 +2119,20 @@ export default function SalarySlipTab() {
                                 onChange={e => setEditingVariable({...editingVariable, bonus: e.target.value})}
                                 className="w-full h-10 px-3 border border-[#d4d4d4] rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
                               />
+                            </div>
+                            <div className="pt-4 border-t border-gray-100">
+                              <label className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl cursor-pointer hover:bg-emerald-100/50 transition-colors">
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Separate Settlement</span>
+                                  <span className="text-[11px] font-bold text-emerald-800">Paid via GPay / Cash outside payroll?</span>
+                                </div>
+                                <input 
+                                  type="checkbox" 
+                                  checked={editingVariable.isSettled}
+                                  onChange={e => setEditingVariable({...editingVariable, isSettled: e.target.checked})}
+                                  className="w-5 h-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                              </label>
                             </div>
                           </div>
                         </div>
@@ -2179,46 +2200,60 @@ export default function SalarySlipTab() {
                             )}
                           </div>
 
-                          {/* Row 2: Common Amounts */}
-                          <div className="pt-2 border-t border-gray-200/60">
-                            <label className="block text-[10px] font-black uppercase text-slate-500 mb-2 tracking-wider flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-                              Common Amount (Auto-applied to selected staff)
-                            </label>
-                            <div className="flex gap-3">
-                              <div className="flex-1 relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                <input 
-                                  type="number" 
-                                  value={newVariable.food}
-                                  onChange={e => setNewVariable({...newVariable, food: e.target.value})}
-                                  className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
-                                  placeholder="Food"
-                                />
-                                <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Food</div>
+                          {/* Row 2: Common Amounts & Settlement */}
+                          <div className="pt-2 border-t border-gray-200/60 flex gap-4 items-end">
+                            <div className="flex-1 space-y-2">
+                              <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                                Common Amount (Auto-applied to selected staff)
+                              </label>
+                              <div className="flex gap-3">
+                                <div className="flex-1 relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                  <input 
+                                    type="number" 
+                                    value={newVariable.food}
+                                    onChange={e => setNewVariable({...newVariable, food: e.target.value})}
+                                    className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    placeholder="Food"
+                                  />
+                                  <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Food</div>
+                                </div>
+                                <div className="flex-1 relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                  <input 
+                                    type="number" 
+                                    value={newVariable.convenience}
+                                    onChange={e => setNewVariable({...newVariable, convenience: e.target.value})}
+                                    className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    placeholder="Conv."
+                                  />
+                                  <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Conv.</div>
+                                </div>
+                                <div className="flex-1 relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                  <input 
+                                    type="number" 
+                                    value={newVariable.bonus}
+                                    onChange={e => setNewVariable({...newVariable, bonus: e.target.value})}
+                                    className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    placeholder="Bonus"
+                                  />
+                                  <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Bonus</div>
+                                </div>
                               </div>
-                              <div className="flex-1 relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                <input 
-                                  type="number" 
-                                  value={newVariable.convenience}
-                                  onChange={e => setNewVariable({...newVariable, convenience: e.target.value})}
-                                  className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
-                                  placeholder="Conv."
-                                />
-                                <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Conv.</div>
+                            </div>
+                            <div className="w-48 bg-emerald-50/50 border border-emerald-100 rounded-xl p-2.5 flex items-center justify-between shadow-sm self-stretch">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-black uppercase text-emerald-600 tracking-wider">Payment Status</span>
+                                <span className="text-[10px] font-bold text-emerald-800 leading-none mt-1">Paid via GPay/Cash?</span>
                               </div>
-                              <div className="flex-1 relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                <input 
-                                  type="number" 
-                                  value={newVariable.bonus}
-                                  onChange={e => setNewVariable({...newVariable, bonus: e.target.value})}
-                                  className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
-                                  placeholder="Bonus"
-                                />
-                                <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Bonus</div>
-                              </div>
+                              <input 
+                                type="checkbox" 
+                                checked={newVariable.isSettled}
+                                onChange={e => setNewVariable({...newVariable, isSettled: e.target.checked})}
+                                className="w-5 h-5 rounded-md border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer shadow-inner"
+                              />
                             </div>
                           </div>
                         </div>
