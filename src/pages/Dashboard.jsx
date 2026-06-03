@@ -337,13 +337,13 @@ export default function Dashboard() {
     <button 
       key={tab.id} 
       onClick={onClick} 
-      className={`w-full flex transition-all duration-200 group rounded-xl ${isCollapsed ? 'flex-col items-center justify-center py-2 gap-1' : 'items-center px-3 py-2.5 gap-3'} ${isActive ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+      className={`w-full flex transition-all duration-200 group ${isCollapsed ? 'flex-col items-center justify-center py-2 gap-1' : 'items-center px-3 py-2.5 gap-3'} ${isActive ? 'bg-indigo-600/20 text-indigo-700 rounded-none' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700 rounded-xl'}`}
     >
-      <span className={`shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-600'}`}>
+      <span className={`shrink-0 ${isActive ? 'text-indigo-700' : 'text-gray-400 group-hover:text-indigo-600'}`}>
         {tab.icon && React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
       </span>
       <span 
-        className={`font-semibold truncate transition-all duration-300 leading-none ${isActive ? 'text-white' : ''}`} 
+        className={`font-semibold truncate transition-all duration-300 leading-none ${isActive ? 'text-indigo-700' : ''}`} 
         style={{ fontSize: isCollapsed ? '8px' : fontSize }}
       >
         {tab.label}
