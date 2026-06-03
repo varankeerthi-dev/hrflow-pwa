@@ -6,7 +6,7 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save, Table } from 'lucide-react'
+import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save, Table, RotateCcw } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font, pdf } from '@react-pdf/renderer'
 import SummaryTab from './SummaryTab'
 import { logActivity } from '../../hooks/useActivityLog'
@@ -375,7 +375,18 @@ if (!isOpen) return null;
                     <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-6 w-6 flex items-center justify-center border border-[#d4d4d4] rounded hover:bg-[#f5f5f5] text-[#525252] transition-colors">+</button>
                   </div>
                 </td>
-                <td className="px-4 text-right text-[13px] font-semibold text-[#171717]">{(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}</td>
+                <td className="px-4 text-right text-[13px] font-semibold text-[#171717] relative">
+                  <div className="flex items-center justify-end gap-2">
+                    {(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}
+                    <button 
+                      onClick={() => setAdjustments({...adjustments, [emp.id]: 0})}
+                      className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                      title="Reset Adjustment"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1672,99 +1683,93 @@ export default function SalarySlipTab() {
             </div>
             <div className="flex-1 overflow-auto bg-zinc-50/30">
               {summarySubTab==='overview' ? (
-                <div className="h-full overflow-auto">
-                <table className="w-full text-sm border-collapse bg-white border border-zinc-200">
-                  <thead className="sticky top-0 z-40 shadow-sm font-raleway">
+                <div className="h-full overflow-auto premium-overview-scroll">
+                <table className="w-full text-sm border-separate border-spacing-0 bg-white border border-zinc-200 shadow-sm rounded-xl overflow-hidden">
+                  <thead className="sticky top-0 z-40 font-raleway">
                     {/* Group Headers Row */}
-                    <tr className="h-[40px] border-b border-zinc-200">
-                      <th colSpan={2} className="px-4 text-left border-r border-zinc-200 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-100 sticky left-0 z-50 border-b border-blue-200">Staff Profile</th>
-                      <th colSpan={3} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-orange-900 tracking-widest bg-orange-100">Period Status</th>
-                      <th colSpan={4} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-black tracking-widest bg-gray-500">Performance</th>
-                      <th colSpan={1} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-100">Overtime</th>
-                      <th colSpan={2} className="px-4 text-center border-r border-zinc-200 font-black uppercase text-[10px] text-emerald-900 tracking-widest bg-emerald-100">Holiday Worked</th>
-                      <th colSpan={3} className="px-4 text-center font-black uppercase text-[10px] text-white tracking-widest bg-green-600">Summary & Payment</th>
-                      <th className="w-12 bg-zinc-100"></th>
+                    <tr className="h-[44px]">
+                      <th colSpan={2} className="px-4 text-left border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-50/80 sticky left-0 z-50">Staff Profile</th>
+                      <th colSpan={3} className="px-4 text-center border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-orange-900 tracking-widest bg-orange-50/80">Period Status</th>
+                      <th colSpan={4} className="px-4 text-center border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-zinc-700 tracking-widest bg-zinc-100/80">Performance</th>
+                      <th colSpan={1} className="px-4 text-center border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-50/80">Overtime</th>
+                      <th colSpan={2} className="px-4 text-center border-r border-b-2 border-zinc-200 font-black uppercase text-[10px] text-emerald-900 tracking-widest bg-emerald-50/80">Sunday/Holiday</th>
+                      <th colSpan={3} className="px-4 text-center border-b-2 border-green-600 font-black uppercase text-[10px] text-white tracking-widest bg-green-600">Summary & Payout</th>
+                      <th className="w-12 bg-zinc-50 border-b-2 border-zinc-200"></th>
                     </tr>
                     {/* Primary Header Row */}
-                    <tr className="bg-white text-[11px] uppercase font-bold text-zinc-500 tracking-tighter h-[35px] border-b-2 border-zinc-300 font-inter">
-                      <th className="px-3 text-center border-r border-zinc-200 w-10 text-blue-800 sticky left-0 bg-white z-50">#</th>
-                      <th className="px-4 text-left border-r border-zinc-200 w-40 text-blue-800 sticky left-10 bg-white z-50">Employee Name</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-orange-700">Total Days</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-orange-700">Sunday</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-orange-700">Holiday</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-gray-600">Worked</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-[50px] whitespace-pre-line text-gray-600">HALF{"\n"}DAY</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-gray-600">Leave</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-20 text-rose-500">Loss of pay</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-indigo-600">OT (Hrs)</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 font-bold text-emerald-600 bg-emerald-50/10">Sunday Wk</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24 font-bold text-emerald-600 bg-emerald-50/10">Holiday Wk</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-40 bg-green-50/50 text-green-700 font-black">Net Payout</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-24 text-green-700 font-black">Status</th>
-                      <th className="px-2 text-center border-r border-zinc-200 w-32 text-green-600">Details</th>
+                    <tr className="bg-white/95 backdrop-blur-md text-[10px] uppercase font-black text-zinc-400 tracking-widest h-[40px] border-b border-zinc-200">
+                      <th className="px-3 text-center border-r border-zinc-100 w-10 sticky left-0 bg-inherit z-50 shadow-[1px_0_0_0_#e4e4e7]">#</th>
+                      <th className="px-4 text-left border-r border-zinc-100 w-52 sticky left-10 bg-inherit z-50 shadow-[1px_0_0_0_#e4e4e7]">Employee Name</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-orange-700/70">Total Days</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-20 text-orange-700/70">Sunday</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-20 text-orange-700/70">Holiday</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24">Worked</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-20">HD</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-20">Leave</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-rose-500/80">LOP</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-indigo-600/80">OT (Hrs)</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-28 text-emerald-600/80">Sunday Wk</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-28 text-emerald-600/80">Holiday Wk</th>
+                      <th className="px-4 text-right border-r border-zinc-100 w-44 bg-green-50/30 text-green-700">Net Payout</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-green-700">Status</th>
+                      <th className="px-2 text-center border-r border-zinc-100 w-32 text-green-600">Sync</th>
                       <th className="w-12"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200">
+                  <tbody className="divide-y divide-zinc-100">
                     {isAttendanceLoading ? (
                        <tr><td colSpan={16} className="py-20 text-center"><Spinner /></td></tr>
                     ) : filteredAttendanceSummaryData.map((e, idx)=>{
-
                       return (
-                      <tr key={e.id} className={`hover:bg-blue-50 transition-colors h-[36px] group ${idx%2===0?'bg-white':'bg-zinc-50/30'}`}>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 text-[11px] font-inter sticky left-0 z-20 bg-inherit group-hover:bg-blue-50">{idx + 1}</td>
-                        <td className="px-4 border-r border-zinc-200 text-zinc-900 text-[12px] font-bold tracking-tight truncate w-40 font-inter sticky left-10 z-20 bg-inherit group-hover:bg-blue-50">{e.name}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-inter text-[11px]">{e.totalDays}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-inter text-[11px]">{e.sundays}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-400 font-inter text-[11px]" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800 font-inter text-[11px]">{e.worked}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-zinc-800 font-inter text-[11px]">{e.hd}</td>
-                        <td className="px-2 text-center border-r border-zinc-100 text-zinc-600 font-inter text-[11px]">{e.leave}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-rose-600 font-inter text-[11px] relative group/tooltip">
+                      <tr key={e.id} className={`hover:bg-indigo-50/50 transition-all duration-200 h-[48px] group ${idx%2===0?'bg-white':'bg-zinc-50/40'}`}>
+                        <td className="px-3 text-center border-r border-zinc-50 text-zinc-400 text-[11px] font-bold font-mono sticky left-0 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5]">{idx + 1}</td>
+                        <td className="px-4 border-r border-zinc-100 text-zinc-800 text-[13px] font-bold tracking-tight truncate w-52 font-inter sticky left-10 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5]">{e.name}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 font-mono text-[11px]">{e.totalDays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 font-mono text-[11px]">{e.sundays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 font-mono text-[11px]" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-zinc-700 font-mono text-[12px]">{e.worked}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-zinc-600 font-mono text-[11px]">{e.hd}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 font-mono text-[11px]">{e.leave}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-rose-600 bg-rose-50/20 font-mono text-[12px] relative group/tooltip">
                           {e.lop}
                           {e.lopDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                              <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.lopDates.join(', ')}
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+                              <span className="text-red-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.lopDates.join(', ')}
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-inter text-[11px] relative group/tooltip">
+                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-indigo-600/80 font-mono text-[11px] relative group/tooltip">
                           {Number(e.ot || 0).toFixed(2)}
                           {e.otAdjustment !== 0 && (
-                            <span className="text-emerald-600 ml-1 font-bold">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
-                          )}
-                          {e.otDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
-                              {e.otDates.map(o => <div key={o.date} className="flex justify-between" style={{ minWidth: '80px' }}><span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)} {o.date}</span><span>{o.hours}h</span></div>)}
-                            </span>
+                            <span className="text-indigo-400 ml-1 font-black text-[9px]">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-100 font-bold text-emerald-600 bg-emerald-50/5 font-inter text-[11px] relative group/tooltip">
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-emerald-600 bg-emerald-50/10 font-mono text-[12px] relative group/tooltip">
                           {e.sunW}
                           {e.sunWDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                              <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.sunWDates.join(', ')}
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+                              <span className="text-emerald-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.sunWDates.join(', ')}
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-bold text-emerald-600 bg-emerald-50/5 font-inter text-[11px] relative group/tooltip">
+                        <td className="px-2 text-center border-r border-zinc-100 font-black text-emerald-600 bg-emerald-50/10 font-mono text-[12px] relative group/tooltip">
                           {e.holW}
                           {e.holWDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                              <span className="text-red-400 font-bold">{formatMonthShort(summaryMonth)}</span>: {e.holWDates.join(', ')}
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+                              <span className="text-emerald-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.holWDates.join(', ')}
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-right border-r border-zinc-200 font-bold text-green-700 bg-green-50/20 text-[12px] font-inter pr-3">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-2 text-center border-r border-zinc-200 font-inter text-[11px]">
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[8px] font-black uppercase">Pending</span>
+                        <td className="px-4 text-right border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[14px] font-mono tracking-tighter pr-5">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-inter text-[11px]">
+                          <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-tighter">Draft</span>
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-200 text-[10px] font-bold text-slate-500 italic font-inter">
-                          -
+                        <td className="px-2 text-center border-r border-zinc-50">
+                           <div className="flex justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div></div>
                         </td>
                         <td className="px-2 text-center font-inter">
-                          <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-1.5 hover:bg-zinc-900 hover:text-white rounded transition-all text-zinc-400">
-                            <ArrowRight size={14}/>
+                          <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-2 hover:bg-zinc-900 hover:text-white rounded-xl transition-all text-zinc-300 active:scale-90">
+                            <ArrowUpRight size={16}/>
                           </button>
                         </td>
                       </tr>
@@ -2043,12 +2048,16 @@ export default function SalarySlipTab() {
                                 </td>
                                 <td className="px-4 text-right text-[12px] font-bold text-indigo-600">{(Number(food||0) + Number(convenience||0) + Number(bonus||0)).toLocaleString('en-IN')}</td>
                                 <td className="px-4 text-center">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={isSettled}
-                                    onChange={e => handleCellEdit('isSettled', e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                                  />
+                                  <button 
+                                    onClick={() => handleCellEdit('isSettled', !isSettled)}
+                                    className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter transition-all duration-300 border ${
+                                      isSettled 
+                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-600 hover:text-white shadow-sm' 
+                                        : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-600 hover:text-white shadow-sm'
+                                    }`}
+                                  >
+                                    {isSettled ? 'Paid GPay' : 'In Salary'}
+                                  </button>
                                 </td>
                                 <td className="px-4 text-right">
                                   <div className="flex justify-end gap-2">
@@ -2121,18 +2130,30 @@ export default function SalarySlipTab() {
                               />
                             </div>
                             <div className="pt-4 border-t border-gray-100">
-                              <label className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl cursor-pointer hover:bg-emerald-100/50 transition-colors">
-                                <div className="flex flex-col">
-                                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Separate Settlement</span>
-                                  <span className="text-[11px] font-bold text-emerald-800">Paid via GPay / Cash outside payroll?</span>
-                                </div>
-                                <input 
-                                  type="checkbox" 
-                                  checked={editingVariable.isSettled}
-                                  onChange={e => setEditingVariable({...editingVariable, isSettled: e.target.checked})}
-                                  className="w-5 h-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
-                                />
-                              </label>
+                              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-1.5 flex gap-1.5 shadow-inner">
+                                <button 
+                                  onClick={() => setEditingVariable({...editingVariable, isSettled: false})}
+                                  className={`flex-1 flex flex-col items-center justify-center rounded-xl py-2 transition-all duration-300 ${
+                                    !editingVariable.isSettled 
+                                      ? 'bg-indigo-600 text-white shadow-lg scale-[1.02]' 
+                                      : 'text-slate-400 hover:text-slate-600 hover:bg-white'
+                                  }`}
+                                >
+                                  <span className="text-[9px] font-black uppercase tracking-wider">Include in</span>
+                                  <span className="text-[11px] font-bold leading-none mt-0.5">Monthly Salary</span>
+                                </button>
+                                <button 
+                                  onClick={() => setEditingVariable({...editingVariable, isSettled: true})}
+                                  className={`flex-1 flex flex-col items-center justify-center rounded-xl py-2 transition-all duration-300 ${
+                                    editingVariable.isSettled 
+                                      ? 'bg-emerald-600 text-white shadow-lg scale-[1.02]' 
+                                      : 'text-slate-400 hover:text-slate-600 hover:bg-white'
+                                  }`}
+                                >
+                                  <span className="text-[9px] font-black uppercase tracking-wider">Paid via</span>
+                                  <span className="text-[11px] font-bold leading-none mt-0.5">GPay / Cash</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -2243,17 +2264,29 @@ export default function SalarySlipTab() {
                                 </div>
                               </div>
                             </div>
-                            <div className="w-48 bg-emerald-50/50 border border-emerald-100 rounded-xl p-2.5 flex items-center justify-between shadow-sm self-stretch">
-                              <div className="flex flex-col">
-                                <span className="text-[9px] font-black uppercase text-emerald-600 tracking-wider">Payment Status</span>
-                                <span className="text-[10px] font-bold text-emerald-800 leading-none mt-1">Paid via GPay/Cash?</span>
-                              </div>
-                              <input 
-                                type="checkbox" 
-                                checked={newVariable.isSettled}
-                                onChange={e => setNewVariable({...newVariable, isSettled: e.target.checked})}
-                                className="w-5 h-5 rounded-md border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer shadow-inner"
-                              />
+                            <div className="w-56 bg-white border border-gray-200 rounded-xl p-1 flex shadow-sm self-stretch">
+                              <button 
+                                onClick={() => setNewVariable({...newVariable, isSettled: false})}
+                                className={`flex-1 flex flex-col items-center justify-center rounded-lg py-1 transition-all duration-200 ${
+                                  !newVariable.isSettled 
+                                    ? 'bg-indigo-600 text-white shadow-md' 
+                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="text-[8px] font-black uppercase tracking-tighter">Include in</span>
+                                <span className="text-[10px] font-bold leading-none">Salary</span>
+                              </button>
+                              <button 
+                                onClick={() => setNewVariable({...newVariable, isSettled: true})}
+                                className={`flex-1 flex flex-col items-center justify-center rounded-lg py-1 transition-all duration-200 ${
+                                  newVariable.isSettled 
+                                    ? 'bg-emerald-600 text-white shadow-md' 
+                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="text-[8px] font-black uppercase tracking-tighter">Paid via</span>
+                                <span className="text-[10px] font-bold leading-none">GPay/Cash</span>
+                              </button>
                             </div>
                           </div>
                         </div>
