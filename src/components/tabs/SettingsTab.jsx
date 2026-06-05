@@ -4840,10 +4840,10 @@ export default function SettingsTab() {
               <button
                 type="button"
                 onClick={() => toggleSection('basicInfo')}
-                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+                className="flex items-center gap-2 w-full px-4 py-2.5 transition-colors cursor-pointer select-none" style={{ backgroundColor: '#09CE99' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#07B888'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#09CE99'}
               >
-                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.basicInfo ? '-rotate-90' : ''}`} />
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Basic Information</span>
+                <ChevronDown size={14} className={`text-white transition-transform duration-200 ${collapsedSections.basicInfo ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-white uppercase tracking-[0.15em]">Basic Information</span>
               </button>
               {!collapsedSections.basicInfo && <div className="p-4">
             <div className="grid grid-cols-2 gap-4">
@@ -4913,10 +4913,10 @@ export default function SettingsTab() {
               <button
                 type="button"
                 onClick={() => toggleSection('personalDetails')}
-                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+                className="flex items-center gap-2 w-full px-4 py-2.5 transition-colors cursor-pointer select-none" style={{ backgroundColor: '#09CE99' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#07B888'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#09CE99'}
               >
-                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.personalDetails ? '-rotate-90' : ''}`} />
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Personal Details</span>
+                <ChevronDown size={14} className={`text-white transition-transform duration-200 ${collapsedSections.personalDetails ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-white uppercase tracking-[0.15em]">Personal Details</span>
               </button>
               {!collapsedSections.personalDetails && <div className="p-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -5000,10 +5000,10 @@ export default function SettingsTab() {
               <button
                 type="button"
                 onClick={() => toggleSection('contactLogin')}
-                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+                className="flex items-center gap-2 w-full px-4 py-2.5 transition-colors cursor-pointer select-none" style={{ backgroundColor: '#09CE99' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#07B888'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#09CE99'}
               >
-                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.contactLogin ? '-rotate-90' : ''}`} />
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Contact &amp; Login</span>
+                <ChevronDown size={14} className={`text-white transition-transform duration-200 ${collapsedSections.contactLogin ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-white uppercase tracking-[0.15em]">Contact &amp; Login</span>
               </button>
               {!collapsedSections.contactLogin && <div className="p-4 space-y-4">
             <div className="col-span-2 space-y-3">
@@ -5121,10 +5121,10 @@ export default function SettingsTab() {
               <button
                 type="button"
                 onClick={() => toggleSection('identification')}
-                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+                className="flex items-center gap-2 w-full px-4 py-2.5 transition-colors cursor-pointer select-none" style={{ backgroundColor: '#09CE99' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#07B888'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#09CE99'}
               >
-                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.identification ? '-rotate-90' : ''}`} />
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Identification &amp; Documents</span>
+                <ChevronDown size={14} className={`text-white transition-transform duration-200 ${collapsedSections.identification ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-white uppercase tracking-[0.15em]">Identification &amp; Documents</span>
               </button>
               {!collapsedSections.identification && <div className="p-4">
             <div className="grid grid-cols-2 gap-4">
@@ -5259,10 +5259,10 @@ export default function SettingsTab() {
               <button
                 type="button"
                 onClick={() => toggleSection('settings')}
-                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+                className="flex items-center gap-2 w-full px-4 py-2.5 transition-colors cursor-pointer select-none" style={{ backgroundColor: '#09CE99' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#07B888'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#09CE99'}
               >
-                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.settings ? '-rotate-90' : ''}`} />
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Settings</span>
+                <ChevronDown size={14} className={`text-white transition-transform duration-200 ${collapsedSections.settings ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-white uppercase tracking-[0.15em]">Settings</span>
               </button>
               {!collapsedSections.settings && <div className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
