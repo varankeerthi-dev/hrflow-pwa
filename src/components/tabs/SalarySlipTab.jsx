@@ -457,6 +457,13 @@ export default function SalarySlipTab() {
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const [activeTab, setActiveTab] = useState('salary-summary')
 
+  const [selectedEmp, setSelectedEmp] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
+  const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
+
   // --- PAYROLL RUNS WORKFLOW ---
   const payrollRuns = usePayrollRuns(user?.orgId);
   const [payrollSubTab, setPayrollSubTab] = useState('current'); // 'current' | 'history'
@@ -576,12 +583,6 @@ export default function SalarySlipTab() {
       }
     }
   };
-  const [selectedEmp, setSelectedEmp] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  })
-  const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
   const [summarySubTab, setSummarySubTab] = useState('overview')
   const [summaryFilterEmpId, setSummaryFilterEmpId] = useState('')
   const [loading, setLoading] = useState(false)

@@ -358,6 +358,7 @@ export default function SettingsTab() {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false)
   const [newMinWorkHours, setNewMinWorkHours] = useState({ name: '', hours: 8, description: '' })
   const [newEmployee, setNewEmployee] = useState(createEmployeeFormState())
+  const [formErrors, setFormErrors] = useState({})
   const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
   const [viewerState, setViewerState] = useState(null) // { docs, index }
   const [newRole, setNewRole] = useState({ 
@@ -1298,14 +1299,21 @@ export default function SettingsTab() {
   }
 
   const handleAddEmployee = async () => {
+    setFormErrors({})
+
     if (!user?.orgId) {
       alert('Error: Organization ID not found. Please log in again.')
       return
     }
 
+    if (!newEmployee.name?.trim()) {
+      setFormErrors({ name: 'Employee name is required' })
+      return
+    }
+
     const validation = validateEmployeeData(newEmployee)
     if (!validation.success) {
-      alert('Validation Error:\n' + validation.error)
+      setFormErrors({ name: 'Please fill in all required fields' })
       return
     }
 
@@ -4766,7 +4774,7 @@ export default function SettingsTab() {
       </Modal>
 
       {/* ADD NEW EMPLOYEE MODAL - Minimal, Clean Form */}
-      <Modal isOpen={showAddEmployee} onClose={() => setShowAddEmployee(false)} title="Add Employee">
+      <Modal isOpen={showAddEmployee} onClose={() => { setShowAddEmployee(false); setFormErrors({}); }} title="Add Employee">
         <div className="flex flex-col h-[85vh] max-w-3xl mx-auto font-inter bg-white">
           {/* Scrollable Form Body - Single scroll */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
@@ -4808,11 +4816,12 @@ export default function SettingsTab() {
               </div>
               <div className="flex-1 space-y-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Name</label>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
                   <input type="text" placeholder="Full Name" value={newEmployee.name}
-                    onChange={e => setNewEmployee(s => ({ ...s, name: e.target.value }))}
-                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
+                    onChange={e => { setNewEmployee(s => ({ ...s, name: e.target.value })); if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' })); }}
+                    className={`w-full h-10 border rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white ${formErrors.name ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-200'}`}
                   />
+                  {formErrors.name && <p className="text-[11px] text-red-500 mt-1 font-medium">{formErrors.name}</p>}
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">Designation</label>
@@ -4824,7 +4833,12 @@ export default function SettingsTab() {
               </div>
             </div>
 
-            {/* Two-column fields */}
+            {/* Section: Basic Information */}
+            <div className="relative pt-2">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Basic Information</span>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Employee ID</label>
@@ -4883,6 +4897,15 @@ export default function SettingsTab() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Section: Personal Details */}
+            <div className="relative pt-2">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Personal Details</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
                 <select value={newEmployee.bloodGroup} onChange={e => setNewEmployee(s => ({ ...s, bloodGroup: e.target.value }))}
@@ -4954,6 +4977,12 @@ export default function SettingsTab() {
                 rows={3}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
               />
+            </div>
+
+            {/* Section: Contact & Login */}
+            <div className="relative pt-2">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Contact &amp; Login</span>
             </div>
 
             {/* Email field - always visible for new employees with Blue Hover & Active States */}
@@ -5065,8 +5094,13 @@ export default function SettingsTab() {
               </div>
             </div>
 
-            {/* Identification & Vehicle Details */}
-            <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+            {/* Section: Identification */}
+            <div className="relative pt-2">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Identification &amp; Documents</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Aadhar No</label>
                 <input type="text" placeholder="12-digit Aadhar Number" value={newEmployee.aadharNo || ''}
@@ -5191,8 +5225,13 @@ export default function SettingsTab() {
               </div>
             </div>
 
-            {/* Toggles section - Two Columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+            {/* Section: Settings */}
+            <div className="relative pt-2">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Settings</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Login Enabled Toggle */}
               <div className="flex items-center justify-between bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100/60">
                 <div className="pr-2">
@@ -5380,7 +5419,7 @@ export default function SettingsTab() {
           <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex gap-3 bg-white">
             <button
               type="button"
-              onClick={() => setShowAddEmployee(false)}
+              onClick={() => { setShowAddEmployee(false); setFormErrors({}); }}
               className="px-5 h-10 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-200 transition-all"
             >
               Cancel
