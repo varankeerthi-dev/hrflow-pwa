@@ -460,9 +460,19 @@ export default function SalarySlipTab() {
   const [selectedEmp, setSelectedEmp] = useState('')
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date()
+    now.setMonth(now.getMonth() - 1)
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
+
+  const navigateEmployee = (dir) => {
+    const idx = sortedEmployees.findIndex(e => e.id === selectedEmp)
+    const next = dir === 'prev' ? idx - 1 : idx + 1
+    if (next < 0 || next >= sortedEmployees.length) return
+    const id = sortedEmployees[next].id
+    setSelectedEmp(id)
+    setTimeout(handleGenerate, 10)
+  }
 
   // --- PAYROLL RUNS WORKFLOW ---
   const payrollRuns = usePayrollRuns(user?.orgId);
@@ -926,7 +936,7 @@ export default function SalarySlipTab() {
   }, [employees, employeeRowOrder])
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
-    queryKey: ['attendanceSummary', user?.orgId, summaryMonth],
+    queryKey: ['attendanceSummary', user?.orgId, summaryMonth, increments],
     queryFn: async () => {
       if (!user?.orgId || !sortedEmployees.length) return []; const [y, m] = summaryMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${end}`
       const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap, sandwichSnap, varSnap] = await Promise.all([
@@ -1793,9 +1803,9 @@ export default function SalarySlipTab() {
               <button 
                 key={t.id} 
                 onClick={() => setActiveTab(t.id)} 
-                className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-[12px] font-bold tracking-tight transition-all duration-200 hover:scale-105 active:scale-95 ${
+                className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-[12px] font-bold tracking-tight transition-all duration-200 ${
                   activeTab === t.id 
-                    ? 'text-indigo-600 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-indigo-100/50' 
+                    ? 'text-indigo-600 bg-indigo-50/50' 
                     : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
                 }`}
               >
@@ -1815,11 +1825,25 @@ export default function SalarySlipTab() {
         {activeTab === 'salary-slip' && (
           <div className="w-full space-y-4 h-full flex flex-col overflow-hidden">
             <div className="flex gap-4 items-end shrink-0 mb-2 mt-1">
-              <div className="flex-1 max-w-xs">
-                <EmployeeSearchableDropdown employees={sortedEmployees} selectedId={selectedEmp} onSelect={setSelectedEmp} />
+              <div className="flex items-center gap-1">
+                <button onClick={() => navigateEmployee('prev')} disabled={!selectedEmp || sortedEmployees.findIndex(e => e.id === selectedEmp) <= 0}
+                  className="h-7 w-7 flex items-center justify-center border border-zinc-200 rounded-sm text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                  <ChevronLeft size={14} />
+                </button>
+                <div className="w-48">
+                  <EmployeeSearchableDropdown employees={sortedEmployees} selectedId={selectedEmp} onSelect={setSelectedEmp} />
+                </div>
+                <button onClick={() => navigateEmployee('next')} disabled={!selectedEmp || sortedEmployees.findIndex(e => e.id === selectedEmp) >= sortedEmployees.length - 1}
+                  className="h-7 w-7 flex items-center justify-center border border-zinc-200 rounded-sm text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                  <ChevronRight size={14} />
+                </button>
               </div>
-              <div className="w-32">
+              <div>
                 <input type="month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="w-full h-7 border-b border-gray-200 text-sm font-normal focus:border-blue-600 outline-none bg-transparent"/>
+                <button onClick={() => {
+                  const now = new Date()
+                  setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+                }} className="mt-1 text-[10px] font-medium text-zinc-400 hover:text-zinc-900 transition-colors w-full text-left">This Month</button>
               </div>
               <div className="flex gap-2">
                 <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-4 bg-zinc-800 text-white rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-green-600 active:scale-95 transition-all flex items-center gap-2">
