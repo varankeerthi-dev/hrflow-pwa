@@ -335,7 +335,6 @@ export default function SettingsTab({ initialSubTab }) {
   const userPermissions = useMemo(() => user?.permissions || {}, [user?.permissions])
   const allSubTabs = [
     { id: 'organization', label: 'Organization', module: 'Settings' },
-    { id: 'employee', label: 'Employees', module: 'Employees' },
     { id: 'user_roles', label: 'Users & Roles', module: 'Roles' },
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
@@ -348,10 +347,10 @@ export default function SettingsTab({ initialSubTab }) {
   const visibleSubTabs = allSubTabs
 
   useEffect(() => {
-    if (!visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {
+    if (!initialSubTab && !visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {
       setActiveSubTab(visibleSubTabs[0].id)
     }
-  }, [user])
+  }, [user, initialSubTab])
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
@@ -2498,6 +2497,7 @@ export default function SettingsTab({ initialSubTab }) {
             </div>
           </div>
 
+          {!initialSubTab && (
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {visibleSubTabs.map(tab => {
               const meta = settingsSubTabMeta[tab.id] || {}
@@ -2528,6 +2528,7 @@ export default function SettingsTab({ initialSubTab }) {
               )
             })}
           </div>
+          )}
         </div>
       </div>
 
