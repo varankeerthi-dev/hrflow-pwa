@@ -854,9 +854,16 @@ export default function SettingsTab() {
     const mwhCategory = mwhList.find(m => m.hours === employee.minDailyHours) || mwhList.find(m => m.name === employee.minDailyHours)
     const defaultCategory = mwhList.length > 0 ? mwhList[0].name : ''
 
+    const hasPersonalEmail = employee.personalEmail && employee.personalEmail.trim()
+    const hasWorkEmail = employee.workEmail && employee.workEmail.trim()
+    const hasLegacyEmail = employee.email && employee.email.trim()
+
     return {
       ...createEmployeeFormState(),
       ...employee,
+      personalEmail: hasPersonalEmail ? employee.personalEmail : (hasLegacyEmail ? employee.email : ''),
+      workEmail: hasWorkEmail ? employee.workEmail : '',
+      loginEmailType: hasPersonalEmail ? employee.loginEmailType || 'personal' : (hasLegacyEmail ? 'personal' : 'work'),
       status: normalizeEmployeeStatus(employee.status),
       statusHistory: Array.isArray(employee.statusHistory) ? employee.statusHistory : [],
       loginEnabled: employee.loginEnabled || false,
