@@ -220,19 +220,25 @@ export default function Dashboard() {
   const [orgSettings, setOrgSettings] = useState({})
   const [isFeaturesExpanded, setIsFeaturesExpanded] = useState(() => {
     const saved = localStorage.getItem('isFeaturesExpanded')
-    return saved === 'true'
+    return saved !== null ? JSON.parse(saved) : true
+  })
+  const [isHrExpanded, setIsHrExpanded] = useState(() => {
+    const saved = localStorage.getItem('isHrExpanded')
+    return saved !== null ? JSON.parse(saved) : true
   })
   const [isReportsExpanded, setIsReportsExpanded] = useState(() => {
     const saved = localStorage.getItem('isReportsExpanded')
-    return saved === 'true'
+    return saved !== null ? JSON.parse(saved) : true
   })
 
-  // Persist Features expansion state
   useEffect(() => {
     localStorage.setItem('isFeaturesExpanded', isFeaturesExpanded)
   }, [isFeaturesExpanded])
 
-  // Persist Reports expansion state
+  useEffect(() => {
+    localStorage.setItem('isHrExpanded', isHrExpanded)
+  }, [isHrExpanded])
+
   useEffect(() => {
     localStorage.setItem('isReportsExpanded', isReportsExpanded)
   }, [isReportsExpanded])
@@ -282,6 +288,7 @@ export default function Dashboard() {
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
+    { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={18} strokeWidth={1.75} />, module: 'HRLetters' },
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Reports', children: ['attendance-reports'] },
     { id: 'accountant', label: 'Accountant', icon: <Banknote size={18} strokeWidth={1.75} />, module: 'Finance' },
     { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
@@ -331,7 +338,8 @@ export default function Dashboard() {
 
   const mainTabs = ['home', 'attendance-list', 'tasks', 'salary-slip', 'advance', 'approvals']
   
-  const featuresTabs = ['correction', 'leave', 'letters', 'vehicles', 'documents', 'summary', 'fines', 'engage', 'chat', 'shift-planning']
+  const hrTabs = ['leave', 'letters', 'recruitment', 'documents']
+  const featuresTabs = ['correction', 'vehicles', 'summary', 'fines', 'engage', 'chat', 'shift-planning']
 
   const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
     <button 
@@ -353,6 +361,7 @@ export default function Dashboard() {
 
   const renderMenu = () => {
     const mainItems = visibleTabs.filter(t => mainTabs.includes(t.id))
+    const hrItems = visibleTabs.filter(t => hrTabs.includes(t.id))
     const featuresItems = visibleTabs.filter(t => featuresTabs.includes(t.id))
     const portalItem = visibleTabs.find(t => t.id === 'portal')
     const settingsItem = visibleTabs.find(t => t.id === 'settings')
@@ -361,6 +370,31 @@ export default function Dashboard() {
     return (
       <>
         {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
+
+        {hrItems.length > 0 && (
+          <div className="mt-2">
+            <button
+              onClick={() => setIsHrExpanded(!isHrExpanded)}
+              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+            >
+              <span className="shrink-0 text-gray-400 group-hover:text-indigo-600">
+                <Users size={18} strokeWidth={2} />
+              </span>
+              {!isCollapsed && (
+                <span className="text-[14px] font-semibold truncate leading-none flex-1 text-left">HR</span>
+              )}
+              {!isCollapsed && (
+                <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
+              )}
+            </button>
+
+            {isHrExpanded && (
+              <div className={`${isCollapsed ? 'ml-0 pl-0 border-l-0' : 'ml-3 pl-3 border-l-2 border-gray-100'} space-y-0.5`}>
+                {hrItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }, '12px'))}
+              </div>
+            )}
+          </div>
+        )}
 
         {featuresItems.length > 0 && (
           <div className="mt-2">
