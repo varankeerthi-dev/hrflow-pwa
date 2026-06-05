@@ -2,6 +2,22 @@ import { useState, useCallback } from 'react'
 import { db } from '../lib/firebase'
 import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore'
 import { useAuth } from './useAuth'
+import { isPeriodLocked } from '../lib/payrollLock'
+
+const isLeaveRangeLocked = async (orgId, fromDate, toDate) => {
+  if (!fromDate) return false
+  const start = new Date(fromDate)
+  const end = toDate ? new Date(toDate) : start
+  let current = new Date(start.getFullYear(), start.getMonth(), 1)
+  while (current <= end) {
+    const monthStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`
+    if (await isPeriodLocked(orgId, monthStr)) {
+      return true
+    }
+    current.setMonth(current.getMonth() + 1)
+  }
+  return false
+}
 
 export function useLeaves(orgId) {
   const { user } = useAuth()
@@ -49,6 +65,9 @@ export function useLeaves(orgId) {
 
   const applyLeave = async (leaveData) => {
     if (!orgId || !user) return
+    if (await isLeaveRangeLocked(orgId, leaveData.fromDate, leaveData.toDate)) {
+      throw new Error(`Cannot apply leave: The period contains locked payroll runs.`);
+    }
     setLoading(true)
     try {
       const duration = calculateDuration(leaveData.fromDate, leaveData.toDate)
@@ -100,6 +119,10 @@ export function useLeaves(orgId) {
       const requestRef = doc(db, 'organisations', orgId, 'requests', requestId)
       const requestSnap = await getDoc(requestRef)
       const requestData = requestSnap.data()
+      
+      if (requestData && await isLeaveRangeLocked(orgId, requestData.fromDate, requestData.toDate)) {
+        throw new Error(`Cannot update leave request: The period contains locked payroll runs.`);
+      }
       
       const isDeptHead = user.uid === requestData.deptHeadId
 
@@ -172,6 +195,10 @@ export function useLeaves(orgId) {
       const requestSnap = await getDoc(requestRef)
       const requestData = requestSnap.data()
       
+      if (requestData && await isLeaveRangeLocked(orgId, requestData.fromDate, requestData.toDate)) {
+        throw new Error(`Cannot delete leave request: The period contains locked payroll runs.`);
+      }
+      
       // Check permissions - only creator, admin, or HR can delete
       const canDelete = 
         user.uid === requestData.createdBy || 
@@ -213,6 +240,10 @@ export function useLeaves(orgId) {
       const requestRef = doc(db, 'organisations', orgId, 'requests', requestId)
       const requestSnap = await getDoc(requestRef)
       const requestData = requestSnap.data()
+      
+      if (requestData && await isLeaveRangeLocked(orgId, requestData.fromDate, requestData.toDate)) {
+        throw new Error(`Cannot cancel leave request: The period contains locked payroll runs.`);
+      }
       
       // Check permissions - only creator, admin, or HR can cancel
       const canCancel = 

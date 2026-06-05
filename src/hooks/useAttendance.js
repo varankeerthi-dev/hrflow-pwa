@@ -3,6 +3,7 @@ import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp, getDoc, doc 
 import { attendanceCol, attendanceDoc } from '../lib/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
+import { isPeriodLocked } from '../lib/payrollLock'
 
 export function useAttendance(orgId) {
   const { user } = useAuth()
@@ -27,6 +28,15 @@ export function useAttendance(orgId) {
 
   const upsertAttendance = useCallback(async (rows) => {
     if (!orgId || !rows.length) return
+    
+    // Check locking periods
+    for (const row of rows) {
+      const rowDate = row.date || row.inDate
+      if (rowDate && await isPeriodLocked(orgId, rowDate)) {
+        throw new Error(`Cannot save attendance: The period for ${rowDate.substring(0, 7)} is locked under a finalized Payroll run.`);
+      }
+    }
+    
     const batch = rows.map(row => {
       const rowDate = row.date || row.inDate
       const payload = {
@@ -116,6 +126,9 @@ export function useAttendance(orgId) {
 
   const deleteByDate = useCallback(async (date) => {
     if (!orgId || !date) return
+    if (await isPeriodLocked(orgId, date)) {
+      throw new Error(`Cannot delete attendance: The period for ${date.substring(0, 7)} is locked under a finalized Payroll run.`);
+    }
     setLoading(true)
     try {
       const q = query(attendanceCol(orgId), where('date', '==', date))
@@ -131,6 +144,9 @@ export function useAttendance(orgId) {
 
   const deleteIndividualAttendance = useCallback(async (date, employeeId) => {
     if (!orgId || !date || !employeeId) return
+    if (await isPeriodLocked(orgId, date)) {
+      throw new Error(`Cannot delete attendance: The period for ${date.substring(0, 7)} is locked under a finalized Payroll run.`);
+    }
     setLoading(true)
     try {
       await deleteDoc(attendanceDoc(orgId, date, employeeId))
@@ -164,6 +180,9 @@ export function useAttendance(orgId) {
   const recalculateOTForEmployee = useCallback(async (employeeId, effectiveDate, minDailyHours) => {
     if (!orgId || !employeeId || !effectiveDate) {
       return { matchedCount: 0, recalculatedCount: 0 }
+    }
+    if (await isPeriodLocked(orgId, effectiveDate)) {
+      throw new Error(`Cannot recalculate OT: The period for ${effectiveDate.substring(0, 7)} is locked under a finalized Payroll run.`);
     }
     setLoading(true)
     try {

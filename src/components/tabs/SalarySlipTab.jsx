@@ -14,6 +14,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
 import { useSidebar } from '../../contexts/SidebarContext'
 import JSZip from 'jszip'
+import { usePayrollRuns } from '../../hooks/usePayrollRuns'
+import { isPeriodLocked } from '../../lib/payrollLock'
 
 // --- HELPERS ---
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : Math.round(Number(val)).toLocaleString('en-IN');
@@ -454,6 +456,126 @@ export default function SalarySlipTab() {
   const queryClient = useQueryClient();
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const [activeTab, setActiveTab] = useState('salary-summary')
+
+  // --- PAYROLL RUNS WORKFLOW ---
+  const payrollRuns = usePayrollRuns(user?.orgId);
+  const [payrollSubTab, setPayrollSubTab] = useState('current'); // 'current' | 'history'
+  
+  // Fetch active run for the selected summaryMonth
+  const { data: activeRun, isLoading: isActiveRunLoading, refetch: refetchActiveRun } = useQuery({
+    queryKey: ['activePayrollRun', user?.orgId, summaryMonth],
+    queryFn: () => payrollRuns.fetchRun(summaryMonth),
+    enabled: !!user?.orgId && !!summaryMonth
+  });
+
+  // Fetch slips if the active run exists
+  const { data: runSlips = [], isLoading: isSlipsLoading, refetch: refetchRunSlips } = useQuery({
+    queryKey: ['payrollRunSlips', user?.orgId, summaryMonth],
+    queryFn: () => payrollRuns.fetchRunSlips(summaryMonth),
+    enabled: !!user?.orgId && !!summaryMonth && !!activeRun
+  });
+
+  // Fetch all runs for the History tab
+  const { data: allRuns = [], isLoading: isAllRunsLoading, refetch: refetchAllRuns } = useQuery({
+    queryKey: ['allPayrollRuns', user?.orgId],
+    queryFn: () => payrollRuns.fetchAllRuns(),
+    enabled: !!user?.orgId && payrollSubTab === 'history'
+  });
+
+  // State to track a selected past run for detailed viewing
+  const [selectedPastRunId, setSelectedPastRunId] = useState(null);
+  const { data: pastRunSlips = [], isLoading: isPastSlipsLoading } = useQuery({
+    queryKey: ['pastPayrollRunSlips', user?.orgId, selectedPastRunId],
+    queryFn: () => payrollRuns.fetchRunSlips(selectedPastRunId),
+    enabled: !!user?.orgId && !!selectedPastRunId
+  });
+
+  const selectedPastRun = useMemo(() => {
+    return allRuns.find(r => r.id === selectedPastRunId);
+  }, [allRuns, selectedPastRunId]);
+
+  const handleInitiateRun = async () => {
+    if (!attendanceSummaryData.length) {
+      alert('Cannot initiate payroll: No calculated employee data for this month.');
+      return;
+    }
+    const [y, m] = summaryMonth.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    const startDate = `${summaryMonth}-01`;
+    const endDate = `${summaryMonth}-${String(lastDay).padStart(2, '0')}`;
+    
+    if (window.confirm(`Initiate Draft Payroll Run for ${formatMonthDisplay(summaryMonth)} (${startDate} to ${endDate})?`)) {
+      try {
+        setLoading(true);
+        await payrollRuns.initiatePayrollRun({
+          month: summaryMonth,
+          startDate,
+          endDate,
+          createdBy: user.uid,
+          userName: user.name,
+          employeeSlips: attendanceSummaryData
+        });
+        alert('Payroll run initiated successfully!');
+        refetchActiveRun();
+      } catch (err) {
+        alert('Failed to initiate run: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleResync = async () => {
+    if (!activeRun) return;
+    if (activeRun.status !== 'draft') {
+      alert('Cannot re-sync: Only draft runs can be re-synced.');
+      return;
+    }
+    if (window.confirm('Re-sync payroll calculations with live database? This will reload attendance, leaves, advances, and expenses.')) {
+      try {
+        setLoading(true);
+        await refetchSummary();
+        await payrollRuns.resyncPayrollRun(summaryMonth, attendanceSummaryData, user.uid);
+        alert('Payroll run re-synced successfully!');
+        refetchActiveRun();
+        refetchRunSlips();
+      } catch (err) {
+        alert('Failed to re-sync: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleStatusChange = async (newStatus, actionLabel) => {
+    if (!activeRun) return;
+    const note = newStatus === 'draft' ? window.prompt('Enter reason for unlocking/reverting:') : '';
+    if (newStatus === 'draft' && note === null) return;
+    
+    if (window.confirm(`Are you sure you want to change payroll status to ${newStatus}?`)) {
+      try {
+        setLoading(true);
+        if (newStatus === 'locked') {
+          await refetchSummary();
+          await payrollRuns.resyncPayrollRun(summaryMonth, attendanceSummaryData, user.uid);
+        }
+        await payrollRuns.updateRunStatus(summaryMonth, newStatus, {
+          action: actionLabel,
+          performedBy: user.name,
+          userId: user.uid,
+          note
+        });
+        alert(`Payroll status updated to ${newStatus}!`);
+        refetchActiveRun();
+        refetchRunSlips();
+        refetchAllRuns();
+      } catch (err) {
+        alert('Failed to update status: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
   const [selectedEmp, setSelectedEmp] = useState('')
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date()
@@ -589,6 +711,10 @@ export default function SalarySlipTab() {
 
   const handleUpdateOverride = async (loanId) => {
     if (!overrideForm.month || (!overrideForm.skip && !overrideForm.amount)) return alert('Fill adjustment details')
+    if (await isPeriodLocked(user.orgId, overrideForm.month)) {
+      alert(`Cannot apply adjustment: The period for ${formatMonthDisplay(overrideForm.month)} is locked under a finalized Payroll run.`);
+      return;
+    }
     try {
       const docId = `${loanId}_${overrideForm.month}`
       await setDoc(doc(db, 'organisations', user.orgId, 'loanOverrides', docId), {
@@ -712,6 +838,9 @@ export default function SalarySlipTab() {
 
         for (const entryDate of dates) {
           const currentMonth = entryDate.substring(0, 7);
+          if (await isPeriodLocked(user.orgId, currentMonth)) {
+            throw new Error(`Cannot save variable pay: The period for ${formatMonthDisplay(currentMonth)} is locked under a finalized Payroll run.`);
+          }
           const docId = `${entryDate}_${empId}`;
           batch.push(setDoc(doc(db, 'organisations', user.orgId, 'variablePayLogs', docId), {
             employeeId: empId,
@@ -740,6 +869,11 @@ export default function SalarySlipTab() {
 
   const deleteVariableMutation = useMutation({
     mutationFn: async (docId) => {
+      const entryDate = docId.split('_')[0];
+      const currentMonth = entryDate.substring(0, 7);
+      if (await isPeriodLocked(user.orgId, currentMonth)) {
+        throw new Error(`Cannot delete variable pay: The period for ${formatMonthDisplay(currentMonth)} is locked under a finalized Payroll run.`);
+      }
       await deleteDoc(doc(db, 'organisations', user.orgId, 'variablePayLogs', docId));
     },
     onSuccess: () => {
@@ -933,7 +1067,85 @@ export default function SalarySlipTab() {
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
 
-  const filteredAttendanceSummaryData = useMemo(() => summaryFilterEmpId ? attendanceSummaryData.filter(e => e.id === summaryFilterEmpId) : attendanceSummaryData, [attendanceSummaryData, summaryFilterEmpId])
+  // --- PAYROLL DATA ARCHIVE AND STATUS SNAPSHOT MAPS ---
+  const displayData = useMemo(() => {
+    // If viewing a past run from history
+    if (payrollSubTab === 'history' && selectedPastRunId && pastRunSlips?.length > 0) {
+      return pastRunSlips.map(s => s.rawRowData || {
+        sno: s.sno || 1,
+        id: s.employeeId,
+        name: s.employeeName,
+        empId: s.employeeId.slice(0, 5),
+        designation: s.designation,
+        totalDays: s.totalDays,
+        worked: s.worked,
+        sundays: s.sundayWorked,
+        holidays: s.holidayWorked,
+        lop: s.lop,
+        paidDays: s.paidDays,
+        fullBasic: s.fullBasic,
+        fullHra: s.fullHra,
+        basic: s.basicPaid,
+        hra: s.hraPaid,
+        ot: s.otHours,
+        otPay: s.otPay,
+        sunW: s.sundayWorked,
+        sunPay: s.sundayPay,
+        holW: s.holidayWorked,
+        holPay: s.holidayPay,
+        totalEarnings: s.totalEarnings,
+        pf: s.pf,
+        esi: s.esi,
+        loanE: s.loan,
+        fine: s.fine,
+        advanceAmount: s.advanceAmount,
+        expenseAmount: s.expenseAmount,
+        netAdvanceExpense: s.advanceAmount - s.expenseAmount,
+        salary: { net: s.netPayout }
+      });
+    }
+
+    // If active run is review, approved, or locked (snapshots preferred over live computations)
+    if (payrollSubTab === 'current' && activeRun && (activeRun.status === 'locked' || activeRun.status === 'approved' || activeRun.status === 'review') && runSlips?.length > 0) {
+      return runSlips.map(s => s.rawRowData || {
+        sno: s.sno || 1,
+        id: s.employeeId,
+        name: s.employeeName,
+        empId: s.employeeId.slice(0, 5),
+        designation: s.designation,
+        totalDays: s.totalDays,
+        worked: s.worked,
+        sundays: s.sundayWorked,
+        holidays: s.holidayWorked,
+        lop: s.lop,
+        paidDays: s.paidDays,
+        fullBasic: s.fullBasic,
+        fullHra: s.fullHra,
+        basic: s.basicPaid,
+        hra: s.hraPaid,
+        ot: s.otHours,
+        otPay: s.otPay,
+        sunW: s.sundayWorked,
+        sunPay: s.sundayPay,
+        holW: s.holidayWorked,
+        holPay: s.holidayPay,
+        totalEarnings: s.totalEarnings,
+        pf: s.pf,
+        esi: s.esi,
+        loanE: s.loan,
+        fine: s.fine,
+        advanceAmount: s.advanceAmount,
+        expenseAmount: s.expenseAmount,
+        netAdvanceExpense: s.advanceAmount - s.expenseAmount,
+        salary: { net: s.netPayout }
+      });
+    }
+
+    // Default to computed live records
+    return attendanceSummaryData;
+  }, [payrollSubTab, selectedPastRunId, pastRunSlips, activeRun, runSlips, attendanceSummaryData]);
+
+  const filteredAttendanceSummaryData = useMemo(() => summaryFilterEmpId ? displayData.filter(e => e.id === summaryFilterEmpId) : displayData, [displayData, summaryFilterEmpId])
   
   const dynamicNameWidth = useMemo(() => {
     if (!filteredAttendanceSummaryData.length) return 140;
@@ -1056,6 +1268,42 @@ export default function SalarySlipTab() {
   const handleGenerate = async () => {
     if (!selectedEmp || !selectedMonth) return alert('Please select staff and month');
     if (!user?.orgId) return alert('Organisation context missing. Please re-login.');
+    
+    // Check if the payroll period is locked (either the current run is locked or we're looking at a history run)
+    const isLocked = (activeRun?.status === 'locked' && selectedMonth === summaryMonth) || (selectedPastRunId === selectedMonth);
+    
+    if (isLocked) {
+      setLoading(true); setSlipData(null); setAdvExpRows([]);
+      try {
+        const targetSlips = selectedPastRunId === selectedMonth ? pastRunSlips : runSlips;
+        const matched = targetSlips.find(s => s.employeeId === selectedEmp);
+        if (matched && matched.rawRowData) {
+          setSlipData(matched.rawRowData);
+          setGenerated(true);
+          const allAE = [];
+          if (matched.rawRowData.advanceAmount > 0) {
+            allAE.push({ date: `${selectedMonth}-01`, type: 'Advance', amount: matched.rawRowData.advanceAmount });
+          }
+          if (matched.rawRowData.expenseAmount > 0) {
+            allAE.push({ date: `${selectedMonth}-01`, type: 'Expense', amount: matched.rawRowData.expenseAmount });
+          }
+          setAdvExpRows(allAE);
+          setPaySummaryDates({
+            sundays: matched.rawRowData.sunWDates || [],
+            holidays: matched.rawRowData.holWDates || [],
+            leaves: matched.rawRowData.lopDates || []
+          });
+          return;
+        } else {
+          throw new Error('Slip snapshot not found for selected staff in this period');
+        }
+      } catch (err) {
+        alert('Failed to load snapshot slip: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     
     console.log('Generating payslip for:', selectedEmp, 'Month:', selectedMonth);
     setLoading(true); setSlipData(null); setAdvExpRows([])
@@ -1251,11 +1499,11 @@ export default function SalarySlipTab() {
   const handleExportSalarySlipPdf = async () => { if (!slipData) return; setExportingSlipPdf(true); try { const blob = await pdf(<SalarySlipPDF data={slipData} orgName={user?.orgName} orgLogo={orgLogo} />).toBlob(); downloadPdfBlob(blob, `Slip_${slipData.employee.name}.pdf`); } finally { setExportingSlipPdf(false); } }
 
   const handleDownloadAllZipped = async () => {
-    if (!attendanceSummaryData.length) return;
+    if (!displayData.length) return;
     setDownloadAllLoading(true);
     try {
       const zip = new JSZip();
-      for (const empSummary of attendanceSummaryData) {
+      for (const empSummary of displayData) {
         const emp = employees.find(e => e.id === empSummary.id);
         const slab = increments?.filter(i => i.employeeId === emp.id && i.effectiveFrom <= summaryMonth).sort((a, b) => (b.effectiveFrom || '').localeCompare(a.effectiveFrom || ''))[0] || slabs[emp.id] || { totalSalary: 0, basicPercent: 40, hraPercent: 20, pfPercent: 0, esiPercent: 0 };
         
@@ -1461,6 +1709,74 @@ export default function SalarySlipTab() {
       : sandwichHistory;
   }, [sandwichHistory, sandwichHistoryFilterEmp]);
 
+  const renderHistoryTab = () => {
+    if (isAllRunsLoading) return <div className="py-12 text-center"><Spinner /></div>;
+    const lockedRuns = allRuns.filter(r => r.status === 'locked');
+    return (
+      <div className="space-y-4 flex-1 flex flex-col min-h-0 bg-white p-6 rounded-2xl m-4 shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-200">
+        <div className="flex justify-between items-center shrink-0 mb-2">
+          <div>
+            <h2 className="text-sm font-black uppercase text-slate-800 tracking-tight">Locked Payroll Archives</h2>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Review locked calculations, audit trials, and print past slips.</p>
+          </div>
+        </div>
+        
+        <div className="flex-1 overflow-auto border border-zinc-200 rounded-lg shadow-sm">
+          <table className="w-full text-left border-collapse text-[11px]">
+            <thead>
+              <tr className="bg-slate-50 h-10 border-b border-zinc-200 font-semibold text-slate-600">
+                <th className="px-4 py-2 uppercase tracking-wider">Payroll Period</th>
+                <th className="px-4 py-2 uppercase tracking-wider">Date Range</th>
+                <th className="px-4 py-2 uppercase tracking-wider text-center">Headcount</th>
+                <th className="px-4 py-2 uppercase tracking-wider text-right">Total Net Payout</th>
+                <th className="px-4 py-2 uppercase tracking-wider text-center">Locked By</th>
+                <th className="px-4 py-2 uppercase tracking-wider text-center">Locked Date</th>
+                <th className="px-4 py-2 uppercase tracking-wider text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+              {lockedRuns.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                    No locked payroll runs in history.
+                  </td>
+                </tr>
+              ) : lockedRuns.map(run => {
+                const lockHistory = run.history?.find(h => h.action === 'locked') || {};
+                return (
+                  <tr key={run.id} className="hover:bg-slate-50 transition-colors h-12">
+                    <td className="px-4 font-bold text-slate-900">{formatMonthDisplay(run.month)}</td>
+                    <td className="px-4 text-slate-600">{formatDateDDMMYYYY(run.startDate)} to {formatDateDDMMYYYY(run.endDate)}</td>
+                    <td className="px-4 text-center font-bold text-slate-700">{run.totalHeadcount}</td>
+                    <td className="px-4 text-right font-black text-slate-900">{formatINR(run.totalNet)}</td>
+                    <td className="px-4 text-center font-bold text-indigo-600">{lockHistory.performedBy || 'System'}</td>
+                    <td className="px-4 text-center text-slate-400">
+                      {lockHistory.timestamp?.toDate 
+                        ? new Date(lockHistory.timestamp.toDate()).toLocaleDateString()
+                        : (lockHistory.timestamp ? new Date(lockHistory.timestamp).toLocaleDateString() : '-')}
+                    </td>
+                    <td className="px-4 text-right">
+                      <button 
+                        onClick={() => {
+                          setSelectedPastRunId(run.id);
+                          setSummaryMonth(run.month);
+                          setPayrollSubTab('current');
+                        }}
+                        className="px-3 py-1.5 bg-slate-900 text-white font-bold rounded-lg text-[9px] uppercase tracking-wider hover:bg-black active:scale-95 transition-all shadow"
+                      >
+                        Inspect Sheet
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden flex-col">
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
@@ -1656,34 +1972,103 @@ export default function SalarySlipTab() {
         )}
         {activeTab === 'salary-summary' && (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-50">
-              <div className="flex gap-2 items-center">
-                <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60 gap-1">
-                  {[
-                    {id:'overview',l:'Overview'},
-                    {id:'detailed',l:'Detailed Summary'},
-                    {id:'variable',l:'Vouchers'},
-                    {id:'sandwich',l:'Sandwich Rule'}
-                  ].map(t=>(
-                    <button 
-                      key={t.id} 
-                      onClick={()=>setSummarySubTab(t.id)} 
-                      className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${
-                        summarySubTab===t.id
-                          ? 'bg-white text-indigo-600 shadow-md border border-indigo-100/50'
-                          : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
-                      }`}
-                    >
-                      {t.l}
-                    </button>
-                  ))}
+            <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-50 px-2">
+              <div className="flex gap-4 items-center">
+                {/* Current / History Toggle */}
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+                  <button 
+                    onClick={() => {
+                      setPayrollSubTab('current');
+                      setSelectedPastRunId(null);
+                    }}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
+                      payrollSubTab === 'current' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Active Run
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setPayrollSubTab('history');
+                      setSelectedPastRunId(null);
+                    }}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
+                      payrollSubTab === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    History
+                  </button>
                 </div>
-                <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
-                  <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
-                  <input type="month" value={summaryMonth} onChange={e=>setSummaryMonth(e.target.value)} className="h-6 bg-transparent border-0 text-[10px] font-black uppercase outline-none focus:ring-0 w-24 text-center cursor-pointer"/>
-                  <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronRight size={14} /></button>
-                </div>
-                {isAdmin && <button onClick={()=>setIsOtModalOpen(true)} className="h-7 px-3 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all">OT Escalation</button>}
+
+                {payrollSubTab === 'current' && (
+                  <>
+                    <div className="h-6 w-px bg-slate-200"></div>
+                    <div className="flex bg-slate-100/85 p-1.5 rounded-2xl border border-slate-200/60 gap-1">
+                      {[
+                        {id:'overview',l:'Overview'},
+                        {id:'detailed',l:'Detailed Summary'},
+                        {id:'variable',l:'Vouchers'},
+                        {id:'sandwich',l:'Sandwich Rule'}
+                      ].map(t=>(
+                        <button 
+                          key={t.id} 
+                          onClick={()=>setSummarySubTab(t.id)} 
+                          className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${
+                            summarySubTab===t.id
+                              ? 'bg-white text-indigo-600 shadow-md border border-indigo-100/50'
+                              : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
+                          }`}
+                        >
+                          {t.l}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {payrollSubTab === 'current' && (
+                  <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
+                    <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
+                    <input type="month" value={summaryMonth} onChange={e=>setSummaryMonth(e.target.value)} className="h-6 bg-transparent border-0 text-[10px] font-black uppercase outline-none focus:ring-0 w-24 text-center cursor-pointer"/>
+                    <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronRight size={14} /></button>
+                  </div>
+                )}
+
+                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status === 'draft' && (
+                  <button onClick={handleResync} className="h-7 px-3 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all">Re-sync Calculations</button>
+                )}
+                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Workflow:</span>
+                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
+                      activeRun.status === 'draft' ? 'bg-zinc-50 text-zinc-500 border-zinc-200' :
+                      activeRun.status === 'review' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                      activeRun.status === 'approved' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                      'bg-emerald-50 text-emerald-600 border-emerald-200'
+                    }`}>{activeRun.status}</span>
+                    {activeRun.status === 'draft' && (
+                      <button onClick={() => handleStatusChange('review', 'submitted')} className="h-7 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Submit for Review</button>
+                    )}
+                    {activeRun.status === 'review' && (
+                      <>
+                        <button onClick={() => handleStatusChange('approved', 'approved')} className="h-7 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Approve</button>
+                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-7 px-3 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Reject / Revert</button>
+                      </>
+                    )}
+                    {activeRun.status === 'approved' && (
+                      <>
+                        <button onClick={() => handleStatusChange('locked', 'locked')} className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Lock & Pay</button>
+                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-7 px-3 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Revert to Draft</button>
+                      </>
+                    )}
+                    {activeRun.status === 'locked' && (
+                      <button onClick={() => handleStatusChange('draft', 'unlocked')} className="h-7 px-3 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Unlock Run</button>
+                    )}
+                  </div>
+                )}
+                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status !== 'locked' && activeRun.status !== 'approved' && (
+                  <button onClick={() => setIsOtModalOpen(true)} className="h-7 px-3 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all">OT Escalation</button>
+                )}
               </div>
               <div className="flex gap-2">
                 {summarySubTab==='detailed' && (
@@ -1718,9 +2103,48 @@ export default function SalarySlipTab() {
               </div>
             </div>
             <div className="flex-1 overflow-auto bg-zinc-50/30">
-              {summarySubTab==='overview' ? (
-                <div className="h-full overflow-auto premium-overview-scroll">
-                <table className="w-full text-sm border-separate border-spacing-0 bg-white border border-zinc-200 shadow-sm rounded-xl overflow-hidden">
+              {payrollSubTab === 'history' && !selectedPastRunId ? (
+                renderHistoryTab()
+              ) : payrollSubTab === 'current' && !activeRun && !selectedPastRunId ? (
+                // Banner for initiating run
+                <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl m-4 animate-in fade-in duration-200">
+                  <CalendarIcon size={48} className="text-indigo-400 mb-4 opacity-75 animate-bounce" />
+                  <h3 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Payroll Not Started</h3>
+                  <p className="text-sm text-slate-500 max-w-md text-center mt-2">
+                    The payroll run for {formatMonthDisplay(summaryMonth)} has not been initiated yet.
+                  </p>
+                  {isAdmin && (
+                    <button 
+                      onClick={handleInitiateRun} 
+                      className="mt-6 h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all active:scale-95 flex items-center gap-2"
+                    >
+                      <Plus size={14} />
+                      Initiate Draft Run
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {selectedPastRunId && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex justify-between items-center mb-4 text-xs font-semibold text-amber-800 m-4 shadow-sm animate-in slide-in-from-top-1">
+                      <div className="flex items-center gap-2">
+                        <Info size={16} className="text-amber-600" />
+                        <span>Viewing archived payroll snapshot for <strong>{formatMonthDisplay(selectedPastRunId)}</strong>. (Read-only)</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setSelectedPastRunId(null);
+                          setPayrollSubTab('history');
+                        }}
+                        className="px-3 py-1 bg-white border border-amber-300 hover:bg-amber-100 rounded-lg text-[10px] font-bold uppercase text-amber-700 tracking-wider shadow-sm transition-all"
+                      >
+                        Exit Archive View
+                      </button>
+                    </div>
+                  )}
+                  {summarySubTab==='overview' ? (
+                    <div className="h-full overflow-auto premium-overview-scroll">
+                    <table className="w-full text-sm border-separate border-spacing-0 bg-white border border-zinc-200 shadow-sm rounded-xl overflow-hidden">
                   <thead className="sticky top-0 z-40 font-raleway">
                     {/* Group Headers Row */}
                     <tr className="h-[48px]">
@@ -2750,7 +3174,9 @@ export default function SalarySlipTab() {
                   </table>
                 </div>
               )}
-            </div>
+            </>
+          )}
+        </div>
           </div>
         )}
         {activeTab === 'loan' && (

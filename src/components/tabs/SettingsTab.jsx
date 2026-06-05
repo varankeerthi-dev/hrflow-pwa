@@ -44,6 +44,12 @@ import {
   normalizeEmployeeStatus,
 } from '../../lib/employeeStatus'
 
+const formatDateDDMMYYYY = (dateStr) => {
+  if (!dateStr || dateStr === '-') return '-';
+  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) { const [y, m, d] = dateStr.split('-'); return `${d}/${m}/${y}`; }
+  try { const date = new Date(dateStr); if (isNaN(date.getTime())) return dateStr; const d = String(date.getDate()).padStart(2, '0'); const m = String(date.getMonth() + 1).padStart(2, '0'); const y = date.getFullYear(); return `${d}/${m}/${y}`; } catch { return dateStr; }
+};
+
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
 }
@@ -319,7 +325,7 @@ export default function SettingsTab() {
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
           <div className="p-6 border-b border-slate-100 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-              <CalendarIcon size={20} />
+              <Calendar size={20} />
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 tracking-tight">Confirm Joining Date</h3>
@@ -4061,7 +4067,10 @@ export default function SettingsTab() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours *</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-[11px] font-bold text-gray-700">Working Hours *</label>
+                  <button type="button" onClick={() => setShowAddMinWorkHours(true)} className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline uppercase">Configure</button>
+                </div>
                 <select
                   value={editForm.minDailyHoursCategory || (Array.isArray(minWorkHours) ? minWorkHours[0]?.name : '') || ''}
                   onChange={e => handleMinDailyHoursCategoryChange(e.target.value, 'edit')}
@@ -4071,6 +4080,7 @@ export default function SettingsTab() {
                     <option key={m.id} value={m.name}>{m.name} - {m.hours} Hours</option>
                   ))}
                 </select>
+                <p className="text-[9px] text-gray-400 mt-1">Select a category or click Configure to customize working hours (saves to Settings &gt; Shifts &gt; Min Working Hours).</p>
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Shift Schedule</label>
@@ -4486,7 +4496,10 @@ export default function SettingsTab() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Working Hours *</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-[11px] font-bold text-gray-700">Working Hours *</label>
+                  <button type="button" onClick={() => setShowAddMinWorkHours(true)} className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline uppercase">Configure</button>
+                </div>
                 <select
                   value={newEmployee.minDailyHoursCategory || (Array.isArray(minWorkHours) ? minWorkHours[0]?.name : '') || ''}
                   onChange={e => handleMinDailyHoursCategoryChange(e.target.value, 'new')}
@@ -4496,6 +4509,7 @@ export default function SettingsTab() {
                     <option key={m.id} value={m.name}>{m.name} - {m.hours} Hours</option>
                   ))}
                 </select>
+                <p className="text-[9px] text-gray-400 mt-1">Select a category or click Configure to customize working hours (saves to Settings &gt; Shifts &gt; Min Working Hours).</p>
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Shift Schedule</label>
@@ -4861,21 +4875,38 @@ export default function SettingsTab() {
       </Modal>
 
       {/* Minimum Work Hours Modal */}
-      <Modal isOpen={showAddMinWorkHours} onClose={() => { setShowAddMinWorkHours(false); setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }) }} title={editingMinWorkHours ? 'EDIT MINIMUM WORK HOURS' : 'ADD MINIMUM WORK HOURS'}>
-        <div className="p-6 space-y-4 max-w-sm mx-auto">
-          <div>
-            <label className="block text-[10px] font-bold text-amber-600 uppercase mb-1">Category Name</label>
-            <input type="text" placeholder="e.g. Staff, Technician, Manager" value={newMinWorkHours.name} onChange={e => setNewMinWorkHours(s => ({ ...s, name: e.target.value }))} className="w-full border rounded-none px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
+      <Modal isOpen={showAddMinWorkHours} onClose={() => { setShowAddMinWorkHours(false); setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }) }} title={editingMinWorkHours ? 'Edit Minimum Work Hours' : 'Add Minimum Work Hours'}>
+        <div className="flex flex-col max-w-md mx-auto font-inter bg-white">
+          <div className="flex-1 px-6 py-6 space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Category Name *</label>
+              <input type="text" placeholder="e.g. Staff, Technician, Manager" value={newMinWorkHours.name} onChange={e => setNewMinWorkHours(s => ({ ...s, name: e.target.value }))} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Minimum Hours *</label>
+              <input type="number" min="1" max="24" value={newMinWorkHours.hours} onChange={e => setNewMinWorkHours(s => ({ ...s, hours: Number(e.target.value) }))} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Description</label>
+              <input type="text" placeholder="Enter brief description" value={newMinWorkHours.description || ''} onChange={e => setNewMinWorkHours(s => ({ ...s, description: e.target.value }))} className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white" />
+            </div>
           </div>
-          <div>
-            <label className="block text-[10px] font-bold text-amber-600 uppercase mb-1">Minimum Hours</label>
-            <input type="number" min="1" max="24" value={newMinWorkHours.hours} onChange={e => setNewMinWorkHours(s => ({ ...s, hours: Number(e.target.value) }))} className="w-full border rounded-none px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
+          <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex gap-3 bg-white">
+            <button
+              type="button"
+              onClick={() => { setShowAddMinWorkHours(false); setEditingMinWorkHours(null); setNewMinWorkHours({ name: '', hours: 8, description: '' }) }}
+              className="px-5 h-10 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-200 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAddMinWorkHours}
+              className="flex-1 h-10 bg-gray-900 text-white font-semibold rounded-lg text-sm hover:bg-gray-800 transition-all"
+            >
+              Save Category
+            </button>
           </div>
-          <div>
-            <label className="block text-[10px] font-bold text-amber-600 uppercase mb-1">Description</label>
-            <input type="text" placeholder="Description" value={newMinWorkHours.description || ''} onChange={e => setNewMinWorkHours(s => ({ ...s, description: e.target.value }))} className="w-full border rounded-none px-4 py-2.5 text-xs font-black bg-gray-50 outline-none" />
-          </div>
-          <button onClick={handleAddMinWorkHours} className="w-full bg-amber-500 text-white font-black py-3 rounded-none uppercase text-[10px]">SAVE</button>
         </div>
       </Modal>
 
@@ -5248,7 +5279,7 @@ export default function SettingsTab() {
           </div>
         </div>
       )}
+      <JoinDateConfirmationModal />
     </div>
   )
 }
-

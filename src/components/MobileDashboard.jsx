@@ -281,7 +281,7 @@ export default function MobileDashboard() {
       
       // Payroll modules
       { id: 'advance', label: 'Advances', icon: <Wallet className="h-4 w-4" />, module: 'AdvanceExpense', color: 'text-teal-400' },
-      { id: 'salary-slip', label: 'Salary Slip', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400' },
+      { id: 'salary-slip', label: 'Payroll', icon: <Wallet className="h-4 w-4" />, module: 'SalarySlip', color: 'text-emerald-400' },
       { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400' },
       
       // Workforce modules
