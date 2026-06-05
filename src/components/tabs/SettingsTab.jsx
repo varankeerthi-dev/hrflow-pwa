@@ -65,6 +65,69 @@ function getTodayDate() {
   return new Date().toISOString().split('T')[0]
 }
 
+const employeeValidationSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required'),
+  empCode: z.string().trim().optional(),
+  personalEmail: z.string().trim().email('Invalid personal email format').or(z.literal('')),
+  workEmail: z.string().trim().email('Invalid work email format').or(z.literal('')),
+  loginEmailType: z.enum(['personal', 'work']),
+  loginEnabled: z.boolean(),
+  mobileNo: z.string().trim().optional(),
+  officeNo: z.string().trim().optional(),
+  personalNo: z.string().trim().optional(),
+  aadharNo: z.string().trim().optional(),
+  panNo: z.string().trim().optional(),
+  drivingLicenseNo: z.string().trim().optional(),
+  hasOwnVehicle: z.boolean().optional(),
+  withdrawFullSalary: z.boolean().optional(),
+  pfNo: z.string().trim().optional(),
+  esiNo: z.string().trim().optional(),
+  personalBank: z.object({
+    accountNo: z.string().trim().optional(),
+    ifsc: z.string().trim().optional(),
+    bankName: z.string().trim().optional(),
+    holderName: z.string().trim().optional(),
+  }).optional(),
+  companyBank: z.object({
+    accountNo: z.string().trim().optional(),
+    ifsc: z.string().trim().optional(),
+    bankName: z.string().trim().optional(),
+    holderName: z.string().trim().optional(),
+  }).optional(),
+}).refine(data => {
+  if (data.loginEnabled) {
+    const emailToUse = data.loginEmailType === 'personal' ? data.personalEmail : data.workEmail;
+    return emailToUse && emailToUse.trim().length > 0;
+  }
+  return true;
+}, {
+  message: 'The selected login email cannot be empty when Login is Enabled.',
+  path: ['loginEmailType']
+}).refine(data => {
+  if (data.loginEnabled) {
+    const emailToUse = data.loginEmailType === 'personal' ? data.personalEmail : data.workEmail;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(emailToUse);
+  }
+  return true;
+}, {
+  message: 'The selected login email must be a valid email format.',
+  path: ['loginEmailType']
+});
+
+const validateEmployeeData = (data) => {
+  try {
+    employeeValidationSchema.parse(data);
+    return { success: true };
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      const messages = err.errors.map(e => e.message);
+      return { success: false, error: messages.join('\n') };
+    }
+    return { success: false, error: err.message };
+  }
+};
+
 function createEmployeeFormState() {
   return {
     name: '',
@@ -89,11 +152,25 @@ function createEmployeeFormState() {
     motherName: '',
     maritalStatus: '',
     email: '',
+    personalEmail: '',
+    workEmail: '',
+    loginEmailType: 'work',
     emergencyContact: '',
     contactNo: '',
+    mobileNo: '',
+    officeNo: '',
+    personalNo: '',
+    aadharNo: '',
+    panNo: '',
+    drivingLicenseNo: '',
+    hasOwnVehicle: false,
+    withdrawFullSalary: false,
     pfNo: '',
+    esiNo: '',
     address: '',
     bankAccount: '',
+    personalBank: { accountNo: '', ifsc: '', bankName: '', holderName: '' },
+    companyBank: { accountNo: '', ifsc: '', bankName: '', holderName: '' },
     photoURL: '',
     permissionHours: 2,
     documents: [],
@@ -786,6 +863,18 @@ export default function SettingsTab() {
       shiftEffectiveDate: '',
       siteId: employee.siteId || '',
       minDailyHoursCategory: mwhCategory?.name || defaultCategory || employee.minDailyHours || '',
+      personalBank: {
+        accountNo: employee.personalBank?.accountNo || '',
+        ifsc: employee.personalBank?.ifsc || '',
+        bankName: employee.personalBank?.bankName || '',
+        holderName: employee.personalBank?.holderName || ''
+      },
+      companyBank: {
+        accountNo: employee.companyBank?.accountNo || '',
+        ifsc: employee.companyBank?.ifsc || '',
+        bankName: employee.companyBank?.bankName || '',
+        holderName: employee.companyBank?.holderName || ''
+      }
     }
   }
 
@@ -950,6 +1039,13 @@ export default function SettingsTab() {
     if (editingEmp && editForm.role && typeof editForm.role !== 'string') {
       return alert('Role must be a valid string')
     }
+
+    const validation = validateEmployeeData(editForm)
+    if (!validation.success) {
+      alert('Validation Error:\n' + validation.error)
+      return
+    }
+
     setSaving(true)
     try {
       const normalizedOriginalStatus = normalizeEmployeeStatus(editOriginalStatus)
@@ -990,10 +1086,18 @@ export default function SettingsTab() {
       // Destructure to separate Firestore-unfriendly objects
       const { id, shift, ...baseEditForm } = editForm
 
+      const selectedLoginEmail = editForm.loginEmailType === 'personal'
+        ? editForm.personalEmail?.trim()
+        : editForm.workEmail?.trim()
+
+      const selectedBankAccount = editForm.companyBank?.accountNo || editForm.personalBank?.accountNo || ''
+
       const cleanEditForm = {
         ...Object.fromEntries(
           Object.entries(baseEditForm).filter(([_, v]) => v !== undefined && v !== null && typeof v !== 'function')
         ),
+        email: selectedLoginEmail || '',
+        bankAccount: selectedBankAccount,
         orgId: user.orgId,
         role: selectedRoleName,
         status: normalizedNextStatus,
@@ -1190,6 +1294,13 @@ export default function SettingsTab() {
       alert('Error: Organization ID not found. Please log in again.')
       return
     }
+
+    const validation = validateEmployeeData(newEmployee)
+    if (!validation.success) {
+      alert('Validation Error:\n' + validation.error)
+      return
+    }
+
     setSaving(true)
     try {
       const empCode = newEmployee.empCode?.trim() ||
@@ -1206,8 +1317,16 @@ export default function SettingsTab() {
         name: newEmployee.name,
       })
 
+      const selectedLoginEmail = newEmployee.loginEmailType === 'personal'
+        ? newEmployee.personalEmail?.trim()
+        : newEmployee.workEmail?.trim()
+
+      const selectedBankAccount = newEmployee.companyBank?.accountNo || newEmployee.personalBank?.accountNo || ''
+
       let payload = {
         ...newEmployee,
+        email: selectedLoginEmail || '',
+        bankAccount: selectedBankAccount,
         empCode,
         orgId: user.orgId,
         status: normalizedStatus,
@@ -4142,12 +4261,225 @@ export default function SettingsTab() {
                   {['Single', 'Married', 'Divorced', 'Widowed'].map(ms => <option key={ms}>{ms}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Email</label>
-                <input type="email" placeholder="employee@email.com" value={editForm.email || ''}
-                  onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))}
-                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-                />
+              {/* Email field - always visible for edit employees with Blue Hover & Active States */}
+              <div className="col-span-2 space-y-3">
+                <label className="block text-[11px] font-bold text-gray-700">Email Addresses</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Work Email Container */}
+                  <div 
+                    className={`p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
+                      editForm.loginEmailType === 'work' 
+                        ? 'border-blue-600 bg-blue-50/30' 
+                        : 'border-gray-200 hover:border-blue-400 bg-white'
+                    }`}
+                    onClick={() => setEditForm(s => ({ ...s, loginEmailType: 'work' }))}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-gray-700">Work Email</span>
+                      <div className="flex items-center gap-1.5">
+                        <input 
+                          type="radio" 
+                          name="editLoginEmailType"
+                          checked={editForm.loginEmailType === 'work'}
+                          onChange={() => setEditForm(s => ({ ...s, loginEmailType: 'work' }))}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                        />
+                        <span className="text-[10px] text-gray-500 font-medium">Use for login</span>
+                      </div>
+                    </div>
+                    <input 
+                      type="email" 
+                      placeholder="work@company.com" 
+                      value={editForm.workEmail || ''}
+                      onClick={e => e.stopPropagation()} 
+                      onChange={e => setEditForm(s => ({ ...s, workEmail: e.target.value }))}
+                      className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+
+                  {/* Personal Email Container */}
+                  <div 
+                    className={`p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
+                      editForm.loginEmailType === 'personal' 
+                        ? 'border-blue-600 bg-blue-50/30' 
+                        : 'border-gray-200 hover:border-blue-400 bg-white'
+                    }`}
+                    onClick={() => setEditForm(s => ({ ...s, loginEmailType: 'personal' }))}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-gray-700">Personal Email</span>
+                      <div className="flex items-center gap-1.5">
+                        <input 
+                          type="radio" 
+                          name="editLoginEmailType"
+                          checked={editForm.loginEmailType === 'personal'}
+                          onChange={() => setEditForm(s => ({ ...s, loginEmailType: 'personal' }))}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                        />
+                        <span className="text-[10px] text-gray-500 font-medium">Use for login</span>
+                      </div>
+                    </div>
+                    <input 
+                      type="email" 
+                      placeholder="personal@email.com" 
+                      value={editForm.personalEmail || ''}
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => setEditForm(s => ({ ...s, personalEmail: e.target.value }))}
+                      className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Numbers Section */}
+              <div className="col-span-2 grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Mobile No</label>
+                  <input type="text" placeholder="Mobile Number" value={editForm.mobileNo || ''}
+                    onChange={e => setEditForm(s => ({ ...s, mobileNo: e.target.value, contactNo: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Office No</label>
+                  <input type="text" placeholder="Office Number" value={editForm.officeNo || ''}
+                    onChange={e => setEditForm(s => ({ ...s, officeNo: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Personal No</label>
+                  <input type="text" placeholder="Personal Number" value={editForm.personalNo || ''}
+                    onChange={e => setEditForm(s => ({ ...s, personalNo: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Identification & Vehicle Details */}
+              <div className="col-span-2 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Aadhar No</label>
+                  <input type="text" placeholder="12-digit Aadhar Number" value={editForm.aadharNo || ''}
+                    onChange={e => setEditForm(s => ({ ...s, aadharNo: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">PAN No</label>
+                  <input type="text" placeholder="10-digit PAN Number" value={editForm.panNo || ''}
+                    onChange={e => setEditForm(s => ({ ...s, panNo: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Driving License No</label>
+                  <input type="text" placeholder="Driving License Number" value={editForm.drivingLicenseNo || ''}
+                    onChange={e => setEditForm(s => ({ ...s, drivingLicenseNo: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  />
+                </div>
+                <div className="flex items-center justify-between bg-zinc-50 px-4 py-2 rounded-xl border border-zinc-200 self-end h-10">
+                  <span className="text-[11px] font-bold text-gray-700">Own Vehicle</span>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(s => ({ ...s, hasOwnVehicle: !s.hasOwnVehicle }))}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${editForm.hasOwnVehicle ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${editForm.hasOwnVehicle ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">PF No</label>
+                  <input type="text" placeholder="Provident Fund Number" value={editForm.pfNo || ''}
+                    onChange={e => setEditForm(s => ({ ...s, pfNo: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">ESI No</label>
+                  <input type="text" placeholder="ESI Number" value={editForm.esiNo || ''}
+                    onChange={e => setEditForm(s => ({ ...s, esiNo: e.target.value }))}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Bank Account Details */}
+              <div className="col-span-2 border-t border-gray-100 pt-4 space-y-4">
+                <label className="block text-[11px] font-bold text-gray-700">Bank Account Details</label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Personal Bank Account Card */}
+                  <div className="p-4 border border-gray-200 rounded-xl bg-gray-50/50 space-y-3">
+                    <span className="block text-xs font-bold text-gray-600 border-b border-gray-200 pb-1.5">Personal Bank Account</span>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 font-bold mb-1">Account Holder Name</label>
+                      <input type="text" placeholder="Holder Name" value={editForm.personalBank?.holderName || ''}
+                        onChange={e => setEditForm(s => ({ ...s, personalBank: { ...(s.personalBank || {}), holderName: e.target.value } }))}
+                        className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 font-bold mb-1">Account Number</label>
+                      <input type="text" placeholder="Account Number" value={editForm.personalBank?.accountNo || ''}
+                        onChange={e => setEditForm(s => ({ ...s, personalBank: { ...(s.personalBank || {}), accountNo: e.target.value } }))}
+                        className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 font-bold mb-1">Bank Name</label>
+                        <input type="text" placeholder="Bank Name" value={editForm.personalBank?.bankName || ''}
+                          onChange={e => setEditForm(s => ({ ...s, personalBank: { ...(s.personalBank || {}), bankName: e.target.value } }))}
+                          className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 font-bold mb-1">IFSC Code</label>
+                        <input type="text" placeholder="IFSC Code" value={editForm.personalBank?.ifsc || ''}
+                          onChange={e => setEditForm(s => ({ ...s, personalBank: { ...(s.personalBank || {}), ifsc: e.target.value } }))}
+                          className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Company Bank Account Card */}
+                  <div className="p-4 border border-gray-200 rounded-xl bg-gray-50/50 space-y-3">
+                    <span className="block text-xs font-bold text-gray-600 border-b border-gray-200 pb-1.5">Company Bank Account</span>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 font-bold mb-1">Account Holder Name</label>
+                      <input type="text" placeholder="Holder Name" value={editForm.companyBank?.holderName || ''}
+                        onChange={e => setEditForm(s => ({ ...s, companyBank: { ...(s.companyBank || {}), holderName: e.target.value } }))}
+                        className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 font-bold mb-1">Account Number</label>
+                      <input type="text" placeholder="Account Number" value={editForm.companyBank?.accountNo || ''}
+                        onChange={e => setEditForm(s => ({ ...s, companyBank: { ...(s.companyBank || {}), accountNo: e.target.value } }))}
+                        className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 font-bold mb-1">Bank Name</label>
+                        <input type="text" placeholder="Bank Name" value={editForm.companyBank?.bankName || ''}
+                          onChange={e => setEditForm(s => ({ ...s, companyBank: { ...(s.companyBank || {}), bankName: e.target.value } }))}
+                          className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 font-bold mb-1">IFSC Code</label>
+                        <input type="text" placeholder="IFSC Code" value={editForm.companyBank?.ifsc || ''}
+                          onChange={e => setEditForm(s => ({ ...s, companyBank: { ...(s.companyBank || {}), ifsc: e.target.value } }))}
+                          className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">System Role</label>
@@ -4214,70 +4546,89 @@ export default function SettingsTab() {
                 />
               </div>
 
-              {/* Login Enabled Toggle */}
-              <div className="col-span-2 flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
-                <div>
-                  <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
-                  <p className="text-[10px] text-indigo-500">Allow employee to access the system</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditForm(s => ({ ...s, loginEnabled: !s.loginEnabled }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.loginEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.loginEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              {/* Hide in Attendance Toggle */}
-              <div className="col-span-2 flex items-center justify-between bg-red-50 p-3 rounded-none border border-red-100">
-                <div>
-                  <label className="block text-[11px] font-bold text-red-700 uppercase tracking-wider">Hide in Attendance</label>
-                  <p className="text-[10px] text-red-600">Won't appear in daily attendance list</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditForm(s => ({ ...s, hideInAttendance: !s.hideInAttendance }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.hideInAttendance ? 'bg-red-600' : 'bg-gray-300'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.hideInAttendance ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              {/* Include in Salary Toggle */}
-              <div className="col-span-2 flex items-center justify-between bg-emerald-50 p-3 rounded-none border border-emerald-100">
-                <div>
-                  <label className="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Include in Salary</label>
-                  <p className="text-[10px] text-emerald-600">Will appear in payroll and salary slips</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditForm(s => ({ ...s, includeInSalary: !s.includeInSalary }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.includeInSalary !== false ? 'bg-emerald-600' : 'bg-gray-300'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.includeInSalary !== false ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              {/* Include in Task Toggle */}
-              <div className="col-span-2 flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
-                    <AtSign size={16} />
+              {/* Toggles section - Two Columns */}
+              <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                {/* Login Enabled Toggle */}
+                <div className="flex items-center justify-between bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100/60">
+                  <div className="pr-2">
+                    <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
+                    <p className="text-[10px] text-indigo-500 leading-tight">Allow employee to access the system</p>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Include in Task</label>
-                    <p className="text-[10px] text-indigo-600">Allow mentions and assignments in Tasks</p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(s => ({ ...s, loginEnabled: !s.loginEnabled }))}
+                    className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.loginEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.loginEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setEditForm(s => ({ ...s, includeInTask: !s.includeInTask }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.includeInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.includeInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
+
+                {/* Hide in Attendance Toggle */}
+                <div className="flex items-center justify-between bg-red-50/50 p-3.5 rounded-xl border border-red-100/60">
+                  <div className="pr-2">
+                    <label className="block text-[11px] font-bold text-red-700 uppercase tracking-wider">Hide in Attendance</label>
+                    <p className="text-[10px] text-red-600 leading-tight">Won't appear in daily attendance list</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(s => ({ ...s, hideInAttendance: !s.hideInAttendance }))}
+                    className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.hideInAttendance ? 'bg-red-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.hideInAttendance ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                {/* Include in Salary Toggle */}
+                <div className="flex items-center justify-between bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100/60">
+                  <div className="pr-2">
+                    <label className="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Include in Salary</label>
+                    <p className="text-[10px] text-emerald-600 leading-tight">Will appear in payroll and salary slips</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(s => ({ ...s, includeInSalary: !s.includeInSalary }))}
+                    className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.includeInSalary !== false ? 'bg-emerald-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.includeInSalary !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                {/* Include in Task Toggle */}
+                <div className="flex items-center justify-between bg-sky-50/50 p-3.5 rounded-xl border border-sky-100/60">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                      <AtSign size={16} />
+                    </div>
+                    <div className="pr-2">
+                      <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Include in Task</label>
+                      <p className="text-[10px] text-indigo-600 leading-tight">Allow mentions and assignments in Tasks</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(s => ({ ...s, includeInTask: !s.includeInTask }))}
+                    className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.includeInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.includeInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                {/* Withdraw Full Salary Toggle */}
+                <div className="flex items-center justify-between bg-amber-50/50 p-3.5 rounded-xl border border-amber-100/60 col-span-1 md:col-span-2">
+                  <div className="pr-2">
+                    <label className="block text-[11px] font-bold text-amber-800 uppercase tracking-wider">Withdraw Full Salary</label>
+                    <p className="text-[10px] text-amber-600 leading-tight">Enable full salary withdrawals (useful for Owners, Directors, Board Members)</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(s => ({ ...s, withdrawFullSalary: !s.withdrawFullSalary }))}
+                    className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${editForm.withdrawFullSalary ? 'bg-amber-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editForm.withdrawFullSalary ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
               </div>
+
               {/* Password Field - Only shown when login is enabled */}
               {editForm.loginEnabled && (
                 <div className="col-span-2">
@@ -4597,15 +4948,77 @@ export default function SettingsTab() {
               />
             </div>
 
-            {/* Email field - always visible for new employees */}
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Email</label>
-              <input type="email" placeholder="employee@company.com" value={newEmployee.email}
-                onChange={e => setNewEmployee(s => ({ ...s, email: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-              />
+            {/* Email field - always visible for new employees with Blue Hover & Active States */}
+            <div className="col-span-2 space-y-3">
+              <label className="block text-[11px] font-bold text-gray-700">Email Addresses</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Work Email Container */}
+                <div 
+                  className={`p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
+                    newEmployee.loginEmailType === 'work' 
+                      ? 'border-blue-600 bg-blue-50/30' 
+                      : 'border-gray-200 hover:border-blue-400 bg-white'
+                  }`}
+                  onClick={() => setNewEmployee(s => ({ ...s, loginEmailType: 'work' }))}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-gray-700">Work Email</span>
+                    <div className="flex items-center gap-1.5">
+                      <input 
+                        type="radio" 
+                        name="addLoginEmailType"
+                        checked={newEmployee.loginEmailType === 'work'}
+                        onChange={() => setNewEmployee(s => ({ ...s, loginEmailType: 'work' }))}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                      />
+                      <span className="text-[10px] text-gray-500 font-medium">Use for login</span>
+                    </div>
+                  </div>
+                  <input 
+                    type="email" 
+                    placeholder="work@company.com" 
+                    value={newEmployee.workEmail || ''}
+                    onClick={e => e.stopPropagation()} 
+                    onChange={e => setNewEmployee(s => ({ ...s, workEmail: e.target.value }))}
+                    className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  />
+                </div>
+
+                {/* Personal Email Container */}
+                <div 
+                  className={`p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
+                    newEmployee.loginEmailType === 'personal' 
+                      ? 'border-blue-600 bg-blue-50/30' 
+                      : 'border-gray-200 hover:border-blue-400 bg-white'
+                  }`}
+                  onClick={() => setNewEmployee(s => ({ ...s, loginEmailType: 'personal' }))}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-gray-700">Personal Email</span>
+                    <div className="flex items-center gap-1.5">
+                      <input 
+                        type="radio" 
+                        name="addLoginEmailType"
+                        checked={newEmployee.loginEmailType === 'personal'}
+                        onChange={() => setNewEmployee(s => ({ ...s, loginEmailType: 'personal' }))}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                      />
+                      <span className="text-[10px] text-gray-500 font-medium">Use for login</span>
+                    </div>
+                  </div>
+                  <input 
+                    type="email" 
+                    placeholder="personal@email.com" 
+                    value={newEmployee.personalEmail || ''}
+                    onClick={e => e.stopPropagation()}
+                    onChange={e => setNewEmployee(s => ({ ...s, personalEmail: e.target.value }))}
+                    className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  />
+                </div>
+              </div>
             </div>
 
+            {/* System Role */}
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1">System Role</label>
               <select 
@@ -4619,70 +5032,240 @@ export default function SettingsTab() {
               </select>
             </div>
 
-            {/* Login Enabled Toggle */}
-            <div className="flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
+            {/* Contact Numbers Section */}
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
-                <p className="text-[10px] text-indigo-500">Allow employee to access the system</p>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Mobile No</label>
+                <input type="text" placeholder="Mobile Number" value={newEmployee.mobileNo || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, mobileNo: e.target.value, contactNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
               </div>
-              <button
-                type="button"
-                onClick={() => setNewEmployee(s => ({ ...s, loginEnabled: !s.loginEnabled }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.loginEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.loginEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Office No</label>
+                <input type="text" placeholder="Office Number" value={newEmployee.officeNo || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, officeNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Personal No</label>
+                <input type="text" placeholder="Personal Number" value={newEmployee.personalNo || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, personalNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
             </div>
 
-            {/* Hide in Attendance Toggle */}
-            <div className="flex items-center justify-between bg-red-50 p-3 rounded-none border border-red-100">
+            {/* Identification & Vehicle Details */}
+            <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
               <div>
-                <label className="block text-[11px] font-bold text-red-700 uppercase tracking-wider">Hide in Attendance</label>
-                <p className="text-[10px] text-red-600">Won't appear in daily attendance list</p>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Aadhar No</label>
+                <input type="text" placeholder="12-digit Aadhar Number" value={newEmployee.aadharNo || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, aadharNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
               </div>
-              <button
-                type="button"
-                onClick={() => setNewEmployee(s => ({ ...s, hideInAttendance: !s.hideInAttendance }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.hideInAttendance ? 'bg-red-600' : 'bg-gray-300'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.hideInAttendance ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">PAN No</label>
+                <input type="text" placeholder="10-digit PAN Number" value={newEmployee.panNo || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, panNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Driving License No</label>
+                <input type="text" placeholder="Driving License Number" value={newEmployee.drivingLicenseNo || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, drivingLicenseNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              <div className="flex items-center justify-between bg-zinc-50 px-4 py-2 rounded-xl border border-zinc-200 self-end h-10">
+                <span className="text-[11px] font-bold text-gray-700">Own Vehicle</span>
+                <button
+                  type="button"
+                  onClick={() => setNewEmployee(s => ({ ...s, hasOwnVehicle: !s.hasOwnVehicle }))}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${newEmployee.hasOwnVehicle ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${newEmployee.hasOwnVehicle ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">PF No</label>
+                <input type="text" placeholder="Provident Fund Number" value={newEmployee.pfNo || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, pfNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">ESI No</label>
+                <input type="text" placeholder="ESI Number" value={newEmployee.esiNo || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, esiNo: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
             </div>
 
-            {/* Include in Salary Toggle */}
-            <div className="flex items-center justify-between bg-emerald-50 p-3 rounded-none border border-emerald-100">
-              <div>
-                <label className="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Include in Salary</label>
-                <p className="text-[10px] text-emerald-600">Will appear in payroll and salary slips</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNewEmployee(s => ({ ...s, includeInSalary: !s.includeInSalary }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.includeInSalary !== false ? 'bg-emerald-600' : 'bg-gray-300'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.includeInSalary !== false ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-
-            {/* Include in Task Toggle */}
-            <div className="flex items-center justify-between bg-indigo-50 p-3 rounded-none border border-indigo-100">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
-                  <AtSign size={16} />
+            {/* Bank Account Details */}
+            <div className="border-t border-gray-100 pt-4 space-y-4">
+              <label className="block text-[11px] font-bold text-gray-700">Bank Account Details</label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Personal Bank Account Card */}
+                <div className="p-4 border border-gray-200 rounded-xl bg-gray-50/50 space-y-3">
+                  <span className="block text-xs font-bold text-gray-600 border-b border-gray-200 pb-1.5">Personal Bank Account</span>
+                  <div>
+                    <label className="block text-[10px] text-gray-500 font-bold mb-1">Account Holder Name</label>
+                    <input type="text" placeholder="Holder Name" value={newEmployee.personalBank?.holderName || ''}
+                      onChange={e => setNewEmployee(s => ({ ...s, personalBank: { ...(s.personalBank || {}), holderName: e.target.value } }))}
+                      className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-500 font-bold mb-1">Account Number</label>
+                    <input type="text" placeholder="Account Number" value={newEmployee.personalBank?.accountNo || ''}
+                      onChange={e => setNewEmployee(s => ({ ...s, personalBank: { ...(s.personalBank || {}), accountNo: e.target.value } }))}
+                      className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-500 font-bold mb-1">Bank Name</label>
+                      <input type="text" placeholder="Bank Name" value={newEmployee.personalBank?.bankName || ''}
+                        onChange={e => setNewEmployee(s => ({ ...s, personalBank: { ...(s.personalBank || {}), bankName: e.target.value } }))}
+                        className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 font-bold mb-1">IFSC Code</label>
+                      <input type="text" placeholder="IFSC Code" value={newEmployee.personalBank?.ifsc || ''}
+                        onChange={e => setNewEmployee(s => ({ ...s, personalBank: { ...(s.personalBank || {}), ifsc: e.target.value } }))}
+                        className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Include in Task</label>
-                  <p className="text-[10px] text-indigo-600">Allow mentions and assignments in Tasks</p>
+
+                {/* Company Bank Account Card */}
+                <div className="p-4 border border-gray-200 rounded-xl bg-gray-50/50 space-y-3">
+                  <span className="block text-xs font-bold text-gray-600 border-b border-gray-200 pb-1.5">Company Bank Account</span>
+                  <div>
+                    <label className="block text-[10px] text-gray-500 font-bold mb-1">Account Holder Name</label>
+                    <input type="text" placeholder="Holder Name" value={newEmployee.companyBank?.holderName || ''}
+                      onChange={e => setNewEmployee(s => ({ ...s, companyBank: { ...(s.companyBank || {}), holderName: e.target.value } }))}
+                      className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-500 font-bold mb-1">Account Number</label>
+                    <input type="text" placeholder="Account Number" value={newEmployee.companyBank?.accountNo || ''}
+                      onChange={e => setNewEmployee(s => ({ ...s, companyBank: { ...(s.companyBank || {}), accountNo: e.target.value } }))}
+                      className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-500 font-bold mb-1">Bank Name</label>
+                      <input type="text" placeholder="Bank Name" value={newEmployee.companyBank?.bankName || ''}
+                        onChange={e => setNewEmployee(s => ({ ...s, companyBank: { ...(s.companyBank || {}), bankName: e.target.value } }))}
+                        className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 font-bold mb-1">IFSC Code</label>
+                      <input type="text" placeholder="IFSC Code" value={newEmployee.companyBank?.ifsc || ''}
+                        onChange={e => setNewEmployee(s => ({ ...s, companyBank: { ...(s.companyBank || {}), ifsc: e.target.value } }))}
+                        className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setNewEmployee(s => ({ ...s, includeInTask: !s.includeInTask }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.includeInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.includeInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
             </div>
+
+            {/* Toggles section - Two Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+              {/* Login Enabled Toggle */}
+              <div className="flex items-center justify-between bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100/60">
+                <div className="pr-2">
+                  <label className="block text-[11px] font-bold text-indigo-700">Login Enabled</label>
+                  <p className="text-[10px] text-indigo-500 leading-tight">Allow employee to access the system</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewEmployee(s => ({ ...s, loginEnabled: !s.loginEnabled }))}
+                  className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.loginEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.loginEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {/* Hide in Attendance Toggle */}
+              <div className="flex items-center justify-between bg-red-50/50 p-3.5 rounded-xl border border-red-100/60">
+                <div className="pr-2">
+                  <label className="block text-[11px] font-bold text-red-700 uppercase tracking-wider">Hide in Attendance</label>
+                  <p className="text-[10px] text-red-600 leading-tight">Won't appear in daily attendance list</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewEmployee(s => ({ ...s, hideInAttendance: !s.hideInAttendance }))}
+                  className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.hideInAttendance ? 'bg-red-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.hideInAttendance ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {/* Include in Salary Toggle */}
+              <div className="flex items-center justify-between bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100/60">
+                <div className="pr-2">
+                  <label className="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Include in Salary</label>
+                  <p className="text-[10px] text-emerald-600 leading-tight">Will appear in payroll and salary slips</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewEmployee(s => ({ ...s, includeInSalary: !s.includeInSalary }))}
+                  className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.includeInSalary !== false ? 'bg-emerald-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.includeInSalary !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {/* Include in Task Toggle */}
+              <div className="flex items-center justify-between bg-sky-50/50 p-3.5 rounded-xl border border-sky-100/60">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <AtSign size={16} />
+                  </div>
+                  <div className="pr-2">
+                    <label className="block text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Include in Task</label>
+                    <p className="text-[10px] text-indigo-600 leading-tight">Allow mentions and assignments in Tasks</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewEmployee(s => ({ ...s, includeInTask: !s.includeInTask }))}
+                  className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.includeInTask !== false ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.includeInTask !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {/* Withdraw Full Salary Toggle */}
+              <div className="flex items-center justify-between bg-amber-50/50 p-3.5 rounded-xl border border-amber-100/60 col-span-1 md:col-span-2">
+                <div className="pr-2">
+                  <label className="block text-[11px] font-bold text-amber-800 uppercase tracking-wider">Withdraw Full Salary</label>
+                  <p className="text-[10px] text-amber-600 leading-tight">Enable full salary withdrawals (useful for Owners, Directors, Board Members)</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewEmployee(s => ({ ...s, withdrawFullSalary: !s.withdrawFullSalary }))}
+                  className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${newEmployee.withdrawFullSalary ? 'bg-amber-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.withdrawFullSalary ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            </div>
+
             {/* Password Field - Only shown when login is enabled */}
             {newEmployee.loginEnabled && (
               <div>
