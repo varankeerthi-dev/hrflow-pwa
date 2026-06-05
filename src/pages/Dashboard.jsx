@@ -61,6 +61,7 @@ import ChatTab from '../components/tabs/ChatTab'
 import EmployeesTab from '../components/tabs/EmployeesTab'
 import HomeTab from '../components/tabs/HomeTab'
 import HelpTab from '../components/tabs/HelpTab'
+import OperationsTab from '../components/tabs/OperationsTab'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
 class ErrorBoundary extends Component {
@@ -227,6 +228,10 @@ export default function Dashboard() {
     const saved = localStorage.getItem('isHrExpanded')
     return saved !== null ? JSON.parse(saved) : true
   })
+  const [isOperationsExpanded, setIsOperationsExpanded] = useState(() => {
+    const saved = localStorage.getItem('isOperationsExpanded')
+    return saved !== null ? JSON.parse(saved) : true
+  })
   const [isReportsExpanded, setIsReportsExpanded] = useState(() => {
     const saved = localStorage.getItem('isReportsExpanded')
     return saved !== null ? JSON.parse(saved) : true
@@ -239,6 +244,10 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem('isHrExpanded', isHrExpanded)
   }, [isHrExpanded])
+
+  useEffect(() => {
+    localStorage.setItem('isOperationsExpanded', isOperationsExpanded)
+  }, [isOperationsExpanded])
 
   useEffect(() => {
     localStorage.setItem('isReportsExpanded', isReportsExpanded)
@@ -283,13 +292,12 @@ export default function Dashboard() {
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
-    { id: 'vehicles', label: 'Vehicles', icon: <Car size={18} strokeWidth={1.75} />, module: 'Workforce' },
+    { id: 'operations', label: 'Operations', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
     { id: 'summary', label: 'Summary', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Summary' },
     { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
-    { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'ShiftPlanning' },
     { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={18} strokeWidth={1.75} />, module: 'HRLetters' },
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Reports', children: ['attendance-reports'] },
     { id: 'accountant', label: 'Accountant', icon: <Banknote size={18} strokeWidth={1.75} />, module: 'Finance' },
@@ -341,7 +349,7 @@ export default function Dashboard() {
   const mainTabs = ['home', 'attendance-list', 'tasks', 'salary-slip', 'advance', 'approvals']
   
   const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents']
-  const featuresTabs = ['correction', 'vehicles', 'summary', 'fines', 'engage', 'chat', 'shift-planning']
+  const featuresTabs = ['correction', 'summary', 'fines', 'engage', 'chat']
 
   const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
     <button 
@@ -365,6 +373,7 @@ export default function Dashboard() {
     const mainItems = visibleTabs.filter(t => mainTabs.includes(t.id))
     const hrItems = visibleTabs.filter(t => hrTabs.includes(t.id))
     const featuresItems = visibleTabs.filter(t => featuresTabs.includes(t.id))
+    const operationsItem = visibleTabs.find(t => t.id === 'operations')
     const portalItem = visibleTabs.find(t => t.id === 'portal')
     const settingsItem = visibleTabs.find(t => t.id === 'settings')
     const helpItem = visibleTabs.find(t => t.id === 'help')
@@ -423,9 +432,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        {portalItem && (
+        {operationsItem && (
           <div className="mt-2">
-            {renderMenuItem(portalItem, activeTab === 'portal', () => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setIsMobileMenuOpen(false) })}
+            {renderMenuItem(operationsItem, activeTab === 'operations', () => { setActiveTab('operations'); setTabSearchParams({ tab: 'operations' }); setIsMobileMenuOpen(false) })}
           </div>
         )}
 
@@ -459,6 +468,7 @@ export default function Dashboard() {
           )}
           
           {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { setActiveTab('settings'); setTabSearchParams({ tab: 'settings' }); setIsMobileMenuOpen(false) })}
+          {portalItem && renderMenuItem(portalItem, activeTab === 'portal', () => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setIsMobileMenuOpen(false) })}
           {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { setActiveTab('help'); setTabSearchParams({ tab: 'help' }); setIsMobileMenuOpen(false) })}
         </div>
       </>
@@ -499,7 +509,7 @@ export default function Dashboard() {
       case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />
       case 'letters': return <HRLettersTab />
-      case 'vehicles': return <VehicleManagementTab />
+      case 'operations': return <OperationsTab />
       case 'employees': return <EmployeesTab />
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />
@@ -510,7 +520,6 @@ export default function Dashboard() {
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
       case 'chat': return <ChatTab />
-      case 'shift-planning': return <ShiftPlanningTab />
       case 'tasks': return <TasksTab defaultSubTab={tasksSubTab} />
       case 'portal': return <EmployeePortalTab portalSubTab={portalSubTab} />
       case 'settings': return <SettingsTab />
