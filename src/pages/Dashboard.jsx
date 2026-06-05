@@ -58,6 +58,7 @@ import DocumentsTab from '../components/tabs/DocumentsTab'
 import VehicleManagementTab from '../components/tabs/VehicleManagementTab'
 import TasksTab from '../components/tabs/TasksTab'
 import ChatTab from '../components/tabs/ChatTab'
+import EmployeesTab from '../components/tabs/EmployeesTab'
 import HomeTab from '../components/tabs/HomeTab'
 import HelpTab from '../components/tabs/HelpTab'
 
@@ -272,6 +273,7 @@ export default function Dashboard() {
   }, [user?.orgId])
 
   const allTabs = useMemo(() => [
+    { id: 'employees', label: 'Employees', icon: <Users size={18} strokeWidth={1.75} />, module: 'Settings' },
     { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
     { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, module: 'Tasks' },
@@ -338,7 +340,7 @@ export default function Dashboard() {
 
   const mainTabs = ['home', 'attendance-list', 'tasks', 'salary-slip', 'advance', 'approvals']
   
-  const hrTabs = ['leave', 'letters', 'recruitment', 'documents']
+  const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents']
   const featuresTabs = ['correction', 'vehicles', 'summary', 'fines', 'engage', 'chat', 'shift-planning']
 
   const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
@@ -498,6 +500,7 @@ export default function Dashboard() {
       case 'approvals': return <ApprovalsTab />
       case 'letters': return <HRLettersTab />
       case 'vehicles': return <VehicleManagementTab />
+      case 'employees': return <EmployeesTab />
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />
       case 'summary': return <SummaryTab defaultSubTab={summarySubTab} />

@@ -290,11 +290,11 @@ const settingsSubTabMeta = {
   },
 }
 
-export default function SettingsTab() {
+export default function SettingsTab({ initialSubTab }) {
   const { user } = useAuth()
   const { employees, loading: empLoading, updateEmployee, addEmployee, deleteEmployee } = useEmployees(user?.orgId)
   const { recalculateOTForEmployee } = useAttendance(user?.orgId)
-  const [activeSubTab, setActiveSubTab] = useState('organization')
+  const [activeSubTab, setActiveSubTab] = useState(initialSubTab || 'organization')
   const [users, setUsers] = useState([])
   const [roles, setRoles] = useState([])
   const [activeUserRoleSubTab, setActiveUserRoleSubTab] = useState('users')
