@@ -7,7 +7,7 @@ import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTime
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { z } from 'zod'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, Check, Search, AtSign, AlertCircle, MapPin, Crosshair } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -359,6 +359,8 @@ export default function SettingsTab() {
   const [newMinWorkHours, setNewMinWorkHours] = useState({ name: '', hours: 8, description: '' })
   const [newEmployee, setNewEmployee] = useState(createEmployeeFormState())
   const [formErrors, setFormErrors] = useState({})
+  const [collapsedSections, setCollapsedSections] = useState({})
+  const toggleSection = (name) => setCollapsedSections(prev => ({ ...prev, [name]: !prev[name] }))
   const [newDocUpload, setNewDocUpload] = useState({ name: '', file: null, uploading: false })
   const [viewerState, setViewerState] = useState(null) // { docs, index }
   const [newRole, setNewRole] = useState({ 
@@ -4834,11 +4836,16 @@ export default function SettingsTab() {
             </div>
 
             {/* Section: Basic Information */}
-            <div className="relative pt-2">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Basic Information</span>
-            </div>
-
+            <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection('basicInfo')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+              >
+                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.basicInfo ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Basic Information</span>
+              </button>
+              {!collapsedSections.basicInfo && <div className="p-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Employee ID</label>
@@ -4898,13 +4905,20 @@ export default function SettingsTab() {
                 </select>
               </div>
             </div>
-
-            {/* Section: Personal Details */}
-            <div className="relative pt-2">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Personal Details</span>
+              </div>}
             </div>
 
+            {/* Section: Personal Details */}
+            <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection('personalDetails')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+              >
+                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.personalDetails ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Personal Details</span>
+              </button>
+              {!collapsedSections.personalDetails && <div className="p-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Blood Group</label>
@@ -4978,14 +4992,20 @@ export default function SettingsTab() {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white resize-none"
               />
             </div>
-
-            {/* Section: Contact & Login */}
-            <div className="relative pt-2">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Contact &amp; Login</span>
+              </div>}
             </div>
 
-            {/* Email field - always visible for new employees with Blue Hover & Active States */}
+            {/* Section: Contact & Login */}
+            <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection('contactLogin')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+              >
+                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.contactLogin ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Contact &amp; Login</span>
+              </button>
+              {!collapsedSections.contactLogin && <div className="p-4 space-y-4">
             <div className="col-span-2 space-y-3">
               <label className="block text-[11px] font-bold text-gray-700">Email Addresses</label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -5093,13 +5113,20 @@ export default function SettingsTab() {
                 />
               </div>
             </div>
-
-            {/* Section: Identification */}
-            <div className="relative pt-2">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Identification &amp; Documents</span>
+              </div>}
             </div>
 
+            {/* Section: Identification */}
+            <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection('identification')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+              >
+                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.identification ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Identification &amp; Documents</span>
+              </button>
+              {!collapsedSections.identification && <div className="p-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Aadhar No</label>
@@ -5146,6 +5173,8 @@ export default function SettingsTab() {
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
                 />
               </div>
+            </div>
+              </div>}
             </div>
 
             {/* Bank Account Details */}
@@ -5226,11 +5255,16 @@ export default function SettingsTab() {
             </div>
 
             {/* Section: Settings */}
-            <div className="relative pt-2">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-              <span className="relative block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-4 bg-white pr-3">Settings</span>
-            </div>
-
+            <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection('settings')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 bg-gray-100/80 hover:bg-gray-200/80 transition-colors cursor-pointer select-none"
+              >
+                <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${collapsedSections.settings ? '-rotate-90' : ''}`} />
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Settings</span>
+              </button>
+              {!collapsedSections.settings && <div className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Login Enabled Toggle */}
               <div className="flex items-center justify-between bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100/60">
@@ -5311,6 +5345,8 @@ export default function SettingsTab() {
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newEmployee.withdrawFullSalary ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
+            </div>
+              </div>}
             </div>
 
             {/* Password Field - Only shown when login is enabled */}
