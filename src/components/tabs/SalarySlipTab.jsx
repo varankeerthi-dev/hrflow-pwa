@@ -62,8 +62,8 @@ const downloadPdfBlob = (blob, fileName) => {
 // --- CONSTANTS ---
 const DETAILED_SUMMARY_COLUMNS = [
   { id: 'sno', label: 'S.No', width: 32, mandatory: true },
-  { id: 'empNo', label: 'Employee ID', width: 80 },
   { id: 'name', label: 'Staff name', width: 140, mandatory: true },
+  { id: 'empNo', label: 'Employee ID', width: 80 },
   { id: 'designation', label: 'Designation', width: 100 },
   { id: 'basicCtc', label: 'Basic (CTC)', width: 70 },
   { id: 'hraCtc', label: 'HRA (CTC)', width: 70 },
@@ -912,6 +912,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   };
 
   const monthInputRef = useRef(null)
+  const detailedTopScrollRef = useRef(null)
+  const detailedTableScrollRef = useRef(null)
+  const handleDetailedTopScroll = () => { if (detailedTableScrollRef.current && detailedTopScrollRef.current) detailedTableScrollRef.current.scrollLeft = detailedTopScrollRef.current.scrollLeft; };
+  const handleDetailedTableScroll = () => { if (detailedTopScrollRef.current && detailedTableScrollRef.current) detailedTopScrollRef.current.scrollLeft = detailedTableScrollRef.current.scrollLeft; };
 
   useEffect(() => { setDetectedSandwiches([]); setSelectedSandwichDays(new Set()); }, [summaryMonth])
 
@@ -1173,7 +1177,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
   const visibleDetailedSummaryColumns = useMemo(() => {
     let currentLeft = 0;
-    const stickyIds = ['sno', 'empNo', 'name', 'designation'];
+    const stickyIds = ['sno', 'name'];
     
     return DETAILED_SUMMARY_COLUMNS
       .filter(c => selectedDetailedColumns.includes(c.id))
@@ -1245,11 +1249,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   }
 
   const getColumnColorClass = (colId, type = 'bg') => {
+    const isSticky = ['sno', 'name'].includes(colId);
     const group = visibleGroups.find(g => g.columns.includes(colId));
     if (!group) return '';
     const color = group.color;
     if (type === 'bg') {
-      if (color === 'blue') return 'bg-blue-50/30';
+      if (color === 'blue') return isSticky ? 'bg-[#f4f7fb]' : 'bg-blue-50/30'; // Solid color approximation for blue-50 to hide under-scroll
       if (color === 'purple') return 'bg-purple-50/30';
       if (color === 'amber') return 'bg-amber-50/30';
       if (color === 'emerald') return 'bg-emerald-50/30';
@@ -2004,7 +2009,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         )}
         {activeTab === 'salary-summary' && (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-50 px-2">
+            <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-[80] px-2">
               <div className="flex gap-4 items-center">
                 {/* Current / History Toggle */}
                 <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60">
@@ -2035,26 +2040,34 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 {payrollSubTab === 'current' && (
                   <>
                     <div className="h-6 w-px bg-slate-200"></div>
-                    <div className="flex bg-slate-100/85 p-1.5 rounded-2xl border border-slate-200/60 gap-1">
-                      {[
-                        {id:'overview',l:'Overview'},
-                        {id:'detailed',l:'Detailed Summary'},
-                        {id:'variable',l:'Vouchers'},
-                        {id:'sandwich',l:'Sandwich Rule'}
-                      ].map(t=>(
-                        <button 
-                          key={t.id} 
-                          onClick={()=>setSummarySubTab(t.id)} 
-                          className={`px-3 h-[30px] flex items-center text-[12px] font-black capitalize rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 ${
-                            summarySubTab===t.id
-                              ? 'text-indigo-600'
-                              : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
-                          }`}
-                        >
-                          {t.l}
-                        </button>
-                      ))}
-                    </div>
+                      <div className="flex bg-slate-100/85 p-1.5 rounded-2xl border border-slate-200/60 gap-1">
+                        {[
+                          {id:'overview',l:'Overview'},
+                          {id:'detailed',l:'Detailed Summary'}
+                        ].map(t=>(
+                          <button 
+                            key={t.id} 
+                            onClick={()=>setSummarySubTab(t.id)} 
+                            className={`px-3 h-[30px] flex items-center text-[12px] font-black capitalize rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 ${
+                              summarySubTab===t.id
+                                ? 'text-indigo-600'
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
+                            }`}
+                          >
+                            {t.l}
+                          </button>
+                        ))}
+                        
+                        <div className="relative group">
+                          <button className={`px-3 h-[30px] flex items-center text-[12px] font-black capitalize rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 outline-none cursor-pointer ${['variable','sandwich'].includes(summarySubTab) ? 'text-indigo-600 bg-white/60' : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'}`}>
+                            More <ChevronDown size={14} className="ml-1" />
+                          </button>
+                          <div className="absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl hidden group-hover:block z-[100] py-1">
+                            <button onClick={() => setSummarySubTab('variable')} className={`w-full text-left px-4 py-2 text-xs font-semibold ${summarySubTab === 'variable' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600 hover:bg-slate-50'}`}>Vouchers</button>
+                            <button onClick={() => setSummarySubTab('sandwich')} className={`w-full text-left px-4 py-2 text-xs font-semibold ${summarySubTab === 'sandwich' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600 hover:bg-slate-50'}`}>Sandwich Rule</button>
+                          </div>
+                        </div>
+                      </div>
                   </>
                 )}
 
@@ -2067,7 +2080,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 )}
 
                 {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status === 'draft' && (
-                  <button onClick={handleResync} className="h-7 px-3 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all">Re-sync Calculations</button>
+                  <button onClick={handleResync} className="h-7 w-7 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all" title="Re-sync Calculations"><RefreshCw size={14} /></button>
                 )}
                 {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
                   <div className="flex items-center gap-1.5 ml-2">
@@ -2079,37 +2092,27 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       'bg-emerald-50 text-emerald-600 border-emerald-200'
                     }`}>{activeRun.status}</span>
                     {activeRun.status === 'draft' && (
-                      <button onClick={() => handleStatusChange('review', 'submitted')} className="h-7 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Submit for Review</button>
+                      <button onClick={() => handleStatusChange('review', 'submitted')} className="h-7 w-7 flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm transition-all" title="Submit for Review"><ArrowRight size={14} /></button>
                     )}
                     {activeRun.status === 'review' && (
                       <>
-                        <button onClick={() => handleStatusChange('approved', 'approved')} className="h-7 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Approve</button>
-                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-7 px-3 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Reject / Revert</button>
+                        <button onClick={() => handleStatusChange('approved', 'approved')} className="h-7 w-7 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-sm transition-all" title="Approve"><CheckCircle2 size={14} /></button>
+                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-7 w-7 flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white rounded-lg shadow-sm transition-all" title="Reject / Revert"><X size={14} /></button>
                       </>
                     )}
                     {activeRun.status === 'approved' && (
                       <>
-                        <button onClick={() => handleStatusChange('locked', 'locked')} className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Lock & Pay</button>
-                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-7 px-3 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Revert to Draft</button>
+                        <button onClick={() => handleStatusChange('locked', 'locked')} className="h-7 w-7 flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-all" title="Lock & Pay"><Save size={14} /></button>
+                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-7 w-7 flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white rounded-lg shadow-sm transition-all" title="Revert to Draft"><RotateCcw size={14} /></button>
                       </>
                     )}
                     {activeRun.status === 'locked' && (
-                      <button onClick={() => handleStatusChange('draft', 'unlocked')} className="h-7 px-3 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all">Unlock Run</button>
+                      <button onClick={() => handleStatusChange('draft', 'unlocked')} className="h-7 w-7 flex items-center justify-center bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg shadow-sm transition-all" title="Unlock Run"><RotateCcw size={14} /></button>
                     )}
                   </div>
                 )}
                 {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status !== 'locked' && activeRun.status !== 'approved' && (
-                  <button onClick={() => setIsOtModalOpen(true)} className="h-7 px-3 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black uppercase tracking-[0.1em] shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all">OT Escalation</button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {summarySubTab==='detailed' && (
-                  <div className="flex items-center gap-1.5 relative">
-                    <button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf} className="h-7 px-3 border border-indigo-100 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm hover:bg-indigo-100 active:scale-95 transition-all flex items-center gap-2">
-                      {exportingDetailedPdf ? <RefreshCw size={10} className="animate-spin"/> : <Download size={10}/>}
-                      <span>Download</span>
-                    </button>
-                  </div>
+                  <button onClick={() => setIsOtModalOpen(true)} className="h-7 px-3 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all text-[10px] font-black uppercase tracking-[0.1em] whitespace-nowrap">OT Change</button>
                 )}
               </div>
             </div>
@@ -3126,7 +3129,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 <div className="flex flex-col h-full bg-white relative">
                   <div className="flex justify-between items-center py-2 px-4 border-b border-gray-200 bg-gray-50/80 sticky left-0 right-0 z-[60]">
                     <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-700">Detailed Summary Grid</h3>
-                    <div className="flex items-center gap-2 relative">
+                    <div className="flex items-center gap-2 relative"><div ref={detailedTopScrollRef} onScroll={handleDetailedTopScroll} className="overflow-x-auto overflow-y-hidden custom-scrollbar" style={{ height: '14px', width: '300px', borderBottom: '1px solid #e5e7eb' }}><div style={{ height: '1px', width: `${visibleDetailedSummaryColumns.reduce((sum, c) => sum + c.width, 0)}px` }}></div></div>
+                      <button onClick={handleExportDetailedSummaryPdf} disabled={exportingDetailedPdf} className="h-7 px-4 border border-indigo-100 bg-white text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2">
+                        {exportingDetailedPdf ? <RefreshCw size={12} className="animate-spin"/> : <Download size={12}/>}
+                        <span>Download</span>
+                      </button>
                       <button onClick={() => setShowDetailedColumnPicker(!showDetailedColumnPicker)} className="h-7 px-4 bg-slate-900 hover:bg-black text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all flex items-center gap-2">
                         Columns
                       </button>
@@ -3152,7 +3159,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       )}
                     </div>
                   </div>
-                  <div className="min-w-max flex-1 overflow-auto relative">
+                  <div className="flex-1 overflow-auto relative" ref={detailedTableScrollRef} onScroll={handleDetailedTableScroll}>
                     <table className="w-full text-[11px] border-collapse detailed-summary-table bg-white">
                     <thead className="sticky top-0 z-40 font-raleway">
                       <tr className="h-[55px] border-b-2 border-gray-950">
@@ -3195,7 +3202,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               ['sno', 'empNo', 'days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'text-center' : 
                               ['name', 'designation'].includes(c.id) ? 'text-left' : 'text-right'
                             } ${
-                              c.leftOffset !== undefined ? 'sticky z-20 bg-inherit group-hover:bg-blue-50' : ''
+                              c.leftOffset !== undefined ? 'sticky z-20 bg-white group-hover:bg-blue-50' : ''
                             } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[12px] shadow-inner' : (c.id === 'earnings' ? 'font-black' : 'font-medium')}`}>
                               {c.id === 'name' ? (
                                 <div className="truncate w-full" title={e.name}>{renderDetailedCell(c.id, e)}</div>
