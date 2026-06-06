@@ -296,7 +296,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
           <button onClick={() => navigateMonth(1)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"><ChevronRight size={16} className="text-gray-600" /></button>
           
           {activeMainTab === 'monthlyView' && (
-            <div className="flex items-center gap-1.5 ml-4 pl-4 border-l border-gray-200">
+            <div className="flex items-center gap-1.5 ml-4 pl-4 shadow-[inset_1px_0_0_0_#e5e7eb]">
               <select value={selectedMonth.split('-')[1]} onChange={(e) => setSelectedMonth(`${selectedMonth.split('-')[0]}-${e.target.value}`)} className="h-7 px-1.5 bg-white border border-gray-300 rounded text-[11px] font-bold text-gray-700 outline-none">
                 {Array.from({ length: 12 }, (_, i) => { const m = String(i + 1).padStart(2, '0'); return <option key={m} value={m}>{new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'short' })}</option> })}
               </select>
@@ -479,7 +479,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                       onScroll={handleTableScroll} 
                       className="overflow-x-auto max-h-[85vh] overflow-y-auto"
                     >
-                      <table id="monthly-pivot-table" className="border-collapse text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
+                      <table id="monthly-pivot-table" className="border-separate border-spacing-0 text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
                         <colgroup>
                       <col style={{ width: '65px' }} />
                       {monthlyViewData.employees?.map(emp => (
@@ -498,7 +498,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                         <th className="px-2 py-1 text-center font-bold text-gray-700 border-r border-b border-gray-200 bg-gray-100 sticky left-0 z-40" rowSpan={2}><div className="text-[9px] uppercase tracking-wider text-gray-500">Date</div></th>
                         {monthlyViewData.employees?.map((emp, idx) => {
                           const cs = getEmployeeHeaderColor(idx), visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
-                          return (<th key={emp.id} className={`px-1 py-1 text-center font-black text-white border-r-[8px] border-white border-b ${cs.border} ${cs.bg} text-[10px]`} colSpan={visibleCount}><div className="truncate uppercase leading-none">{emp.name}</div></th>)
+                          return (<th key={emp.id} className={`px-1 py-1 text-center font-black text-white border-r-[8px] border-white border-b ${cs.border} ${cs.bg} text-[10px]`} colSpan={visibleCount}><div className="truncate uppercase leading-none tracking-[0.1em]">{emp.name}</div></th>)
                         })}
                       </tr>
                       <tr className="bg-white">
@@ -506,11 +506,11 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                           const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.workingTime ? 'workingTime' : (columnSettings.outTime ? 'outTime' : 'inTime')))
                           return (
                             <React.Fragment key={emp.id}>
-                              {columnSettings.inTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>IN</th>}
+                              {columnSettings.inTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-l border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>IN</th>}
                               {columnSettings.outTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'outTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>OUT</th>}
                               {columnSettings.workingTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'workingTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>WT</th>}
                               {columnSettings.ot && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'ot' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>OT</th>}
-                              {columnSettings.remarks && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase truncate border-r-[8px] border-white`} title={remarksLabel}>{remarksLabel.substring(0,3)}</th>}
+                              {columnSettings.remarks && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 border-l shadow-[inset_-1px_-1px_0_0_#e5e7eb] text-center bg-white text-gray-400 uppercase truncate border-r-[8px] border-white`} title={remarksLabel}>{remarksLabel.substring(0,3)}</th>}
                               {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-0 py-1 border-r-[8px] border-white border-b border-gray-300 bg-white">-</th>}
                             </React.Fragment>
                           )
@@ -537,7 +537,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                                   {isOff ? (<td colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${st.bg}`}><span className={`${st.text === 'Holiday' ? 'text-amber-600' : st.color} ${st.type === 'sandwich' ? 'text-[7px] font-black' : 'text-[9px] font-black uppercase'}`}>{st.text}</span></td>) : (
                                     <>
                                       {columnSettings.inTime && (
-                                        <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
+                                        <td className={`px-0 py-0.5 text-center border-b border-l border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
                                           <div className="flex flex-col items-center leading-none">
                                             <span>{formatTimeTo12Hour(att?.inTime) || '—'}</span>
                                             {(att?.shiftType === 'Night' || att?.shiftType === 'DN') && att?.outTime && att?.outDate && (
@@ -565,7 +565,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                                         </td>
                                       )}
                                       {columnSettings.ot && <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-black text-indigo-600 bg-white whitespace-nowrap overflow-hidden ${lastCol === 'ot' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>{formatOTHours(att?.otHours)}</td>}
-                                      {columnSettings.remarks && <td className={`px-1 py-0.5 text-center border-b border-gray-200 text-[9px] font-bold text-gray-600 bg-white truncate border-r-[8px] border-white`} title={att?.remarks}>{att?.remarks || '—'}</td>}
+                                      {columnSettings.remarks && <td className={`px-1 py-0.5 text-center border-b shadow-[inset_1px_0_0_0_#e5e7eb] shadow-[inset_-1px_-1px_0_0_#e5e7eb] text-[9px] font-bold text-gray-600 bg-white truncate border-r-[8px] border-white`} title={att?.remarks}>{att?.remarks || '—'}</td>}
                                       {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <td className="px-0 py-0.5 text-center border-b border-gray-200 bg-white text-[9px] border-r-[8px] border-white">—</td>}
                                     </>
                                   )}
