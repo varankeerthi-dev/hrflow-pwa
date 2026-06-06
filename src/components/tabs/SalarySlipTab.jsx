@@ -2013,8 +2013,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       setPayrollSubTab('current');
                       setSelectedPastRunId(null);
                     }}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
-                      payrollSubTab === 'current' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                    className={`px-3 h-[30px] flex items-center rounded-lg text-xs font-bold transition-all hover:scale-105 active:scale-95 capitalize ${
+                      payrollSubTab === 'current' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     Active Run
@@ -2024,8 +2024,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       setPayrollSubTab('history');
                       setSelectedPastRunId(null);
                     }}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
-                      payrollSubTab === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                    className={`px-3 h-[30px] flex items-center rounded-lg text-xs font-bold transition-all hover:scale-105 active:scale-95 capitalize ${
+                      payrollSubTab === 'history' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     History
@@ -2045,9 +2045,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         <button 
                           key={t.id} 
                           onClick={()=>setSummarySubTab(t.id)} 
-                          className={`px-6 py-2.5 text-[12px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${
+                          className={`px-3 h-[30px] flex items-center text-[12px] font-black capitalize rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 ${
                             summarySubTab===t.id
-                              ? 'bg-white text-indigo-600 shadow-md border border-indigo-100/50'
+                              ? 'text-indigo-600'
                               : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
                           }`}
                         >
@@ -2243,7 +2243,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                            <div className="flex justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div></div>
                         </td>
                         <td className="px-2 text-center font-inter">
-                          <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-2 hover:bg-zinc-900 hover:text-white rounded-xl transition-all text-zinc-300 active:scale-90">
+                          <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-2 hover:bg-zinc-900 hover:text-white rounded-lg transition-all text-zinc-300 active:scale-90">
                             <ArrowUpRight size={16}/>
                           </button>
                         </td>
@@ -2299,7 +2299,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             onClick={() => setVariableViewGroup(g.id)}
                             className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${
                               variableViewGroup === g.id 
-                                ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' 
+                                ? 'text-indigo-600' 
                                 : 'text-slate-500 hover:text-slate-900'
                             }`}
                           >
