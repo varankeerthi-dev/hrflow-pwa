@@ -43,7 +43,6 @@ import OrganizationSwitcher from '../components/ui/OrganizationSwitcher'
 import AttendanceTab from '../components/tabs/AttendanceTab'
 import CorrectionTab from '../components/tabs/CorrectionTab'
 import ApprovalsTab from '../components/tabs/ApprovalsTab'
-import SummaryTab from '../components/tabs/SummaryTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SalarySlipTab from '../components/tabs/SalarySlipTab'
@@ -215,26 +214,27 @@ export default function Dashboard() {
 
   const [activeTab, setActiveTab] = useState('attendance')
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
-  const [summarySubTab, setSummarySubTab] = useState('summary')
+  const [salarySubTab, setSalarySubTab] = useState('detailed')
+  const [salaryActiveTab, setSalaryActiveTab] = useState('salary-summary')
   const [tasksSubTab, setTasksSubTab] = useState('checklist')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
   const [orgSettings, setOrgSettings] = useState({})
   const [isFeaturesExpanded, setIsFeaturesExpanded] = useState(() => {
     const saved = localStorage.getItem('isFeaturesExpanded')
-    return saved !== null ? JSON.parse(saved) : true
+    return saved !== null ? JSON.parse(saved) : false
   })
   const [isHrExpanded, setIsHrExpanded] = useState(() => {
     const saved = localStorage.getItem('isHrExpanded')
-    return saved !== null ? JSON.parse(saved) : true
+    return saved !== null ? JSON.parse(saved) : false
   })
   const [isOperationsExpanded, setIsOperationsExpanded] = useState(() => {
     const saved = localStorage.getItem('isOperationsExpanded')
-    return saved !== null ? JSON.parse(saved) : true
+    return saved !== null ? JSON.parse(saved) : false
   })
   const [isReportsExpanded, setIsReportsExpanded] = useState(() => {
     const saved = localStorage.getItem('isReportsExpanded')
-    return saved !== null ? JSON.parse(saved) : true
+    return saved !== null ? JSON.parse(saved) : false
   })
 
   useEffect(() => {
@@ -294,7 +294,6 @@ export default function Dashboard() {
     { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
     { id: 'operations', label: 'Operations', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
-    { id: 'summary', label: 'Summary', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Summary' },
     { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
@@ -349,7 +348,7 @@ export default function Dashboard() {
   const mainTabs = ['home', 'attendance-list', 'tasks', 'salary-slip', 'advance', 'approvals']
   
   const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents']
-  const featuresTabs = ['correction', 'summary', 'fines', 'engage', 'chat']
+  const featuresTabs = ['correction', 'fines', 'engage', 'chat']
 
   const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
     <button 
@@ -513,9 +512,8 @@ export default function Dashboard() {
       case 'employees': return <EmployeesTab />
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />
-      case 'summary': return <SummaryTab defaultSubTab={summarySubTab} />
       case 'accountant': return <AccountantTab />
-      case 'salary-slip': return <SalarySlipTab />
+      case 'salary-slip': return <SalarySlipTab defaultSummarySubTab={salarySubTab} defaultActiveTab={salaryActiveTab} />
       case 'advance': return <AdvanceExpenseTab />
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
@@ -572,7 +570,7 @@ export default function Dashboard() {
               { label: 'Add attendance', tab: 'attendance-list', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
               { label: 'Add Employee', tab: 'employees', icon: <Users size={14} />, module: 'Employees', right: 'create' },
               { label: 'Advances', tab: 'advance', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
-              { label: 'Full Summary', tab: 'summary', summaryTab: 'monthlyView', icon: <BarChart3 size={14} />, module: 'Summary', right: 'view' },
+              { label: 'Full Summary', tab: 'salary-slip', salaryActiveTab: 'full-summary', icon: <BarChart3 size={14} />, module: 'SalarySlip', right: 'view' },
               { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
             ].filter(action => {
               if (isAdmin) return true
@@ -584,7 +582,7 @@ export default function Dashboard() {
             return (
               <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200/80">
                 {quickActions.map(item => (
-                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'summary' && item.summaryTab) setSummarySubTab(item.summaryTab); if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) }} className={`px-4 h-9 rounded-none text-[13px] font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === item.tab ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-600 hover:bg-indigo-50/50'}`}>
+                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'salary-slip' && item.salaryActiveTab) setSalaryActiveTab(item.salaryActiveTab); if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) }} className={`px-4 h-9 rounded-none text-[13px] font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === item.tab ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-600 hover:bg-indigo-50/50'}`}>
                     {item.label}
                   </button>
                 ))}

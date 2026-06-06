@@ -47,6 +47,21 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
   const [activeMainTab, setActiveMainTab] = useState(defaultSubTab || 'summary')
   const [summaryInnerTab, setSummaryInnerTab] = useState('overview')
 
+  const topScrollRef = useRef(null)
+  const tableScrollRef = useRef(null)
+
+  const handleTopScroll = () => {
+    if (tableScrollRef.current && topScrollRef.current) {
+      tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft
+    }
+  }
+
+  const handleTableScroll = () => {
+    if (topScrollRef.current && tableScrollRef.current) {
+      topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft
+    }
+  }
+
   useEffect(() => {
     if (defaultSubTab) setActiveMainTab(defaultSubTab)
   }, [defaultSubTab])
@@ -437,9 +452,8 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
 
       {activeMainTab === 'monthlyView' && (
         <div className="space-y-3 animate-in fade-in duration-500">
-          <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Detailed Daily Attendance Grid</h3>
           {pivotLoading ? (<div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200 shadow-sm"><Spinner /></div>) : (
-            <div className="overflow-x-auto max-h-[85vh] overflow-y-auto bg-white border border-gray-300 rounded-xl shadow-sm">
+            <div className="flex flex-col bg-white border border-gray-300 rounded-xl shadow-sm">
               {(() => {
                 const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
                 let blockW = 0
@@ -451,8 +465,22 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                 if (blockW === 0) blockW = 56
                 const totalTableW = 65 + (monthlyViewData.employees?.length || 0) * (blockW + gapW)
                 return (
-                  <table id="monthly-pivot-table" className="border-collapse text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
-                    <colgroup>
+                  <>
+                    <div 
+                      ref={topScrollRef} 
+                      onScroll={handleTopScroll} 
+                      className="overflow-x-auto overflow-y-hidden custom-scrollbar" 
+                      style={{ height: '14px', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}
+                    >
+                      <div style={{ width: `${totalTableW}px`, height: '1px' }}></div>
+                    </div>
+                    <div 
+                      ref={tableScrollRef} 
+                      onScroll={handleTableScroll} 
+                      className="overflow-x-auto max-h-[85vh] overflow-y-auto"
+                    >
+                      <table id="monthly-pivot-table" className="border-collapse text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
+                        <colgroup>
                       <col style={{ width: '65px' }} />
                       {monthlyViewData.employees?.map(emp => (
                         <React.Fragment key={emp.id}>
@@ -549,6 +577,8 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                       })}
                     </tbody>
                   </table>
+                  </div>
+                  </>
                 )
               })()}
             </div>

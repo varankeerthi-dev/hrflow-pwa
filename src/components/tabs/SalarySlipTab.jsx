@@ -450,12 +450,16 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
 
 // --- MAIN COMPONENT ---
 
-export default function SalarySlipTab() {
+export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary' }) {
   const { user } = useAuth(); const { employees } = useEmployees(user?.orgId, true); const { slabs, increments } = useSalarySlab(user?.orgId);
   const { isCollapsed, setIsCollapsed, setIsAutoCollapsed, isAutoCollapsed } = useSidebar();
   const queryClient = useQueryClient();
   const isAdmin = user?.role?.toLowerCase() === 'admin'
-  const [activeTab, setActiveTab] = useState('salary-summary')
+  const [activeTab, setActiveTab] = useState(defaultActiveTab)
+  
+  useEffect(() => {
+    if (defaultActiveTab) setActiveTab(defaultActiveTab)
+  }, [defaultActiveTab])
 
   const [selectedEmp, setSelectedEmp] = useState('')
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -593,7 +597,10 @@ export default function SalarySlipTab() {
       }
     }
   };
-  const [summarySubTab, setSummarySubTab] = useState('overview')
+  const [summarySubTab, setSummarySubTab] = useState(defaultSummarySubTab)
+  useEffect(() => {
+    if (defaultSummarySubTab) setSummarySubTab(defaultSummarySubTab)
+  }, [defaultSummarySubTab])
   const [summaryFilterEmpId, setSummaryFilterEmpId] = useState('')
   const [loading, setLoading] = useState(false)
   const [generated, setGenerated] = useState(false)
@@ -2102,27 +2109,6 @@ export default function SalarySlipTab() {
                       {exportingDetailedPdf ? <RefreshCw size={10} className="animate-spin"/> : <Download size={10}/>}
                       <span>Download</span>
                     </button>
-                    <button onClick={() => setShowDetailedColumnPicker(!showDetailedColumnPicker)} className="h-7 px-3 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all">Columns</button>
-                    
-                    {showDetailedColumnPicker && (
-                      <div ref={columnPickerRef} className="absolute right-0 top-full mt-2 z-[110] bg-white border border-slate-200 shadow-2xl p-4 w-80 max-h-[500px] overflow-auto rounded-[24px] animate-in fade-in slide-in-from-top-2 border-2 border-black">
-                        <div className="pb-3 border-b-2 border-slate-100 mb-3 flex justify-between items-center"><span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Visibility Grid</span><button onClick={()=>setShowDetailedColumnPicker(false)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16}/></button></div>
-                        
-                        <div className="flex gap-2 mb-4">
-                          <button onClick={toggleAllColumns} className="flex-1 h-7 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-200">Toggle All</button>
-                          <button onClick={saveDetailedColumnDefaults} className="flex-1 h-7 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-indigo-700 shadow-sm">Save Default</button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                          {DETAILED_SUMMARY_COLUMNS.map(c => (
-                            <label key={c.id} className={`flex items-center gap-2 p-1 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all ${c.mandatory?'opacity-40 grayscale pointer-events-none':''}`}>
-                              <input type="checkbox" checked={selectedDetailedColumns.includes(c.id)} disabled={c.mandatory} onChange={() => toggleDetailedSummaryColumn(c.id)} className="w-3 h-3 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 shadow-sm"/>
-                              <span className="text-[10px] font-normal text-slate-700 truncate">{c.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -3136,9 +3122,38 @@ export default function SalarySlipTab() {
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="min-w-max h-full overflow-auto relative">
-                  <table className="w-full text-[11px] border-collapse detailed-summary-table bg-white">
+              ) : summarySubTab === 'detailed' ? (
+                <div className="flex flex-col h-full bg-white relative">
+                  <div className="flex justify-between items-center py-2 px-4 border-b border-gray-200 bg-gray-50/80 sticky left-0 right-0 z-[60]">
+                    <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-700">Detailed Summary Grid</h3>
+                    <div className="flex items-center gap-2 relative">
+                      <button onClick={() => setShowDetailedColumnPicker(!showDetailedColumnPicker)} className="h-7 px-4 bg-slate-900 hover:bg-black text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all flex items-center gap-2">
+                        Columns
+                      </button>
+                      
+                      {showDetailedColumnPicker && (
+                        <div ref={columnPickerRef} className="absolute right-0 top-full mt-2 z-[110] bg-white border border-slate-200 shadow-2xl p-4 w-80 max-h-[500px] overflow-auto rounded-[24px] animate-in fade-in slide-in-from-top-2 border-2 border-black">
+                          <div className="pb-3 border-b-2 border-slate-100 mb-3 flex justify-between items-center"><span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Visibility Grid</span><button onClick={()=>setShowDetailedColumnPicker(false)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16}/></button></div>
+                          
+                          <div className="flex gap-2 mb-4">
+                            <button onClick={toggleAllColumns} className="flex-1 h-7 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-200">Toggle All</button>
+                            <button onClick={saveDetailedColumnDefaults} className="flex-1 h-7 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-indigo-700 shadow-sm">Save Default</button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                            {DETAILED_SUMMARY_COLUMNS.map(c => (
+                              <label key={c.id} className={`flex items-center gap-2 p-1 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all ${c.mandatory?'opacity-40 grayscale pointer-events-none':''}`}>
+                                <input type="checkbox" checked={selectedDetailedColumns.includes(c.id)} disabled={c.mandatory} onChange={() => toggleDetailedSummaryColumn(c.id)} className="w-3 h-3 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 shadow-sm"/>
+                                <span className="text-[10px] font-normal text-slate-700 truncate">{c.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="min-w-max flex-1 overflow-auto relative">
+                    <table className="w-full text-[11px] border-collapse detailed-summary-table bg-white">
                     <thead className="sticky top-0 z-40 font-raleway">
                       <tr className="h-[55px] border-b-2 border-gray-950">
                         {visibleGroups.map(g=>(
@@ -3197,8 +3212,9 @@ export default function SalarySlipTab() {
                       </tr>
                     </tfoot>
                   </table>
+                  </div>
                 </div>
-              )}
+              ) : null}
             </>
           )}
         </div>
