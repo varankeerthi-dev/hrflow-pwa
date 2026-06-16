@@ -65,12 +65,10 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'name', label: 'Staff name', width: 140, mandatory: true },
   { id: 'empNo', label: 'Employee ID', width: 80 },
   { id: 'designation', label: 'Designation', width: 100 },
-  { id: 'basicCtc', label: 'Basic (CTC)', width: 70 },
-  { id: 'hraCtc', label: 'HRA (CTC)', width: 70 },
-  { id: 'salaryCtc', label: 'Total (CTC)', width: 80 },
+  { id: 'salaryCtc', label: 'Total (CTC)', width: 50 },
   { id: 'days', label: 'Total days', width: 45 },
   { id: 'worked', label: 'Worked days', width: 45 },
-  { id: 'sundays', label: 'Sunday', width: 45 },
+  { id: 'sundays', label: 'Sunday', width: 30 },
   { id: 'sunWorked', label: 'Sunday worked', width: 45 },
   { id: 'holidayWorked', label: 'Holiday worked', width: 45 },
   { id: 'otH', label: 'OT hours', width: 45 },
@@ -1185,7 +1183,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   const visibleGroups = useMemo(() => {
     const groups = [
       { id: 'basic', label: 'Basic Info', color: 'blue', columns: ['sno', 'empNo', 'name', 'designation'] },
-      { id: 'structure', label: 'Structure (CTC)', color: 'purple', columns: ['basicCtc', 'hraCtc', 'salaryCtc'] },
+      { id: 'structure', label: 'CTC', color: 'purple', columns: ['salaryCtc'] },
       { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'lop', 'paidDays'] },
       { id: 'earnings', label: 'Earnings (PAID)', color: 'emerald', columns: ['basicPaid', 'hraPaid', 'salaryPaid', 'sundayPay', 'holidayPay', 'otPay', 'earnings'] },
       { id: 'genDeductions', label: 'Deductions & Vouchers', color: 'red', columns: ['pf', 'esi', 'loan', 'ded', 'advance', 'reimb', 'netAdj'] },
@@ -2160,19 +2158,19 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     {/* Primary Header Row */}
                     <tr className="bg-white/95 backdrop-blur-md text-[10px] font-semibold text-zinc-400 h-[44px] border-b border-zinc-200">
                       <th className="px-2 text-center border-r border-zinc-100 w-8 sticky left-0 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">#</th>
-                      <th className="px-3 text-left border-r-[1.2px] border-zinc-300 w-40 sticky left-8 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Employee Name</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-orange-700/60">Total Days</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-14 text-orange-700/60">Sunday</th>
+                      <th className="px-3 text-left border-r-[1.2px] border-zinc-300 w-40 sticky left-8 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Employee name</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-orange-700/60">Total days</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-12 text-orange-700/60">Sunday</th>
                       <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-14 text-orange-700/60">Holiday</th>
                       <th className="px-1 text-center border-r border-zinc-100 w-14">Worked</th>
                       <th className="px-1 text-center border-r border-zinc-100 w-10">HD</th>
                       <th className="px-1 text-center border-r border-zinc-100 w-12">Leave</th>
                       <th className="px-1 text-center border-r border-zinc-100 w-12 text-rose-500/70">LOP</th>
-                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-emerald-600/80">Paid Days</th>
-                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-indigo-600/70">OT (Actual)</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-emerald-600/70">Sunday Wk</th>
-                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-emerald-600/70">Holiday Wk</th>
-                      <th className="px-2 text-right border-r border-zinc-100 w-24 bg-green-50/20 text-green-700">Net Payout</th>
+                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-emerald-600/80">Paid days</th>
+                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-indigo-600/70">OT (actual)</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-emerald-600/70">Sunday wk</th>
+                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-emerald-600/70">Holiday wk</th>
+                      <th className="px-4 text-left border-r border-zinc-100 w-24 bg-green-50/20 text-green-700">Net payout</th>
                       <th className="px-1 text-center border-r border-zinc-100 w-16 text-green-700">Status</th>
                       <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-20 text-green-600">Sync</th>
                       <th className="w-8"></th>
@@ -2186,12 +2184,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       <tr key={e.id} className={`hover:bg-indigo-50/50 transition-all duration-200 h-[48px] group ${idx%2===0?'bg-white':'bg-zinc-50/40'}`}>
                         <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-bold font-inter sticky left-0 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200">{idx + 1}</td>
                         <td className="px-3 border-r-[1.2px] border-zinc-300 text-zinc-800 text-[12px] font-bold tracking-tight truncate w-40 font-inter sticky left-8 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200">{e.name}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 text-[12px] font-inter border-b border-zinc-200">{e.totalDays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-inter border-b border-zinc-200">{e.sundays}</td>
-                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 text-zinc-400 text-[12px] font-inter border-b border-zinc-200" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-zinc-700 text-[12px] font-inter border-b border-zinc-200">{e.worked}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-zinc-600 text-[12px] font-inter border-b border-zinc-200">{e.hd}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 text-[12px] font-inter border-b border-zinc-200">{e.leave}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-800 text-[12px] font-inter border-b border-zinc-200">{e.totalDays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-red-600 font-bold text-[12px] font-inter border-b border-zinc-200">{e.sundays}</td>
+                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 text-red-600 font-bold text-[12px] font-inter border-b border-zinc-200" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-zinc-800 text-[12px] font-inter border-b border-zinc-200">{e.worked}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-zinc-800 text-[12px] font-inter border-b border-zinc-200">{e.hd}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-800 text-[12px] font-inter border-b border-zinc-200">{e.leave}</td>
                         <td className="px-2 text-center border-r border-zinc-50 font-black text-red-600 bg-red-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
                           {e.lop}
                           {e.lopDates?.length > 0 && (
@@ -2225,7 +2223,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             </span>
                           )}
                         </td>
-                        <td className="px-4 text-right border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[12px] font-inter tracking-tight pr-5 border-b border-zinc-200">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td className="px-4 text-left border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[12px] font-inter tracking-tight border-b border-zinc-200">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                         <td className="px-2 text-center border-r border-zinc-50 text-[12px] font-inter border-b border-zinc-200">
                           <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-tighter">Draft</span>
                         </td>
@@ -3171,7 +3169,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             width: c.width, 
                             minWidth: c.width,
                             left: c.leftOffset
-                          }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-bold text-[10px] uppercase tracking-[-0.05em] whitespace-pre-line ${
+                          }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'border')} text-center font-bold text-[10px] tracking-[-0.05em] whitespace-pre-line ${
                             c.leftOffset !== undefined ? 'sticky z-50 bg-white' : ''
                           } ${c.id === 'net' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-gray-500'}`}>
                             {c.label}
@@ -3187,10 +3185,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               left: c.leftOffset
                             }} className={`px-2 border-r-2 ${getColumnColorClass(c.id, 'bg')} ${getColumnColorClass(c.id, 'border')} ${
                               ['sno', 'empNo', 'days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'hd', 'lop', 'paidDays'].includes(c.id) ? 'text-center' : 
-                              ['name', 'designation'].includes(c.id) ? 'text-left' : 'text-right'
+                              ['name', 'designation', 'salaryCtc', 'net'].includes(c.id) ? 'text-left' : 'text-right'
                             } ${
                               c.leftOffset !== undefined ? 'sticky z-20 bg-white group-hover:bg-blue-50' : ''
-                            } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[12px] shadow-inner' : (c.id === 'earnings' ? 'font-black' : 'font-medium')}`}>
+                            } ${getColumnColorClass(c.id, 'text')} ${c.id === 'net' ? 'bg-green-600 text-white font-black text-[12px] shadow-inner' : (c.id === 'earnings' ? 'font-black' : c.id === 'paidDays' ? 'font-bold text-[11px]' : 'font-medium')}`}>
                               {c.id === 'name' ? (
                                 <div className="truncate w-full" title={e.name}>{renderDetailedCell(c.id, e)}</div>
                               ) : renderDetailedCell(c.id, e)}
@@ -3202,7 +3200,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     <tfoot className="sticky bottom-0 z-30 font-raleway shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
                       <tr className="bg-zinc-900 text-white font-black h-12">
                         <td colSpan={visibleDetailedSummaryColumns.length - 1} className="px-6 text-right uppercase tracking-[0.3em] text-[11px] border-r-2 border-zinc-800">Gross Organization Payout for {formatMonthDisplay(summaryMonth)}</td>
-                        <td className="px-2 text-right bg-green-600 text-[15px] tabular-nums border-l-2 border-green-700 font-black border-b border-zinc-200">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, e) => sum + (e.salary?.net || 0), 0))}</td>
+                        <td className="px-2 text-left bg-green-600 text-[15px] tabular-nums border-l-2 border-green-700 font-black border-b border-zinc-200">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, e) => sum + (e.salary?.net || 0), 0))}</td>
                       </tr>
                     </tfoot>
                   </table>
