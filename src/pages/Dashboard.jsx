@@ -350,18 +350,18 @@ export default function Dashboard() {
   const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents']
   const featuresTabs = ['correction', 'fines', 'engage', 'chat']
 
-  const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
+  const renderMenuItem = (tab, isActive, onClick, fontSize = '13px') => (
     <button 
       key={tab.id} 
       onClick={onClick} 
-      className={`w-full flex transition-all duration-200 group ${isCollapsed ? 'flex-col items-center justify-center py-2 gap-1' : 'items-center px-3 py-2.5 gap-3'} ${isActive ? 'bg-indigo-600/20 text-indigo-700 rounded-none' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700 rounded-xl'}`}
+      className={`w-full flex transition-all duration-200 group ${isCollapsed ? 'flex-col items-center justify-center py-2 gap-1' : 'items-center px-3 py-2.5 gap-3'} ${isActive ? 'bg-indigo-50 text-indigo-700 rounded-xl shadow-[inset_0_1px_0_white,0_1px_2px_rgba(0,0,0,0.02)] border border-indigo-100/60' : 'hover:bg-gray-50/80 text-slate-500 hover:text-slate-900 rounded-xl border border-transparent'}`}
     >
-      <span className={`shrink-0 ${isActive ? 'text-indigo-700' : 'text-gray-400 group-hover:text-indigo-600'}`}>
-        {tab.icon && React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: 2 })}
+      <span className={`shrink-0 transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-700'}`}>
+        {tab.icon && React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: isActive ? 2.5 : 2 })}
       </span>
       <span 
-        className={`font-semibold truncate transition-all duration-300 leading-none ${isActive ? 'text-indigo-700' : ''}`} 
-        style={{ fontSize: isCollapsed ? '8px' : fontSize }}
+        className={`truncate transition-all duration-300 leading-none ${isActive ? 'font-bold text-indigo-700' : 'font-medium'}`} 
+        style={{ fontSize: isCollapsed ? '9px' : fontSize, letterSpacing: '-0.01em' }}
       >
         {tab.label}
       </span>
@@ -385,16 +385,16 @@ export default function Dashboard() {
           <div className="mt-2">
             <button
               onClick={() => setIsHrExpanded(!isHrExpanded)}
-              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2.5 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-gray-50/80 text-slate-500 hover:text-slate-900 border border-transparent'}`}
             >
-              <span className="shrink-0 text-gray-400 group-hover:text-indigo-600">
+              <span className="shrink-0 text-slate-400 group-hover:text-slate-700 transition-colors">
                 <Users size={18} strokeWidth={2} />
               </span>
               {!isCollapsed && (
-                <span className="text-[14px] font-semibold truncate leading-none flex-1 text-left">HR</span>
+                <span className="text-[13px] font-medium tracking-tight truncate leading-none flex-1 text-left">HR</span>
               )}
               {!isCollapsed && (
-                <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
               )}
             </button>
 
@@ -410,16 +410,16 @@ export default function Dashboard() {
           <div className="mt-2">
             <button
               onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
-              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2.5 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-gray-50/80 text-slate-500 hover:text-slate-900 border border-transparent'}`}
             >
-              <span className="shrink-0 text-gray-400 group-hover:text-indigo-600">
+              <span className="shrink-0 text-slate-400 group-hover:text-slate-700 transition-colors">
                 <Sparkles size={18} strokeWidth={2} />
               </span>
               {!isCollapsed && (
-                <span className="text-[14px] font-semibold truncate leading-none flex-1 text-left">Features</span>
+                <span className="text-[13px] font-medium tracking-tight truncate leading-none flex-1 text-left">Features</span>
               )}
               {!isCollapsed && (
-                <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
               )}
             </button>
 
@@ -445,16 +445,16 @@ export default function Dashboard() {
             <div>
               <button
                 onClick={() => setIsReportsExpanded(!isReportsExpanded)}
-                className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-indigo-50/80 text-gray-600 hover:text-indigo-700'}`}
+                className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2.5 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-gray-50/80 text-slate-500 hover:text-slate-900 border border-transparent'}`}
               >
-                <span className="shrink-0 text-gray-400 group-hover:text-indigo-600">
+                <span className="shrink-0 text-slate-400 group-hover:text-slate-700 transition-colors">
                   <BarChart3 size={18} strokeWidth={2} />
                 </span>
                 {!isCollapsed && (
-                  <span className="text-[14px] font-semibold truncate leading-none flex-1 text-left">Reports</span>
+                  <span className="text-[13px] font-medium tracking-tight truncate leading-none flex-1 text-left">Reports</span>
                 )}
                 {!isCollapsed && (
-                  <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
                 )}
               </button>
               
@@ -528,7 +528,7 @@ export default function Dashboard() {
 
   if (authLoading || (user?.orgId && empLoading)) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 mb-6 flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse">
           <span className="text-white text-3xl font-bold">H</span>
         </div>
@@ -547,7 +547,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="min-h-screen bg-white flex flex-col" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/80 h-14 shrink-0 px-4 flex items-center justify-between shadow-sm">
@@ -627,10 +627,10 @@ export default function Dashboard() {
             {renderMenu()}
           </nav>
         </aside>
-        <div className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
-          <main className="flex-1 overflow-auto bg-[#F8FAFC] relative flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0 bg-white">
+          <main className="flex-1 overflow-auto bg-white relative flex flex-col">
 <ErrorBoundary>
-                <div className="w-full max-w-[1200px] mx-auto flex-1 p-4">
+                <div className="w-full max-w-[1300px] flex-1 p-4">
                   {renderTabContent()}
                 </div>
               </ErrorBoundary>

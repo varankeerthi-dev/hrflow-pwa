@@ -400,20 +400,20 @@ if (!isOpen) return null;
           <tbody className="divide-y divide-[#e5e5e5]">
             {employees.map(emp => (
               <tr key={emp.id} className="group h-12 hover:bg-[#f5f5f5] bg-white transition-colors">
-                <td className="px-4">
+                <td className="px-4 border-b border-zinc-200">
                   <div className="flex flex-col">
                     <span className="text-[14px] font-semibold text-[#171717]">{emp.name}</span>
                   </div>
                 </td>
-                <td className="px-4 text-center text-[13px] text-[#525252] font-medium">{Number(emp.ot || 0).toFixed(2)}</td>
-                <td className="px-4">
+                <td className="px-4 text-center text-[13px] text-[#525252] font-medium border-b border-zinc-200">{Number(emp.ot || 0).toFixed(2)}</td>
+                <td className="px-4 border-b border-zinc-200">
                   <div className="flex items-center justify-center gap-1">
                     <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-6 w-6 flex items-center justify-center border border-[#d4d4d4] rounded hover:bg-[#f5f5f5] text-[#525252] transition-colors">-</button>
                     <input type="number" step="0.5" className="w-12 text-center text-xs border border-[#d4d4d4] rounded py-1 focus:ring-1 focus:border-[#171717] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/>
                     <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-6 w-6 flex items-center justify-center border border-[#d4d4d4] rounded hover:bg-[#f5f5f5] text-[#525252] transition-colors">+</button>
                   </div>
                 </td>
-                <td className="px-4 text-right text-[13px] font-semibold text-[#171717] relative">
+                <td className="px-4 text-right text-[13px] font-semibold text-[#171717] relative border-b border-zinc-200">
                   <div className="flex items-center justify-end gap-2">
                     {(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}
                     <button 
@@ -919,19 +919,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
   useEffect(() => { setDetectedSandwiches([]); setSelectedSandwichDays(new Set()); }, [summaryMonth])
 
-  useEffect(() => { 
-    if (activeTab === 'salary-summary' && summarySubTab === 'detailed') { 
-      if (!isCollapsed) { 
-        setIsCollapsed(true); 
-        setIsAutoCollapsed(true); 
-      } 
-    } else { 
-      if (isAutoCollapsed) { 
-        setIsCollapsed(false); 
-        setIsAutoCollapsed(false); 
-      } 
-    } 
-  }, [activeTab, summarySubTab])
+  // Auto-collapse behavior has been removed
 
   const sortedEmployees = useMemo(() => {
     const base = employees.filter(e => e.includeInSalary !== false);
@@ -1768,17 +1756,17 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 const lockHistory = run.history?.find(h => h.action === 'locked') || {};
                 return (
                   <tr key={run.id} className="hover:bg-slate-50 transition-colors h-12">
-                    <td className="px-4 font-bold text-slate-900">{formatMonthDisplay(run.month)}</td>
-                    <td className="px-4 text-slate-600">{formatDateDDMMYYYY(run.startDate)} to {formatDateDDMMYYYY(run.endDate)}</td>
-                    <td className="px-4 text-center font-bold text-slate-700">{run.totalHeadcount}</td>
-                    <td className="px-4 text-right font-black text-slate-900">{formatINR(run.totalNet)}</td>
-                    <td className="px-4 text-center font-bold text-indigo-600">{lockHistory.performedBy || 'System'}</td>
-                    <td className="px-4 text-center text-slate-400">
+                    <td className="px-4 font-bold text-slate-900 border-b border-zinc-200">{formatMonthDisplay(run.month)}</td>
+                    <td className="px-4 text-slate-600 border-b border-zinc-200">{formatDateDDMMYYYY(run.startDate)} to {formatDateDDMMYYYY(run.endDate)}</td>
+                    <td className="px-4 text-center font-bold text-slate-700 border-b border-zinc-200">{run.totalHeadcount}</td>
+                    <td className="px-4 text-right font-black text-slate-900 border-b border-zinc-200">{formatINR(run.totalNet)}</td>
+                    <td className="px-4 text-center font-bold text-indigo-600 border-b border-zinc-200">{lockHistory.performedBy || 'System'}</td>
+                    <td className="px-4 text-center text-slate-400 border-b border-zinc-200">
                       {lockHistory.timestamp?.toDate 
                         ? new Date(lockHistory.timestamp.toDate()).toLocaleDateString()
                         : (lockHistory.timestamp ? new Date(lockHistory.timestamp).toLocaleDateString() : '-')}
                     </td>
-                    <td className="px-4 text-right">
+                    <td className="px-4 text-right border-b border-zinc-200">
                       <button 
                         onClick={() => {
                           setSelectedPastRunId(run.id);
@@ -1991,9 +1979,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             ) : (
                               advExpRows.map((r, i) => (
                                 <tr key={i} className="hover:bg-zinc-50 transition-colors">
-                                  <td className="p-2.5 font-medium text-slate-500">{formatDateDDMMYYYY(r.date)}</td>
-                                  <td className="p-2.5"><span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase border ${r.type==='Advance'?'bg-red-50 text-red-600 border-red-100':'bg-green-50 text-green-600 border-green-100'}`}>{r.type}</span></td>
-                                  <td className="p-2.5 text-right font-black text-zinc-900">{formatINR(r.amount)}</td>
+                                  <td className="p-2.5 font-medium text-slate-500 border-b border-zinc-200">{formatDateDDMMYYYY(r.date)}</td>
+                                  <td className="p-2.5 border-b border-zinc-200"><span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase border ${r.type==='Advance'?'bg-red-50 text-red-600 border-red-100':'bg-green-50 text-green-600 border-green-100'}`}>{r.type}</span></td>
+                                  <td className="p-2.5 text-right font-black text-zinc-900 border-b border-zinc-200">{formatINR(r.amount)}</td>
                                 </tr>
                               ))
                             )}
@@ -2012,14 +2000,15 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-[80] px-2">
               <div className="flex gap-4 items-center">
                 {/* Current / History Toggle */}
-                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+                {/* Notion Inspired Tabs Row */}
+                <div className="flex items-center gap-0.5">
                   <button 
                     onClick={() => {
                       setPayrollSubTab('current');
                       setSelectedPastRunId(null);
                     }}
-                    className={`px-3 h-[30px] flex items-center rounded-lg text-xs font-bold transition-all hover:scale-105 active:scale-95 capitalize ${
-                      payrollSubTab === 'current' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-900'
+                    className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
+                      payrollSubTab === 'current' ? 'text-blue-700 bg-blue-50/80 font-bold shadow-[inset_0_-2px_0_0_#3b82f6,0_2px_4px_rgba(59,130,246,0.15)]' : 'text-zinc-500 font-medium hover:text-zinc-800 hover:bg-zinc-100/50'
                     }`}
                   >
                     Active Run
@@ -2029,47 +2018,45 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       setPayrollSubTab('history');
                       setSelectedPastRunId(null);
                     }}
-                    className={`px-3 h-[30px] flex items-center rounded-lg text-xs font-bold transition-all hover:scale-105 active:scale-95 capitalize ${
-                      payrollSubTab === 'history' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-900'
+                    className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
+                      payrollSubTab === 'history' ? 'text-blue-700 bg-blue-50/80 font-bold shadow-[inset_0_-2px_0_0_#3b82f6,0_2px_4px_rgba(59,130,246,0.15)]' : 'text-zinc-500 font-medium hover:text-zinc-800 hover:bg-zinc-100/50'
                     }`}
                   >
                     History
                   </button>
-                </div>
 
-                {payrollSubTab === 'current' && (
-                  <>
-                    <div className="h-6 w-px bg-slate-200"></div>
-                      <div className="flex bg-slate-100/85 p-1.5 rounded-2xl border border-slate-200/60 gap-1">
-                        {[
-                          {id:'overview',l:'Overview'},
-                          {id:'detailed',l:'Detailed Summary'}
-                        ].map(t=>(
-                          <button 
-                            key={t.id} 
-                            onClick={()=>setSummarySubTab(t.id)} 
-                            className={`px-3 h-[30px] flex items-center text-[12px] font-black capitalize rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 ${
-                              summarySubTab===t.id
-                                ? 'text-indigo-600'
-                                : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
-                            }`}
-                          >
-                            {t.l}
-                          </button>
-                        ))}
-                        
-                        <div className="relative group">
-                          <button className={`px-3 h-[30px] flex items-center text-[12px] font-black capitalize rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 outline-none cursor-pointer ${['variable','sandwich'].includes(summarySubTab) ? 'text-indigo-600 bg-white/60' : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'}`}>
-                            More <ChevronDown size={14} className="ml-1" />
-                          </button>
-                          <div className="absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl hidden group-hover:block z-[100] py-1">
-                            <button onClick={() => setSummarySubTab('variable')} className={`w-full text-left px-4 py-2 text-xs font-semibold ${summarySubTab === 'variable' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600 hover:bg-slate-50'}`}>Vouchers</button>
-                            <button onClick={() => setSummarySubTab('sandwich')} className={`w-full text-left px-4 py-2 text-xs font-semibold ${summarySubTab === 'sandwich' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600 hover:bg-slate-50'}`}>Sandwich Rule</button>
-                          </div>
+                  {payrollSubTab === 'current' && (
+                    <>
+                      <div className="h-4 w-px bg-zinc-200 mx-2"></div>
+                      {[
+                        {id:'overview',l:'Overview'},
+                        {id:'detailed',l:'Detailed Summary'}
+                      ].map(t=>(
+                        <button 
+                          key={t.id} 
+                          onClick={()=>setSummarySubTab(t.id)} 
+                          className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
+                            summarySubTab===t.id
+                              ? 'text-blue-700 bg-blue-50/80 font-bold shadow-[inset_0_-2px_0_0_#3b82f6,0_2px_4px_rgba(59,130,246,0.15)]'
+                              : 'text-zinc-500 font-medium hover:text-zinc-800 hover:bg-zinc-100/50'
+                          }`}
+                        >
+                          {t.l}
+                        </button>
+                      ))}
+                      
+                      <div className="relative group">
+                        <button className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors outline-none cursor-pointer ${['variable','sandwich'].includes(summarySubTab) ? 'text-blue-700 bg-blue-50/80 font-bold shadow-[inset_0_-2px_0_0_#3b82f6,0_2px_4px_rgba(59,130,246,0.15)]' : 'text-zinc-500 font-medium hover:text-zinc-800 hover:bg-zinc-100/50'}`}>
+                          More <ChevronDown size={14} className="ml-1 opacity-50" />
+                        </button>
+                        <div className="absolute left-0 top-full mt-1 w-40 bg-white border border-zinc-200/70 rounded-lg shadow-lg hidden group-hover:block z-[100] py-1">
+                          <button onClick={() => setSummarySubTab('variable')} className="w-full text-left px-3 py-1.5 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors">Vouchers</button>
+                          <button onClick={() => setSummarySubTab('sandwich')} className="w-full text-left px-3 py-1.5 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors">Sandwich Rule</button>
                         </div>
                       </div>
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
 
                 {payrollSubTab === 'current' && (
                   <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
@@ -2162,50 +2149,50 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   <thead className="sticky top-0 z-40 font-raleway">
                     {/* Group Headers Row */}
                     <tr className="h-[48px]">
-                      <th colSpan={2} className="px-5 text-left border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-blue-900 tracking-widest bg-blue-50/90 sticky left-0 z-50 backdrop-blur-sm shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Staff Profile</th>
-                      <th colSpan={3} className="px-4 text-center border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-orange-900 tracking-widest bg-orange-50/90 backdrop-blur-sm">Period Status</th>
-                      <th colSpan={5} className="px-4 text-center border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-zinc-700 tracking-widest bg-zinc-100/90 backdrop-blur-sm">Performance</th>
-                      <th colSpan={1} className="px-4 text-center border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-indigo-900 tracking-widest bg-indigo-50/90 backdrop-blur-sm">Overtime</th>
-                      <th colSpan={2} className="px-4 text-center border-r border-b-2 border-zinc-200/60 font-black uppercase text-[10px] text-emerald-900 tracking-widest bg-emerald-50/90 backdrop-blur-sm">Sunday/Holiday</th>
-                      <th colSpan={3} className="px-4 text-center border-b-2 border-green-600 font-black uppercase text-[10px] text-white tracking-widest bg-green-600/95 backdrop-blur-sm">Summary & Payout</th>
-                      <th className="w-12 bg-zinc-50 border-b-2 border-zinc-200"></th>
+                      <th colSpan={2} className="px-5 text-left border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-blue-900 bg-blue-50/90 sticky left-0 z-50 backdrop-blur-sm shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Staff Profile</th>
+                      <th colSpan={3} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-orange-900 bg-orange-50/90 backdrop-blur-sm">Period Status</th>
+                      <th colSpan={5} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-zinc-700 bg-zinc-100/90 backdrop-blur-sm">Performance</th>
+                      <th colSpan={1} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-indigo-900 bg-indigo-50/90 backdrop-blur-sm">Overtime</th>
+                      <th colSpan={2} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-emerald-900 bg-emerald-50/90 backdrop-blur-sm">Sunday/Holiday</th>
+                      <th colSpan={3} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-white bg-green-600/95 backdrop-blur-sm">Summary & Payout</th>
+                      <th className="w-12 bg-zinc-50 border-b border-zinc-200"></th>
                     </tr>
                     {/* Primary Header Row */}
-                    <tr className="bg-white/95 backdrop-blur-md text-[9px] uppercase font-black text-zinc-400 tracking-[0.15em] h-[44px] border-b border-zinc-200">
-                      <th className="px-3 text-center border-r border-zinc-100 w-10 sticky left-0 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">#</th>
-                      <th className="px-5 text-left border-r border-zinc-100 w-56 sticky left-10 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Employee Name</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-orange-700/60">Total Days</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-20 text-orange-700/60">Sunday</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-20 text-orange-700/60">Holiday</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24">Worked</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-20">HD</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-20">Leave</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-rose-500/70">LOP</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-emerald-600/80">Paid Days</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-indigo-600/70">OT (Actual)</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-28 text-emerald-600/70">Sunday Wk</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-28 text-emerald-600/70">Holiday Wk</th>
-                      <th className="px-5 text-right border-r border-zinc-100 w-48 bg-green-50/20 text-green-700">Net Payout</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-24 text-green-700">Status</th>
-                      <th className="px-2 text-center border-r border-zinc-100 w-32 text-green-600">Sync</th>
-                      <th className="w-12"></th>
+                    <tr className="bg-white/95 backdrop-blur-md text-[10px] font-semibold text-zinc-400 h-[44px] border-b border-zinc-200">
+                      <th className="px-2 text-center border-r border-zinc-100 w-8 sticky left-0 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">#</th>
+                      <th className="px-3 text-left border-r-[1.2px] border-zinc-300 w-40 sticky left-8 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Employee Name</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-orange-700/60">Total Days</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-14 text-orange-700/60">Sunday</th>
+                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-14 text-orange-700/60">Holiday</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-14">Worked</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-10">HD</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-12">Leave</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-12 text-rose-500/70">LOP</th>
+                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-emerald-600/80">Paid Days</th>
+                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-indigo-600/70">OT (Actual)</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-emerald-600/70">Sunday Wk</th>
+                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-emerald-600/70">Holiday Wk</th>
+                      <th className="px-2 text-right border-r border-zinc-100 w-24 bg-green-50/20 text-green-700">Net Payout</th>
+                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-green-700">Status</th>
+                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-20 text-green-600">Sync</th>
+                      <th className="w-8"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
+                  <tbody className="">
                     {isAttendanceLoading ? (
                        <tr><td colSpan={17} className="py-20 text-center"><Spinner /></td></tr>
                     ) : filteredAttendanceSummaryData.map((e, idx)=>{
                       return (
                       <tr key={e.id} className={`hover:bg-indigo-50/50 transition-all duration-200 h-[48px] group ${idx%2===0?'bg-white':'bg-zinc-50/40'}`}>
-                        <td className="px-3 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-bold font-inter sticky left-0 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5]">{idx + 1}</td>
-                        <td className="px-4 border-r border-zinc-100 text-zinc-800 text-[12px] font-bold tracking-tight truncate w-52 font-inter sticky left-10 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5]">{e.name}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 text-[12px] font-inter">{e.totalDays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-inter">{e.sundays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-inter" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-zinc-700 text-[12px] font-inter">{e.worked}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-zinc-600 text-[12px] font-inter">{e.hd}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 text-[12px] font-inter">{e.leave}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-rose-600 bg-rose-50/20 text-[12px] font-inter relative group/tooltip">
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-bold font-inter sticky left-0 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200">{idx + 1}</td>
+                        <td className="px-3 border-r-[1.2px] border-zinc-300 text-zinc-800 text-[12px] font-bold tracking-tight truncate w-40 font-inter sticky left-8 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200">{e.name}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 text-[12px] font-inter border-b border-zinc-200">{e.totalDays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-inter border-b border-zinc-200">{e.sundays}</td>
+                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 text-zinc-400 text-[12px] font-inter border-b border-zinc-200" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-zinc-700 text-[12px] font-inter border-b border-zinc-200">{e.worked}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-zinc-600 text-[12px] font-inter border-b border-zinc-200">{e.hd}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-500 text-[12px] font-inter border-b border-zinc-200">{e.leave}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-red-600 bg-red-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
                           {e.lop}
                           {e.lopDates?.length > 0 && (
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
@@ -2213,39 +2200,39 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-emerald-600 bg-emerald-50/10 text-[12px] font-inter">
+                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 font-black text-green-700 bg-green-50/30 text-[12px] font-inter border-b border-zinc-200">
                           {e.paidDays}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-indigo-600/80 text-[12px] font-inter relative group/tooltip">
+                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 font-bold text-green-700 bg-green-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
                           {Number(e.ot || 0).toFixed(2)}
                           {e.otAdjustment !== 0 && (
-                            <span className="text-indigo-400 ml-1 font-black text-[9px]">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
+                            <span className="text-green-600 ml-1 font-black text-[9px]">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-emerald-600 bg-emerald-50/10 text-[12px] font-inter relative group/tooltip">
+                        <td className="px-2 text-center border-r border-zinc-50 font-black text-green-700 bg-green-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
                           {e.sunW}
                           {e.sunWDates?.length > 0 && (
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
-                              <span className="text-emerald-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.sunWDates.join(', ')}
+                              <span className="text-green-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.sunWDates.join(', ')}
                             </span>
                           )}
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-100 font-black text-emerald-600 bg-emerald-50/10 text-[12px] font-inter relative group/tooltip">
+                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 font-black text-green-700 bg-green-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
                           {e.holW}
                           {e.holWDates?.length > 0 && (
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
-                              <span className="text-emerald-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.holWDates.join(', ')}
+                              <span className="text-green-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.holWDates.join(', ')}
                             </span>
                           )}
                         </td>
-                        <td className="px-4 text-right border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[12px] font-inter tracking-tight pr-5">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-[12px] font-inter">
+                        <td className="px-4 text-right border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[12px] font-inter tracking-tight pr-5 border-b border-zinc-200">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td className="px-2 text-center border-r border-zinc-50 text-[12px] font-inter border-b border-zinc-200">
                           <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-tighter">Draft</span>
                         </td>
-                        <td className="px-2 text-center border-r border-zinc-50">
+                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200">
                            <div className="flex justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div></div>
                         </td>
-                        <td className="px-2 text-center font-inter">
+                        <td className="px-2 text-center font-inter border-b border-zinc-200">
                           <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-2 hover:bg-zinc-900 hover:text-white rounded-lg transition-all text-zinc-300 active:scale-90">
                             <ArrowUpRight size={16}/>
                           </button>
@@ -2400,7 +2387,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               return (
                                 <React.Fragment key={id}>
                                   <tr className="hover:bg-[#f5f5f5] cursor-pointer group" onClick={toggle}>
-                                    <td className="px-4 py-3 font-semibold text-[#171717]">
+                                    <td className="px-4 py-3 font-semibold text-[#171717] border-b border-zinc-200">
                                       <div className="flex items-center gap-2">
                                         <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                           <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
@@ -2408,18 +2395,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         {g.name}
                                       </div>
                                     </td>
-                                    <td className="px-4 text-center text-xs text-slate-500 font-bold">{g.count} logs</td>
-                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 bg-emerald-50/20">{g.settled.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 bg-indigo-50/20">{g.inSalary.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[13px] font-black text-slate-900">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-center text-xs text-slate-500 font-bold border-b border-zinc-200">{g.count} logs</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 bg-emerald-50/20 border-b border-zinc-200">{g.settled.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 bg-indigo-50/20 border-b border-zinc-200">{g.inSalary.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[13px] font-black text-slate-900 border-b border-zinc-200">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
                                   </tr>
                                   {isExpanded && g.entries.sort((a,b) => b.date.localeCompare(a.date)).map(v => (
                                     <tr key={v.id} className="bg-slate-50/50 border-l-2 border-indigo-200 animate-in slide-in-from-top-1 duration-200">
-                                      <td className="px-10 py-2 text-[11px] text-slate-500 font-medium italic">Entry Detail</td>
-                                      <td className="px-4 text-[12px] text-slate-600 font-mono">{formatDateDDMMYYYY(v.date)}</td>
+                                      <td className="px-10 py-2 text-[11px] text-slate-500 font-medium italic border-b border-zinc-200">Entry Detail</td>
+                                      <td className="px-4 text-[12px] text-slate-600 font-mono border-b border-zinc-200">{formatDateDDMMYYYY(v.date)}</td>
                                       <td className={`px-4 text-right text-[11px] font-bold ${v.isSettled ? 'text-emerald-600' : 'text-slate-300'}`}>{v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
                                       <td className={`px-4 text-right text-[11px] font-bold ${!v.isSettled ? 'text-indigo-600' : 'text-slate-300'}`}>{!v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
-                                      <td className="px-4 text-right text-[11px] font-bold text-slate-400">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[11px] font-bold text-slate-400 border-b border-zinc-200">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
                                     </tr>
                                   ))}
                                 </React.Fragment>
@@ -2447,7 +2434,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               return (
                                 <React.Fragment key={d}>
                                   <tr className="hover:bg-[#f5f5f5] cursor-pointer group" onClick={toggle}>
-                                    <td className="px-4 py-3 font-semibold text-[#171717]">
+                                    <td className="px-4 py-3 font-semibold text-[#171717] border-b border-zinc-200">
                                       <div className="flex items-center gap-2">
                                         <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                           <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
@@ -2455,18 +2442,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         {formatDateDDMMYYYY(g.date)}
                                       </div>
                                     </td>
-                                    <td className="px-4 text-center text-xs text-slate-500 font-bold">{g.count} staff</td>
-                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 bg-emerald-50/20">{g.settled.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 bg-indigo-50/20">{g.inSalary.toLocaleString('en-IN')}</td>
-                                    <td className="px-4 text-right text-[13px] font-black text-slate-900">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-center text-xs text-slate-500 font-bold border-b border-zinc-200">{g.count} staff</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-emerald-600 bg-emerald-50/20 border-b border-zinc-200">{g.settled.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[12px] font-bold text-indigo-600 bg-indigo-50/20 border-b border-zinc-200">{g.inSalary.toLocaleString('en-IN')}</td>
+                                    <td className="px-4 text-right text-[13px] font-black text-slate-900 border-b border-zinc-200">{(g.settled + g.inSalary).toLocaleString('en-IN')}</td>
                                   </tr>
                                   {isExpanded && g.entries.sort((a,b) => a.employeeName.localeCompare(b.employeeName)).map(v => (
                                     <tr key={v.id} className="bg-slate-50/50 border-l-2 border-indigo-200 animate-in slide-in-from-top-1 duration-200">
-                                      <td className="px-10 py-2 text-[12px] text-slate-900 font-semibold">{v.employeeName}</td>
-                                      <td className="px-4 text-[11px] text-slate-400 uppercase font-bold italic text-center">Individual Log</td>
+                                      <td className="px-10 py-2 text-[12px] text-slate-900 font-semibold border-b border-zinc-200">{v.employeeName}</td>
+                                      <td className="px-4 text-[11px] text-slate-400 uppercase font-bold italic text-center border-b border-zinc-200">Individual Log</td>
                                       <td className={`px-4 text-right text-[11px] font-bold ${v.isSettled ? 'text-emerald-600' : 'text-slate-300'}`}>{v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
                                       <td className={`px-4 text-right text-[11px] font-bold ${!v.isSettled ? 'text-indigo-600' : 'text-slate-300'}`}>{!v.isSettled ? (Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN') : '-'}</td>
-                                      <td className="px-4 text-right text-[11px] font-bold text-slate-400">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[11px] font-bold text-slate-400 border-b border-zinc-200">{(Number(v.food||0)+Number(v.convenience||0)+Number(v.bonus||0)).toLocaleString('en-IN')}</td>
                                     </tr>
                                   ))}
                                 </React.Fragment>
@@ -2494,13 +2481,13 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
                             return (
                               <tr key={v.id} className={`hover:bg-[#f5f5f5] ${Object.keys(draft).length > 0 ? 'bg-amber-50/50' : ''}`}>
-                                <td className="px-4 py-2">
+                                <td className="px-4 py-2 border-b border-zinc-200">
                                   <span className="text-[13px] font-semibold text-[#171717]">{v.employeeName}</span>
                                 </td>
-                                <td className="px-4">
+                                <td className="px-4 border-b border-zinc-200">
                                   <span className="text-[12px] text-[#525252] font-mono">{formatDateDDMMYYYY(v.date)}</span>
                                 </td>
-                                <td className="px-4 text-right">
+                                <td className="px-4 text-right border-b border-zinc-200">
                                   <input 
                                     type="number" 
                                     value={food} 
@@ -2508,7 +2495,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
                                   />
                                 </td>
-                                <td className="px-4 text-right">
+                                <td className="px-4 text-right border-b border-zinc-200">
                                   <input 
                                     type="number" 
                                     value={convenience} 
@@ -2516,7 +2503,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
                                   />
                                 </td>
-                                <td className="px-4 text-right">
+                                <td className="px-4 text-right border-b border-zinc-200">
                                   <input 
                                     type="number" 
                                     value={bonus} 
@@ -2524,8 +2511,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     className="w-20 h-7 text-right text-xs border border-transparent hover:border-gray-200 focus:border-indigo-500 rounded bg-transparent px-1 font-bold outline-none"
                                   />
                                 </td>
-                                <td className="px-4 text-right text-[12px] font-bold text-indigo-600">{(Number(food||0) + Number(convenience||0) + Number(bonus||0)).toLocaleString('en-IN')}</td>
-                                <td className="px-4 text-center">
+                                <td className="px-4 text-right text-[12px] font-bold text-indigo-600 border-b border-zinc-200">{(Number(food||0) + Number(convenience||0) + Number(bonus||0)).toLocaleString('en-IN')}</td>
+                                <td className="px-4 text-center border-b border-zinc-200">
                                   <button 
                                     onClick={() => handleCellEdit('isSettled', !isSettled)}
                                     className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter transition-all duration-300 border ${
@@ -2537,7 +2524,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     {isSettled ? 'Paid GPay' : 'In Salary'}
                                   </button>
                                 </td>
-                                <td className="px-4 text-right">
+                                <td className="px-4 text-right border-b border-zinc-200">
                                   <div className="flex justify-end gap-2">
                                     <button 
                                       onClick={() => setEditingVariable(v)}
@@ -2794,7 +2781,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             <tbody className="divide-y divide-[#e5e5e5]">
                               {sortedEmployees.map(emp => (
                                 <tr key={emp.id} className="hover:bg-[#f5f5f5]">
-                                  <td className="px-3 py-2">
+                                  <td className="px-3 py-2 border-b border-zinc-200">
                                     <input 
                                       type="checkbox" 
                                       checked={newVariable.selectedEmps?.includes(emp.id)}
@@ -2808,8 +2795,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                       className="rounded border-gray-300"
                                     />
                                   </td>
-                                  <td className="px-3 py-2 text-[13px] font-medium text-[#171717]">{emp.name}</td>
-                                  <td className="px-3 py-2 text-right">
+                                  <td className="px-3 py-2 text-[13px] font-medium text-[#171717] border-b border-zinc-200">{emp.name}</td>
+                                  <td className="px-3 py-2 text-right border-b border-zinc-200">
                                     <input 
                                       type="number" 
                                       value={newVariable.empData?.[emp.id]?.food ?? newVariable.food}
@@ -2821,7 +2808,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                       placeholder={newVariable.food || '0'}
                                     />
                                   </td>
-                                  <td className="px-3 py-2 text-right">
+                                  <td className="px-3 py-2 text-right border-b border-zinc-200">
                                     <input 
                                       type="number" 
                                       value={newVariable.empData?.[emp.id]?.convenience ?? newVariable.convenience}
@@ -2833,7 +2820,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                       placeholder={newVariable.convenience || '0'}
                                     />
                                   </td>
-                                  <td className="px-3 py-2 text-right">
+                                  <td className="px-3 py-2 text-right border-b border-zinc-200">
                                     <input 
                                       type="number" 
                                       value={newVariable.empData?.[emp.id]?.bonus ?? newVariable.bonus}
@@ -2963,16 +2950,16 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                           <tbody className="divide-y divide-zinc-200 bg-white">
                             {detectedSandwiches.map(s => (
                               <tr key={`${s.empId}_${s.date}`} className="h-[32px] hover:bg-sky-50/30 transition-colors">
-                                <td className="px-3 border-r border-zinc-100"><input type="checkbox" checked={selectedSandwichDays.has(`${s.empId}_${s.date}`)} onChange={() => {
+                                <td className="px-3 border-r border-zinc-100 border-b border-zinc-200"><input type="checkbox" checked={selectedSandwichDays.has(`${s.empId}_${s.date}`)} onChange={() => {
                                   const next = new Set(selectedSandwichDays);
                                   if (next.has(`${s.empId}_${s.date}`)) next.delete(`${s.empId}_${s.date}`);
                                   else next.add(`${s.empId}_${s.date}`);
                                   setSelectedSandwichDays(next);
                                 }} className="w-3 h-3 rounded border-zinc-300" /></td>
-                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{s.empName}</td>
-                                <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(s.date)}</td>
-                                <td className="px-3 border-r border-zinc-100 text-center"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${s.type === 'Sunday' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{s.type}</span></td>
-                                <td className="px-3 text-center text-rose-600 font-black text-[11px]">+1 Day LOP</td>
+                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px] border-b border-zinc-200">{s.empName}</td>
+                                <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600 border-b border-zinc-200">{formatDateDDMMYYYY(s.date)}</td>
+                                <td className="px-3 border-r border-zinc-100 text-center border-b border-zinc-200"><span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${s.type === 'Sunday' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>{s.type}</span></td>
+                                <td className="px-3 text-center text-rose-600 font-black text-[11px] border-b border-zinc-200">+1 Day LOP</td>
                               </tr>
                             ))}
                           </tbody>
@@ -3087,12 +3074,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               <tr><td colSpan={5} className="py-20 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">No records found</td></tr>
                             ) : filteredHistory.map(h => (
                               <tr key={h.id} className="h-[32px] hover:bg-sky-50/30 transition-colors">
-                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px]">{(() => {
+                                <td className="px-3 border-r border-zinc-100 font-bold text-slate-900 uppercase text-[11px] border-b border-zinc-200">{(() => {
                                   const emp = employees.find(e => e.id === h.employeeId);
                                   return emp?.name || h.employeeName || 'Unknown staff';
                                 })()}</td>
-                                <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600">{formatDateDDMMYYYY(h.date)}</td>
-                                <td className="px-3 border-r border-zinc-100 text-center">
+                                <td className="px-3 border-r border-zinc-100 text-center font-mono text-[11px] font-bold text-zinc-600 border-b border-zinc-200">{formatDateDDMMYYYY(h.date)}</td>
+                                <td className="px-3 border-r border-zinc-100 text-center border-b border-zinc-200">
                                   {(() => {
                                     const dateObj = h.date ? new Date(h.date) : null;
                                     const isSunday = dateObj && dateObj.getDay() === 0;
@@ -3105,8 +3092,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     );
                                   })()}
                                 </td>
-                                <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
-                                <td className="px-3 text-center">
+                                <td className="px-3 border-r border-zinc-100 text-center text-slate-400 text-[10px] font-bold uppercase border-b border-zinc-200">{h.appliedAt?.toDate ? h.appliedAt.toDate().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
+                                <td className="px-3 text-center border-b border-zinc-200">
                                   <button 
                                     onClick={() => {
                                       setSelectedHistoryItem(h);
@@ -3215,7 +3202,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     <tfoot className="sticky bottom-0 z-30 font-raleway shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
                       <tr className="bg-zinc-900 text-white font-black h-12">
                         <td colSpan={visibleDetailedSummaryColumns.length - 1} className="px-6 text-right uppercase tracking-[0.3em] text-[11px] border-r-2 border-zinc-800">Gross Organization Payout for {formatMonthDisplay(summaryMonth)}</td>
-                        <td className="px-2 text-right bg-green-600 text-[15px] tabular-nums border-l-2 border-green-700 font-black">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, e) => sum + (e.salary?.net || 0), 0))}</td>
+                        <td className="px-2 text-right bg-green-600 text-[15px] tabular-nums border-l-2 border-green-700 font-black border-b border-zinc-200">{formatSummaryCurrency(attendanceSummaryData.reduce((sum, e) => sum + (e.salary?.net || 0), 0))}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -3308,10 +3295,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             <tr><td colSpan={5} className="px-4 py-16 text-center text-[12px] text-[#525252]">No active loan schedules</td></tr>
                           ) : loans.map(l => (
                             <tr key={l.id} className="hover:bg-[#f5f5f5] transition-colors h-12 group">       
-                              <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717]">{l.employeeName}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717]">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-emerald-600">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 text-right">
+                              <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717] border-b border-zinc-200">{l.employeeName}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717] border-b border-zinc-200">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-emerald-600 border-b border-zinc-200">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 text-right border-b border-zinc-200">
                                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                   <button onClick={() => handleEditLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Edit"><Edit2 size={14}/></button>
                                   <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Override"><RefreshCw size={14}/></button>
@@ -3372,10 +3359,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               const monthOverride = loanOverrides.find(o => o.loanId === l.id && o.month === thisMonth)
                               return (
                             <tr key={l.id} className="hover:bg-[#f5f5f5] transition-colors h-12 group">       
-                              <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717]">{l.employeeName}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717]">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-emerald-600">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-center">
+                              <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717] border-b border-zinc-200">{l.employeeName}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717] border-b border-zinc-200">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-emerald-600 border-b border-zinc-200">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-[#e5e5e5] text-center border-b border-zinc-200">
                                 {monthOverride ? (
                                   monthOverride.skip ? (
                                     <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">Skipped</span>
@@ -3386,7 +3373,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                   <span className="text-[10px] text-[#a3a3a3]">—</span>
                                 )}
                               </td>
-                              <td className="px-4 text-right">
+                              <td className="px-4 text-right border-b border-zinc-200">
                                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                   <button onClick={() => handleEditLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Edit"><Edit2 size={14}/></button>
                                   <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Override"><RefreshCw size={14}/></button>
@@ -3471,11 +3458,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                   
                                   return (
                                     <tr key={`${l.id}_${m.month}`} className={`h-11 hover:bg-[#f5f5f5] ${m.isCurrentMonth ? 'bg-amber-50' : ''}`}>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717]">{l.employeeName}</td>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-[12px] text-[#525252]">{m.month}</td>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] text-[#525252]">{monthlyEMI.toLocaleString('en-IN')}</td>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717]">{paid.toLocaleString('en-IN')}</td>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-center">
+                                      <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717] border-b border-zinc-200">{l.employeeName}</td>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-[12px] text-[#525252] border-b border-zinc-200">{m.month}</td>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] text-[#525252] border-b border-zinc-200">{monthlyEMI.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717] border-b border-zinc-200">{paid.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 border-r border-[#e5e5e5] text-center border-b border-zinc-200">
                                         {m.override?.skip ? (
                                           <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">Skipped</span>
                                         ) : m.override?.amount && m.override.amount !== monthlyEMI ? (
@@ -3486,7 +3473,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                           <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">Pending</span>
                                         )}
                                       </td>
-                                      <td className="px-4 text-right text-[13px] font-semibold text-[#171717]">{Math.max(0, balance).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[13px] font-semibold text-[#171717] border-b border-zinc-200">{Math.max(0, balance).toLocaleString('en-IN')}</td>
                                     </tr>
                                   )
                                 })
