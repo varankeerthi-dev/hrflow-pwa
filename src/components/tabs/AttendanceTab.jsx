@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance, calcOT } from '../../hooks/useAttendance'
 import { db } from '../../lib/firebase'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
@@ -360,6 +360,26 @@ export default function AttendanceTab({ defaultSubTab }) {
   const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' ? 'reports' : 'daily') // 'daily' or 'reports'
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
   const [remarksOptions, setRemarksOptions] = useState([])
+
+  const handleAddRemarkOption = async (newOption) => {
+    if (!user?.orgId) return
+    const trimmed = newOption.trim()
+    if (!trimmed || remarksOptions.includes(trimmed)) return
+    
+    // Optimistic update
+    setRemarksOptions(prev => [...prev, trimmed])
+    
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId), {
+        remarksOptions: arrayUnion(trimmed)
+      })
+    } catch (err) {
+      console.error('Error adding remark option:', err)
+      // Rollback optimistic update
+      setRemarksOptions(prev => prev.filter(o => o !== trimmed))
+    }
+  }
+
   useEffect(() => {
     const fetchOrgSettings = async () => {
       if (!user?.orgId) return
@@ -1330,6 +1350,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                           <RemarksDropdown
                             value={row.remarks || ''}
                             onChange={val => updateRow(row.employeeId, 'remarks', val)}
+                            onAddOption={handleAddRemarkOption}
                             options={remarksOptions}
                             disabled={!row.employeeId || row.isAbsent}
                           />
