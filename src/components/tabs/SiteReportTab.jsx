@@ -2,8 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useAttendance } from '../../hooks/useAttendance'
 import { useEmployees } from '../../hooks/useEmployees'
-import { Search, ChevronLeft, ChevronRight, MapPin, Users, CalendarDays } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, MapPin, Users, CalendarDays, Download } from 'lucide-react'
 import Spinner from '../ui/Spinner'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function SiteReportTab() {
   const { user } = useAuth()
@@ -173,6 +175,127 @@ export default function SiteReportTab() {
     }
   }, [pivotData])
 
+  const exportPDF = () => {
+    try {
+      if (pivotData.length === 0) {
+        alert('No data to export.')
+        return
+      }
+
+      const doc = new jsPDF('p', 'mm', 'a4')
+      
+      // Page dimensions: 210 x 297 mm
+      // Title
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.setTextColor(24, 24, 27) // zinc-900
+      doc.text(user?.orgName || 'HRFlow Site Report', 15, 20)
+      
+      // Period
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(113, 113, 122) // zinc-500
+      const periodText = `Period: ${formatDate(dateRange.start)} to ${formatDate(dateRange.end)}`
+      doc.text(periodText, 15, 26)
+      
+      // Generation Date
+      const todayStr = new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
+      doc.text(`Generated: ${todayStr}`, 15, 32)
+      
+      // 1. Site Summary Table
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.setTextColor(24, 24, 27)
+      doc.text('Site Summary', 15, 42)
+      
+      const summaryBody = pivotData.map((row, idx) => [
+        idx + 1,
+        row.siteName,
+        row.totalDays,
+        row.totalManpower
+      ])
+      
+      // Add Grand Total row to summary table
+      const totalDaysSum = pivotData.reduce((acc, curr) => acc + curr.totalDays, 0)
+      const totalManpowerSum = pivotData.reduce((acc, curr) => acc + curr.totalManpower, 0)
+      summaryBody.push([
+        { content: 'Grand Total', colSpan: 2, styles: { fontStyle: 'bold', fillColor: [250, 250, 250] } },
+        { content: totalDaysSum, styles: { fontStyle: 'bold', fillColor: [250, 250, 250] } },
+        { content: totalManpowerSum, styles: { fontStyle: 'bold', fillColor: [250, 250, 250] } }
+      ])
+      
+      autoTable(doc, {
+        startY: 46,
+        head: [['#', 'Site Name', 'Total Days', 'Total Manpower']],
+        body: summaryBody,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 3.5, textColor: [39, 39, 42], font: 'helvetica' },
+        headStyles: { fillColor: [244, 244, 245], textColor: [24, 24, 27], fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 95 },
+          2: { cellWidth: 35, halign: 'center' },
+          3: { cellWidth: 35, halign: 'center' }
+        }
+      })
+      
+      let nextY = doc.lastAutoTable.finalY + 12
+      
+      // 2. Site Detailed Breakdowns
+      pivotData.forEach((site) => {
+        // If it exceeds the page limit, add a new page
+        if (nextY > 230) {
+          doc.addPage()
+          nextY = 20
+        }
+        
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(11)
+        doc.setTextColor(24, 24, 27)
+        doc.text(`${site.siteName} - Daily Breakdown`, 15, nextY)
+        
+        const detailsBody = site.details.map((d) => [
+          formatDate(d.date),
+          d.employees.join(', '),
+          d.manpower
+        ])
+        
+        autoTable(doc, {
+          startY: nextY + 4,
+          head: [['Date', 'Employee Names', 'Total Manpower']],
+          body: detailsBody,
+          theme: 'grid',
+          styles: { fontSize: 8.5, cellPadding: 3, textColor: [63, 63, 70], font: 'helvetica' },
+          headStyles: { fillColor: [250, 250, 250], textColor: [82, 82, 91], fontStyle: 'bold' },
+          columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 120 },
+            2: { cellWidth: 30, halign: 'center' }
+          }
+        })
+        
+        nextY = doc.lastAutoTable.finalY + 10
+      })
+      
+      // Add page numbers
+      const pageCount = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setTextColor(161, 161, 170) // zinc-400
+        doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' })
+      }
+      
+      // Save PDF
+      const filenameDate = new Date().toISOString().slice(0, 10)
+      doc.save(`Site_Report_${filenameDate}.pdf`)
+    } catch (err) {
+      console.error('PDF Export Error:', err)
+      alert(`Failed to generate PDF. Error: ${err.message || 'Unknown error'}`)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-slate-50">
       {/* Top Bar */}
@@ -231,6 +354,13 @@ export default function SiteReportTab() {
               className="pl-8 pr-3 py-1.5 w-44 bg-white border border-zinc-200 rounded-md text-[13px] focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all font-medium text-zinc-800 placeholder:text-zinc-400 shadow-sm"
             />
           </div>
+          <button 
+            onClick={exportPDF}
+            className="h-8 px-3.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-md text-[12px] font-medium tracking-tight flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+          >
+            <Download size={14} />
+            Export PDF
+          </button>
         </div>
       </div>
 

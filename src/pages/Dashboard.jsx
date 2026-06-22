@@ -517,7 +517,7 @@ export default function Dashboard() {
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />
       case 'accountant': return <AccountantTab />
-      case 'salary-slip': return <SalarySlipTab defaultSummarySubTab={salarySubTab} defaultActiveTab={salaryActiveTab} />
+      case 'salary-slip': return <SalarySlipTab defaultSummarySubTab={salarySubTab} defaultActiveTab={salaryActiveTab} onActiveTabChange={setSalaryActiveTab} />
       case 'advance': return <AdvanceExpenseTab />
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
@@ -571,11 +571,11 @@ export default function Dashboard() {
             const userPerms = user?.permissions || {}
             const isAdmin = user?.role?.toLowerCase() === 'admin'
             const quickActions = [
-              { label: 'Add attendance', tab: 'attendance-list', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
-              { label: 'Add Employee', tab: 'employees', icon: <Users size={14} />, module: 'Employees', right: 'create' },
-              { label: 'Advances', tab: 'advance', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
-              { label: 'Full Summary', tab: 'salary-slip', salaryActiveTab: 'full-summary', icon: <BarChart3 size={14} />, module: 'SalarySlip', right: 'view' },
-              { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
+              { label: 'Add attendance', tab: 'attendance-list', tooltip: 'New entry?', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
+              { label: 'Add Employee', tab: 'employees', tooltip: 'New employee?', icon: <Users size={14} />, module: 'Employees', right: 'create' },
+              { label: 'Advances', tab: 'advance', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
+              { label: 'Full Summary', tab: 'salary-slip', salaryActiveTab: 'full-summary', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'SalarySlip', right: 'view' },
+              { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', tooltip: 'Track daily checklist?', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
             ].filter(action => {
               if (isAdmin) return true
               if (action.module === 'Employees') return userPerms['Employees']?.create === true || userPerms['Settings']?.create === true
@@ -584,11 +584,36 @@ export default function Dashboard() {
             })
             if (quickActions.length === 0) return null
             return (
-              <div className="hidden lg:flex items-center gap-2 ml-8 pl-8 border-l border-gray-200/80">
+              <div className="hidden lg:flex items-center gap-2.5 ml-8 pl-8 border-l border-gray-200/80">
                 {quickActions.map(item => (
-                  <button key={item.tab} onClick={() => { setActiveTab(item.tab); setTabSearchParams({ tab: item.tab }); if (item.tab === 'salary-slip' && item.salaryActiveTab) setSalaryActiveTab(item.salaryActiveTab); if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) }} className={`px-4 h-9 rounded-none text-[13px] font-semibold whitespace-nowrap transition-all duration-200 ${activeTab === item.tab ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-gray-600 hover:bg-indigo-50/50'}`}>
-                    {item.label}
-                  </button>
+                  <div key={item.tab} className="relative group">
+                    <button 
+                      onClick={() => { 
+                        setActiveTab(item.tab); 
+                        setTabSearchParams({ tab: item.tab }); 
+                        if (item.tab === 'salary-slip' && item.salaryActiveTab) setSalaryActiveTab(item.salaryActiveTab); 
+                        if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); 
+                        if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) 
+                      }} 
+                      className={`px-3.5 h-8.5 rounded-lg text-[13px] font-semibold whitespace-nowrap hover:scale-105 active:scale-[0.98] transition-all duration-150 flex items-center gap-1.5 cursor-pointer ${
+                        activeTab === item.tab 
+                          ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/50' 
+                          : 'bg-white text-zinc-600 hover:bg-zinc-50 border border-zinc-200/60 shadow-sm'
+                      }`}
+                    >
+                      <span className={activeTab === item.tab ? 'text-indigo-600' : 'text-zinc-400'}>
+                        {item.icon}
+                      </span>
+                      {item.label}
+                    </button>
+                    
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 invisible group-hover:visible opacity-0 scale-95 origin-top group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 bg-zinc-950 text-white text-[11px] font-semibold py-1.5 px-3 rounded-lg shadow-md whitespace-nowrap z-50 pointer-events-none flex flex-col items-center border border-zinc-800">
+                      <span className="text-zinc-400 text-[9px] uppercase tracking-wider font-bold mb-0.5">{item.label}</span>
+                      <span>{item.tooltip}</span>
+                      {/* Arrow */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-zinc-950" />
+                    </div>
+                  </div>
                 ))}
               </div>
             )
@@ -633,8 +658,8 @@ export default function Dashboard() {
         </aside>
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <main className="flex-1 overflow-auto bg-white relative flex flex-col">
-<ErrorBoundary>
-                <div className="w-full max-w-[1300px] flex-1 p-4">
+            <ErrorBoundary>
+                <div className={`w-full flex-1 p-4 ${activeTab === 'salary-slip' && salaryActiveTab === 'full-summary' ? 'max-w-none' : 'max-w-[1300px]'}`}>
                   {renderTabContent()}
                 </div>
               </ErrorBoundary>

@@ -215,8 +215,35 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
   const exportPDF = () => {
     const printContent = document.getElementById('monthly-pivot-table')
     if (!printContent) return
+
+    // Calculate table width
+    const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
+    let blockW = 0
+    if (columnSettings.inTime) blockW += colW.inTime
+    if (columnSettings.outTime) blockW += colW.outTime
+    if (columnSettings.workingTime) blockW += colW.workingTime
+    if (columnSettings.ot) blockW += colW.ot
+    if (columnSettings.remarks) blockW += colW.remarks
+    if (blockW === 0) blockW = 56
+    const totalTableW = 65 + (monthlyViewData.employees?.length || 0) * (blockW + gapW)
+
+    // Select dynamic page size based on table width to maintain readability
+    let pageSize = 'A4'
+    let printWidth = 1050 // Safe landscape print area for A4 in pixels
+    
+    if (totalTableW > 2000) {
+      pageSize = 'A2'
+      printWidth = 2200
+    } else if (totalTableW > 1100) {
+      pageSize = 'A3'
+      printWidth = 1500
+    }
+    
+    const scaleFactor = Math.min(1, printWidth / totalTableW)
+
     const clone = printContent.cloneNode(true)
     clone.querySelectorAll('.sticky').forEach(el => el.classList.remove('sticky', 'left-0', 'top-0', 'z-10', 'z-20', 'z-30', 'z-40'))
+    
     const printWindow = window.open('', '', 'width=1200,height=800')
     printWindow.document.write(`
       <html>
@@ -226,20 +253,30 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
           <script src="https://cdn.tailwindcss.com"></script>
           <style>
             body { font-family: 'Inter', sans-serif; padding: 20px; }
-            table { border-collapse: collapse; width: auto; font-size: 7px; table-layout: fixed; }
+            table { border-collapse: collapse; width: ${totalTableW}px !important; font-size: 7px; table-layout: fixed; }
             th, td { border: 1px solid #e5e7eb !important; padding: 4px 2px !important; text-align: center; word-wrap: break-word; }
             th { font-weight: 900; text-transform: uppercase; color: #000 !important; }
             th div { color: #000 !important; }
             th:not([class*="bg-"]) { background-color: #f9fafb !important; }
+            
             @media print { 
-              @page { size: landscape; margin: 1cm; } 
-              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              @page { size: ${pageSize} landscape; margin: 0.5cm; } 
+              html, body {
+                width: ${totalTableW}px !important;
+                overflow: visible !important;
+              }
+              body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                transform: scale(${scaleFactor});
+                transform-origin: 0 0;
+              }
               th { color: #000 !important; -webkit-print-color-adjust: exact; }
               th div { color: #000 !important; }
             }
           </style>
         </head>
-        <body><div style="margin-bottom: 20px; text-align: center;"><h1 style="font-size: 16px; font-weight: 900; text-transform: uppercase;">Monthly Attendance Report</h1><p style="font-size: 12px; color: #6b7280; font-weight: 700;">${formatMonth(selectedMonth)}</p></div>${clone.outerHTML}</body>
+        <body><div style="margin-bottom: 20px; text-align: center; width: ${totalTableW}px;"><h1 style="font-size: 16px; font-weight: 900; text-transform: uppercase;">Monthly Attendance Report</h1><p style="font-size: 12px; color: #6b7280; font-weight: 700;">${formatMonth(selectedMonth)}</p></div>${clone.outerHTML}</body>
       </html>
     `)
     printWindow.document.close(); printWindow.onload = () => { setTimeout(() => { printWindow.print(); printWindow.close(); }, 1000) }

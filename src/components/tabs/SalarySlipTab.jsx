@@ -89,6 +89,7 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'advance', label: 'Advance', width: 55 },
   { id: 'reimb', label: 'Expense', width: 55 },
   { id: 'netAdj', label: 'Net\n(Adv-Exp)', width: 60 },
+  { id: 'totalDed', label: 'Total deductions', width: 80 },
   { id: 'net', label: 'Net payout', width: 110, mandatory: true }
 ];
 
@@ -158,6 +159,7 @@ const DetailedSalarySummaryPDF = ({ data, month, orgName, visibleColumns, visibl
       case 'advance': return Math.round(row.advanceAmount).toLocaleString('en-IN');
       case 'reimb': return Math.round(row.expenseAmount).toLocaleString('en-IN');
       case 'netAdj': return Math.round((row.advanceAmount || 0) - (row.expenseAmount || 0)).toLocaleString('en-IN');
+      case 'totalDed': return Math.round(row.totalDeductions || 0).toLocaleString('en-IN');
       case 'net': return Math.round(row.salary?.net || 0).toLocaleString('en-IN');
       default: return '-';
     }
@@ -448,7 +450,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
 
 // --- MAIN COMPONENT ---
 
-export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary' }) {
+export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary', onActiveTabChange }) {
   const { user } = useAuth(); const { employees } = useEmployees(user?.orgId, true); const { slabs, increments } = useSalarySlab(user?.orgId);
   const { isCollapsed, setIsCollapsed, setIsAutoCollapsed, isAutoCollapsed } = useSidebar();
   const queryClient = useQueryClient();
@@ -458,6 +460,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   useEffect(() => {
     if (defaultActiveTab) setActiveTab(defaultActiveTab)
   }, [defaultActiveTab])
+
+  useEffect(() => {
+    if (onActiveTabChange) {
+      onActiveTabChange(activeTab)
+    }
+  }, [activeTab, onActiveTabChange])
 
   const [selectedEmp, setSelectedEmp] = useState('')
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -1493,12 +1501,27 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     if (!attendanceSummaryData.length) return; 
     setExportingDetailedPdf(true); 
     try { 
+      // Prepare all columns mapped with dynamicNameWidth
+      const pdfColumns = DETAILED_SUMMARY_COLUMNS.map(c => ({
+        ...c,
+        width: c.id === 'name' ? dynamicNameWidth : c.width
+      }));
+      
+      const pdfGroups = [
+        { id: 'basic', label: 'Basic Info', color: 'blue', columns: ['sno', 'empNo', 'name', 'designation'] },
+        { id: 'structure', label: 'CTC', color: 'purple', columns: ['salaryCtc'] },
+        { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'lop', 'paidDays'] },
+        { id: 'earnings', label: 'Earnings (PAID)', color: 'emerald', columns: ['basicPaid', 'hraPaid', 'salaryPaid', 'sundayPay', 'holidayPay', 'otPay', 'earnings'] },
+        { id: 'genDeductions', label: 'Deductions & Vouchers', color: 'red', columns: ['pf', 'esi', 'loan', 'ded', 'advance', 'reimb', 'netAdj'] },
+        { id: 'summary', label: 'Payout Summary', color: 'green', columns: ['totalDed', 'net'] }
+      ].map(g => ({ ...g, visibleCount: g.columns.length }));
+
       const blob = await pdf(<DetailedSalarySummaryPDF 
         data={attendanceSummaryData} 
         month={summaryMonth} 
         orgName={user?.orgName} 
-        visibleColumns={visibleDetailedSummaryColumns}
-        visibleGroups={visibleGroups}
+        visibleColumns={pdfColumns}
+        visibleGroups={pdfGroups}
       />).toBlob(); 
       downloadPdfBlob(blob, `Summary_${summaryMonth}.pdf`); 
     } finally { 
