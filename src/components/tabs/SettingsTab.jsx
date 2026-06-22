@@ -343,14 +343,21 @@ export default function SettingsTab({ initialSubTab }) {
     { id: 'site_geofence', label: 'Site Geofence', module: 'Settings' },
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' }
   ]
-  
-  const visibleSubTabs = allSubTabs
+
+  const visibleSubTabs = useMemo(() => {
+    const isUserAdmin = user?.role?.toLowerCase() === 'admin'
+    return allSubTabs.filter(t => t.id !== 'user_roles' || isUserAdmin)
+  }, [allSubTabs, user?.role])
 
   useEffect(() => {
+    const isUserAdmin = user?.role?.toLowerCase() === 'admin'
+    if (activeSubTab === 'user_roles' && !isUserAdmin) {
+      setActiveSubTab('organization')
+    }
     if (!initialSubTab && !visibleSubTabs.find(t => t.id === activeSubTab) && visibleSubTabs.length > 0) {
       setActiveSubTab(visibleSubTabs[0].id)
     }
-  }, [user, initialSubTab])
+  }, [user, initialSubTab, activeSubTab, visibleSubTabs])
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
