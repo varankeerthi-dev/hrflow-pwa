@@ -356,17 +356,19 @@ export default function Dashboard() {
     <button 
       key={tab.id} 
       onClick={onClick} 
-      className={`w-full flex transition-all duration-200 group ${isCollapsed ? 'flex-col items-center justify-center py-2 gap-1' : 'items-center px-3 py-2.5 gap-3'} ${isActive ? 'bg-indigo-50 text-indigo-700 rounded-xl shadow-[inset_0_1px_0_white,0_1px_2px_rgba(0,0,0,0.02)] border border-indigo-100/60' : 'hover:bg-gray-50/80 text-slate-500 hover:text-slate-900 rounded-xl border border-transparent'}`}
+      className={`${isActive ? 'sidebar-active' : 'sidebar-inactive'} ${isCollapsed ? 'justify-center px-0' : ''}`}
     >
-      <span className={`shrink-0 transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-700'}`}>
-        {tab.icon && React.cloneElement(tab.icon, { size: isCollapsed ? 20 : 18, strokeWidth: isActive ? 2.5 : 2 })}
+      <span className="shrink-0">
+        {tab.icon && React.cloneElement(tab.icon, { size: 16, strokeWidth: isActive ? 2 : 1.5 })}
       </span>
-      <span 
-        className={`truncate transition-all duration-300 leading-none ${isActive ? 'font-bold text-indigo-700' : 'font-medium'}`} 
-        style={{ fontSize: isCollapsed ? '9px' : fontSize, letterSpacing: '-0.01em' }}
-      >
-        {tab.label}
-      </span>
+      {!isCollapsed && (
+        <span 
+          className="truncate" 
+          style={{ fontSize }}
+        >
+          {tab.label}
+        </span>
+      )}
     </button>
   )
 
@@ -384,24 +386,24 @@ export default function Dashboard() {
         {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
 
         {hrItems.length > 0 && (
-          <div className="mt-2">
+          <div className="mt-1">
             <button
               onClick={() => setIsHrExpanded(!isHrExpanded)}
-              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2.5 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-gray-50/80 text-slate-500 hover:text-slate-900 border border-transparent'}`}
+              className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0' : ''}`}
             >
-              <span className="shrink-0 text-slate-400 group-hover:text-slate-700 transition-colors">
-                <Users size={18} strokeWidth={2} />
+              <span className="shrink-0 text-zinc-400">
+                <Users size={16} strokeWidth={1.5} />
               </span>
               {!isCollapsed && (
-                <span className="text-[13px] font-medium tracking-tight truncate leading-none flex-1 text-left">HR</span>
+                <span className="text-[13px] font-medium truncate flex-1 text-left">HR</span>
               )}
               {!isCollapsed && (
-                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
               )}
             </button>
 
             {isHrExpanded && (
-              <div className={`${isCollapsed ? 'ml-0 pl-0 border-l-0' : 'ml-3 pl-3 border-l-2 border-gray-100'} space-y-0.5`}>
+              <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
                 {hrItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }, '12px'))}
               </div>
             )}
@@ -409,24 +411,24 @@ export default function Dashboard() {
         )}
 
         {featuresItems.length > 0 && (
-          <div className="mt-2">
+          <div className="mt-1">
             <button
               onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
-              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2.5 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-gray-50/80 text-slate-500 hover:text-slate-900 border border-transparent'}`}
+              className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0' : ''}`}
             >
-              <span className="shrink-0 text-slate-400 group-hover:text-slate-700 transition-colors">
-                <Sparkles size={18} strokeWidth={2} />
+              <span className="shrink-0 text-zinc-400">
+                <Sparkles size={16} strokeWidth={1.5} />
               </span>
               {!isCollapsed && (
-                <span className="text-[13px] font-medium tracking-tight truncate leading-none flex-1 text-left">Features</span>
+                <span className="text-[13px] font-medium truncate flex-1 text-left">Features</span>
               )}
               {!isCollapsed && (
-                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
               )}
             </button>
 
             {isFeaturesExpanded && (
-              <div className={`${isCollapsed ? 'ml-0 pl-0 border-l-0' : 'ml-3 pl-3 border-l-2 border-gray-100'} space-y-0.5`}>
+              <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
                 {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }, '12px'))}
               </div>
             )}
@@ -434,12 +436,14 @@ export default function Dashboard() {
         )}
 
         {operationsItem && (
-          <div className="mt-2">
+          <div className="mt-1">
             {renderMenuItem(operationsItem, activeTab === 'operations', () => { setActiveTab('operations'); setTabSearchParams({ tab: 'operations' }); setIsMobileMenuOpen(false) })}
           </div>
         )}
 
-        <div className="mt-auto pt-2 border-t border-gray-200/80 space-y-0.5">
+        <div className="sidebar-divider mt-auto" />
+
+        <div className="pt-1 space-y-0.5">
           {visibleTabs.find(t => t.id === 'accountant') && renderMenuItem(visibleTabs.find(t => t.id === 'accountant'), activeTab === 'accountant', () => { setActiveTab('accountant'); setTabSearchParams({ tab: 'accountant' }); setIsMobileMenuOpen(false) })}
           
           {/* Reports Collapsible */}
@@ -447,21 +451,21 @@ export default function Dashboard() {
             <div>
               <button
                 onClick={() => setIsReportsExpanded(!isReportsExpanded)}
-                className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 group px-3 py-2.5 ${isCollapsed ? 'justify-center' : ''} ${isCollapsed ? '' : 'hover:bg-gray-50/80 text-slate-500 hover:text-slate-900 border border-transparent'}`}
+                className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                <span className="shrink-0 text-slate-400 group-hover:text-slate-700 transition-colors">
-                  <BarChart3 size={18} strokeWidth={2} />
+                <span className="shrink-0 text-zinc-400">
+                  <BarChart3 size={16} strokeWidth={1.5} />
                 </span>
                 {!isCollapsed && (
-                  <span className="text-[13px] font-medium tracking-tight truncate leading-none flex-1 text-left">Reports</span>
+                  <span className="text-[13px] font-medium truncate flex-1 text-left">Reports</span>
                 )}
                 {!isCollapsed && (
-                  <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
                 )}
               </button>
               
               {isReportsExpanded && (
-                <div className={`${isCollapsed ? 'ml-0 pl-0 border-l-0' : 'ml-3 pl-3 border-l-2 border-gray-100'} space-y-0.5`}>
+                <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
                   {visibleTabs.find(t => t.id === 'attendance-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'attendance-reports'), activeTab === 'attendance-reports', () => { setActiveTab('attendance-reports'); setTabSearchParams({ tab: 'attendance-reports' }); setIsMobileMenuOpen(false) }, '11px')}
                   {visibleTabs.find(t => t.id === 'site-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'site-reports'), activeTab === 'site-reports', () => { setActiveTab('site-reports'); setTabSearchParams({ tab: 'site-reports' }); setIsMobileMenuOpen(false) }, '11px')}
                 </div>
@@ -645,14 +649,13 @@ export default function Dashboard() {
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
         <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
-          <div className="p-4 border-b border-gray-200/80 flex items-center justify-between md:hidden h-14 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-sm"><Building2 size={16} className="text-white" /></div>
-              <span className="text-sm font-bold text-gray-900 tracking-tight">HRFlow</span>
-            </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 transition-colors"><X size={18} /></button>
+          {/* Mobile-only header with close button */}
+          <div className="md:hidden p-4 flex items-center justify-end border-b border-gray-200/60 h-14 shrink-0">
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-zinc-500 transition-colors">
+              <X size={18} />
+            </button>
           </div>
-          <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 px-1 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
             {renderMenu()}
           </nav>
         </aside>

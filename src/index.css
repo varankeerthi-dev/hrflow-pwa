@@ -75,48 +75,193 @@ body {
 }
 
 /* Enhanced UI Utilities */
-.sidebar-active {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: #ffffff;
-  font-weight: 700;
-  border-left: 3px solid #4f46e5;
-  border-radius: 0;
+
+/* ─── Sidebar — Vercel style ──────────────────────────────────── */
+
+/* Org switcher row at top of sidebar */
+.sidebar-org {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 10px;
 }
 
-.sidebar-hover {
-  background-color: #f1f5f9;
-  color: #6366f1;
-  transition: all 0.2s ease;
+.sidebar-org-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--color-bg-secondary);
+  border: 0.5px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
 }
 
-.sidebar-inactive {
-  background-color: #ffffff;
-  color: #64748b;
-  transition: all 0.2s ease;
+.sidebar-org-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Section labels — plain, not uppercase */
 .section-header {
-  color: var(--color-text-secondary);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  padding: 10px 12px 4px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
+/* Nav item base — shared by all three states */
+.sidebar-active,
+.sidebar-inactive,
+.sidebar-hover {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  margin: 0 4px;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: calc(100% - 8px);
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+/* Inactive */
+.sidebar-inactive {
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+/* Hover & Zoom animations */
+.sidebar-hover,
+.sidebar-inactive:hover,
+.sidebar-active:hover {
+  background: #f3f4f6;
+  color: var(--color-text-primary);
+  transform: scale(1.02);
+}
+
+/* Click compression animation */
+.sidebar-inactive:active,
+.sidebar-active:active {
+  transform: scale(0.98);
+}
+
+/* Active */
+.sidebar-active {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+/* Unread / count badge */
+.sidebar-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-tertiary);
+  border: 0.5px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  line-height: 16px;
+}
+
+/* Thin rule between sections */
+.sidebar-divider {
+  height: 0.5px;
+  background: var(--color-border);
+  margin: 6px 0;
+}
+
+/* ─── Left panel (module sub-nav) ─────────────────────────────── */
+.left-panel {
+  background: white;
+  border-radius: 8px;
+  border: 0.5px solid var(--color-border);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 70px;
+  height: fit-content;
+}
+
+.left-panel-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  padding: 8px 8px 4px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.left-panel-btn {
+  width: 100%;
+  padding: 0 8px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.1s, color 0.1s;
+  box-sizing: border-box;
+}
+
+.left-panel-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.left-panel-btn.active {
+  background: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.left-panel-btn.active span {
+  color: inherit !important;
+}
+
+/* ─── Header buttons ──────────────────────────────────────────── */
 .header-button {
   border-color: var(--color-border);
-  transition: all 0.2s ease;
+  transition: background 0.1s, border-color 0.1s;
 }
 
 .header-button:hover {
-  border-color: var(--color-primary);
-  background-color: #eef2ff;
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border);
 }
 
 .header-button-active {
-  background-color: #eef2ff;
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .font-google-sans {
@@ -147,61 +292,7 @@ body {
   }
 }
 
-/* Side Menu Professional Theme */
-.left-panel {
-  background: white;
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
-  position: sticky;
-  top: 70px;
-  height: fit-content;
-}
 
-.left-panel-title {
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #9ca3af;
-  padding: 4px 8px 2px;
-  margin-top: 4px;
-}
-
-.left-panel-btn {
-  width: 100%;
-  padding: 6px 10px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: left;
-  font-weight: 600;
-  font-size: 11px;
-  color: #4b5563;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.15s;
-}
-
-.left-panel-btn:hover {
-  background: #f3f4f6;
-  color: #1f2937;
-}
-
-.left-panel-btn.active {
-  background: linear-gradient(135deg,#667eea 0%,#764ba2 100%) !important;
-  color: white !important;
-  box-shadow: 0 4px 10px rgba(99,102,241,0.35);
-}
-
-.left-panel-btn.active span {
-  color: white !important;
-}
 
 @theme inline {
   --font-heading: var(--font-sans);
