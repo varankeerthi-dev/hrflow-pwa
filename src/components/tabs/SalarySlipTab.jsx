@@ -3395,7 +3395,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 )}
                               </td>
                               <td className="px-4 text-right border-b border-zinc-200">
-                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
                                   <button onClick={() => handleEditLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Edit"><Edit2 size={14}/></button>
                                   <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Override"><RefreshCw size={14}/></button>
                                   <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-[#525252] hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
