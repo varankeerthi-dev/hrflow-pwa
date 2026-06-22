@@ -2088,7 +2088,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 )}
 
                 {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status === 'draft' && (
-                  <button onClick={handleResync} className="h-7 w-7 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all" title="Re-sync Calculations"><RefreshCw size={14} /></button>
+                  <button onClick={handleResync} className="h-8 w-8 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all" title="Re-sync Calculations"><RefreshCw size={14} /></button>
                 )}
                 {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
                   <div className="flex items-center gap-1.5 ml-2">
@@ -2100,27 +2100,27 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       'bg-emerald-50 text-emerald-600 border-emerald-200'
                     }`}>{activeRun.status}</span>
                     {activeRun.status === 'draft' && (
-                      <button onClick={() => handleStatusChange('review', 'submitted')} className="h-7 w-7 flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm transition-all" title="Submit for Review"><ArrowRight size={14} /></button>
+                      <button onClick={() => handleStatusChange('review', 'submitted')} className="h-8 w-8 flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm transition-all" title="Submit for Review"><ArrowRight size={14} /></button>
                     )}
                     {activeRun.status === 'review' && (
                       <>
-                        <button onClick={() => handleStatusChange('approved', 'approved')} className="h-7 w-7 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-sm transition-all" title="Approve"><CheckCircle2 size={14} /></button>
-                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-7 w-7 flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white rounded-lg shadow-sm transition-all" title="Reject / Revert"><X size={14} /></button>
+                        <button onClick={() => handleStatusChange('approved', 'approved')} className="h-8 w-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-sm transition-all" title="Approve"><CheckCircle2 size={14} /></button>
+                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-8 w-8 flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white rounded-lg shadow-sm transition-all" title="Reject / Revert"><X size={14} /></button>
                       </>
                     )}
                     {activeRun.status === 'approved' && (
                       <>
-                        <button onClick={() => handleStatusChange('locked', 'locked')} className="h-7 w-7 flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-all" title="Lock & Pay"><Save size={14} /></button>
-                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-7 w-7 flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white rounded-lg shadow-sm transition-all" title="Revert to Draft"><RotateCcw size={14} /></button>
+                        <button onClick={() => handleStatusChange('locked', 'locked')} className="h-8 w-8 flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-all" title="Lock & Pay"><Save size={14} /></button>
+                        <button onClick={() => handleStatusChange('draft', 'rejected')} className="h-8 w-8 flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white rounded-lg shadow-sm transition-all" title="Revert to Draft"><RotateCcw size={14} /></button>
                       </>
                     )}
                     {activeRun.status === 'locked' && (
-                      <button onClick={() => handleStatusChange('draft', 'unlocked')} className="h-7 w-7 flex items-center justify-center bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg shadow-sm transition-all" title="Unlock Run"><RotateCcw size={14} /></button>
+                      <button onClick={() => handleStatusChange('draft', 'unlocked')} className="h-8 w-8 flex items-center justify-center bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg shadow-sm transition-all" title="Unlock Run"><RotateCcw size={14} /></button>
                     )}
                   </div>
                 )}
                 {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status !== 'locked' && activeRun.status !== 'approved' && (
-                  <button onClick={() => setIsOtModalOpen(true)} className="h-7 px-3 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all text-[10px] font-black uppercase tracking-[0.1em] whitespace-nowrap">OT Change</button>
+                  <button onClick={() => setIsOtModalOpen(true)} className="h-8 px-3.5 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all text-[10px] font-black uppercase tracking-[0.1em] whitespace-nowrap">OT Change</button>
                 )}
               </div>
             </div>
