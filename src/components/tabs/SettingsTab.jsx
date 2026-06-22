@@ -66,6 +66,13 @@ function getTodayDate() {
   return new Date().toISOString().split('T')[0]
 }
 
+const bankAccountSchema = z.object({
+  bankName: z.string().trim().min(1, 'Bank Name is required'),
+  accountNo: z.string().trim().min(1, 'Account Number is required').regex(/^\d+$/, 'Account Number must contain only digits'),
+  ifsc: z.string().trim().min(1, 'IFSC Code is required').regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC Code format (e.g. HDFC0001234)'),
+  branchName: z.string().trim().min(1, 'Branch Name is required')
+})
+
 const employeeValidationSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   empCode: z.string().trim().optional(),
@@ -232,7 +239,7 @@ const settingsPanelClassName = 'rounded-xl border border-slate-200/80 bg-white s
 const settingsInsetPanelClassName = 'rounded-lg border border-slate-200 bg-slate-50/70'
 const settingsInputClassName = 'w-full h-11 rounded-lg border border-slate-200 bg-white px-4 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
 const settingsTextareaClassName = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-none'
-const settingsSectionLabelClassName = 'mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500'
+const settingsSectionLabelClassName = 'mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-700'
 const settingsSubTabMeta = {
   organization: {
     title: 'Organization Control Center',
@@ -331,7 +338,7 @@ export default function SettingsTab({ initialSubTab }) {
     ]
   })
 
-  const isAdmin = true // RBAC removed - simplicity first
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
   const userPermissions = useMemo(() => user?.permissions || {}, [user?.permissions])
   const allSubTabs = [
     { id: 'organization', label: 'Organization', module: 'Settings' },
@@ -346,8 +353,12 @@ export default function SettingsTab({ initialSubTab }) {
 
   const visibleSubTabs = useMemo(() => {
     const isUserAdmin = user?.role?.toLowerCase() === 'admin'
-    return allSubTabs.filter(t => t.id !== 'user_roles' || isUserAdmin)
-  }, [allSubTabs, user?.role])
+    return allSubTabs.filter(t => {
+      if (t.id === 'user_roles') return isUserAdmin
+      if (isUserAdmin) return true
+      return userPermissions[t.module]?.view === true
+    })
+  }, [allSubTabs, user?.role, userPermissions])
 
   useEffect(() => {
     const isUserAdmin = user?.role?.toLowerCase() === 'admin'
@@ -372,16 +383,24 @@ export default function SettingsTab({ initialSubTab }) {
   const [newRole, setNewRole] = useState({ 
     name: '', 
     description: '', 
+    isAccountant: false,
     permissions: { Tasks: { view: true } } 
   })
   const [orgSettings, setOrgSettings] = useState({
-    name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: '', code: '', shiftStrategy: 'Day', logoURL: '',
+    name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: [], code: '', shiftStrategy: 'Day', logoURL: '',
     advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
     holidays: [],
     saturdayType: 'working', // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
     remarksOptions: [],
     newRemarkOption: ''
   })
+  const [newBankAccount, setNewBankAccount] = useState({
+    bankName: '',
+    accountNo: '',
+    ifsc: '',
+    branchName: ''
+  })
+  const [bankAccountError, setBankAccountError] = useState('')
   const [sites, setSites] = useState([])
   const [editingSiteId, setEditingSiteId] = useState(null)
   const [siteForm, setSiteForm] = useState({
@@ -743,7 +762,8 @@ export default function SettingsTab({ initialSubTab }) {
             name: data.name || user?.orgName || prev.name || '',
             code: data.code || orgSnap.id,
             advanceCategories: data.advanceCategories || prev.advanceCategories,
-            holidays: data.holidays || prev.holidays
+            holidays: data.holidays || prev.holidays,
+            bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : []
           }))
         } else {
           // If no org doc exists, use user.orgName as fallback
@@ -1506,10 +1526,63 @@ export default function SettingsTab({ initialSubTab }) {
     setSaving(true)
     try {
       if (editingRole) {
+        // Update the role document itself
         await updateDoc(doc(db, 'organisations', user.orgId, 'roles', editingRole.id), {
           ...newRole,
           updatedAt: serverTimestamp()
         })
+
+        // Propagate changes to all users currently assigned this role
+        const oldRoleName = editingRole.name
+        const newRoleName = newRole.name
+        const newPermissions = newRole.permissions || {}
+
+        const usersToUpdate = users.filter(u => u.role && u.role.toLowerCase() === oldRoleName.toLowerCase())
+
+        if (usersToUpdate.length > 0) {
+          const updatePromises = usersToUpdate.map(u => {
+            const userRef = doc(db, 'users', u.id)
+            let updatedMemberships = u.memberships || []
+            if (updatedMemberships.length > 0) {
+              updatedMemberships = updatedMemberships.map(m => {
+                if (m.orgId === user.orgId) {
+                  return { ...m, role: newRoleName }
+                }
+                return m
+              })
+            }
+            const updatedUserPayload = {
+              role: newRoleName,
+              permissions: newPermissions,
+              ...(updatedMemberships.length > 0 ? { memberships: updatedMemberships } : {})
+            }
+            return updateDoc(userRef, updatedUserPayload)
+          })
+          await Promise.all(updatePromises)
+
+          // Update local users state
+          setUsers(prev => prev.map(u => {
+            if (u.role && u.role.toLowerCase() === oldRoleName.toLowerCase()) {
+              let updatedMemberships = u.memberships || []
+              if (updatedMemberships.length > 0) {
+                updatedMemberships = updatedMemberships.map(m => {
+                  if (m.orgId === user.orgId) {
+                    return { ...m, role: newRoleName }
+                  }
+                  return m
+                })
+              }
+              return {
+                ...u,
+                role: newRoleName,
+                permissions: newPermissions,
+                memberships: updatedMemberships
+              }
+            }
+            return u
+          }))
+        }
+
         setRoles(prev => prev.map(r => r.id === editingRole.id ? { ...r, ...newRole } : r))
       } else {
         const docRef = await addDoc(collection(db, 'organisations', user.orgId, 'roles'), {
@@ -1520,7 +1593,7 @@ export default function SettingsTab({ initialSubTab }) {
       }
       setShowAddRole(false)
       setEditingRole(null)
-      setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } })
+      setNewRole({ name: '', description: '', isAccountant: false, permissions: { Tasks: { view: true } } })
     } catch (err) {
       console.error('Role save error:', err)
       alert('Failed to save role')
@@ -1529,7 +1602,7 @@ export default function SettingsTab({ initialSubTab }) {
     }
   }
 
-    const handleUpdateUserRole = async (uid, newRoleName) => {
+  const handleUpdateUserRole = async (uid, newRoleName) => {
     if (!isAdmin && userPermissions['Roles']?.edit !== true) return alert('You do not have permission to change user roles.')
     try {
       // Fetch org document to check for creatorId
@@ -1565,9 +1638,22 @@ export default function SettingsTab({ initialSubTab }) {
 
       // Find the user to see if they are missing name or empCode
       const userObj = users.find(u => u.id === uid)
+      
+      // Update memberships if present
+      let updatedMemberships = userObj?.memberships || []
+      if (updatedMemberships.length > 0) {
+        updatedMemberships = updatedMemberships.map(m => {
+          if (m.orgId === user.orgId) {
+            return { ...m, role: newRoleName }
+          }
+          return m
+        })
+      }
+
       const updatePayload = { 
         role: newRoleName,
-        permissions: permissions
+        permissions: permissions,
+        ...(updatedMemberships.length > 0 ? { memberships: updatedMemberships } : {})
       }
 
       // Sync name and empCode from employee collection if missing in user doc
@@ -1680,7 +1766,8 @@ export default function SettingsTab({ initialSubTab }) {
         setOrgSettings(prev => ({
           ...prev,
           ...data,
-          name: data.name || prev.name
+          name: data.name || prev.name,
+          bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : []
         }))
       }
 
@@ -2450,6 +2537,40 @@ export default function SettingsTab({ initialSubTab }) {
     }
   }
 
+  const handleAddBankAccount = () => {
+    try {
+      setBankAccountError('')
+      bankAccountSchema.parse(newBankAccount)
+      
+      const currentAccounts = Array.isArray(orgSettings.bankAccounts) ? orgSettings.bankAccounts : []
+      setOrgSettings(s => ({
+        ...s,
+        bankAccounts: [...currentAccounts, { ...newBankAccount }]
+      }))
+      
+      setNewBankAccount({
+        bankName: '',
+        accountNo: '',
+        ifsc: '',
+        branchName: ''
+      })
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        setBankAccountError(err.errors[0].message)
+      } else {
+        setBankAccountError(err.message)
+      }
+    }
+  }
+
+  const handleRemoveBankAccount = (index) => {
+    const currentAccounts = Array.isArray(orgSettings.bankAccounts) ? orgSettings.bankAccounts : []
+    setOrgSettings(s => ({
+      ...s,
+      bankAccounts: currentAccounts.filter((_, i) => i !== index)
+    }))
+  }
+
   const handleAddAdvanceCategory = () => {
     const trimmed = newAdvanceCategory.trim()
     if (!trimmed) return
@@ -2547,120 +2668,151 @@ export default function SettingsTab({ initialSubTab }) {
               Loading organisation data...
             </div>
           ) : (
-            <div className="grid max-w-6xl grid-cols-1 gap-5 lg:grid-cols-2 no-print">
+            <div className="grid max-w-6xl grid-cols-1 gap-4 lg:grid-cols-2 no-print">
               {/* Left Card - Organization Information */}
-              <div className={`${settingsPanelClassName} p-6 space-y-6 md:p-7`}>
+              <div className={`${settingsPanelClassName} p-4 space-y-3.5 md:p-5`}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Brand and profile</p>
-                    <h3 className="mt-2 text-[21px] font-black tracking-[-0.03em] text-slate-950">Organization Information</h3>
+                    <h3 className="mt-1 text-[18px] font-black tracking-[-0.03em] text-slate-950">Organization Information</h3>
                   </div>
-                  <div className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">
+                  <div className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-600">
                     {saved ? 'Saved' : 'Draft'}
                   </div>
                 </div>
 
-                {/* Logo Upload */}
-                <div className={`${settingsInsetPanelClassName} flex flex-col items-center p-6`}>
-                  <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[28px] border-2 border-dashed border-slate-300 bg-white transition-all hover:border-indigo-400">
-                    {uploadingLogo ? (
-                      <div className="flex flex-col items-center justify-center">
-                        <svg className="animate-spin h-6 w-6 text-indigo-500" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                        </svg>
-                        <span className="text-[9px] text-gray-400 font-medium mt-1">Uploading...</span>
-                      </div>
-                    ) : orgSettings.logoURL ? (
-                      <img 
-                        src={orgSettings.logoURL} 
-                        className="w-full h-full object-cover rounded-full" 
-                        alt="Logo" 
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 12a8 8 0 018-8v8H4z" /></svg>
-                        <span className="text-[9px] text-gray-400 font-medium">Upload</span>
-                      </div>
-                    )}
-                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploadingLogo} onChange={async (e) => {
-                      const file = e.target.files[0]
-                      if (!file) return
-                      
-                      try {
-                        setUploadingLogo(true)
-                        const url = await handleFileUpload(file, `orgs/${user.orgId}/logo_${Date.now()}`)
-                        if (url) {
-                          setOrgSettings(s => ({ ...s, logoURL: url }))
-                          // Immediately persist to Firestore
-                          await setDoc(doc(db, 'organisations', user.orgId), { logoURL: url }, { merge: true })
-                          alert('Organisation logo updated successfully!')
-                        }
-                      } catch (err) {
-                        console.error('Logo upload error:', err)
-                        alert('Failed to upload logo: ' + err.message)
-                      } finally {
-                        setUploadingLogo(false)
-                      }
-                    }} />
+                {/* Logo Upload - Compact Horizontal Left/Right Aligned */}
+                <div className={`${settingsInsetPanelClassName} p-3 grid grid-cols-[1.2fr_1.8fr] gap-4 items-center`}>
+                  <div>
+                    <p className="text-[11px] font-extrabold text-slate-900 leading-tight">Organization Logo</p>
+                    <p className="text-[9.5px] text-slate-500 leading-normal mt-0.5">Supported: PNG, JPG. Click badge to upload.</p>
                   </div>
-                  <div className="mt-3 text-center">
-                    <p className="text-[13px] font-bold text-slate-900">Upload Logo</p>
-                    <p className="mt-1 text-[11px] text-slate-500">Supported: PNG, JPG</p>
+                  <div className="flex justify-end">
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-white transition-all hover:border-indigo-400">
+                      {uploadingLogo ? (
+                        <div className="flex flex-col items-center justify-center">
+                          <svg className="animate-spin h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          </svg>
+                        </div>
+                      ) : orgSettings.logoURL ? (
+                        <img 
+                          src={orgSettings.logoURL} 
+                          className="w-full h-full object-cover rounded-xl" 
+                          alt="Logo" 
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center">
+                          <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 12a8 8 0 018-8v8H4z" /></svg>
+                        </div>
+                      )}
+                      <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploadingLogo} onChange={async (e) => {
+                        const file = e.target.files[0]
+                        if (!file) return
+                        
+                        try {
+                          setUploadingLogo(true)
+                          const url = await handleFileUpload(file, `orgs/${user.orgId}/logo_${Date.now()}`)
+                          if (url) {
+                            setOrgSettings(s => ({ ...s, logoURL: url }))
+                            // Immediately persist to Firestore
+                            await setDoc(doc(db, 'organisations', user.orgId), { logoURL: url }, { merge: true })
+                            alert('Organisation logo updated successfully!')
+                          }
+                        } catch (err) {
+                          console.error('Logo upload error:', err)
+                          alert('Failed to upload logo: ' + err.message)
+                        } finally {
+                          setUploadingLogo(false)
+                        }
+                      }} />
+                    </div>
                   </div>
                 </div>
 
-                {/* Form Fields */}
-                <div className="space-y-4">
-                  {[
-                    { label: 'Organization Name', key: 'name', required: true },
-                    { label: 'Email', key: 'email' },
-                    { label: 'Address', key: 'address', isTextarea: true },
-                    { label: 'Branch Address', key: 'branchAddress', isTextarea: true },
-                    { label: 'GSTIN', key: 'gstin' }
-                  ].map(f => (
-                    <div key={f.key}>
-                      <label className={settingsSectionLabelClassName}>{f.label}{f.required && <span className="text-red-500"> *</span>}</label>
-                      {f.isTextarea ? (
-                        <textarea
-                          value={orgSettings[f.key] || ''}
-                          onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))}
-                          rows={3}
-                          className={settingsTextareaClassName}
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={orgSettings[f.key] || ''}
-                          onChange={e => setOrgSettings(s => ({ ...s, [f.key]: e.target.value }))}
-                          className={settingsInputClassName}
-                        />
-                      )}
+                {/* Form Fields - Labels Left, Inputs Right */}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-center">
+                    <label className={`${settingsSectionLabelClassName} mb-0`}>Organization Name<span className="text-red-500"> *</span></label>
+                    <input
+                      type="text"
+                      value={orgSettings.name || ''}
+                      onChange={e => setOrgSettings(s => ({ ...s, name: e.target.value }))}
+                      className={settingsInputClassName}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-center">
+                    <label className={`${settingsSectionLabelClassName} mb-0`}>Email</label>
+                    <input
+                      type="text"
+                      value={orgSettings.email || ''}
+                      onChange={e => setOrgSettings(s => ({ ...s, email: e.target.value }))}
+                      className={settingsInputClassName}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-center">
+                    <label className={`${settingsSectionLabelClassName} mb-0`}>GSTIN</label>
+                    <input
+                      type="text"
+                      value={orgSettings.gstin || ''}
+                      onChange={e => setOrgSettings(s => ({ ...s, gstin: e.target.value }))}
+                      className={settingsInputClassName}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-0.5">
+                    <div className="pt-1">
+                      <label className={`${settingsSectionLabelClassName} mb-0`}>Address</label>
                     </div>
-                  ))}
+                    <textarea
+                      value={orgSettings.address || ''}
+                      onChange={e => setOrgSettings(s => ({ ...s, address: e.target.value }))}
+                      rows={1.5}
+                      className={settingsTextareaClassName}
+                    />
+                  </div>
 
-                  {/* Attendance Remarks Options */}
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-0.5">
+                    <div className="pt-1">
+                      <label className={`${settingsSectionLabelClassName} mb-0`}>Branch Address</label>
+                    </div>
+                    <textarea
+                      value={orgSettings.branchAddress || ''}
+                      onChange={e => setOrgSettings(s => ({ ...s, branchAddress: e.target.value }))}
+                      rows={1.5}
+                      className={settingsTextareaClassName}
+                    />
+                  </div>
+                </div>
+
+                {/* Attendance Remarks Options */}
+                <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-1.5">
                   <div>
-                    <label className={settingsSectionLabelClassName}>Attendance Remarks Options</label>
-                    <p className="text-[10px] text-gray-400 mb-2">Add site names or client names. They will appear as a searchable dropdown in the Attendance Remarks column. Deleting an option will not affect old entries already saved with that name.</p>
+                    <label className={`${settingsSectionLabelClassName} mb-0`}>Attendance Remarks</label>
+                    <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Add client or site names for the dropdown list.</p>
+                  </div>
 
+                  <div className="space-y-2">
                     {/* Chip List */}
                     {(orgSettings.remarksOptions || []).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-2 p-2 bg-zinc-50 border border-zinc-200 rounded-md min-h-[40px]">
+                      <div className="flex flex-wrap gap-1.5 p-1.5 bg-zinc-50 border border-zinc-200 rounded-lg min-h-[36px] max-h-[70px] overflow-y-auto">
                         {(orgSettings.remarksOptions || []).map((opt, idx) => (
-                          <span key={idx} className="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-800 text-[11px] font-medium pl-2.5 pr-1 py-1 rounded-full">
+                          <span key={idx} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold pl-2 pr-0.5 py-0.5 rounded-md">
                             {opt}
                             <button
                               type="button"
                               onClick={() => setOrgSettings(s => ({ ...s, remarksOptions: s.remarksOptions.filter((_, i) => i !== idx) }))}
-                              className="hover:bg-indigo-200 rounded-full p-0.5 text-indigo-600 hover:text-indigo-900 transition-colors"
+                              className="hover:bg-indigo-100 rounded p-0.5 text-indigo-500 hover:text-indigo-800 transition-colors"
                               title={`Remove ${opt}`}
                             >
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                           </span>
                         ))}
@@ -2682,7 +2834,7 @@ export default function SettingsTab({ initialSubTab }) {
                             }
                           }
                         }}
-                        className={settingsInputClassName}
+                        className={`${settingsInputClassName} !h-9 !py-1 text-xs`}
                         placeholder="Type a name and press Enter..."
                       />
                       <button
@@ -2693,7 +2845,7 @@ export default function SettingsTab({ initialSubTab }) {
                             setOrgSettings(s => ({ ...s, remarksOptions: [...(s.remarksOptions || []), val], newRemarkOption: '' }))
                           }
                         }}
-                        className="px-4 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wider rounded-md hover:bg-indigo-700 transition-colors shrink-0"
+                        className="px-3 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-indigo-700 transition-colors shrink-0"
                       >
                         Add
                       </button>
@@ -2703,83 +2855,170 @@ export default function SettingsTab({ initialSubTab }) {
               </div>
 
               {/* Right Card - Structure & Accounts */}
-              <div className={`${settingsPanelClassName} p-6 space-y-6 md:p-7`}>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Operations and access</p>
-                  <h3 className="mt-2 text-[21px] font-black tracking-[-0.03em] text-slate-950">Structure & Accounts</h3>
-                </div>
-
-                {/* Hierarchy Section */}
-                <div className={`${settingsInsetPanelClassName} p-5`}>
-                  <label className={settingsSectionLabelClassName}>Hierarchy</label>
-                  <textarea
-                    value={orgSettings.hierarchy || ''}
-                    onChange={e => setOrgSettings(s => ({ ...s, hierarchy: e.target.value }))}
-                    rows={2}
-                    placeholder="CEO > Manager > Staff"
-                    className={settingsTextareaClassName}
-                  />
-                  <p className="mt-2 text-[11px] text-slate-500">Define your reporting structure</p>
-                </div>
-
-                {/* Branches Section */}
-                <div className={`${settingsInsetPanelClassName} p-5`}>
-                  <label className={settingsSectionLabelClassName}>Branches</label>
-                  <textarea
-                    value={orgSettings.branches || ''}
-                    onChange={e => setOrgSettings(s => ({ ...s, branches: e.target.value }))}
-                    rows={2}
-                    placeholder="Chennai, Mumbai, Bangalore"
-                    className={settingsTextareaClassName}
-                  />
-                </div>
-
-                {/* Bank Accounts Section */}
-                <div className={`${settingsInsetPanelClassName} p-5`}>
-                  <label className={settingsSectionLabelClassName}>Bank Accounts</label>
-                  <textarea
-                    value={orgSettings.bankAccounts || ''}
-                    onChange={e => setOrgSettings(s => ({ ...s, bankAccounts: e.target.value }))}
-                    rows={2}
-                    placeholder="HDFC - 123456&#10;SBI - 987654"
-                    className={settingsTextareaClassName}
-                  />
-                </div>
-
-                {/* Invite Code */}
-                <div className={`${settingsInsetPanelClassName} p-5`}>
-                  <label className={settingsSectionLabelClassName}>Invite Code</label>
-                  <div className="flex gap-2">
-                    <div className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm text-indigo-600 select-all">
-                      {orgSettings.code || 'N/A'}
-                    </div>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(orgSettings.code)}
-                      className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-200"
-                    >
-                      Copy
-                    </button>
+              <div className={`${settingsPanelClassName} p-4 space-y-3.5 md:p-5`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Operations and access</p>
+                    <h3 className="mt-1 text-[18px] font-black tracking-[-0.03em] text-slate-950">Structure & Accounts</h3>
                   </div>
                 </div>
 
-                {/* Share Link for Employees */}
-                <div className={`${settingsInsetPanelClassName} p-5`}>
-                  <label className={settingsSectionLabelClassName}>Employee Login Link</label>
-                  <p className="mb-3 text-[11px] text-slate-500">Share this link with employees so they can create their account</p>
-                  <div className="flex gap-2">
-                    <div className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-xs text-indigo-600 break-all">
-                      {typeof window !== 'undefined' ? window.location.origin : ''}/login
+                <div className="space-y-3">
+                  {/* Hierarchy */}
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-0.5">
+                    <div className="pt-1">
+                      <label className={`${settingsSectionLabelClassName} mb-0`}>Hierarchy</label>
+                      <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Define reporting structure.</p>
                     </div>
-                    <button
-                      onClick={() => {
-                        const link = `${window.location.origin}/login`
-                        navigator.clipboard.writeText(link)
-                        alert('Login link copied to clipboard!')
-                      }}
-                      className="flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-indigo-700"
-                    >
-                      <Share2 size={14} /> Share
-                    </button>
+                    <textarea
+                      value={orgSettings.hierarchy || ''}
+                      onChange={e => setOrgSettings(s => ({ ...s, hierarchy: e.target.value }))}
+                      rows={1.5}
+                      placeholder="CEO > Manager > Staff"
+                      className={settingsTextareaClassName}
+                    />
+                  </div>
+
+                  {/* Branches */}
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-0.5">
+                    <div className="pt-1">
+                      <label className={`${settingsSectionLabelClassName} mb-0`}>Branches</label>
+                      <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Branch office locations.</p>
+                    </div>
+                    <textarea
+                      value={orgSettings.branches || ''}
+                      onChange={e => setOrgSettings(s => ({ ...s, branches: e.target.value }))}
+                      rows={1.5}
+                      placeholder="Chennai, Mumbai, Bangalore"
+                      className={settingsTextareaClassName}
+                    />
+                  </div>
+
+                  {/* Bank Accounts */}
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-0.5">
+                    <div className="pt-1">
+                      <label className={`${settingsSectionLabelClassName} mb-0`}>Bank Accounts</label>
+                      <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Official company bank details. Add multiple accounts.</p>
+                    </div>
+                    <div className="space-y-3 w-full">
+                      {/* Bank Accounts List */}
+                      {Array.isArray(orgSettings.bankAccounts) && orgSettings.bankAccounts.length > 0 ? (
+                        <div className="space-y-2 max-h-[110px] overflow-y-auto pr-1">
+                          {orgSettings.bankAccounts.map((acc, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[11px] leading-tight">
+                              <div className="space-y-0.5">
+                                <p className="font-extrabold text-slate-900">{acc.bankName}</p>
+                                <p className="text-slate-500 font-mono text-[9.5px]">A/C: {acc.accountNo} | IFSC: {acc.ifsc}</p>
+                                <p className="text-slate-400 text-[9.5px]">Branch: {acc.branchName}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveBankAccount(idx)}
+                                className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-md transition-colors shrink-0"
+                                title="Remove Bank Account"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-slate-400 text-[10px] italic">No bank accounts added yet.</p>
+                      )}
+
+                      {/* Add New Bank Account Form */}
+                      <div className="border border-slate-200/80 rounded-xl p-2.5 bg-white space-y-2">
+                        <p className="text-[9.5px] font-black text-slate-700 uppercase tracking-wider">Add Bank Account</p>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Bank Name"
+                            value={newBankAccount.bankName}
+                            onChange={e => setNewBankAccount(prev => ({ ...prev, bankName: e.target.value }))}
+                            className={`${settingsInputClassName} !h-8 !px-2.5 text-xs`}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Account Number"
+                            value={newBankAccount.accountNo}
+                            onChange={e => setNewBankAccount(prev => ({ ...prev, accountNo: e.target.value }))}
+                            className={`${settingsInputClassName} !h-8 !px-2.5 text-xs`}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="IFSC Code"
+                            value={newBankAccount.ifsc}
+                            onChange={e => setNewBankAccount(prev => ({ ...prev, ifsc: e.target.value.toUpperCase() }))}
+                            className={`${settingsInputClassName} !h-8 !px-2.5 text-xs`}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Branch Name"
+                            value={newBankAccount.branchName}
+                            onChange={e => setNewBankAccount(prev => ({ ...prev, branchName: e.target.value }))}
+                            className={`${settingsInputClassName} !h-8 !px-2.5 text-xs`}
+                          />
+                        </div>
+
+                        {bankAccountError && (
+                          <p className="text-[9.5px] text-red-500 font-semibold">{bankAccountError}</p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleAddBankAccount}
+                          className="w-full h-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[9.5px] font-bold uppercase tracking-wider transition-colors"
+                        >
+                          Add Bank Account
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Invite Code */}
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-center">
+                    <label className={`${settingsSectionLabelClassName} mb-0`}>Invite Code</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-indigo-600 select-all leading-tight flex items-center justify-center min-h-[36px]">
+                        {orgSettings.code || 'N/A'}
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(orgSettings.code)
+                          alert('Invite code copied!')
+                        }}
+                        className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition-all hover:bg-slate-200 shrink-0"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Employee Login Link */}
+                  <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-center">
+                    <div>
+                      <label className={`${settingsSectionLabelClassName} mb-0`}>Employee Link</label>
+                      <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Link for registration.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[10px] text-indigo-600 break-all select-all flex items-center min-h-[36px]">
+                        {typeof window !== 'undefined' ? `${window.location.origin}/login` : ''}
+                      </div>
+                      <button
+                        onClick={() => {
+                          const link = `${window.location.origin}/login`
+                          navigator.clipboard.writeText(link)
+                          alert('Login link copied!')
+                        }}
+                        className="flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-indigo-700 shrink-0"
+                      >
+                        <Share2 size={12} /> Share
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2790,8 +3029,8 @@ export default function SettingsTab({ initialSubTab }) {
                 <button
                   onClick={() => handleSaveOrg()}
                   disabled={saving}
-                  className={`flex h-12 w-full items-center justify-center rounded-[20px] text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all ${
-                    saved ? 'bg-emerald-500' : 'bg-slate-950 hover:-translate-y-0.5 hover:shadow-2xl'
+                  className={`flex h-10 w-full items-center justify-center rounded-xl text-[11px] font-black uppercase tracking-[0.18em] text-white transition-all ${
+                    saved ? 'bg-emerald-500' : 'bg-slate-950 hover:-translate-y-0.5 hover:shadow-lg'
                   }`}
                 >
                   {saving ? 'SAVING...' : saved ? 'SAVED ✓' : 'SAVE ALL CHANGES'}
@@ -4019,7 +4258,7 @@ export default function SettingsTab({ initialSubTab }) {
                     </Stack>
                     <MuiButton
                       variant="contained"
-                      onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }); setShowAddRole(true); }}
+                      onClick={() => { setEditingRole(null); setNewRole({ name: '', description: '', isAccountant: false, permissions: { Tasks: { view: true } } }); setShowAddRole(true); }}
                       startIcon={<Plus size={16} />}
                       sx={{
                         ...interMuiSx,
@@ -5584,7 +5823,7 @@ export default function SettingsTab({ initialSubTab }) {
         </div>
       </Modal>
 
-      <Modal isOpen={showAddRole} onClose={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }) }} title={editingRole ? 'Edit Role' : 'Create New Role'}>
+      <Modal isOpen={showAddRole} onClose={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', isAccountant: false, permissions: { Tasks: { view: true } } }) }} title={editingRole ? 'Edit Role' : 'Create New Role'}>
         <div className="flex flex-col h-[90vh] max-w-6xl mx-auto bg-white font-inter">
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* Identity Section */}
@@ -5619,7 +5858,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <input 
                     type="checkbox" 
                     className="hidden" 
-                    checked={newRole.isAccountant} 
+                    checked={!!newRole.isAccountant} 
                     onChange={e => setNewRole(s => ({ ...s, isAccountant: e.target.checked }))} 
                   />
                   <div>
@@ -5709,7 +5948,7 @@ export default function SettingsTab({ initialSubTab }) {
           <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
             <button
               type="button"
-              onClick={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', permissions: { Tasks: { view: true } } }) }}
+              onClick={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', isAccountant: false, permissions: { Tasks: { view: true } } }) }}
               className="px-5 py-2 text-[10px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-[0.18em] transition-all"
             >
               Discard Changes

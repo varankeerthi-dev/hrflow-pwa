@@ -212,6 +212,7 @@ function convertShorthand(val, period) {
 const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder, extra, error }) => {
   const [tempValue, setTempValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (!isEditing) {
@@ -245,8 +246,22 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
   return (
     <div className="flex flex-col w-full gap-1">
       <div 
-        className={`relative flex items-center rounded-md border min-h-[32px] transition-all ${error ? 'border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]' : 'border-gray-200'}`}
-        style={{ backgroundColor: disabled ? '#f9fafb' : backgroundColor }}
+        onMouseEnter={() => !disabled && setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`relative flex items-center rounded-md border min-h-[32px] transition-all ${
+          error 
+            ? 'border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]' 
+            : isHovered && !isEditing
+              ? 'border-gray-400 shadow-[0_1px_3px_rgba(0,0,0,0.05)]' 
+              : 'border-gray-200'
+        }`}
+        style={{ 
+          backgroundColor: disabled 
+            ? '#f9fafb' 
+            : isHovered && !isEditing
+              ? '#f3f4f6' 
+              : backgroundColor 
+        }}
       >
         <div 
           className="flex-1 flex flex-col items-center min-w-0 py-0.5 cursor-text"
