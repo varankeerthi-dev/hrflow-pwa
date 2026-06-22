@@ -408,9 +408,9 @@ if (!isOpen) return null;
                 <td className="px-4 text-center text-[13px] text-[#525252] font-medium border-b border-zinc-200">{Number(emp.ot || 0).toFixed(2)}</td>
                 <td className="px-4 border-b border-zinc-200">
                   <div className="flex items-center justify-center gap-1">
-                    <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-6 w-6 flex items-center justify-center border border-[#d4d4d4] rounded hover:bg-[#f5f5f5] text-[#525252] transition-colors">-</button>
-                    <input type="number" step="0.5" className="w-12 text-center text-xs border border-[#d4d4d4] rounded py-1 focus:ring-1 focus:border-[#171717] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/>
-                    <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-6 w-6 flex items-center justify-center border border-[#d4d4d4] rounded hover:bg-[#f5f5f5] text-[#525252] transition-colors">+</button>
+                    <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 transition-colors">-</button>
+                    <input type="number" step="0.5" className="h-8 w-12 text-center text-xs border border-zinc-200 rounded-md focus:ring-1 focus:border-zinc-950 focus:ring-zinc-950/20 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/>
+                    <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 transition-colors">+</button>
                   </div>
                 </td>
                 <td className="px-4 text-right text-[13px] font-semibold text-[#171717] relative border-b border-zinc-200">
