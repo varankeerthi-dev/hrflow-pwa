@@ -418,7 +418,7 @@ if (!isOpen) return null;
                     {(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}
                     <button 
                       onClick={() => setAdjustments({...adjustments, [emp.id]: -Number(emp.ot || 0)})}
-                      className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                      className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
                       title="Reset OT to Zero"
                     >
                       <RotateCcw size={14} />
