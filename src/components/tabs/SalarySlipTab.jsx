@@ -2029,7 +2029,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       setSelectedPastRunId(null);
                     }}
                     className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
-                      payrollSubTab === 'current' ? 'text-blue-700 bg-blue-50/80 font-bold shadow-[inset_0_-2px_0_0_#3b82f6,0_2px_4px_rgba(59,130,246,0.15)]' : 'text-zinc-500 font-medium hover:text-zinc-800 hover:bg-zinc-100/50'
+                      payrollSubTab === 'current' ? 'text-indigo-600 bg-indigo-50/50 font-bold' : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
                     }`}
                   >
                     Active Run
@@ -2040,7 +2040,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       setSelectedPastRunId(null);
                     }}
                     className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
-                      payrollSubTab === 'history' ? 'text-blue-700 bg-blue-50/80 font-bold shadow-[inset_0_-2px_0_0_#3b82f6,0_2px_4px_rgba(59,130,246,0.15)]' : 'text-zinc-500 font-medium hover:text-zinc-800 hover:bg-zinc-100/50'
+                      payrollSubTab === 'history' ? 'text-indigo-600 bg-indigo-50/50 font-bold' : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
                     }`}
                   >
                     History
@@ -2058,8 +2058,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                           onClick={()=>setSummarySubTab(t.id)} 
                           className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors ${
                             summarySubTab===t.id
-                              ? 'text-blue-700 bg-blue-50/80 font-bold shadow-[inset_0_-2px_0_0_#3b82f6,0_2px_4px_rgba(59,130,246,0.15)]'
-                              : 'text-zinc-500 font-medium hover:text-zinc-800 hover:bg-zinc-100/50'
+                              ? 'text-indigo-600 bg-indigo-50/50 font-bold'
+                              : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'
                           }`}
                         >
                           {t.l}
@@ -2067,7 +2067,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       ))}
                       
                       <div className="relative group">
-                        <button className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors outline-none cursor-pointer ${['variable','sandwich'].includes(summarySubTab) ? 'text-blue-700 bg-blue-50/80 font-bold shadow-[inset_0_-2px_0_0_#3b82f6,0_2px_4px_rgba(59,130,246,0.15)]' : 'text-zinc-500 font-medium hover:text-zinc-800 hover:bg-zinc-100/50'}`}>
+                        <button className={`px-3 py-1.5 flex items-center text-[13px] rounded-md transition-colors outline-none cursor-pointer ${['variable','sandwich'].includes(summarySubTab) ? 'text-indigo-600 bg-indigo-50/50 font-bold' : 'text-zinc-500 font-medium hover:text-zinc-900 hover:bg-zinc-100/50'}`}>
                           More <ChevronDown size={14} className="ml-1 opacity-50" />
                         </button>
                         <div className="absolute left-0 top-full mt-1 w-40 bg-white border border-zinc-200/70 rounded-lg shadow-lg hidden group-hover:block z-[100] py-1">
