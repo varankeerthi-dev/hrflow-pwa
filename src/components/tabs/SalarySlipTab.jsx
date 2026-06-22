@@ -3237,15 +3237,15 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         )}
         {activeTab === 'loan' && (
           <div className="flex flex-col h-full overflow-hidden bg-white">
-            <div className="flex border-b border-[#e5e5e5] overflow-x-auto shrink-0 px-4">
+            <div className="flex border-b border-zinc-100 py-2 overflow-x-auto shrink-0 px-6 bg-white gap-1">
               {['Configuration', 'Active Schedules', 'History'].map(mod => {
                 const isActive = loanActiveModule === mod
                 return (
                   <button
                     key={mod}
                     onClick={() => setLoanActiveModule(mod)}
-                    className={`whitespace-nowrap px-4 py-3 text-[12px] font-medium transition-all border-b-2 ${
-                      isActive ? 'border-[#525252] text-[#171717]' : 'border-transparent text-[#737373] hover:text-[#171717]'
+                    className={`whitespace-nowrap px-3.5 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
+                      isActive ? 'text-indigo-600 bg-indigo-50/50' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50'
                     }`}
                   >
                     {mod}
