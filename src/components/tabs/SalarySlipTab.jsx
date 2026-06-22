@@ -368,44 +368,44 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
   });
 if (!isOpen) return null;
   return (<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-    <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden border border-[#e5e5e5]">
+    <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden border border-zinc-200">
       {showSuccess && (
         <div className="absolute inset-0 z-[110] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
           <div className="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4">
             <CheckCircle2 size={40} />
           </div>
-          <h3 className="text-lg font-semibold text-[#171717]">OT Escalation Saved!</h3>
-          <p className="text-sm text-[#525252]">Attendance records have been updated.</p>
+          <h3 className="text-lg font-semibold text-zinc-900">OT Escalation Saved!</h3>
+          <p className="text-sm text-zinc-600">Attendance records have been updated.</p>
         </div>
       )}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5]">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
         <div>
-          <h2 className="text-sm font-semibold text-[#171717]">OT Escalation</h2>
-          <p className="text-[11px] text-[#525252]">{formatMonthDisplay(month)}</p>
+          <h2 className="text-sm font-semibold text-zinc-900">OT Escalation</h2>
+          <p className="text-[11px] text-zinc-600">{formatMonthDisplay(month)}</p>
         </div>
-        <button onClick={onClose} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded-md transition-colors">
+        <button onClick={onClose} className="p-1 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors">
           <X size={18} />
         </button>
       </div>
       <div className="flex-1 overflow-auto">
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 bg-white z-10">
-            <tr className="h-10 bg-white border-b border-[#e5e5e5]">
-              <th className="px-4 font-semibold text-[12px] text-[#525252]">Staff Member</th>
-              <th className="px-4 font-semibold text-[12px] text-[#525252] text-center">Actual (Hrs)</th>
-              <th className="px-4 font-semibold text-[12px] text-[#525252] text-center">Adjustment</th>
-              <th className="px-4 font-semibold text-[12px] text-[#525252] text-right">Final (Hrs)</th>
+            <tr className="h-10 bg-white border-b border-zinc-200">
+              <th className="px-4 font-semibold text-[12px] text-zinc-600">Staff Member</th>
+              <th className="px-4 font-semibold text-[12px] text-zinc-600 text-center">Actual (Hrs)</th>
+              <th className="px-4 font-semibold text-[12px] text-zinc-600 text-center">Adjustment</th>
+              <th className="px-4 font-semibold text-[12px] text-zinc-600 text-right">Final (Hrs)</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#e5e5e5]">
+          <tbody className="divide-y divide-zinc-200">
             {employees.map(emp => (
-              <tr key={emp.id} className="group h-12 hover:bg-[#f5f5f5] bg-white transition-colors">
+              <tr key={emp.id} className="group h-12 hover:bg-zinc-100 bg-white transition-colors">
                 <td className="px-4 border-b border-zinc-200">
                   <div className="flex flex-col">
-                    <span className="text-[14px] font-semibold text-[#171717]">{emp.name}</span>
+                    <span className="text-[14px] font-semibold text-zinc-900">{emp.name}</span>
                   </div>
                 </td>
-                <td className="px-4 text-center text-[13px] text-[#525252] font-medium border-b border-zinc-200">{Number(emp.ot || 0).toFixed(2)}</td>
+                <td className="px-4 text-center text-[13px] text-zinc-600 font-medium border-b border-zinc-200">{Number(emp.ot || 0).toFixed(2)}</td>
                 <td className="px-4 border-b border-zinc-200">
                   <div className="flex items-center justify-center gap-1">
                     <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 transition-colors">-</button>
@@ -413,7 +413,7 @@ if (!isOpen) return null;
                     <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 transition-colors">+</button>
                   </div>
                 </td>
-                <td className="px-4 text-right text-[13px] font-semibold text-[#171717] relative border-b border-zinc-200">
+                <td className="px-4 text-right text-[13px] font-semibold text-zinc-900 relative border-b border-zinc-200">
                   <div className="flex items-center justify-end gap-2">
                     {(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}
                     <button 
@@ -430,9 +430,9 @@ if (!isOpen) return null;
           </tbody>
         </table>
       </div>
-      <div className="px-5 py-4 border-t border-[#e5e5e5] bg-white flex justify-end gap-3">
-        <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-[#525252] hover:bg-[#f5f5f5] rounded-md border border-[#d4d4d4] transition-colors">Cancel</button>
-        <button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-4 py-2 bg-[#171717] text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
+      <div className="px-5 py-4 border-t border-zinc-200 bg-white flex justify-end gap-3">
+        <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 rounded-md border border-zinc-300 transition-colors">Cancel</button>
+        <button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-4 py-2 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
           {saveMutation.isPending && <RefreshCw size={12} className="animate-spin" />}
           Save Changes
         </button>
@@ -2265,10 +2265,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 </div>
               ) : summarySubTab === 'variable' ? (
                 <div className="h-full flex flex-col bg-white p-6">
-                  <div className="flex justify-between items-start mb-6 border-b border-[#e5e5e5] pb-4">
+                  <div className="flex justify-between items-start mb-6 border-b border-zinc-200 pb-4">
                     <div>
-                      <h2 className="text-base font-semibold text-[#171717]">Variable Pay Entry</h2>
-                      <p className="text-[11px] text-[#525252] mt-0.5">Add Food, Convenience & Bonus allowances for specific employees & dates</p>
+                      <h2 className="text-base font-semibold text-zinc-900">Variable Pay Entry</h2>
+                      <p className="text-[11px] text-zinc-600 mt-0.5">Add Food, Convenience & Bonus allowances for specific employees & dates</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200 gap-2">
@@ -2338,7 +2338,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         </button>
                       )}
 
-                      <button onClick={() => setShowAddVariable(true)} className="h-9 px-4 bg-[#171717] text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
+                      <button onClick={() => setShowAddVariable(true)} className="h-9 px-4 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
                         <Plus size={14} /> Add Entry
                       </button>
                     </div>
@@ -2346,39 +2346,39 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   
                   <div className="flex-1 overflow-auto">
                     <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-white z-10 border-b border-[#e5e5e5]">
+                      <thead className="sticky top-0 bg-white z-10 border-b border-zinc-200">
                         <tr className="h-10">
                           {variableViewGroup === 'individual' ? (
                             <>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252]">Employee</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252]">Date</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Total (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600">Employee</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600">Date</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Food (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Convenience (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Bonus (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Total (₹)</th>
                               <th className="px-4 font-semibold text-[11px] text-emerald-600 text-center">Settled?</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right">Actions</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right">Actions</th>
                             </>
                           ) : variableViewGroup === 'staff' ? (
                             <>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252]">Employee Name</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-center">Entries</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right text-emerald-600">Outside Payroll (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right text-indigo-600">In Salary (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right font-black">Grand Total (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600">Employee Name</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-center">Entries</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right text-emerald-600">Outside Payroll (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right text-indigo-600">In Salary (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right font-black">Grand Total (₹)</th>
                             </>
                           ) : (
                             <>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252]">Date</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-center">Staff Count</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right text-emerald-600">Outside Payroll (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right text-indigo-600">In Salary (₹)</th>
-                              <th className="px-4 font-semibold text-[11px] text-[#525252] text-right font-black">Daily Total (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600">Date</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-center">Staff Count</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right text-emerald-600">Outside Payroll (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right text-indigo-600">In Salary (₹)</th>
+                              <th className="px-4 font-semibold text-[11px] text-zinc-600 text-right font-black">Daily Total (₹)</th>
                             </>
                           )}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#e5e5e5]">
+                      <tbody className="divide-y divide-zinc-200">
                         {(() => {
                           const filtered = (monthlyVariableSums || [])
                             .filter(v => {
@@ -2407,8 +2407,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               };
                               return (
                                 <React.Fragment key={id}>
-                                  <tr className="hover:bg-[#f5f5f5] cursor-pointer group" onClick={toggle}>
-                                    <td className="px-4 py-3 font-semibold text-[#171717] border-b border-zinc-200">
+                                  <tr className="hover:bg-zinc-100 cursor-pointer group" onClick={toggle}>
+                                    <td className="px-4 py-3 font-semibold text-zinc-900 border-b border-zinc-200">
                                       <div className="flex items-center gap-2">
                                         <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                           <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
@@ -2454,8 +2454,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                               };
                               return (
                                 <React.Fragment key={d}>
-                                  <tr className="hover:bg-[#f5f5f5] cursor-pointer group" onClick={toggle}>
-                                    <td className="px-4 py-3 font-semibold text-[#171717] border-b border-zinc-200">
+                                  <tr className="hover:bg-zinc-100 cursor-pointer group" onClick={toggle}>
+                                    <td className="px-4 py-3 font-semibold text-zinc-900 border-b border-zinc-200">
                                       <div className="flex items-center gap-2">
                                         <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                           <ChevronRight size={14} className="text-slate-400 group-hover:text-indigo-600" />
@@ -2501,12 +2501,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             };
 
                             return (
-                              <tr key={v.id} className={`hover:bg-[#f5f5f5] ${Object.keys(draft).length > 0 ? 'bg-amber-50/50' : ''}`}>
+                              <tr key={v.id} className={`hover:bg-zinc-100 ${Object.keys(draft).length > 0 ? 'bg-amber-50/50' : ''}`}>
                                 <td className="px-4 py-2 border-b border-zinc-200">
-                                  <span className="text-[13px] font-semibold text-[#171717]">{v.employeeName}</span>
+                                  <span className="text-[13px] font-semibold text-zinc-900">{v.employeeName}</span>
                                 </td>
                                 <td className="px-4 border-b border-zinc-200">
-                                  <span className="text-[12px] text-[#525252] font-mono">{formatDateDDMMYYYY(v.date)}</span>
+                                  <span className="text-[12px] text-zinc-600 font-mono">{formatDateDDMMYYYY(v.date)}</span>
                                 </td>
                                 <td className="px-4 text-right border-b border-zinc-200">
                                   <input 
@@ -2549,7 +2549,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                   <div className="flex justify-end gap-2">
                                     <button 
                                       onClick={() => setEditingVariable(v)}
-                                      className="p-1 text-[#525252] hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                      className="p-1 text-zinc-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                                     >
                                       <Edit2 size={14} />
                                     </button>
@@ -2557,7 +2557,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                       if (confirm('Delete this entry?')) {
                                         deleteVariableMutation.mutate(v.id)
                                       }
-                                    }} className="p-1 text-[#525252] hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                                    }} className="p-1 text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                                       <Trash2 size={14} />
                                     </button>
                                   </div>
@@ -2566,7 +2566,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             )
                           }) : (
                             <tr>
-                              <td colSpan={8} className="px-4 py-12 text-center text-[12px] text-[#525252]">
+                              <td colSpan={8} className="px-4 py-12 text-center text-[12px] text-zinc-600">
                                 No variable pay entries yet. Click "Add Entry" to add Food, Convenience or Bonus for employees.
                               </td>
                             </tr>
@@ -2578,13 +2578,13 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
                   {editingVariable && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-[#e5e5e5] overflow-hidden">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5] bg-indigo-50">
+                      <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-zinc-200 overflow-hidden">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 bg-indigo-50">
                           <div>
-                            <h3 className="text-sm font-black uppercase text-[#171717] tracking-tight">Edit Variable Entry</h3>
+                            <h3 className="text-sm font-black uppercase text-zinc-900 tracking-tight">Edit Variable Entry</h3>
                             <p className="text-[10px] text-indigo-600 font-bold uppercase">{editingVariable.employeeName} • {formatDateDDMMYYYY(editingVariable.date)}</p>
                           </div>
-                          <button onClick={() => setEditingVariable(null)} className="p-1 text-[#525252] hover:bg-white rounded"><X size={16} /></button>
+                          <button onClick={() => setEditingVariable(null)} className="p-1 text-zinc-600 hover:bg-white rounded"><X size={16} /></button>
                         </div>
                         <div className="p-5 space-y-4">
                           <div className="grid grid-cols-1 gap-4">
@@ -2594,7 +2594,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 type="number" 
                                 value={editingVariable.food}
                                 onChange={e => setEditingVariable({...editingVariable, food: e.target.value})}
-                                className="w-full h-10 px-3 border border-[#d4d4d4] rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                                className="w-full h-10 px-3 border border-zinc-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
                               />
                             </div>
                             <div className="space-y-1">
@@ -2603,7 +2603,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 type="number" 
                                 value={editingVariable.convenience}
                                 onChange={e => setEditingVariable({...editingVariable, convenience: e.target.value})}
-                                className="w-full h-10 px-3 border border-[#d4d4d4] rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                                className="w-full h-10 px-3 border border-zinc-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
                               />
                             </div>
                             <div className="space-y-1">
@@ -2612,7 +2612,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 type="number" 
                                 value={editingVariable.bonus}
                                 onChange={e => setEditingVariable({...editingVariable, bonus: e.target.value})}
-                                className="w-full h-10 px-3 border border-[#d4d4d4] rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
+                                className="w-full h-10 px-3 border border-zinc-300 rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500"
                               />
                             </div>
                             <div className="pt-4 border-t border-gray-100">
@@ -2643,8 +2643,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                             </div>
                           </div>
                         </div>
-                        <div className="px-5 py-4 border-t border-[#e5e5e5] bg-gray-50 flex justify-end gap-3">
-                          <button onClick={() => setEditingVariable(null)} className="px-4 py-2 text-[10px] font-black uppercase text-[#525252] hover:bg-gray-100 rounded-md border border-[#d4d4d4]">Cancel</button>
+                        <div className="px-5 py-4 border-t border-zinc-200 bg-gray-50 flex justify-end gap-3">
+                          <button onClick={() => setEditingVariable(null)} className="px-4 py-2 text-[10px] font-black uppercase text-zinc-600 hover:bg-gray-100 rounded-md border border-zinc-300">Cancel</button>
                           <button 
                             onClick={() => {
                               saveVariablesMutation.mutate({ [editingVariable.employeeId]: editingVariable });
@@ -2661,16 +2661,16 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
                   {showAddVariable && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                      <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-3xl border border-[#e5e5e5] max-h-[90vh] flex flex-col">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5] shrink-0">
+                      <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-3xl border border-zinc-200 max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 shrink-0">
                           <div>
-                            <h3 className="text-sm font-semibold text-[#171717]">Variable Pay Entry</h3>
-                            <p className="text-[11px] text-[#525252] mt-0.5">Add Food, Convenience & Bonus for multiple employees</p>
+                            <h3 className="text-sm font-semibold text-zinc-900">Variable Pay Entry</h3>
+                            <p className="text-[11px] text-zinc-600 mt-0.5">Add Food, Convenience & Bonus for multiple employees</p>
                           </div>
-                          <button onClick={() => setShowAddVariable(false)} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded"><X size={16} /></button>
+                          <button onClick={() => setShowAddVariable(false)} className="p-1 text-zinc-600 hover:bg-zinc-100 rounded"><X size={16} /></button>
                         </div>
                         
-                        <div className="px-5 py-4 border-b border-[#e5e5e5] bg-gray-50 shrink-0 space-y-4">
+                        <div className="px-5 py-4 border-b border-zinc-200 bg-gray-50 shrink-0 space-y-4">
                           {/* Row 1: Date Selection */}
                           <div className="flex gap-6 items-end">
                             <div className="w-44">
@@ -2679,7 +2679,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 type="date" 
                                 value={newVariable.date}
                                 onChange={e => setNewVariable({...newVariable, date: e.target.value})}
-                                className="w-full h-9 px-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold shadow-sm"
+                                className="w-full h-9 px-3 border border-zinc-300 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold shadow-sm"
                               />
                             </div>
                             <div className="flex items-center gap-2 h-9 pb-1">
@@ -2701,7 +2701,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                   type="date" 
                                   value={newVariable.endDate}
                                   onChange={e => setNewVariable({...newVariable, endDate: e.target.value})}
-                                  className="w-full h-9 px-3 border border-indigo-200 rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-indigo-50/30 shadow-sm"
+                                  className="w-full h-9 px-3 border border-indigo-200 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold bg-indigo-50/30 shadow-sm"
                                 />
                               </div>
                             )}
@@ -2721,7 +2721,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     type="number" 
                                     value={newVariable.food}
                                     onChange={e => setNewVariable({...newVariable, food: e.target.value})}
-                                    className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    className="w-full h-9 pl-6 pr-3 border border-zinc-300 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
                                     placeholder="Food"
                                   />
                                   <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Food</div>
@@ -2732,7 +2732,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     type="number" 
                                     value={newVariable.convenience}
                                     onChange={e => setNewVariable({...newVariable, convenience: e.target.value})}
-                                    className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    className="w-full h-9 pl-6 pr-3 border border-zinc-300 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
                                     placeholder="Conv."
                                   />
                                   <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Conv.</div>
@@ -2743,7 +2743,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     type="number" 
                                     value={newVariable.bonus}
                                     onChange={e => setNewVariable({...newVariable, bonus: e.target.value})}
-                                    className="w-full h-9 pl-6 pr-3 border border-[#d4d4d4] rounded-lg text-[13px] text-[#171717] focus:outline-none focus:border-indigo-500 font-bold bg-white"
+                                    className="w-full h-9 pl-6 pr-3 border border-zinc-300 rounded-lg text-[13px] text-zinc-900 focus:outline-none focus:border-indigo-500 font-bold bg-white"
                                     placeholder="Bonus"
                                   />
                                   <div className="absolute -top-1.5 left-2 px-1 bg-gray-50 text-[8px] font-black text-gray-400 uppercase">Bonus</div>
@@ -2779,9 +2779,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
                         <div className="flex-1 overflow-auto p-5">
                           <table className="w-full text-left border-collapse">
-                            <thead className="sticky top-0 bg-white z-10 border-b border-[#e5e5e5]">
+                            <thead className="sticky top-0 bg-white z-10 border-b border-zinc-200">
                               <tr className="h-9">
-                                <th className="px-3 font-semibold text-[11px] text-[#525252] w-8">
+                                <th className="px-3 font-semibold text-[11px] text-zinc-600 w-8">
                                   <input 
                                     type="checkbox" 
                                     checked={newVariable.selectedAll}
@@ -2793,15 +2793,15 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     className="rounded border-gray-300"
                                   />
                                 </th>
-                                <th className="px-3 font-semibold text-[11px] text-[#525252]">Employee</th>
-                                <th className="px-3 font-semibold text-[11px] text-[#525252] text-right">Food (₹)</th>
-                                <th className="px-3 font-semibold text-[11px] text-[#525252] text-right">Convenience (₹)</th>
-                                <th className="px-3 font-semibold text-[11px] text-[#525252] text-right">Bonus (₹)</th>
+                                <th className="px-3 font-semibold text-[11px] text-zinc-600">Employee</th>
+                                <th className="px-3 font-semibold text-[11px] text-zinc-600 text-right">Food (₹)</th>
+                                <th className="px-3 font-semibold text-[11px] text-zinc-600 text-right">Convenience (₹)</th>
+                                <th className="px-3 font-semibold text-[11px] text-zinc-600 text-right">Bonus (₹)</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-[#e5e5e5]">
+                            <tbody className="divide-y divide-zinc-200">
                               {sortedEmployees.map(emp => (
-                                <tr key={emp.id} className="hover:bg-[#f5f5f5]">
+                                <tr key={emp.id} className="hover:bg-zinc-100">
                                   <td className="px-3 py-2 border-b border-zinc-200">
                                     <input 
                                       type="checkbox" 
@@ -2816,7 +2816,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                       className="rounded border-gray-300"
                                     />
                                   </td>
-                                  <td className="px-3 py-2 text-[13px] font-medium text-[#171717] border-b border-zinc-200">{emp.name}</td>
+                                  <td className="px-3 py-2 text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{emp.name}</td>
                                   <td className="px-3 py-2 text-right border-b border-zinc-200">
                                     <input 
                                       type="number" 
@@ -2825,7 +2825,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         ...newVariable,
                                         empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], food: e.target.value}}
                                       })}
-                                      className="w-20 h-7 px-2 text-right text-[12px] border border-[#d4d4d4] rounded focus:outline-none focus:border-[#171717]"
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-zinc-300 rounded focus:outline-none focus:border-zinc-900"
                                       placeholder={newVariable.food || '0'}
                                     />
                                   </td>
@@ -2837,7 +2837,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         ...newVariable,
                                         empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], convenience: e.target.value}}
                                       })}
-                                      className="w-20 h-7 px-2 text-right text-[12px] border border-[#d4d4d4] rounded focus:outline-none focus:border-[#171717]"
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-zinc-300 rounded focus:outline-none focus:border-zinc-900"
                                       placeholder={newVariable.convenience || '0'}
                                     />
                                   </td>
@@ -2849,7 +2849,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                         ...newVariable,
                                         empData: {...newVariable.empData, [emp.id]: {...newVariable.empData?.[emp.id], bonus: e.target.value}}
                                       })}
-                                      className="w-20 h-7 px-2 text-right text-[12px] border border-[#d4d4d4] rounded focus:outline-none focus:border-[#171717]"
+                                      className="w-20 h-7 px-2 text-right text-[12px] border border-zinc-300 rounded focus:outline-none focus:border-zinc-900"
                                       placeholder={newVariable.bonus || '0'}
                                     />
                                   </td>
@@ -2859,15 +2859,15 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                           </table>
                         </div>
 
-                        <div className="px-5 py-4 border-t border-[#e5e5e5] bg-gray-50 flex justify-between items-center shrink-0">
-                          <span className="text-[11px] text-[#525252]">
+                        <div className="px-5 py-4 border-t border-zinc-200 bg-gray-50 flex justify-between items-center shrink-0">
+                          <span className="text-[11px] text-zinc-600">
                             {newVariable.selectedEmps?.length || 0} employees selected
                           </span>
                           <div className="flex gap-3">
                             <button onClick={() => {
                               setShowAddVariable(false)
                               setNewVariable({ employeeId: '', date: '', food: '', convenience: '', bonus: '', selectedEmps: [], selectedAll: false, empData: {} })
-                            }} className="px-4 py-2 text-xs font-medium text-[#525252] hover:bg-gray-100 rounded-md border border-[#d4d4d4]">Cancel</button>
+                            }} className="px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-gray-100 rounded-md border border-zinc-300">Cancel</button>
                             <button 
                               onClick={() => {
                                 if (!newVariable.date) {
@@ -2895,7 +2895,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 setNewVariable({ employeeId: '', date: '', food: '', convenience: '', bonus: '', selectedEmps: [], selectedAll: false, empData: {} })
                               }}
                               disabled={saveVariablesMutation.isPending}
-                              className="px-4 py-2 bg-[#171717] text-white rounded-md text-xs font-medium hover:bg-black"
+                              className="px-4 py-2 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-black"
                             >
                               {saveVariablesMutation.isPending ? 'Saving...' : 'Save for Selected'}
                             </button>
@@ -3257,38 +3257,38 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             <div className="flex-1 overflow-auto p-6">
               {loanActiveModule === 'Configuration' && (
                 <div className="max-w-2xl mx-auto">      
-                  <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden">       
-                    <div className="px-5 py-4 border-b border-[#e5e5e5] bg-[#fafafa] flex justify-between items-center">
+                  <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">       
+                    <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50 flex justify-between items-center">
                       <div>
-                        <h3 className="text-base font-semibold text-[#171717]">Loan Setup</h3>
-                        <p className="text-[11px] text-[#525252] mt-0.5">Create and manage loan recovery schedules</p>
+                        <h3 className="text-base font-semibold text-zinc-900">Loan Setup</h3>
+                        <p className="text-[11px] text-zinc-600 mt-0.5">Create and manage loan recovery schedules</p>
                       </div>
                     </div>
                     <div className="p-5 space-y-4">
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-[#525252]">Target Employee</label>
-                        <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 bg-white focus:outline-none focus:border-[#171717] text-[13px] text-[#171717]">
+                        <label className="text-[11px] font-medium text-zinc-600">Target Employee</label>
+                        <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 bg-white focus:outline-none focus:border-zinc-900 text-[13px] text-zinc-900">
                           <option value="">Choose Employee...</option>
                           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-medium text-[#525252]">Principal Amount (₹)</label>
-                          <input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 bg-white focus:outline-none focus:border-[#171717] text-[13px] font-medium text-[#171717]" placeholder="0.00" />    
+                          <label className="text-[11px] font-medium text-zinc-600">Principal Amount (₹)</label>
+                          <input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 bg-white focus:outline-none focus:border-zinc-900 text-[13px] font-medium text-zinc-900" placeholder="0.00" />    
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-medium text-[#525252]">Monthly EMI (₹)</label>
-                          <input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 bg-white focus:outline-none focus:border-[#171717] text-[13px] font-medium text-[#171717]" placeholder="0.00" />
+                          <label className="text-[11px] font-medium text-zinc-600">Monthly EMI (₹)</label>
+                          <input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 bg-white focus:outline-none focus:border-zinc-900 text-[13px] font-medium text-zinc-900" placeholder="0.00" />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-[#525252]">Recovery Remarks</label>
-                        <input type="text" value={loanForm.remarks} onChange={e => setEditLoanForm({...loanForm, remarks: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 bg-white focus:outline-none focus:border-[#171717] text-[13px] font-medium text-[#171717]" placeholder="Reason for loan..." />
+                        <label className="text-[11px] font-medium text-zinc-600">Recovery Remarks</label>
+                        <input type="text" value={loanForm.remarks} onChange={e => setEditLoanForm({...loanForm, remarks: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 bg-white focus:outline-none focus:border-zinc-900 text-[13px] font-medium text-zinc-900" placeholder="Reason for loan..." />
                       </div>
                       <div className="pt-2 flex gap-3">
-                        <button onClick={() => { setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' }); setEditingLoanId(null); setLoanActiveModule('Active Schedules'); }} className="flex-1 h-9 border border-[#d4d4d4] rounded-md bg-white text-[13px] font-medium text-[#525252] hover:bg-[#f5f5f5] transition-all">Cancel</button>
-                        <button onClick={handleCreateLoan} disabled={loading} className="flex-1 h-9 bg-[#171717] text-white rounded-md text-[13px] font-medium hover:bg-black transition-all">
+                        <button onClick={() => { setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' }); setEditingLoanId(null); setLoanActiveModule('Active Schedules'); }} className="flex-1 h-9 border border-zinc-300 rounded-md bg-white text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 transition-all">Cancel</button>
+                        <button onClick={handleCreateLoan} disabled={loading} className="flex-1 h-9 bg-zinc-900 text-white rounded-md text-[13px] font-medium hover:bg-black transition-all">
                           {editingLoanId ? 'Update Schedule' : 'Activate Loan'}
                         </button>
                       </div>
@@ -3299,31 +3299,31 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
               {loanActiveModule === 'Active Schedules' && (
                 <div className="space-y-4">
-                  <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden">    
+                  <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">    
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-[#fafafa] text-[11px] font-medium text-[#525252] h-10 border-b border-[#e5e5e5]">
-                            <th className="px-4 border-r border-[#e5e5e5]">Employee</th>
-                            <th className="px-4 border-r border-[#e5e5e5] text-right">Principal (₹)</th>
-                            <th className="px-4 border-r border-[#e5e5e5] text-right">EMI (₹)</th>
-                            <th className="px-4 border-r border-[#e5e5e5] text-center">This Month</th>
+                          <tr className="bg-zinc-50 text-[11px] font-medium text-zinc-600 h-10 border-b border-zinc-200">
+                            <th className="px-4 border-r border-zinc-200">Employee</th>
+                            <th className="px-4 border-r border-zinc-200 text-right">Principal (₹)</th>
+                            <th className="px-4 border-r border-zinc-200 text-right">EMI (₹)</th>
+                            <th className="px-4 border-r border-zinc-200 text-center">This Month</th>
                             <th className="px-4 text-right">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#e5e5e5]">
+                        <tbody className="divide-y divide-zinc-200">
                           {loans.length === 0 ? (
-                            <tr><td colSpan={5} className="px-4 py-16 text-center text-[12px] text-[#525252]">No active loan schedules</td></tr>
+                            <tr><td colSpan={5} className="px-4 py-16 text-center text-[12px] text-zinc-600">No active loan schedules</td></tr>
                           ) : loans.map(l => (
-                            <tr key={l.id} className="hover:bg-[#f5f5f5] transition-colors h-12 group">       
-                              <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717] border-b border-zinc-200">{l.employeeName}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717] border-b border-zinc-200">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-emerald-600 border-b border-zinc-200">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
+                            <tr key={l.id} className="hover:bg-zinc-100 transition-colors h-12 group">       
+                              <td className="px-4 border-r border-zinc-200 text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{l.employeeName}</td>
+                              <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-emerald-600 border-b border-zinc-200">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
                               <td className="px-4 text-right border-b border-zinc-200">
                                 <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
-                                  <button onClick={() => handleEditLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Edit"><Edit2 size={14}/></button>
-                                  <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Override"><RefreshCw size={14}/></button>
-                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-[#525252] hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
+                                  <button onClick={() => handleEditLoan(l)} className="p-1.5 text-zinc-600 hover:bg-white rounded border border-transparent hover:border-zinc-300 transition-all" title="Edit"><Edit2 size={14}/></button>
+                                  <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-zinc-600 hover:bg-white rounded border border-transparent hover:border-zinc-300 transition-all" title="Override"><RefreshCw size={14}/></button>
+                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-zinc-600 hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
                                 </div>
                               </td>
                             </tr>
@@ -3337,23 +3337,23 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     <div className="bg-white rounded-lg border border-amber-300 p-5 shadow-sm max-w-3xl mx-auto">
                       <div className="flex justify-between items-center mb-4">
                         <div>
-                          <h3 className="text-sm font-semibold text-[#171717]">Manual Override</h3>
+                          <h3 className="text-sm font-semibold text-zinc-900">Manual Override</h3>
                           <p className="text-[11px] text-amber-600">Adjusting: {selectedLoan.employeeName}</p>
                         </div>
-                        <button onClick={() => setSelectedLoan(null)} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded"><X size={16}/></button>
+                        <button onClick={() => setSelectedLoan(null)} className="p-1 text-zinc-600 hover:bg-zinc-100 rounded"><X size={16}/></button>
                       </div>
                       <div className="grid grid-cols-3 gap-4 items-end">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-medium text-[#525252]">Target Month</label>
-                          <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 text-[13px] text-[#171717] focus:outline-none focus:border-[#171717]"/>
+                          <label className="text-[10px] font-medium text-zinc-600">Target Month</label>
+                          <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 text-[13px] text-zinc-900 focus:outline-none focus:border-zinc-900"/>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-medium text-[#525252]">Override EMI (₹)</label>
-                          <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 text-[13px] font-medium text-[#171717] focus:outline-none focus:border-[#171717] disabled:opacity-50"/>
+                          <label className="text-[10px] font-medium text-zinc-600">Override EMI (₹)</label>
+                          <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 text-[13px] font-medium text-zinc-900 focus:outline-none focus:border-zinc-900 disabled:opacity-50"/>
                         </div>
                         <div className="flex items-center gap-2 h-9">
-                          <input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-4 h-4 rounded border-[#d4d4d4] text-[#171717]"/>
-                          <label htmlFor="skipEMI" className="text-[12px] font-medium text-[#525252]">Skip EMI</label>
+                          <input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-4 h-4 rounded border-zinc-300 text-zinc-900"/>
+                          <label htmlFor="skipEMI" className="text-[12px] font-medium text-zinc-600">Skip EMI</label>
                         </div>
                       </div>
                       <div className="mt-4 flex justify-end">
@@ -3372,18 +3372,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       <select 
                         value={loanHistoryFilter.employeeId}
                         onChange={e => setLoanHistoryFilter({...loanHistoryFilter, employeeId: e.target.value})}
-                        className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 text-[13px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                        className="w-full h-9 border border-zinc-300 rounded-md px-3 text-[13px] text-zinc-900 focus:outline-none focus:border-zinc-900"
                       >
                         <option value="">All Employees</option>
 {loans.map(l => {
                               const thisMonth = new Date().toISOString().slice(0, 7)
                               const monthOverride = loanOverrides.find(o => o.loanId === l.id && o.month === thisMonth)
                               return (
-                            <tr key={l.id} className="hover:bg-[#f5f5f5] transition-colors h-12 group">       
-                              <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717] border-b border-zinc-200">{l.employeeName}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717] border-b border-zinc-200">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-emerald-600 border-b border-zinc-200">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-[#e5e5e5] text-center border-b border-zinc-200">
+                            <tr key={l.id} className="hover:bg-zinc-100 transition-colors h-12 group">       
+                              <td className="px-4 border-r border-zinc-200 text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{l.employeeName}</td>
+                              <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-emerald-600 border-b border-zinc-200">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 border-r border-zinc-200 text-center border-b border-zinc-200">
                                 {monthOverride ? (
                                   monthOverride.skip ? (
                                     <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">Skipped</span>
@@ -3391,14 +3391,14 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                     <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">Custom</span>
                                   )
                                 ) : (
-                                  <span className="text-[10px] text-[#a3a3a3]">—</span>
+                                  <span className="text-[10px] text-zinc-400">—</span>
                                 )}
                               </td>
                               <td className="px-4 text-right border-b border-zinc-200">
                                 <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
-                                  <button onClick={() => handleEditLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Edit"><Edit2 size={14}/></button>
-                                  <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-[#525252] hover:bg-white rounded border border-transparent hover:border-[#d4d4d4] transition-all" title="Override"><RefreshCw size={14}/></button>
-                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-[#525252] hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
+                                  <button onClick={() => handleEditLoan(l)} className="p-1.5 text-zinc-600 hover:bg-white rounded border border-transparent hover:border-zinc-300 transition-all" title="Edit"><Edit2 size={14}/></button>
+                                  <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-zinc-600 hover:bg-white rounded border border-transparent hover:border-zinc-300 transition-all" title="Override"><RefreshCw size={14}/></button>
+                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-zinc-600 hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
                                 </div>
                               </td>
                             </tr>
@@ -3410,13 +3410,13 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                         type="month" 
                         value={loanHistoryFilter.month}
                         onChange={e => setLoanHistoryFilter({...loanHistoryFilter, month: e.target.value})}
-                        className="w-full h-9 border border-[#d4d4d4] rounded-md px-3 text-[13px] text-[#171717] focus:outline-none focus:border-[#171717]"
+                        className="w-full h-9 border border-zinc-300 rounded-md px-3 text-[13px] text-zinc-900 focus:outline-none focus:border-zinc-900"
                       />
                     </div>
                     {(loanHistoryFilter.employeeId || loanHistoryFilter.month) && (
                       <button 
                         onClick={() => setLoanHistoryFilter({ employeeId: '', month: '' })}
-                        className="text-[12px] text-[#525252] hover:text-[#171717]"
+                        className="text-[12px] text-zinc-600 hover:text-zinc-900"
                       >
                         Clear filters
                       </button>
@@ -3424,22 +3424,22 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   </div>
 
                   {/* History Table */}
-                  <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden">
+                  <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-[#fafafa] text-[11px] font-medium text-[#525252] h-10 border-b border-[#e5e5e5]">
-                            <th className="px-4 border-r border-[#e5e5e5]">Employee</th>
-                            <th className="px-4 border-r border-[#e5e5e5]">Month</th>
-                            <th className="px-4 border-r border-[#e5e5e5] text-right">Scheduled EMI</th>
-                            <th className="px-4 border-r border-[#e5e5e5] text-right">Paid Amount</th>
-                            <th className="px-4 border-r border-[#e5e5e5] text-center">Status</th>
+                          <tr className="bg-zinc-50 text-[11px] font-medium text-zinc-600 h-10 border-b border-zinc-200">
+                            <th className="px-4 border-r border-zinc-200">Employee</th>
+                            <th className="px-4 border-r border-zinc-200">Month</th>
+                            <th className="px-4 border-r border-zinc-200 text-right">Scheduled EMI</th>
+                            <th className="px-4 border-r border-zinc-200 text-right">Paid Amount</th>
+                            <th className="px-4 border-r border-zinc-200 text-center">Status</th>
                             <th className="px-4 text-right">Remaining</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#e5e5e5]">
+                        <tbody className="divide-y divide-zinc-200">
                           {loans.length === 0 ? (
-                            <tr><td colSpan={6} className="px-4 py-12 text-center text-[12px] text-[#525252]">No loans found</td></tr>
+                            <tr><td colSpan={6} className="px-4 py-12 text-center text-[12px] text-zinc-600">No loans found</td></tr>
                           ) : (
                             loans
                               .filter(l => !loanHistoryFilter.employeeId || l.employeeId === loanHistoryFilter.employeeId)
@@ -3478,12 +3478,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                   if (!showRow) return null
                                   
                                   return (
-                                    <tr key={`${l.id}_${m.month}`} className={`h-11 hover:bg-[#f5f5f5] ${m.isCurrentMonth ? 'bg-amber-50' : ''}`}>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-[13px] font-medium text-[#171717] border-b border-zinc-200">{l.employeeName}</td>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-[12px] text-[#525252] border-b border-zinc-200">{m.month}</td>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] text-[#525252] border-b border-zinc-200">{monthlyEMI.toLocaleString('en-IN')}</td>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-right text-[13px] font-medium text-[#171717] border-b border-zinc-200">{paid.toLocaleString('en-IN')}</td>
-                                      <td className="px-4 border-r border-[#e5e5e5] text-center border-b border-zinc-200">
+                                    <tr key={`${l.id}_${m.month}`} className={`h-11 hover:bg-zinc-100 ${m.isCurrentMonth ? 'bg-amber-50' : ''}`}>
+                                      <td className="px-4 border-r border-zinc-200 text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{l.employeeName}</td>
+                                      <td className="px-4 border-r border-zinc-200 text-[12px] text-zinc-600 border-b border-zinc-200">{m.month}</td>
+                                      <td className="px-4 border-r border-zinc-200 text-right text-[13px] text-zinc-600 border-b border-zinc-200">{monthlyEMI.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{paid.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 border-r border-zinc-200 text-center border-b border-zinc-200">
                                         {m.override?.skip ? (
                                           <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">Skipped</span>
                                         ) : m.override?.amount && m.override.amount !== monthlyEMI ? (
@@ -3494,7 +3494,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                           <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">Pending</span>
                                         )}
                                       </td>
-                                      <td className="px-4 text-right text-[13px] font-semibold text-[#171717] border-b border-zinc-200">{Math.max(0, balance).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-[13px] font-semibold text-zinc-900 border-b border-zinc-200">{Math.max(0, balance).toLocaleString('en-IN')}</td>
                                     </tr>
                                   )
                                 })
