@@ -1810,7 +1810,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   };
 
   return (
-    <div className="flex h-full bg-white font-roboto text-gray-900 overflow-hidden flex-col">
+    <div className="flex h-full bg-white text-gray-900 overflow-hidden flex-col">
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-2">
           <div className="text-[10px] font-black uppercase text-slate-400 mr-6 tracking-[0.2em] select-none">Payroll</div>
