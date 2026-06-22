@@ -1815,10 +1815,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         <div className="flex items-center gap-2">
           <nav className="flex p-1 bg-slate-100/50 rounded-xl border border-slate-200/60 gap-1">
             {[
-              {id:'salary-summary', i:<FileText size={15}/>, l:'Summary'},
-              {id:'salary-slip', i:<Banknote size={15}/>, l:'Pay Slip'},
-              {id:'loan', i:<Wallet size={15}/>, l:'Loans'},
-              {id:'full-summary', i:<Table size={15}/>, l:'Full Summary'}
+              {id:'salary-summary', l:'Summary'},
+              {id:'salary-slip', l:'Payslips'},
+              {id:'loan', l:'Loans'},
+              {id:'full-summary', l:'Full Summary'}
             ].map(t => (
               <button 
                 key={t.id} 
@@ -1829,7 +1829,6 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
                 }`}
               >
-                <span className={`${activeTab === t.id ? 'text-indigo-600' : 'text-slate-400'}`}>{t.i}</span>
                 {t.l}
               </button>
             ))}
