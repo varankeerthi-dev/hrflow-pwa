@@ -6,7 +6,7 @@ import { db } from '../../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
-import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save, Table, RotateCcw } from 'lucide-react'
+import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save, Table, RotateCcw, Mail } from 'lucide-react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Font, pdf } from '@react-pdf/renderer'
 import SummaryTab from './SummaryTab'
 import { logActivity } from '../../hooks/useActivityLog'
@@ -1867,16 +1867,16 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                 }} className="mt-1 text-[10px] font-medium text-zinc-400 hover:text-zinc-900 transition-colors w-full text-left">This Month</button>
               </div>
               <div className="flex gap-2">
-                <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-4 bg-zinc-800 text-white rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-green-600 active:scale-95 transition-all flex items-center gap-2">
+                <button onClick={handleGenerate} disabled={loading || !selectedEmp} className="h-7 px-4 bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2">
                   {loading ? <RefreshCw size={12} className="animate-spin" /> : (generated && <CheckCircle2 size={12} />)}
                   {loading ? 'Generating...' : (generated ? 'Advice Generated' : 'Generate')}
                 </button>
-                <button onClick={handleDownloadAllZipped} disabled={downloadAllLoading || !attendanceSummaryData.length} className="h-7 px-4 border border-zinc-200 bg-white text-zinc-900 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-50 active:scale-95 transition-all flex items-center gap-2">
+                <button onClick={handleDownloadAllZipped} disabled={downloadAllLoading || !attendanceSummaryData.length} className="h-7 px-4 border border-zinc-200 bg-white text-zinc-900 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-50 active:scale-95 transition-all flex items-center gap-2">
                   {downloadAllLoading ? <RefreshCw size={12} className="animate-spin" /> : <Download size={12} />}
                   {downloadAllLoading ? 'Processing...' : 'Download All (ZIP)'}
                 </button>
-                <button onClick={handleOpenGmail} className="h-7 px-4 border border-red-100 bg-red-50 text-red-600 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 active:scale-95 transition-all flex items-center gap-2">
-                  <Plus size={12} className="rotate-45" /> Send to Mail
+                <button onClick={handleOpenGmail} className="h-7 px-4 border border-zinc-200 bg-white text-zinc-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 transition-all flex items-center gap-2">
+                  <Mail size={12} /> Send to Mail
                 </button>
               </div>
             </div>
