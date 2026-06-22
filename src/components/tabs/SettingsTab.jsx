@@ -228,10 +228,10 @@ const stripedRowSx = {
   },
 }
 
-const settingsPanelClassName = 'rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]'
-const settingsInsetPanelClassName = 'rounded-[22px] border border-slate-200 bg-slate-50/70'
-const settingsInputClassName = 'w-full h-11 rounded-2xl border border-slate-200 bg-white px-4 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
-const settingsTextareaClassName = 'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-none'
+const settingsPanelClassName = 'rounded-xl border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]'
+const settingsInsetPanelClassName = 'rounded-lg border border-slate-200 bg-slate-50/70'
+const settingsInputClassName = 'w-full h-11 rounded-lg border border-slate-200 bg-white px-4 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
+const settingsTextareaClassName = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-none'
 const settingsSectionLabelClassName = 'mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500'
 const settingsSubTabMeta = {
   organization: {
@@ -2515,9 +2515,9 @@ export default function SettingsTab({ initialSubTab }) {
                   type="button"
                   onClick={() => setActiveSubTab(tab.id)}
                   aria-pressed={isActive}
-                  className={`rounded-[22px] border px-3 py-2.5 text-left transition-all ${
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
                     isActive
-                      ? 'border-emerald-500 bg-emerald-600 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
+                      ? 'border-indigo-600 bg-indigo-600 text-white shadow-[0_10px_20px_rgba(79,70,229,0.15)]'
                       : 'border-slate-200 bg-white/88 text-slate-700 hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-lg'
                   }`}
                 >
@@ -2526,7 +2526,7 @@ export default function SettingsTab({ initialSubTab }) {
                       {tab.label}
                     </span>
                     <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] ${
-                      isActive ? 'bg-white/20 text-emerald-100' : 'bg-emerald-50 text-emerald-600'
+                      isActive ? 'bg-white/20 text-indigo-100' : 'bg-indigo-50 text-indigo-600'
                     }`}>
                       {meta.pill || 'Settings'}
                     </span>
