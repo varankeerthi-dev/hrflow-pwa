@@ -1813,7 +1813,6 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     <div className="flex h-full bg-white text-gray-900 overflow-hidden flex-col">
       <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-2">
-          <div className="text-[10px] font-black uppercase text-slate-400 mr-6 tracking-[0.2em] select-none">Payroll</div>
           <nav className="flex p-1 bg-slate-100/50 rounded-xl border border-slate-200/60 gap-1">
             {[
               {id:'salary-summary', i:<FileText size={15}/>, l:'Summary'},
