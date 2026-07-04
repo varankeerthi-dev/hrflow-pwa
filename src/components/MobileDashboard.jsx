@@ -692,7 +692,7 @@ export default function MobileDashboard() {
                 >
                   <div className="flex items-center gap-3">
                     <div className={activeTab === mod.id ? 'text-white' : 'text-gray-400'}>{mod.icon}</div>
-                    <span className="font-medium leading-5">{mod.label}</span>
+                    <span className="font-semibold leading-5">{mod.label}</span>
                   </div>
                   {mod.badge && <Badge variant="destructive">{mod.badge}</Badge>}
                 </button>
@@ -700,7 +700,7 @@ export default function MobileDashboard() {
             </nav>
 
             <div className="p-4 border-t border-gray-200 bg-white">
-              <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] leading-5 text-red-600 hover:bg-red-50 transition-colors font-medium">
+              <button onClick={() => { logout(); setShowMenu(false) }} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-[13px] leading-5 text-red-600 hover:bg-red-50 transition-colors font-semibold">
                 <LogOut size={18} />
                 <span className="uppercase tracking-widest">Sign Out</span>
               </button>

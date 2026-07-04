@@ -62,6 +62,131 @@ const AttendancePDF = ({ data, startDate, endDate, orgName }) => (
   </Document>
 )
 
+// Excel PDF Styles
+const pdfExcelStyles = StyleSheet.create({
+  page: { padding: 20, fontSize: 8, fontFamily: 'Helvetica' },
+  header: { marginBottom: 15, textAlign: 'center' },
+  title: { fontSize: 16, fontWeight: 'bold', marginBottom: 5 },
+  subtitle: { fontSize: 10, color: '#666', marginBottom: 10 },
+  table: { display: 'table', width: 'auto', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderRightWidth: 0, borderBottomWidth: 0 },
+  tableRow: { margin: 'auto', flexDirection: 'row' },
+  tableColHeaderName: { width: '16%', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderLeftWidth: 0, borderTopWidth: 0, backgroundColor: '#f1f5f9', padding: 4 },
+  tableColHeaderDate: { width: '10%', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderLeftWidth: 0, borderTopWidth: 0, backgroundColor: '#f1f5f9', padding: 4 },
+  tableColHeader: { width: '10.57%', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderLeftWidth: 0, borderTopWidth: 0, backgroundColor: '#f1f5f9', padding: 4 },
+  tableColName: { width: '16%', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderLeftWidth: 0, borderTopWidth: 0, padding: 4 },
+  tableColDate: { width: '10%', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderLeftWidth: 0, borderTopWidth: 0, padding: 4 },
+  tableCol: { width: '10.57%', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderLeftWidth: 0, borderTopWidth: 0, padding: 4 },
+  tableCellHeader: { fontWeight: 'bold', fontSize: 7, textAlign: 'center' },
+  tableCell: { margin: 'auto', marginTop: 2, fontSize: 7, textAlign: 'center' }
+})
+
+// Detailed Excel PDF Component
+const AttendanceExcelPDF = ({ data, startDate, endDate, orgName, employees }) => {
+  const parseTimeToMinutes = (time24) => {
+    if (!time24 || !time24.includes(':')) return null
+    const [h, m] = time24.split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) return null
+    return (h * 60) + m
+  }
+  const displayDate = (isoDate) => {
+    if (!isoDate) return ''
+    const parts = isoDate.split('-')
+    if (parts.length < 3) return isoDate
+    const [y, m, d] = parts.map(Number)
+    const dObj = new Date(y, m - 1, d)
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    return `${String(d).padStart(2, '0')}-${months[dObj.getMonth()]}`
+  }
+
+  const pdfRows = data.map(row => {
+    const emp = employees.find(e => e.id === row.employeeId) || {}
+    const minHours = Number(row.minDailyHours || emp.minDailyHours || 8)
+    const inM = parseTimeToMinutes(row.inTime)
+    const outM = parseTimeToMinutes(row.outTime)
+    
+    let totalWorkingMins = 0
+    if (inM != null && outM != null) {
+      let endM = outM
+      if (endM < inM) endM += 24 * 60
+      totalWorkingMins = Math.max(0, endM - inM)
+    }
+    const totalWorkingHrs = totalWorkingMins / 60
+    
+    const shift = row.shiftType || 'Day'
+    let stdInM = 9 * 60 + 30
+    if (shift === 'Night') stdInM = 21 * 60 + 30
+    const stdOutM = stdInM + (minHours * 60)
+    
+    let lateInHrs = 0
+    let earlyInHrs = 0
+    if (inM != null) {
+      if (inM > stdInM) lateInHrs = (inM - stdInM) / 60
+      else earlyInHrs = (stdInM - inM) / 60
+    }
+    
+    let lateOutHrs = 0
+    let earlyOutHrs = 0
+    if (outM != null) {
+      let actualOutM = outM
+      let targetOutM = stdOutM
+      if (shift === 'Night' && actualOutM < 12 * 60) actualOutM += 24 * 60
+      if (actualOutM > targetOutM) lateOutHrs = (actualOutM - targetOutM) / 60
+      else earlyOutHrs = (targetOutM - actualOutM) / 60
+    }
+    
+    const isAbsent = row.isAbsent || (row.status || '').toLowerCase() === 'absent'
+
+    return {
+      date: displayDate(row.date),
+      name: row.name || emp.name || '-',
+      inTime: isAbsent ? 'Absent' : (row.inTime || '-'),
+      outTime: isAbsent ? 'Absent' : (row.outTime || '-'),
+      lateInHrs: isAbsent ? '0.00' : lateInHrs.toFixed(2),
+      lateOutHrs: isAbsent ? '0.00' : lateOutHrs.toFixed(2),
+      earlyInHrs: isAbsent ? '0.00' : earlyInHrs.toFixed(2),
+      earlyOutHrs: isAbsent ? '0.00' : earlyOutHrs.toFixed(2),
+      actualWorkedHrs: isAbsent ? '0.00' : totalWorkingHrs.toFixed(2)
+    }
+  })
+
+  return (
+    <Document>
+      <Page size="A4" orientation="landscape" style={pdfExcelStyles.page}>
+        <View style={pdfExcelStyles.header}>
+          <Text style={pdfExcelStyles.title}>{orgName || 'Attendance Report'} - Detailed Excel Sheet</Text>
+          <Text style={pdfExcelStyles.subtitle}>Period: {displayDate(startDate)} to {displayDate(endDate)}</Text>
+        </View>
+        <View style={pdfExcelStyles.table}>
+          <View style={pdfExcelStyles.tableRow}>
+            <View style={pdfExcelStyles.tableColHeaderDate}><Text style={pdfExcelStyles.tableCellHeader}>Date</Text></View>
+            <View style={pdfExcelStyles.tableColHeaderName}><Text style={pdfExcelStyles.tableCellHeader}>Employee Name</Text></View>
+            <View style={pdfExcelStyles.tableColHeader}><Text style={pdfExcelStyles.tableCellHeader}>In Time</Text></View>
+            <View style={pdfExcelStyles.tableColHeader}><Text style={pdfExcelStyles.tableCellHeader}>Out Time</Text></View>
+            <View style={pdfExcelStyles.tableColHeader}><Text style={pdfExcelStyles.tableCellHeader}>Late In (h)</Text></View>
+            <View style={pdfExcelStyles.tableColHeader}><Text style={pdfExcelStyles.tableCellHeader}>Late Out (h)</Text></View>
+            <View style={pdfExcelStyles.tableColHeader}><Text style={pdfExcelStyles.tableCellHeader}>Early In (h)</Text></View>
+            <View style={pdfExcelStyles.tableColHeader}><Text style={pdfExcelStyles.tableCellHeader}>Early Out (h)</Text></View>
+            <View style={pdfExcelStyles.tableColHeader}><Text style={pdfExcelStyles.tableCellHeader}>Worked Hrs</Text></View>
+          </View>
+          {pdfRows.map((row, i) => (
+            <View key={i} style={pdfExcelStyles.tableRow}>
+              <View style={pdfExcelStyles.tableColDate}><Text style={pdfExcelStyles.tableCell}>{row.date}</Text></View>
+              <View style={pdfExcelStyles.tableColName}><Text style={pdfExcelStyles.tableCell}>{row.name}</Text></View>
+              <View style={pdfExcelStyles.tableCol}><Text style={pdfExcelStyles.tableCell}>{row.inTime}</Text></View>
+              <View style={pdfExcelStyles.tableCol}><Text style={pdfExcelStyles.tableCell}>{row.outTime}</Text></View>
+              <View style={pdfExcelStyles.tableCol}><Text style={pdfExcelStyles.tableCell}>{row.lateInHrs}</Text></View>
+              <View style={pdfExcelStyles.tableCol}><Text style={pdfExcelStyles.tableCell}>{row.lateOutHrs}</Text></View>
+              <View style={pdfExcelStyles.tableCol}><Text style={pdfExcelStyles.tableCell}>{row.earlyInHrs}</Text></View>
+              <View style={pdfExcelStyles.tableCol}><Text style={pdfExcelStyles.tableCell}>{row.earlyOutHrs}</Text></View>
+              <View style={pdfExcelStyles.tableCol}><Text style={pdfExcelStyles.tableCell}>{row.actualWorkedHrs}</Text></View>
+            </View>
+          ))}
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
 }
@@ -90,6 +215,16 @@ function displayDate(isoDate) {
   if (!isoDate) return ''
   const [y, m, d] = isoDate.split('-')
   return `${d}-${m}-${y}`
+}
+
+function displayDateDDMMMM(isoDate) {
+  if (!isoDate) return ''
+  const parts = isoDate.split('-')
+  if (parts.length < 3) return isoDate
+  const [y, m, d] = parts.map(Number)
+  const dObj = new Date(y, m - 1, d)
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  return `${String(d).padStart(2, '0')}-${months[dObj.getMonth()]}`
 }
 
 // Display date as Mmm Dd (e.g., "Mar 10")
@@ -130,7 +265,7 @@ function calcWorkMinutes(row) {
   return Math.max(0, end - inM)
 }
 
-function classifyAttendanceRow(row) {
+function classifyAttendanceRow(row, empObj = {}) {
   if (!row) return 'none'
   const status = (row.status || '').toLowerCase()
   if (status === 'absent') return 'absent'
@@ -142,8 +277,88 @@ function classifyAttendanceRow(row) {
     if (((h || 0) * 60 + (m || 0)) >= 60) return 'overtime'
   }
   const inM = parseTimeToMinutes(row.inTime)
-  if ((row.shiftType || 'Day') === 'Day' && inM != null && inM >= (9 * 60 + 30)) return 'late'
+  
+  let stdInM = 9 * 60 + 30
+  if (empObj.regularInTime && empObj.regularInTime.includes(':')) {
+    const [h, m] = empObj.regularInTime.split(':').map(Number)
+    if (!Number.isNaN(h) && !Number.isNaN(m)) stdInM = (h * 60) + m
+  } else if ((row.shiftType || 'Day') === 'Night') {
+    stdInM = 21 * 60 + 30
+  }
+  
+  if (inM != null && inM >= stdInM) return 'late'
   return 'present'
+}
+
+function calculateExcelMetrics(row, employees) {
+  const emp = employees?.find(e => e.id === row.employeeId) || {}
+  const minHours = Number(row.minDailyHours || emp.minDailyHours || 8)
+  
+  const inM = parseTimeToMinutes(row.inTime)
+  const outM = parseTimeToMinutes(row.outTime)
+  
+  let totalWorkingMins = 0
+  if (inM != null && outM != null) {
+    let endM = outM
+    if (endM < inM) endM += 24 * 60
+    totalWorkingMins = Math.max(0, endM - inM)
+  }
+  const totalWorkingHrs = totalWorkingMins / 60
+  
+  const shift = row.shiftType || 'Day'
+  let stdInM = 9 * 60 + 30
+  if (emp.regularInTime && emp.regularInTime.includes(':')) {
+    const [h, m] = emp.regularInTime.split(':').map(Number)
+    if (!Number.isNaN(h) && !Number.isNaN(m)) stdInM = (h * 60) + m
+  } else if (shift === 'Night') {
+    stdInM = 21 * 60 + 30
+  }
+  
+  let stdOutM = stdInM + (minHours * 60)
+  if (emp.regularOutTime && emp.regularOutTime.includes(':')) {
+    const [h, m] = emp.regularOutTime.split(':').map(Number)
+    if (!Number.isNaN(h) && !Number.isNaN(m)) stdOutM = (h * 60) + m
+  }
+  
+  let lateInHrs = 0
+  let earlyInHrs = 0
+  if (inM != null) {
+    if (inM > stdInM) {
+      lateInHrs = (inM - stdInM) / 60
+    } else {
+      earlyInHrs = (stdInM - inM) / 60
+    }
+  }
+  
+  let lateOutHrs = 0
+  let earlyOutHrs = 0
+  if (outM != null) {
+    let actualOutM = outM
+    let targetOutM = stdOutM
+    if (shift === 'Night' && actualOutM < 12 * 60) {
+      actualOutM += 24 * 60
+    }
+    
+    if (actualOutM > targetOutM) {
+      lateOutHrs = (actualOutM - targetOutM) / 60
+    } else {
+      earlyOutHrs = (targetOutM - actualOutM) / 60
+    }
+  }
+  
+  const actualWorkedHrs = totalWorkingHrs
+  const isShortOfStandard = actualWorkedHrs < minHours && inM != null && outM != null
+
+  return {
+    totalWorkingHrs,
+    lateInHrs,
+    lateOutHrs,
+    earlyInHrs,
+    earlyOutHrs,
+    actualWorkedHrs,
+    isShortOfStandard,
+    minHours
+  }
 }
 
 function getStatusColor(status) {
@@ -373,6 +588,7 @@ export default function AttendanceTab({ defaultSubTab }) {
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
 
   const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' ? 'reports' : 'daily') // 'daily' or 'reports'
+  const [reportsView, setReportsView] = useState('timeline') // 'timeline' or 'excel'
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
   const [remarksOptions, setRemarksOptions] = useState([])
 
@@ -409,6 +625,19 @@ export default function AttendanceTab({ defaultSubTab }) {
   // Reports Filter States
   const [filterStartDate, setFilterStartDate] = useState(formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1)))
   const [filterEndDate, setFilterEndDate] = useState(formatDateForInput(new Date()))
+  const [filterMonth, setFilterMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
+
+  const handleMonthChange = (monthStr) => {
+    if (!monthStr) return
+    const [y, m] = monthStr.split('-').map(Number)
+    const lastDay = new Date(y, m, 0).getDate()
+    setFilterStartDate(`${monthStr}-01`)
+    setFilterEndDate(`${monthStr}-${String(lastDay).padStart(2, '0')}`)
+  }
+  
   const [filterCategory, setFilterCategory] = useState('')
   const [filterName, setFilterName] = useState('')
   const [reportData, setFilterReportData] = useState([])
@@ -430,13 +659,15 @@ export default function AttendanceTab({ defaultSubTab }) {
           id: row.employeeId || key,
           name: row.name || 'Unknown',
           department: row.department || row.designation || row.role || row.site || 'General',
+          regularInTime: emp?.regularInTime || '',
+          regularOutTime: emp?.regularOutTime || '',
           rows: {}
         })
       }
       map.get(key).rows[row.date] = row
     })
     return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-  }, [reportData])
+  }, [reportData, employees])
 
   const reportSummaryRows = useMemo(() => {
     return reportByEmployee.map(emp => {
@@ -447,7 +678,7 @@ export default function AttendanceTab({ defaultSubTab }) {
       reportDays.forEach(day => {
         const row = emp.rows[day]
         if (!row) return
-        const status = classifyAttendanceRow(row)
+        const status = classifyAttendanceRow(row, emp)
         if (status === 'absent') absent += 1
         else present += 1
         if (status === 'late') late += 1
@@ -481,6 +712,14 @@ export default function AttendanceTab({ defaultSubTab }) {
       avgWorkingHours
     }
   }, [reportByEmployee.length, reportData, filterEndDate])
+
+  const sortedReportRows = useMemo(() => {
+    return [...reportData].sort((a, b) => {
+      const dateCompare = (b.date || '').localeCompare(a.date || '')
+      if (dateCompare !== 0) return dateCompare
+      return (a.name || '').localeCompare(b.name || '')
+    })
+  }, [reportData])
 
   const [rows, setRows] = useState([])
   const [hasGenerated, setHasGenerated] = useState(false)
@@ -1508,8 +1747,18 @@ export default function AttendanceTab({ defaultSubTab }) {
                     Filter
                   </button>
                   <PDFDownloadLink
-                    document={<AttendancePDF data={reportData} startDate={filterStartDate} endDate={filterEndDate} orgName={user?.orgName} />}
-                    fileName={`attendance_report_${filterStartDate}_to_${filterEndDate}.pdf`}
+                    document={
+                      reportsView === 'excel' ? (
+                        <AttendanceExcelPDF data={reportData} startDate={filterStartDate} endDate={filterEndDate} orgName={user?.orgName} employees={employees} />
+                      ) : (
+                        <AttendancePDF data={reportData} startDate={filterStartDate} endDate={filterEndDate} orgName={user?.orgName} />
+                      )
+                    }
+                    fileName={
+                      reportsView === 'excel'
+                        ? `attendance_excel_report_${filterStartDate}_to_${filterEndDate}.pdf`
+                        : `attendance_report_${filterStartDate}_to_${filterEndDate}.pdf`
+                    }
                     className={`h-9 px-3 bg-emerald-600 text-white rounded-lg text-xs font-semibold uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-2 ${!reportData.length ? 'opacity-50 pointer-events-none' : ''}`}
                   >
                     {({ loading }) => (
@@ -1521,11 +1770,47 @@ export default function AttendanceTab({ defaultSubTab }) {
                   </PDFDownloadLink>
                 </div>
               </div>
+              
+              {/* Secondary Sub-tab Navigation */}
+              <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
+                <button
+                  onClick={() => setReportsView('timeline')}
+                  className={`h-8 px-4 rounded-lg text-xs font-semibold tracking-wider transition-all ${
+                    reportsView === 'timeline'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
+                  }`}
+                >
+                  Summary Timeline
+                </button>
+                <button
+                  onClick={() => setReportsView('excel')}
+                  className={`h-8 px-4 rounded-lg text-xs font-semibold tracking-wider transition-all ${
+                    reportsView === 'excel'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
+                  }`}
+                >
+                  Detailed Sheet (Excel)
+                </button>
+              </div>
             </div>
 
             {/* Filters */}
             <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Month</label>
+                  <input
+                    type="month"
+                    value={filterMonth}
+                    onChange={e => {
+                      setFilterMonth(e.target.value)
+                      handleMonthChange(e.target.value)
+                    }}
+                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Start Date</label>
                   <input
@@ -1578,9 +1863,126 @@ export default function AttendanceTab({ defaultSubTab }) {
               </div>
             </div>
 
-            {/* Timeline */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-              <div className="px-5 py-4 border-b border-gray-100">
+            {reportsView === 'excel' ? (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col flex-1">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">Detailed Attendance Sheet</h3>
+                    <p className="text-xs text-gray-500">Excel-style chronological daily attendance log</p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-zinc-100 text-zinc-600 px-2.5 py-1 rounded-md uppercase">
+                    {sortedReportRows.length} Records
+                  </span>
+                </div>
+                <div className="overflow-auto flex-1">
+                  {reportLoading ? (
+                    <div className="py-16 flex items-center justify-center"><Spinner /></div>
+                  ) : reportByEmployee.length === 0 ? (
+                    <div className="py-16 text-center text-zinc-400 font-medium">No report data. Select filters and click Generate.</div>
+                  ) : (
+                    <table className="w-full text-left border-collapse min-w-[1200px]">
+                      <thead className="sticky top-0 bg-[#f8fafc] z-10 border-b border-zinc-200">
+                        <tr className="h-10 text-zinc-600 text-xs select-none">
+                          <th className="border-r border-zinc-200 px-4 font-semibold text-center w-28 bg-[#f8fafc] sticky left-0 z-20" rowSpan={2}>
+                            Date
+                          </th>
+                          {reportByEmployee.map(emp => (
+                            <th 
+                              key={emp.id} 
+                              colSpan={8} 
+                              className="border-r border-zinc-200 px-4 font-bold text-center bg-indigo-50/50 text-indigo-900 border-b border-zinc-200 capitalize text-[11px]"
+                            >
+                              {emp.name.toLowerCase()}
+                            </th>
+                          ))}
+                        </tr>
+                        <tr className="h-8 text-zinc-500 text-[9px] select-none bg-[#fafafa]">
+                          {reportByEmployee.map(emp => (
+                            <React.Fragment key={`sub-${emp.id}`}>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-20">In Time</th>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-20">Out Time</th>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Late In</th>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Late Out</th>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Early In</th>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Early Out</th>
+                              <th className="border-r border-zinc-200 px-2 font-semibold text-center w-16">Actual Worked</th>
+                              <th className="border-r border-zinc-200 px-3 font-semibold text-left w-32">Remarks</th>
+                            </React.Fragment>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {reportDays.map(day => (
+                          <tr key={day} className="h-10 hover:bg-zinc-50 transition-colors">
+                            <td className="border-r border-zinc-100 px-4 text-xs font-mono font-medium text-zinc-500 sticky left-0 bg-white z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                              {displayDateDDMMMM(day)}
+                            </td>
+                            {reportByEmployee.map(emp => {
+                              const row = emp.rows[day]
+                              if (!row) {
+                                return (
+                                  <React.Fragment key={`${emp.id}-${day}`}>
+                                    <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
+                                    <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
+                                    <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
+                                    <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
+                                    <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
+                                    <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
+                                    <td className="border-r border-zinc-100 px-2 text-center text-zinc-300">-</td>
+                                    <td className="border-r border-zinc-100 px-3 text-zinc-300">-</td>
+                                  </React.Fragment>
+                                )
+                              }
+
+                              const metrics = calculateExcelMetrics(row, employees)
+                              const isAbsent = row.isAbsent || (row.status || '').toLowerCase() === 'absent'
+                              const isShort = !isAbsent && metrics.totalWorkingHrs < metrics.minHours && row.inTime != null && row.outTime != null
+
+                              return (
+                                <React.Fragment key={`${emp.id}-${day}`}>
+                                  <td className="border-r border-zinc-100 px-2 text-xs text-center font-medium text-zinc-600">
+                                    {isAbsent ? (
+                                      <span className="text-red-500 font-bold bg-red-50 border border-red-100 rounded px-1 py-0.5 text-[8px] uppercase">Abs</span>
+                                    ) : (row.inTime ? formatTimeDisplay(row.inTime) : '-')}
+                                  </td>
+                                  <td className="border-r border-zinc-100 px-2 text-xs text-center font-medium text-zinc-600">
+                                    {isAbsent ? (
+                                      <span className="text-red-500 font-bold bg-red-50 border border-red-100 rounded px-1 py-0.5 text-[8px] uppercase">Abs</span>
+                                    ) : (row.outTime ? formatTimeDisplay(row.outTime) : '-')}
+                                  </td>
+                                  <td className={`border-r border-zinc-100 px-2 text-xs font-mono text-center ${metrics.lateInHrs > 0 ? 'text-amber-600 font-bold bg-amber-50/20' : 'text-zinc-300'}`}>
+                                    {metrics.lateInHrs > 0 ? `${metrics.lateInHrs.toFixed(2)}` : '-'}
+                                  </td>
+                                  <td className={`border-r border-zinc-100 px-2 text-xs font-mono text-center ${metrics.lateOutHrs > 0 ? 'text-indigo-600 font-bold bg-indigo-50/20' : 'text-zinc-300'}`}>
+                                    {metrics.lateOutHrs > 0 ? `${metrics.lateOutHrs.toFixed(2)}` : '-'}
+                                  </td>
+                                  <td className={`border-r border-zinc-100 px-2 text-xs font-mono text-center ${metrics.earlyInHrs > 0 ? 'text-emerald-600 font-bold bg-emerald-50/20' : 'text-zinc-300'}`}>
+                                    {metrics.earlyInHrs > 0 ? `${metrics.earlyInHrs.toFixed(2)}` : '-'}
+                                  </td>
+                                  <td className={`border-r border-zinc-100 px-2 text-xs font-mono text-center ${metrics.earlyOutHrs > 0 ? 'text-rose-500 font-bold bg-rose-50/20' : 'text-zinc-300'}`}>
+                                    {metrics.earlyOutHrs > 0 ? `${metrics.earlyOutHrs.toFixed(2)}` : '-'}
+                                  </td>
+                                  <td className={`border-r border-zinc-100 px-2 text-xs font-mono text-center ${isShort ? 'text-rose-600 font-bold bg-rose-50/40' : 'text-zinc-800 font-bold'}`}>
+                                    {isAbsent ? '0.00' : `${metrics.actualWorkedHrs.toFixed(2)}`}
+                                  </td>
+                                  <td className="border-r border-zinc-100 px-3 text-xs text-zinc-500 truncate" title={row.remarks}>
+                                    {row.remarks || '-'}
+                                  </td>
+                                </React.Fragment>
+                              )
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Timeline */}
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                  <div className="px-5 py-4 border-b border-gray-100">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900">30-Day Attendance Timeline</h3>
@@ -1635,7 +2037,7 @@ export default function AttendanceTab({ defaultSubTab }) {
                           </td>
                           {reportDays.map(day => {
                             const row = emp.rows[day]
-                            const status = classifyAttendanceRow(row)
+                            const status = classifyAttendanceRow(row, emp)
                             const color = getStatusColor(status)
                             return (
                               <td key={`${emp.id}-${day}`} className="px-1 py-2 text-center">
@@ -1696,57 +2098,61 @@ export default function AttendanceTab({ defaultSubTab }) {
                 </table>
               </div>
             </div>
-          </div>
+          </>
+        )}
+      </div>
 
           {/* Right Sidebar */}
-          <div className="hidden xl:flex w-[280px] shrink-0 flex-col gap-4">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Employees</p>
-              <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.totalEmployees || 0}</div>
-              <div className="text-[10px] text-gray-500 font-semibold mt-1">Active in range</div>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Present Today</p>
-              <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.presentToday || 0}</div>
-              <div className="text-[10px] text-indigo-600 font-semibold mt-1">
-                {reportTotals.totalEmployees ? `${Math.round((reportTotals.presentToday / reportTotals.totalEmployees) * 1000) / 10}%` : '0%'}
+          {reportsView !== 'excel' && (
+            <div className="hidden xl:flex w-[280px] shrink-0 flex-col gap-4">
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Employees</p>
+                <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.totalEmployees || 0}</div>
+                <div className="text-[10px] text-gray-500 font-semibold mt-1">Active in range</div>
               </div>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Absent Today</p>
-              <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.absentToday || 0}</div>
-              <div className="text-[10px] text-gray-500 font-semibold mt-1">Based on {displayShortDate(filterEndDate)}</div>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Avg Working Hours</p>
-              <div className="mt-2 text-2xl font-semibold text-gray-900">
-                {reportTotals.avgWorkingHours ? `${reportTotals.avgWorkingHours.toFixed(1)}h` : '0h'}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Present Today</p>
+                <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.presentToday || 0}</div>
+                <div className="text-[10px] text-indigo-600 font-semibold mt-1">
+                  {reportTotals.totalEmployees ? `${Math.round((reportTotals.presentToday / reportTotals.totalEmployees) * 1000) / 10}%` : '0%'}
+                </div>
               </div>
-              <div className="text-[10px] text-gray-500 font-semibold mt-1">Standard Shift</div>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-900">Team</p>
-                <span className="text-[10px] text-gray-400 font-bold uppercase">{activeEmployees.slice(0, 4).length} online</span>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Absent Today</p>
+                <div className="mt-2 text-2xl font-semibold text-gray-900">{reportTotals.absentToday || 0}</div>
+                <div className="text-[10px] text-gray-500 font-semibold mt-1">Based on {displayShortDate(filterEndDate)}</div>
               </div>
-              <div className="mt-3 space-y-3">
-                {activeEmployees.slice(0, 4).map(emp => (
-                  <div key={emp.id} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full text-white text-[10px] font-bold flex items-center justify-center" style={{ backgroundColor: getAvatarColor(emp.id) }}>
-                      {getInitials(emp.name)}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Avg Working Hours</p>
+                <div className="mt-2 text-2xl font-semibold text-gray-900">
+                  {reportTotals.avgWorkingHours ? `${reportTotals.avgWorkingHours.toFixed(1)}h` : '0h'}
+                </div>
+                <div className="text-[10px] text-gray-500 font-semibold mt-1">Standard Shift</div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900">Team</p>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">{activeEmployees.slice(0, 4).length} online</span>
+                </div>
+                <div className="mt-3 space-y-3">
+                  {activeEmployees.slice(0, 4).map(emp => (
+                    <div key={emp.id} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full text-white text-[10px] font-bold flex items-center justify-center" style={{ backgroundColor: getAvatarColor(emp.id) }}>
+                        {getInitials(emp.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-semibold text-gray-800 truncate">{emp.name}</div>
+                        <div className="text-[10px] text-gray-400 truncate">{emp.role || emp.designation || 'Employee'}</div>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-[12px] font-semibold text-gray-800 truncate">{emp.name}</div>
-                      <div className="text-[10px] text-gray-400 truncate">{emp.role || emp.designation || 'Employee'}</div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <button className="mt-4 w-full h-9 bg-emerald-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all">
+                  + Invite Member
+                </button>
               </div>
-              <button className="mt-4 w-full h-9 bg-emerald-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all">
-                + Invite Member
-              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
 

@@ -395,7 +395,7 @@ export default function Dashboard() {
                 <Users size={16} strokeWidth={1.5} />
               </span>
               {!isCollapsed && (
-                <span className="text-[13px] font-medium truncate flex-1 text-left">HR</span>
+                <span className="text-[13px] font-semibold truncate flex-1 text-left">HR</span>
               )}
               {!isCollapsed && (
                 <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
@@ -420,7 +420,7 @@ export default function Dashboard() {
                 <Sparkles size={16} strokeWidth={1.5} />
               </span>
               {!isCollapsed && (
-                <span className="text-[13px] font-medium truncate flex-1 text-left">Features</span>
+                <span className="text-[13px] font-semibold truncate flex-1 text-left">Features</span>
               )}
               {!isCollapsed && (
                 <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
@@ -457,7 +457,7 @@ export default function Dashboard() {
                   <BarChart3 size={16} strokeWidth={1.5} />
                 </span>
                 {!isCollapsed && (
-                  <span className="text-[13px] font-medium truncate flex-1 text-left">Reports</span>
+                  <span className="text-[13px] font-semibold truncate flex-1 text-left">Reports</span>
                 )}
                 {!isCollapsed && (
                   <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
@@ -662,7 +662,7 @@ export default function Dashboard() {
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <main className="flex-1 overflow-auto bg-white relative flex flex-col">
             <ErrorBoundary>
-                <div className={`w-full flex-1 p-4 ${activeTab === 'salary-slip' && salaryActiveTab === 'full-summary' ? 'max-w-none' : 'max-w-[1300px]'}`}>
+                <div className={`w-full flex-1 p-4 ${activeTab === 'salary-slip' ? 'max-w-none' : 'max-w-[1300px]'}`}>
                   {renderTabContent()}
                 </div>
               </ErrorBoundary>

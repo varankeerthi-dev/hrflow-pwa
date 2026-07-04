@@ -345,9 +345,26 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
 const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustments, orgId }) => {
   const [adjustments, setAdjustments] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [selectedEmpId, setSelectedEmpId] = useState(null);
   const queryClient = useQueryClient();
-  useEffect(() => { if (isOpen) { setAdjustments(initialAdjustments || {}); setShowSuccess(false); } }, [isOpen, initialAdjustments]);
-  const handleAdjust = (empId, delta) => { const current = Number(adjustments[empId]) || 0; setAdjustments({ ...adjustments, [empId]: current + delta }); };
+
+  useEffect(() => { 
+    if (isOpen) { 
+      setAdjustments(initialAdjustments || {}); 
+      setShowSuccess(false); 
+      setSelectedEmpId(employees[0]?.id || null);
+    } 
+  }, [isOpen, initialAdjustments, employees]);
+
+  const selectedEmp = useMemo(() => {
+    return employees.find(e => e.id === selectedEmpId);
+  }, [employees, selectedEmpId]);
+
+  const handleAdjust = (empId, delta) => { 
+    const current = Number(adjustments[empId]) || 0; 
+    setAdjustments({ ...adjustments, [empId]: current + delta }); 
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       const batch = [];
@@ -366,80 +383,236 @@ const OTEscalationModal = ({ isOpen, onClose, month, employees, initialAdjustmen
       }, 1500);
     }
   });
-if (!isOpen) return null;
-  return (<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-    <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden border border-zinc-200">
-      {showSuccess && (
-        <div className="absolute inset-0 z-[110] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
-          <div className="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4">
-            <CheckCircle2 size={40} />
+
+  const getDayStatus = (emp, dayNum) => {
+    if (!emp) return { char: '', name: '', color: '' };
+    const isLop = emp.lopDates?.includes(dayNum);
+    const isSunW = emp.sunWDates?.includes(dayNum);
+    const isHolW = emp.holWDates?.includes(dayNum);
+    const isHoliday = emp.holidayDates?.includes(dayNum);
+    
+    const [y, m] = month.split('-').map(Number);
+    const d = new Date(y, m - 1, dayNum);
+    const isSunday = d.getDay() === 0;
+
+    if (isLop) {
+      if (isSunday || isHoliday) return { char: 'L', name: 'Sandwich LOP', color: 'bg-red-50 text-red-600 border-red-100/70' };
+      return { char: 'L', name: 'LOP / Absent', color: 'bg-rose-50 text-rose-500 border-rose-100/50' };
+    }
+    if (isSunW) return { char: 'SW', name: 'Sunday Worked', color: 'bg-emerald-50 text-emerald-700 font-bold border-emerald-100' };
+    if (isHolW) return { char: 'HW', name: 'Holiday Worked', color: 'bg-emerald-50 text-emerald-700 font-bold border-emerald-100' };
+    if (isSunday) return { char: 'S', name: 'Sunday', color: 'bg-zinc-100 text-zinc-400 border-zinc-200/50' };
+    if (isHoliday) return { char: 'H', name: 'Holiday', color: 'bg-zinc-100 text-zinc-400 border-zinc-200/50' };
+    return { char: 'P', name: 'Present', color: 'bg-green-50 text-green-600 border-green-100/50' };
+  };
+
+  if (!isOpen) return null;
+
+  const [y, m] = month.split('-').map(Number);
+  const totalDays = new Date(y, m, 0).getDate();
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.15)] w-full max-w-5xl flex flex-col max-h-[85vh] overflow-hidden border border-zinc-200">
+        {showSuccess && (
+          <div className="absolute inset-0 z-[110] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+            <div className="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4">
+              <CheckCircle2 size={40} />
+            </div>
+            <h3 className="text-lg font-semibold text-zinc-900">OT Escalation Saved!</h3>
+            <p className="text-sm text-zinc-600">Attendance records have been updated.</p>
           </div>
-          <h3 className="text-lg font-semibold text-zinc-900">OT Escalation Saved!</h3>
-          <p className="text-sm text-zinc-600">Attendance records have been updated.</p>
+        )}
+        
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 shrink-0">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">OT Escalation</h2>
+            <p className="text-[11px] text-zinc-600">{formatMonthDisplay(month)}</p>
+          </div>
+          <button onClick={onClose} className="p-1 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors">
+            <X size={18} />
+          </button>
         </div>
-      )}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
-        <div>
-          <h2 className="text-sm font-semibold text-zinc-900">OT Escalation</h2>
-          <p className="text-[11px] text-zinc-600">{formatMonthDisplay(month)}</p>
-        </div>
-        <button onClick={onClose} className="p-1 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors">
-          <X size={18} />
-        </button>
-      </div>
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 bg-white z-10">
-            <tr className="h-10 bg-white border-b border-zinc-200">
-              <th className="px-4 font-semibold text-[12px] text-zinc-600">Staff Member</th>
-              <th className="px-4 font-semibold text-[12px] text-zinc-600 text-center">Actual (Hrs)</th>
-              <th className="px-4 font-semibold text-[12px] text-zinc-600 text-center">Adjustment</th>
-              <th className="px-4 font-semibold text-[12px] text-zinc-600 text-right">Final (Hrs)</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-200">
-            {employees.map(emp => (
-              <tr key={emp.id} className="group h-12 hover:bg-zinc-100 bg-white transition-colors">
-                <td className="px-4 border-b border-zinc-200">
-                  <div className="flex flex-col">
-                    <span className="text-[14px] font-semibold text-zinc-900">{emp.name}</span>
-                  </div>
-                </td>
-                <td className="px-4 text-center text-[13px] text-zinc-600 font-medium border-b border-zinc-200">{Number(emp.ot || 0).toFixed(2)}</td>
-                <td className="px-4 border-b border-zinc-200">
-                  <div className="flex items-center justify-center gap-1">
-                    <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 transition-colors">-</button>
-                    <input type="number" step="0.5" className="h-8 w-12 text-center text-xs border border-zinc-200 rounded-md hover:bg-zinc-50 hover:border-zinc-300 focus:bg-white focus:ring-1 focus:border-zinc-950 focus:ring-zinc-950/20 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/>
-                    <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 transition-colors">+</button>
-                  </div>
-                </td>
-                <td className="px-4 text-right text-[13px] font-semibold text-zinc-900 relative border-b border-zinc-200">
-                  <div className="flex items-center justify-end gap-2">
-                    {(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}
-                    <button 
-                      onClick={() => setAdjustments({...adjustments, [emp.id]: -Number(emp.ot || 0)})}
-                      className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                      title="Reset OT to Zero"
+
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          {/* Left Panel: Employee Adjustments Table */}
+          <div className="flex-1 overflow-auto border-r border-zinc-200">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 bg-white z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+                <tr className="h-10 bg-white border-b border-zinc-200">
+                  <th className="px-4 font-semibold text-[12px] text-zinc-600">Staff Member</th>
+                  <th className="px-4 font-semibold text-[12px] text-zinc-600 text-center">Actual (Hrs)</th>
+                  <th className="px-4 font-semibold text-[12px] text-zinc-600 text-center">Adjustment</th>
+                  <th className="px-4 font-semibold text-[12px] text-zinc-600 text-right">Final (Hrs)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200">
+                {employees.map(emp => {
+                  const isSelected = selectedEmpId === emp.id;
+                  return (
+                    <tr 
+                      key={emp.id} 
+                      onClick={() => setSelectedEmpId(emp.id)}
+                      className={`group h-12 cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/40 border-l-2 border-indigo-600 font-semibold' : 'hover:bg-zinc-50 bg-white'}`}
                     >
-                      <RotateCcw size={14} />
-                    </button>
+                      <td className="px-4 border-b border-zinc-200">
+                        <div className="flex flex-col">
+                          <span className="text-[14px] text-zinc-900">{emp.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 text-center text-[13px] text-zinc-600 font-medium border-b border-zinc-200">
+                        {Number(emp.ot || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 border-b border-zinc-200" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={()=>handleAdjust(emp.id, -0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors">-</button>
+                          <input type="number" step="0.5" className="h-8 w-12 text-center text-xs border border-zinc-200 rounded-md hover:bg-zinc-100 hover:border-zinc-300 focus:bg-white focus:ring-1 focus:border-zinc-950 focus:ring-zinc-950/20 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden" value={adjustments[emp.id] || 0} onChange={e => setAdjustments({...adjustments, [emp.id]: e.target.value})}/>
+                          <button onClick={()=>handleAdjust(emp.id, 0.5)} className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-md hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors">+</button>
+                        </div>
+                      </td>
+                      <td className="px-4 text-right text-[13px] font-semibold text-zinc-900 relative border-b border-zinc-200">
+                        <div className="flex items-center justify-end gap-2">
+                          {(Number(emp.ot || 0) + (Number(adjustments[emp.id]) || 0)).toFixed(2)}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setAdjustments({...adjustments, [emp.id]: -Number(emp.ot || 0)}); }}
+                            className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                            title="Reset OT to Zero"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Right Panel: Attendance details & Excel table */}
+          {/* Right Panel: Attendance details & Excel table */}
+          <div className="w-[460px] shrink-0 bg-zinc-50 flex flex-col p-4 border-l border-zinc-200 overflow-hidden">
+            {selectedEmp ? (
+              <div className="flex-1 flex flex-col min-h-0 space-y-3">
+                {/* Employee details (simple text header, single row) */}
+                <div className="shrink-0 bg-white p-3 rounded-lg border border-zinc-200 shadow-sm text-[12px] font-semibold text-zinc-700 flex items-center gap-2">
+                  <span className="text-zinc-900 capitalize">{selectedEmp.name.toLowerCase()}</span>
+                  <span className="text-zinc-300">|</span>
+                  <span className="text-zinc-500 font-medium">{selectedEmp.designation}</span>
+                  <span className="text-zinc-300">|</span>
+                  <span className="font-mono text-[11px] text-zinc-500 font-medium">Code: {selectedEmp.empId}</span>
+                </div>
+
+                <div className="flex-1 flex flex-col min-h-0 space-y-2">
+                  <span className="text-[10px] font-semibold text-zinc-400 block uppercase tracking-wider shrink-0">Attendance Sheet (Vertical Excel View)</span>
+                  
+                  <div className="font-mono border border-zinc-200 rounded overflow-hidden text-[11px] bg-white shadow-sm flex-1 flex flex-col min-h-0">
+                    {/* Excel Toolbar */}
+                    <div className="bg-[#f3f3f3] px-2.5 py-1.5 border-b border-zinc-200 flex items-center justify-between text-[9px] text-zinc-500 font-sans select-none shrink-0">
+                      <div className="flex gap-1.5 items-center">
+                        <span className="font-bold text-[#107c41]">Excel View</span>
+                        <span>•</span>
+                        <span>Sheet1</span>
+                      </div>
+                      <div className="flex gap-1 items-center font-sans">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#107c41]"></div>
+                        <span className="text-[#107c41] font-bold text-[9px]">Live Sheet</span>
+                      </div>
+                    </div>
+
+                    {/* Excel Sheet Vertical Table */}
+                    <div className="flex-1 overflow-y-auto min-h-0">
+                      <table className="border-collapse w-full table-fixed">
+                        <thead className="sticky top-0 bg-[#f3f3f3] z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+                          <tr className="h-6 text-zinc-500 text-left text-[9px] select-none">
+                            <th className="border-r border-b border-zinc-200 px-3 font-semibold w-16">Date</th>
+                            <th className="border-r border-b border-zinc-200 px-2 font-semibold text-center w-12">Day</th>
+                            <th className="border-r border-b border-zinc-200 px-3 font-semibold w-24">Status</th>
+                            <th className="border-r border-b border-zinc-200 px-3 font-semibold w-24">Remarks</th>
+                            <th className="border-b border-zinc-200 px-3 font-semibold text-right w-20">OT Hours</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: totalDays }, (_, i) => {
+                            const dayNum = i + 1;
+                            const d = new Date(y, m - 1, dayNum);
+                            const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                            const dayName = daysOfWeek[d.getDay()];
+                            const status = getDayStatus(selectedEmp, dayNum);
+                            const otDay = selectedEmp.otDates?.find(o => o.date === dayNum);
+                            
+                            const getDayRemarks = (emp, dNum) => {
+                              if (!emp || !emp.attendanceRecords) return '-';
+                              const dateStr = `${month}-${String(dNum).padStart(2, '0')}`;
+                              const normalizeDate = (dStr) => {
+                                if (!dStr || dStr === '-') return null;
+                                const parts = dStr.split(/[-/]/);
+                                if (parts.length === 3) {
+                                  if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                                  return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                                }
+                                return dStr;
+                              };
+                              const rec = emp.attendanceRecords.find(a => normalizeDate(a.date) === dateStr);
+                              return rec?.remarks || rec?.siteName || rec?.site?.siteName || rec?.locationName || '-';
+                            };
+                            
+                            const remarks = getDayRemarks(selectedEmp, dayNum);
+                            
+                            return (
+                              <tr key={i} className="h-6 hover:bg-zinc-50 transition-colors">
+                                <td className="border-r border-b border-zinc-200 px-3 text-zinc-600 font-medium">
+                                  {String(dayNum).padStart(2, '0')}/{String(m).padStart(2, '0')}
+                                </td>
+                                <td className={`border-r border-b border-zinc-200 px-2 text-center font-medium ${dayName === 'Sun' ? 'text-rose-500 font-bold bg-rose-50/20' : 'text-zinc-500'}`}>
+                                  {dayName}
+                                </td>
+                                <td className={`border-r border-b border-zinc-200 px-2 font-semibold text-[9px] truncate`} title={status.name}>
+                                  <span className={`inline-block px-1 py-0.5 rounded text-[8px] leading-none uppercase ${status.color}`}>
+                                    {status.char}
+                                  </span>
+                                  <span className="ml-1 text-zinc-500 font-normal">{status.name}</span>
+                                </td>
+                                <td className="border-r border-b border-zinc-200 px-3 text-zinc-600 font-medium truncate" title={remarks}>
+                                  {remarks}
+                                </td>
+                                <td className={`border-b border-zinc-200 px-3 text-right font-semibold ${otDay ? 'bg-amber-50/50 text-amber-700 font-bold' : 'text-zinc-300'}`}>
+                                  {otDay ? `${Number(otDay.hours).toFixed(1)} hrs` : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="px-5 py-4 border-t border-zinc-200 bg-white flex justify-end gap-3">
-        <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 rounded-md border border-zinc-300 transition-colors">Cancel</button>
-        <button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-4 py-2 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
-          {saveMutation.isPending && <RefreshCw size={12} className="animate-spin" />}
-          Save Changes
-        </button>
+
+                  {/* Excel Legend */}
+                  <div className="flex gap-2 flex-wrap text-[9px] text-zinc-500 pt-1 font-sans justify-center shrink-0">
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-green-50 text-green-600 font-bold border border-green-100/50 flex items-center justify-center text-[8px]">P</span> Present</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-rose-50 text-rose-500 font-bold border border-rose-100/50 flex items-center justify-center text-[8px]">L</span> LOP</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-zinc-100 text-zinc-400 font-bold border border-zinc-200/50 flex items-center justify-center text-[8px]">S/H</span> Sun/Hol</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 flex items-center justify-center text-[8px]">SW</span> Sun-Work</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-zinc-400 text-[11px] italic">Select a member to view attendance sheet</div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-zinc-200 bg-white flex justify-end gap-3 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 rounded-md border border-zinc-300 transition-colors">Cancel</button>
+          <button onClick={() => saveMutation.mutate(adjustments)} disabled={saveMutation.isPending || showSuccess} className="px-4 py-2 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5">
+            {saveMutation.isPending && <RefreshCw size={12} className="animate-spin" />}
+            Save Changes
+          </button>
+        </div>
       </div>
     </div>
-  </div>)
-}
+  );
+};
 
 const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
   const [searchTerm, setSearchTerm] = useState(''); const [isOpen, setIsOpen] = useState(false); const dropdownRef = useRef(null);
@@ -1078,7 +1251,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
         const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP, attendanceRecords: empAtt }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -2048,7 +2221,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     <>
                       <div className="h-4 w-px bg-zinc-200 mx-2"></div>
                       {[
-                        {id:'overview',l:'Overview'},
+                        {id:'overview',l:'Monthly summary'},
                         {id:'detailed',l:'Detailed Summary'}
                       ].map(t=>(
                         <button 
@@ -2118,7 +2291,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   </div>
                 )}
                 {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status !== 'locked' && activeRun.status !== 'approved' && (
-                  <button onClick={() => setIsOtModalOpen(true)} className="h-8 px-3.5 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all text-[10px] font-black uppercase tracking-[0.1em] whitespace-nowrap">OT Change</button>
+                  <button onClick={() => setIsOtModalOpen(true)} className="h-8 px-3 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all text-[12px] font-semibold whitespace-nowrap">Click to Revise OT hours</button>
                 )}
               </div>
             </div>

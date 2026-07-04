@@ -190,6 +190,8 @@ function createEmployeeFormState() {
     hideInAttendance: false,
     includeInSalary: true,
     includeInTask: true,
+    regularInTime: '',
+    regularOutTime: '',
   }
 }
 
@@ -4479,6 +4481,24 @@ export default function SettingsTab({ initialSubTab }) {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Regular Check-In Time</label>
+                <input
+                  type="time"
+                  value={editForm.regularInTime || ''}
+                  onChange={e => setEditForm(s => ({ ...s, regularInTime: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Regular Check-Out Time</label>
+                <input
+                  type="time"
+                  value={editForm.regularOutTime || ''}
+                  onChange={e => setEditForm(s => ({ ...s, regularOutTime: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
               {editForm.shiftEffectiveDate && (
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold text-emerald-700 mb-1">
@@ -5150,6 +5170,24 @@ export default function SettingsTab({ initialSubTab }) {
                     <option key={shift.id} value={shift.id}>{shift.name} ({shift.workHours || 9} hrs)</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Regular Check-In Time</label>
+                <input
+                  type="time"
+                  value={newEmployee.regularInTime || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, regularInTime: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Regular Check-Out Time</label>
+                <input
+                  type="time"
+                  value={newEmployee.regularOutTime || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, regularOutTime: e.target.value }))}
+                  className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                />
               </div>
             </div>
               </div>}
