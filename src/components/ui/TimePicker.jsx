@@ -92,7 +92,7 @@ export default function TimePicker({ value, onChange, onClose }) {
         {/* Hours column */}
         <div ref={hourRef} className="flex-1 overflow-y-auto h-[120px] rounded-lg custom-scrollbar">
           {hours.map(h => (
-            <div key={h} data-val={h} onClick={() => setHour(h)} className={`text-center py-0.5 text-[11px] font-bold rounded cursor-pointer transition-all ${hour === h ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-100'}`}>
+            <div key={h} data-val={h} onClick={() => setHour(h)} className={`text-center py-0.5 text-[11px] font-bold rounded cursor-pointer transition ${hour === h ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-100'}`}>
               {h}
             </div>
           ))}
@@ -101,7 +101,7 @@ export default function TimePicker({ value, onChange, onClose }) {
         {/* Minutes column */}
         <div ref={minuteRef} className="flex-1 overflow-y-auto h-[120px] rounded-lg custom-scrollbar">
           {minutes.map(m => (
-            <div key={m} data-val={m} onClick={() => setMinute(m)} className={`text-center py-0.5 text-[11px] font-bold rounded cursor-pointer transition-all ${minute === m ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-100'}`}>
+            <div key={m} data-val={m} onClick={() => setMinute(m)} className={`text-center py-0.5 text-[11px] font-bold rounded cursor-pointer transition ${minute === m ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:bg-zinc-100'}`}>
               {m}
             </div>
           ))}
@@ -110,7 +110,7 @@ export default function TimePicker({ value, onChange, onClose }) {
         {/* AM/PM column */}
         <div className="flex flex-col gap-1.5 pt-1">
           {['AM', 'PM'].map(p => (
-            <div key={p} onClick={() => setPeriod(p)} className={`w-8 h-8 flex items-center justify-center rounded-lg text-[10px] font-black cursor-pointer transition-all shadow-sm ${period === p ? 'bg-zinc-800 text-white' : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'}`}>
+            <div key={p} onClick={() => setPeriod(p)} className={`w-8 h-8 flex items-center justify-center rounded-lg text-[10px] font-black cursor-pointer transition shadow-sm ${period === p ? 'bg-zinc-800 text-white' : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'}`}>
               {p}
             </div>
           ))}
@@ -120,7 +120,7 @@ export default function TimePicker({ value, onChange, onClose }) {
       {/* Footer */}
       <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-zinc-100 bg-zinc-50/50 rounded-b-xl">
         <button onClick={handleNow} className="text-[10px] font-black text-zinc-400 hover:text-zinc-900 uppercase tracking-widest transition-colors">Now</button>
-        <button onClick={handleOK} className="bg-emerald-600 text-white text-[10px] font-black px-4 py-1.5 rounded-lg hover:bg-emerald-700 transition-all shadow-md uppercase tracking-wider">OK</button>
+        <button onClick={handleOK} className="bg-emerald-600 text-white text-[10px] font-black px-4 py-1.5 rounded-lg hover:bg-emerald-700 transition shadow-md uppercase tracking-wider">OK</button>
       </div>
     </div>
   );

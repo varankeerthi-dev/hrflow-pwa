@@ -305,18 +305,18 @@ export default function SiteReportTab() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Date Range & Month Navigator */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center bg-white rounded-md p-0.5 border border-zinc-200 shadow-sm h-8">
-              <button onClick={() => navigateMonth(-1)} className="p-1 hover:bg-zinc-100 rounded transition-colors text-zinc-500 hover:text-zinc-900">
+            <div className="flex items-center bg-white rounded-md $11 shadow-sm h-8">
+              <button onClick={() => navigateMonth(-1)} className="w-12 hover:bg-zinc-100 rounded transition-colors text-zinc-500 hover:text-zinc-900">
                 <ChevronLeft size={14} />
               </button>
               <div className="w-28 text-center font-medium text-[13px] text-zinc-800 tabular-nums">
                 {formatMonthDisplay()}
               </div>
-              <button onClick={() => navigateMonth(1)} className="p-1 hover:bg-zinc-100 rounded transition-colors text-zinc-500 hover:text-zinc-900">
+              <button onClick={() => navigateMonth(1)} className="w-12 hover:bg-zinc-100 rounded transition-colors text-zinc-500 hover:text-zinc-900">
                 <ChevronRight size={14} />
               </button>
             </div>
-            <div className="flex items-center bg-white rounded-md px-2 py-1 border border-zinc-200 shadow-sm h-8">
+            <div className="flex items-center bg-white rounded-md px-2 py-1 shadow-sm h-8">
               <input 
                 type="date" 
                 value={dateRange.start} 
@@ -341,7 +341,7 @@ export default function SiteReportTab() {
               placeholder="Filter site..."
               value={siteFilter}
               onChange={(e) => setSiteFilter(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-44 bg-white border border-zinc-200 rounded-md text-[13px] focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all font-medium text-zinc-800 placeholder:text-zinc-400 shadow-sm"
+              className="pl-8 pr-3 py-1.5 w-44 bg-white border border-zinc-200 rounded-md text-[13px] focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition font-medium text-zinc-800 placeholder:text-zinc-400 shadow-sm"
             />
           </div>
           <div className="relative">
@@ -351,7 +351,7 @@ export default function SiteReportTab() {
               placeholder="Filter employee..."
               value={nameFilter}
               onChange={(e) => setNameFilter(e.target.value)}
-              className="pl-8 pr-3 py-1.5 w-44 bg-white border border-zinc-200 rounded-md text-[13px] focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all font-medium text-zinc-800 placeholder:text-zinc-400 shadow-sm"
+              className="pl-8 pr-3 py-1.5 w-44 bg-white border border-zinc-200 rounded-md text-[13px] focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition font-medium text-zinc-800 placeholder:text-zinc-400 shadow-sm"
             />
           </div>
           <button 

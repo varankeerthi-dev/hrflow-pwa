@@ -10,7 +10,7 @@ import { Calendar as CalendarIcon, Plus, Save, TrendingUp, Wallet } from 'lucide
 
 const panelClassName = 'rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]'
 const insetClassName = 'rounded-[22px] border border-slate-200 bg-slate-50/80'
-const inputClassName = 'w-full h-11 rounded-2xl border border-slate-200 bg-white px-4 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
+const inputClassName = 'w-full h-11 rounded-2xl border border-slate-200 bg-white px-4 text-[13px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
 const headCellClassName = 'px-5 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500'
 const bodyCellClassName = 'px-5 py-4 text-[13px] text-slate-700'
 
@@ -165,7 +165,7 @@ export default function SalarySlabSettings() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.16em] transition-all ${
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.16em] transition ${
                     isActive
                       ? 'border-slate-900 bg-slate-950 text-white shadow-lg'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-600'
@@ -295,7 +295,7 @@ export default function SalarySlabSettings() {
                         <button
                           type="button"
                           onClick={() => handleSaveStructure(emp.id)}
-                          className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
+                          className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.16em] text-white transition hover:bg-slate-800"
                         >
                           <Save size={14} />
                           Update
@@ -347,7 +347,7 @@ export default function SalarySlabSettings() {
                 <input type="text" value={newInc.reason} onChange={e => setNewInc(s => ({ ...s, reason: e.target.value }))} className={inputClassName} placeholder="e.g. Annual Appraisal" />
               </div>
 
-              <button onClick={handleSaveIncrement} className="inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-indigo-600 px-4 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
+              <button onClick={handleSaveIncrement} className="inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-indigo-600 px-4 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition hover:bg-indigo-700">
                 <Plus size={14} />
                 Log Increment
               </button>
@@ -415,7 +415,7 @@ export default function SalarySlabSettings() {
                 <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">View Until</label>
                 <input type="date" value={newWindow.viewUntil} onChange={e => setNewWindow(s => ({ ...s, viewUntil: e.target.value }))} className={inputClassName} />
               </div>
-              <button onClick={handleSaveWindow} className="inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-indigo-600 px-4 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
+              <button onClick={handleSaveWindow} className="inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-indigo-600 px-4 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition hover:bg-indigo-700">
                 <Save size={14} />
                 Save Window
               </button>

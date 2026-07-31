@@ -82,13 +82,13 @@ export default function HRLettersTab() {
   return (
     <div className="space-y-8 font-inter">
       {/* Category Selection Card */}
-      <div className="bg-white p-6 rounded-[12px] shadow-sm border border-gray-100 flex justify-between items-center">
-        <div className="flex bg-gray-100 p-1 rounded-lg">
+      <div className="bg-white p-6 rounded-[12px] shadow-sm flex justify-between items-center">
+        <div className="flex bg-gray-100 w-12 rounded-lg">
           {letterTypes.map(t => (
             <button
               key={t.id}
               onClick={() => { setActiveSub(t.id); setShowPreview(false); }}
-              className={`flex items-center gap-2 px-5 py-2 rounded-md text-[13px] font-bold transition-all ${activeSub === t.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex items-center gap-2 px-5 py-2 rounded-md text-[13px] font-bold transition ${activeSub === t.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
             >
               {t.icon} {t.label}
             </button>
@@ -98,7 +98,7 @@ export default function HRLettersTab() {
         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Letter Generator v2.0</p>
       </div>
 
-      <div className="bg-white p-8 rounded-[12px] border border-gray-100 shadow-sm flex flex-wrap gap-8 items-end no-print">
+      <div className="bg-white p-8 rounded-[12px] shadow-sm flex flex-wrap gap-8 items-end no-print">
         <div className="flex-1 min-w-[300px]">
           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Resource Search</label>
           <div className="relative">
@@ -106,7 +106,7 @@ export default function HRLettersTab() {
             <select 
               value={selectedEmp} 
               onChange={e => { setSelectedEmp(e.target.value); setShowPreview(false); }}
-              className="w-full h-[44px] pl-10 pr-4 border border-gray-200 rounded-lg text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer transition-all"
+              className="w-full h-[44px] pl-10 pr-4 border border-gray-200 rounded-lg text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer transition"
             >
               <option value="">Search employee roster...</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.empCode})</option>)}
@@ -116,7 +116,7 @@ export default function HRLettersTab() {
         <button 
           onClick={() => setShowPreview(true)}
           disabled={!selectedEmp}
-          className="h-[44px] px-8 bg-indigo-600 text-white font-black rounded-lg uppercase tracking-widest text-[12px] shadow-lg hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center gap-3"
+          className="h-[44px] px-8 bg-indigo-600 text-white font-black rounded-lg uppercase tracking-widest text-[12px] shadow-lg hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-3"
         >
           <FileText size={18} /> Generate Draft
         </button>
@@ -125,10 +125,10 @@ export default function HRLettersTab() {
       {showPreview && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex justify-center gap-4 no-print pb-4">
-            <button onClick={() => window.print()} className="h-[40px] px-6 bg-white border border-gray-200 text-gray-600 rounded-lg text-[12px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm">
+            <button onClick={() => window.print()} className="h-[40px] px-6 bg-white border border-gray-200 text-gray-600 rounded-lg text-[12px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-gray-50 transition shadow-sm">
               <Printer size={16} /> Hard Copy
             </button>
-            <button className="h-[40px] px-6 bg-indigo-50 text-indigo-600 rounded-lg text-[12px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 transition-all shadow-sm">
+            <button className="h-[40px] px-6 bg-indigo-50 text-indigo-600 rounded-lg text-[12px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 transition shadow-sm">
               <Download size={16} /> Digital PDF
             </button>
           </div>

@@ -195,7 +195,7 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
                   placeholder="Filter staff..." 
                   value={searchTerm} 
                   onChange={(e) => setSearchTerm(e.target.value)} 
-                  className="w-full h-8 pl-9 pr-3 bg-white border border-[#d4d4d4] rounded-md text-[14px] text-[#171717] focus:outline-none focus:border-[#171717] transition-all" 
+                  className="w-full h-8 pl-9 pr-3 bg-white border border-[#d4d4d4] rounded-md text-[14px] text-[#171717] focus:outline-none focus:border-[#171717] transition" 
                 />
               </div>
             )}
@@ -211,7 +211,7 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
                 <span className="text-[14px] font-semibold text-[#171717]">{processedCount} / {totalEmps}</span>
               </div>
             </div>
-            <button onClick={onClose} className="p-1 text-[#525252] hover:bg-[#f5f5f5] rounded-md transition-colors">
+            <button onClick={onClose} className="w-12 text-[#525252] hover:bg-[#f5f5f5] rounded-md transition-colors">
               <X size={20} />
             </button>
           </div>
@@ -252,7 +252,7 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
                               placeholder="0" 
                               value={vals.advance || ''} 
                               onChange={(e) => handleUpdate(emp.id, 'advance', e.target.value)} 
-                              className="w-full h-8 pl-7 pr-3 bg-white border border-[#d4d4d4] focus:border-[#171717] rounded-md text-[13px] font-semibold text-[#171717] outline-none transition-all placeholder:text-[#d4d4d4]" 
+                              className="w-full h-8 pl-7 pr-3 bg-white border border-[#d4d4d4] focus:border-[#171717] rounded-md text-[13px] font-semibold text-[#171717] outline-none transition placeholder:text-[#d4d4d4]" 
                             />
                           </div>
                         </td>
@@ -264,15 +264,15 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
                               placeholder="0" 
                               value={vals.expense || ''} 
                               onChange={(e) => handleUpdate(emp.id, 'expense', e.target.value)} 
-                              className="w-full h-8 pl-7 pr-3 bg-white border border-[#d4d4d4] focus:border-[#171717] rounded-md text-[13px] font-semibold text-[#171717] outline-none transition-all placeholder:text-[#d4d4d4]" 
+                              className="w-full h-8 pl-7 pr-3 bg-white border border-[#d4d4d4] focus:border-[#171717] rounded-md text-[13px] font-semibold text-[#171717] outline-none transition placeholder:text-[#d4d4d4]" 
                             />
                           </div>
                         </td>
                         <td className="px-6 text-right">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => clearRow(emp.id)} className="p-1.5 text-[#525252] hover:bg-white rounded-md border border-transparent hover:border-[#d4d4d4] transition-all"><RotateCcw size={14} /></button>
-                            <button onClick={() => removeRow(emp.id)} className="p-1.5 text-[#525252] hover:bg-white rounded-md border border-transparent hover:border-[#d4d4d4] transition-all"><Trash2 size={14} /></button>
-                            <button onClick={() => toggleVerify(emp.id)} className={cn("p-1.5 rounded-md transition-all border border-transparent", vals.verified ? "text-[#171717] bg-[#f5f5f5] border-[#d4d4d4]" : "text-[#d4d4d4] hover:text-[#171717]")}><CheckCircle2 size={16} /></button>
+                            <button onClick={() => clearRow(emp.id)} className="w-12 h-12 text-[#525252] hover:bg-white rounded-md border border-transparent hover:border-[#d4d4d4] transition"><RotateCcw size={14} /></button>
+                            <button onClick={() => removeRow(emp.id)} className="w-12 h-12 text-[#525252] hover:bg-white rounded-md border border-transparent hover:border-[#d4d4d4] transition"><Trash2 size={14} /></button>
+                            <button onClick={() => toggleVerify(emp.id)} className={cn("w-12 h-12 rounded-md transition border border-transparent", vals.verified ? "text-[#171717] bg-[#f5f5f5] border-[#d4d4d4]" : "text-[#d4d4d4] hover:text-[#171717]")}><CheckCircle2 size={16} /></button>
                           </div>
                         </td>
                       </tr>
@@ -286,13 +286,13 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
               <div className="flex gap-3">
                 <button
                   onClick={onClose}
-                  className="px-6 py-2 border border-[#d4d4d4] rounded-md bg-white text-[#525252] text-[14px] font-medium hover:bg-[#f5f5f5] transition-all"
+                  className="px-6 py-2 border border-[#d4d4d4] rounded-md bg-white text-[#525252] text-[14px] font-medium hover:bg-[#f5f5f5] transition"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={() => setStep('review')} 
-                  className="px-8 py-2 bg-[#171717] hover:bg-[#262626] text-white rounded-md text-[14px] font-medium transition-all flex items-center gap-2"
+                  className="px-8 py-2 bg-[#171717] hover:bg-[#262626] text-white rounded-md text-[14px] font-medium transition flex items-center gap-2"
                 >
                   Continue to Review <ArrowRight size={16} />
                 </button>
@@ -323,11 +323,11 @@ const SuperfastModal = ({ isOpen, onClose, employees, month, orgId, userId, user
               </div>
             </div>
             <div className="px-8 py-4 border-t border-[#e5e5e5] bg-white flex justify-between items-center shrink-0">
-              <button onClick={() => setStep('entry')} className="h-10 px-8 text-[14px] font-medium text-[#525252] hover:bg-[#f5f5f5] rounded-md transition-all">Back to Editor</button>
+              <button onClick={() => setStep('entry')} className="h-10 px-8 text-[14px] font-medium text-[#525252] hover:bg-[#f5f5f5] rounded-md transition">Back to Editor</button>
               <button 
                 onClick={handleCommit} 
                 disabled={isSubmitting || entriesToCommit.length === 0} 
-                className="h-11 px-12 bg-[#171717] hover:bg-[#262626] text-white rounded-md text-[14px] font-medium transition-all active:scale-95 disabled:opacity-60 flex items-center gap-2"
+                className="h-11 px-12 bg-[#171717] hover:bg-[#262626] text-white rounded-md text-[14px] font-medium transition active:scale-[0.98] disabled:opacity-60 flex items-center gap-2"
               >
                 {isSubmitting ? <Spinner size="sm" className="mr-2" /> : <Save size={18} className="mr-2" />}
                 Confirm & Post to Ledger
@@ -429,9 +429,9 @@ export default function AccountantTab() {
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Finance Control</span>
               <h1 className="text-lg font-bold text-zinc-900 tracking-tight font-raleway uppercase">Accountant Desk</h1>
             </div>
-            <nav className="flex bg-zinc-100 p-1 rounded-xl gap-1">
+            <nav className="flex bg-zinc-100 w-12 rounded-xl gap-1">
               {TABS.map(tab => (
-                <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${activeSubTab === tab.id ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'}`}>
+                <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition duration-200 ${activeSubTab === tab.id ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'}`}>
                   <span className={activeSubTab === tab.id ? 'text-zinc-900' : 'text-zinc-400'}>{tab.icon}</span>
                   <span className="text-[13px] font-bold tracking-tight">{tab.label}</span>
                 </button>
@@ -461,9 +461,9 @@ export default function AccountantTab() {
           <div className="h-full flex flex-col space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="flex bg-zinc-100 p-1 rounded-lg border border-zinc-200">
-                  <button onClick={() => { setEntryMode('dated'); setBulkRows(bulkRows.map(r => ({ ...r, date: new Date().toISOString().split('T')[0] }))) }} className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${entryMode === 'dated' ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/50' : 'text-zinc-400 hover:text-zinc-600'}`}>Specific Dates</button>
-                  <button onClick={() => { setEntryMode('monthly'); setBulkRows(bulkRows.map(r => ({ ...r, date: new Date().toISOString().substring(0, 7) }))) }} className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${entryMode === 'monthly' ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/50' : 'text-zinc-400 hover:text-zinc-600'}`}>Monthly Total</button>
+                <div className="flex bg-zinc-100 w-12 rounded-lg border border-zinc-200">
+                  <button onClick={() => { setEntryMode('dated'); setBulkRows(bulkRows.map(r => ({ ...r, date: new Date().toISOString().split('T')[0] }))) }} className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition ${entryMode === 'dated' ? 'bg-white text-zinc-900 shadow-sm/50' : 'text-zinc-400 hover:text-zinc-600'}`}>Specific Dates</button>
+                  <button onClick={() => { setEntryMode('monthly'); setBulkRows(bulkRows.map(r => ({ ...r, date: new Date().toISOString().substring(0, 7) }))) }} className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition ${entryMode === 'monthly' ? 'bg-white text-zinc-900 shadow-sm/50' : 'text-zinc-400 hover:text-zinc-600'}`}>Monthly Total</button>
                 </div>
                 <div><h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider font-raleway">Bulk Entry Panel</h2><p className="text-xs text-zinc-500">{entryMode === 'monthly' ? 'Wholesale monthly sync' : 'Individual transaction log'}</p></div>
               </div>
@@ -471,11 +471,11 @@ export default function AccountantTab() {
                 <button onClick={clearAllRows} className="px-3 py-2 text-[#525252] hover:text-[#171717] text-xs font-semibold uppercase transition-colors">Clear All</button>
                 <button 
                   onClick={() => setIsSuperfastOpen(true)} 
-                  className="flex items-center gap-2 px-5 py-2 bg-[#D97706] text-white rounded-md text-[14px] font-semibold hover:bg-[#B45309] transition-all shadow-[0_0_15px_rgba(217,119,6,0.4)] hover:shadow-[0_0_20px_rgba(217,119,6,0.6)] active:scale-95"
+                  className="flex items-center gap-2 px-5 py-2 bg-[#D97706] text-white rounded-md text-[14px] font-semibold hover:bg-[#B45309] transition shadow-[0_0_15px_rgba(217,119,6,0.4)] hover:shadow-[0_0_20px_rgba(217,119,6,0.6)] active:scale-[0.98]"
                 >
                   <LayoutGrid size={16} /> Superfast Sync
                 </button>
-                <button onClick={addBulkRow} className="flex items-center gap-2 px-4 py-2 bg-white border border-[#d4d4d4] text-[#525252] rounded-md text-[14px] font-medium hover:bg-[#f5f5f5] transition-all shadow-sm"><Plus size={14} /> Add Row</button>
+                <button onClick={addBulkRow} className="flex items-center gap-2 px-4 py-2 bg-white border border-[#d4d4d4] text-[#525252] rounded-md text-[14px] font-medium hover:bg-[#f5f5f5] transition shadow-sm"><Plus size={14} /> Add Row</button>
               </div>
             </div>
 
@@ -502,7 +502,7 @@ export default function AccountantTab() {
                         <td className="px-3 py-1.5 align-middle whitespace-nowrap"><input type={entryMode === 'monthly' ? 'month' : 'date'} value={row.date} onChange={(e) => updateBulkRow(row.id, 'date', e.target.value)} className="w-full h-8 bg-transparent border-0 focus:ring-0 text-[12px] font-medium text-zinc-700 outline-none p-0" /></td>
                         <td className="px-3 py-1.5 align-middle whitespace-nowrap"><input type="number" placeholder="0.00" value={row.amount} onChange={(e) => updateBulkRow(row.id, 'amount', e.target.value)} className="w-full h-8 bg-transparent border-0 focus:ring-0 text-right text-[12px] font-black text-orange-600 placeholder:text-zinc-300 outline-none p-0" /></td>
                         <td className="px-3 py-1.5 align-middle whitespace-nowrap"><input type="text" placeholder={entryMode === 'monthly' ? 'Total impact...' : 'Reason...'} value={row.remarks} onChange={(e) => updateBulkRow(row.id, 'remarks', e.target.value)} className="w-full h-8 bg-transparent border-0 focus:ring-0 text-[12px] font-medium text-zinc-500 placeholder:text-zinc-300 outline-none p-0" /></td>
-                        <td className="px-3 py-1.5 align-middle text-right"><button onClick={() => removeBulkRow(row.id)} className="p-1 text-zinc-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button></td>
+                        <td className="px-3 py-1.5 align-middle text-right"><button onClick={() => removeBulkRow(row.id)} className="w-12 text-zinc-300 hover:text-rose-500 transition opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -514,7 +514,7 @@ export default function AccountantTab() {
                   <div className="h-8 w-px bg-zinc-200"></div>
                   <div className="flex flex-col"><span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Aggregate Disbursement</span><span className="text-sm font-black text-orange-600 mt-1">{formatINR(bulkRows.reduce((s, r) => s + (Number(r.amount) || 0), 0))}</span></div>
                 </div>
-                <button onClick={handleBulkSubmit} disabled={loading} className="px-8 py-2.5 bg-zinc-950 text-white rounded-xl text-xs font-black uppercase tracking-[0.15em] shadow-lg shadow-zinc-900/20 hover:bg-zinc-800 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2">{loading ? <Spinner size="sm" /> : <Save size={16} />}Commit Transactions</button>
+                <button onClick={handleBulkSubmit} disabled={loading} className="px-8 py-2.5 bg-zinc-950 text-white rounded-xl text-xs font-black uppercase tracking-[0.15em] shadow-lg shadow-zinc-900/20 hover:bg-zinc-800 active:scale-[0.98] transition disabled:opacity-50 flex items-center gap-2">{loading ? <Spinner size="sm" /> : <Save size={16} />}Commit Transactions</button>
               </div>
             </div>
           </div>
@@ -524,7 +524,7 @@ export default function AccountantTab() {
           <div className="h-full flex flex-col space-y-4">
              <div className="flex items-center justify-between">
               <div><h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider font-raleway">Pending Clearances</h2><p className="text-xs text-zinc-500">Waitlist for accountant confirmation</p></div>
-              <button onClick={fetchPending} className="p-2 bg-zinc-100 border border-zinc-200 text-zinc-600 rounded-lg hover:bg-zinc-200 transition-all shadow-sm"><RotateCcw size={16} /></button>
+              <button onClick={fetchPending} className="p-2 bg-zinc-100 border border-zinc-200 text-zinc-600 rounded-lg hover:bg-zinc-200 transition shadow-sm"><RotateCcw size={16} /></button>
             </div>
             <div className="flex-1 rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden flex flex-col">
               <div className="overflow-auto flex-1">
@@ -548,7 +548,7 @@ export default function AccountantTab() {
                           <td className="px-4 py-1.5 text-[12px] font-medium text-zinc-500 font-mono">{item.date}</td>
                           <td className="px-4 py-1.5 text-right font-black text-zinc-900 text-[12px]">{formatINR(item.amount)}</td>
                           <td className="px-4 py-1.5 text-[11px] font-medium text-zinc-500 italic truncate max-w-[200px]">{item.remarks}</td>
-                          <td className="px-4 py-1.5 text-right whitespace-nowrap"><div className="flex justify-end gap-2"><button onClick={() => handleApprove(item.id)} className="h-8 w-8 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><CheckCircle2 size={16} /></button><button className="h-8 w-8 flex items-center justify-center bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all shadow-sm"><X size={16} /></button></div></td>
+                          <td className="px-4 py-1.5 text-right whitespace-nowrap"><div className="flex justify-end gap-2"><button onClick={() => handleApprove(item.id)} className="h-8 w-8 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition shadow-sm"><CheckCircle2 size={16} /></button><button className="h-8 w-8 flex items-center justify-center bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition shadow-sm"><X size={16} /></button></div></td>
                         </tr>
                       ))}
                     </tbody>

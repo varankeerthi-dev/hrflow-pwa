@@ -209,7 +209,7 @@ export default function EmployeeSalarySlipTab() {
           <button
             onClick={handleExportPdf}
             disabled={exportingPdf}
-            className="h-9 px-5 bg-indigo-600 text-white font-black rounded-xl text-[13px] uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all"
+            className="h-9 px-5 bg-indigo-600 text-white font-black rounded-xl text-[13px] uppercase tracking-widest shadow-lg shadow-indigo-600/20 flex items-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-transform"
           >
             <Download size={14} />
             {exportingPdf ? 'Preparing PDF...' : 'Export PDF'}
@@ -308,7 +308,7 @@ export default function EmployeeSalarySlipTab() {
               </div>
             </div>
 
-            <div className="flex justify-center gap-16 mb-6 py-4 bg-slate-50 rounded-xl px-4">
+            <div className="flex justify-center gap-16 mb-6 py-4 bg-slate-50 rounded-2xl px-4">
               <div className="text-center">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Basic</p>
                 <p className="text-lg font-black text-slate-900">{formatINR(slipData.basic)}</p>
@@ -323,7 +323,7 @@ export default function EmployeeSalarySlipTab() {
               </div>
             </div>
 
-            <div className="border border-slate-200 rounded-[24px] overflow-hidden mb-8 shadow-sm bg-slate-50/30">
+            <div className="rounded-[24px] overflow-hidden mb-8 shadow-sm bg-slate-50/30">
               <div className="grid grid-cols-2 bg-slate-950 divide-x divide-slate-800">
                 <div className="flex justify-between p-4 font-black text-[13px] uppercase tracking-[0.16em] text-white">
                   <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Earnings</span>
@@ -335,7 +335,7 @@ export default function EmployeeSalarySlipTab() {
                 </div>
               </div>
               <div className="grid grid-cols-2 divide-x divide-slate-200">
-                <div className="p-1 space-y-0.5 bg-white">
+                <div className="w-12 space-y-0.5 bg-white">
                   <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                     <span>Basic Remuneration</span>
                     <span className="font-bold text-slate-900">{formatINR(slipData.basic)}</span>
@@ -357,7 +357,7 @@ export default function EmployeeSalarySlipTab() {
                     <span className="font-bold text-slate-900">{dashIfZero(slipData.otPay)}</span>
                   </div>
                 </div>
-                <div className="p-1 space-y-0.5 bg-white">
+                <div className="w-12 space-y-0.5 bg-white">
                   <div className="flex justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600">
                     <span>PF</span>
                     <span className="font-bold text-slate-900">{dashIfZero(slipData.pf)}</span>

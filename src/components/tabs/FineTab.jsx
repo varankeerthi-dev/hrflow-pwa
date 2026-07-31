@@ -81,7 +81,7 @@ export default function FineTab() {
         </div>
         <button 
           onClick={() => setShowAddModal(true)}
-          className="h-[40px] px-6 bg-red-600 text-white font-bold rounded-lg text-[12px] flex items-center gap-2 shadow-lg hover:bg-red-700 transition-all uppercase tracking-widest"
+          className="h-[40px] px-6 bg-red-600 text-white font-bold rounded-lg text-[12px] flex items-center gap-2 shadow-lg hover:bg-red-700 transition uppercase tracking-widest"
         >
           <Plus size={16} strokeWidth={3} /> Issue Penalty
         </button>
@@ -127,7 +127,7 @@ export default function FineTab() {
                     </td>
                     <td className="px-[16px]">
                       <div className="flex justify-end">
-                        <button onClick={async () => { if(confirm('Delete penalty?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'fines', fine.id)); fetchFines(); } }} className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                        <button onClick={async () => { if(confirm('Delete penalty?')) { await deleteDoc(doc(db, 'organisations', user.orgId, 'fines', fine.id)); fetchFines(); } }} className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -144,7 +144,7 @@ export default function FineTab() {
         <form onSubmit={handleSubmit} className="p-8 space-y-6 max-w-md mx-auto">
           <div>
             <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Occurrence Date</label>
-            <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none transition-all" />
+            <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full h-[42px] border border-gray-200 rounded-lg px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none transition" />
           </div>
           
           <div>
@@ -170,7 +170,7 @@ export default function FineTab() {
 
           <div>
             <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Incident Report / Details</label>
-            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} className="w-full border border-gray-200 rounded-lg p-4 text-[13px] font-medium outline-none bg-gray-50 focus:ring-2 focus:ring-red-500 h-[120px] transition-all" placeholder="Describe the policy violation in detail..." />
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} className="w-full border border-gray-200 rounded-lg p-4 text-[13px] font-medium outline-none bg-gray-50 focus:ring-2 focus:ring-red-500 h-[120px] transition" placeholder="Describe the policy violation in detail..." />
           </div>
 
           <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3">
@@ -178,7 +178,7 @@ export default function FineTab() {
             <p className="text-[11px] text-red-700 font-bold leading-relaxed uppercase">Warning: This amount will be automatically deducted from the next payroll cycle. Ensure documentation is complete.</p>
           </div>
 
-          <button type="submit" disabled={loading} className="w-full h-[44px] bg-red-600 text-white font-black rounded-lg shadow-xl hover:bg-red-700 transition-all text-[12px] uppercase tracking-[0.2em] mt-2">
+          <button type="submit" disabled={loading} className="w-full h-[44px] bg-red-600 text-white font-black rounded-lg shadow-xl hover:bg-red-700 transition text-[12px] uppercase tracking-[0.2em] mt-2">
             Authenticate Penalty
           </button>
         </form>

@@ -81,8 +81,8 @@ class ErrorBoundary extends Component {
         <div className="p-8 text-center bg-red-50 border border-red-100 rounded-xl m-4">
           <div className="text-4xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold text-red-800 mb-2 uppercase tracking-tight font-inter">Component Failure</h2>
-          <p className="text-red-600 text-[10px] font-black uppercase mb-6">{this.state.error?.message || 'Unexpected Rendering Error'}</p>
-          <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg uppercase text-[10px]">Reload Application</button>
+          <p className="text-red-600 text-xs font-bold uppercase mb-6">{this.state.error?.message || 'Unexpected Rendering Error'}</p>
+          <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg uppercase text-xs">Reload Application</button>
         </div>
       )
     }
@@ -141,7 +141,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
             <span className="text-white text-3xl">🏢</span>
           </div>
           <h2 className="text-xl font-bold text-gray-800 uppercase tracking-tight font-inter">Organization Setup</h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-2 font-inter">
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest text-center mt-2 font-inter">
             {user?.orgId ? 'Create New Division' : 'Join a Team or Create Your Own'}
           </p>
         </div>
@@ -149,36 +149,36 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
         {!user?.orgId && (
           <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
             <button onClick={() => { setModalTab('join'); setError('') }}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all font-inter ${modalTab === 'join' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
+              className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition font-inter ${modalTab === 'join' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
               Join Team
             </button>
             <button onClick={() => { setModalTab('create'); setError('') }}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all font-inter ${modalTab === 'create' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
+              className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition font-inter ${modalTab === 'create' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
               Create Org
             </button>
           </div>
         )}
 
-        {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-lg text-[10px] font-bold mb-4 uppercase text-center font-inter">{error}</div>}
+        {error && <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-lg text-xs font-bold mb-4 uppercase text-center font-inter">{error}</div>}
 
         {createdCode ? (
           <div className="space-y-4 font-inter text-center">
             <div className="bg-green-50 border border-green-100 rounded-xl p-5">
-              <p className="text-[10px] text-green-700 font-bold uppercase tracking-widest mb-3">Organization Online! 🎉</p>
+              <p className="text-xs text-green-700 font-bold uppercase tracking-widest mb-3">Organization Online! 🎉</p>
               <div className="bg-white border border-green-200 rounded-lg px-4 py-3 font-mono font-bold tracking-widest text-lg select-all shadow-inner">{createdCode}</div>
-              <p className="text-[9px] text-gray-400 font-bold uppercase mt-3 tracking-tighter italic">Share this code with your employees</p>
+              <p className="text-xs text-gray-400 font-bold uppercase mt-3 tracking-tighter italic">Share this code with your employees</p>
             </div>
-            <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg shadow-xl uppercase text-[10px] tracking-widest">Get Started</button>
+            <button onClick={() => window.location.reload()} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg shadow-xl uppercase text-xs tracking-widest">Get Started</button>
           </div>
         ) : modalTab === 'join' ? (
           <form onSubmit={handleJoin} className="space-y-4 font-inter">
             <input value={orgCode} onChange={e => setOrgCode(e.target.value)} placeholder="ENTER ORG CODE" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold tracking-widest bg-gray-50" />
-            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Verifying...' : 'Join Organization'}</button>
+            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition disabled:opacity-50 uppercase text-xs tracking-widest">{loading ? 'Verifying...' : 'Join Organization'}</button>
           </form>
         ) : (
           <form onSubmit={handleCreate} className="space-y-4 font-inter">
             <input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="BUSINESS NAME" className="w-full border border-gray-200 rounded-lg h-[42px] px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold uppercase tracking-widest bg-gray-50" />
-            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition-all disabled:opacity-50 uppercase text-[10px] tracking-widest">{loading ? 'Creating...' : 'Initialize Org'}</button>
+            <button type="submit" disabled={loading} className="w-full h-[40px] bg-indigo-600 text-white font-bold rounded-lg shadow-xl transition disabled:opacity-50 uppercase text-xs tracking-widest">{loading ? 'Creating...' : 'Initialize Org'}</button>
           </form>
         )}
 
@@ -186,12 +186,12 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
           {!user?.orgId && (
             <button 
               onClick={onLogout} 
-              className="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-3 rounded-lg transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 border border-rose-200 shadow-sm"
+              className="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-3 rounded-lg transition uppercase text-xs tracking-widest flex items-center justify-center gap-2 border border-rose-200 shadow-sm"
             >
               <LogOut size={14} /> <span>Sign Out & Exit</span>
             </button>
           )}
-          <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 uppercase text-[10px] font-bold tracking-widest font-inter">
+          <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 transition-colors py-2 uppercase text-xs font-bold tracking-widest font-inter">
             <X size={14} /> <span>Back to login</span>
           </button>
         </div>
@@ -253,16 +253,6 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem('isReportsExpanded', isReportsExpanded)
   }, [isReportsExpanded])
-
-  // Load Plus Jakarta Sans font (Enterprise SaaS design system)
-  useEffect(() => {
-    if (document.getElementById('google-fonts')) return
-    const link = document.createElement('link')
-    link.id = 'google-fonts'
-    link.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
-    link.rel = 'stylesheet'
-    document.head.appendChild(link)
-  }, [])
 
   const currentEmployee = useMemo(() => {
     if (!employees.length || !user?.uid) return null
@@ -493,10 +483,10 @@ export default function Dashboard() {
                 <Lock size={28} className="text-red-500" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Access Denied</h3>
-              <p className="text-sm text-gray-500 mb-6 leading-relaxed">You don't have permission to access this module. Please contact your administrator.</p>
+              <p className="text-sm text-gray-500 mb-6 leading-relaxed text-pretty">You don't have permission to access this module. Please contact your administrator.</p>
               <button 
                 onClick={() => { setActiveTab('home'); setTabSearchParams({ tab: 'home' }); }}
-                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-semibold hover:shadow-md hover:shadow-indigo-200 transition-all duration-200"
+                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-semibold hover:shadow-md hover:shadow-indigo-200 transition duration-200"
               >
                 Go to Dashboard
               </button>
@@ -536,12 +526,12 @@ export default function Dashboard() {
 
   if (authLoading || (user?.orgId && empLoading)) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 mb-6 flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse">
           <span className="text-white text-3xl font-bold">H</span>
         </div>
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 font-semibold uppercase tracking-wider text-[11px]">Synchronizing Dashboard...</p>
+        <p className="text-gray-600 font-semibold uppercase tracking-wider text-xs">Synchronizing Dashboard...</p>
       </div>
     )
   }
@@ -555,12 +545,12 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="min-h-screen bg-white flex flex-col">
       {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/80 h-14 shrink-0 px-4 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-[60] bg-white/80 backdrop-blur-md border-b border-gray-200/80 h-14 shrink-0 px-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 md:hidden transition-all duration-200"><Menu size={18} /></button>
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 md:hidden transition duration-200"><Menu size={18} /></button>
           <div className="flex items-center gap-2.5">
             {orgSettings?.logoURL ? (
               <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-xl object-cover shadow-sm ring-2 ring-gray-100" />
@@ -599,7 +589,7 @@ export default function Dashboard() {
                         if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); 
                         if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) 
                       }} 
-                      className={`px-3.5 h-8.5 rounded-lg text-[13px] font-semibold whitespace-nowrap hover:scale-105 active:scale-[0.98] transition-all duration-150 flex items-center gap-1.5 cursor-pointer ${
+                      className={`px-3.5 h-8.5 rounded-lg text-[13px] font-semibold whitespace-nowrap hover:scale-105 active:scale-[0.98] transition duration-150 flex items-center gap-1.5 cursor-pointer ${
                         activeTab === item.tab 
                           ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/50' 
                           : 'bg-white text-zinc-600 hover:bg-zinc-50 border border-zinc-200/60 shadow-sm'
@@ -611,7 +601,7 @@ export default function Dashboard() {
                       {item.label}
                     </button>
                     
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 invisible group-hover:visible opacity-0 scale-95 origin-top group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 bg-zinc-950 text-white text-[11px] font-semibold py-1.5 px-3 rounded-lg shadow-md whitespace-nowrap z-50 pointer-events-none flex flex-col items-center border border-zinc-800">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 invisible group-hover:visible opacity-0 scale-95 origin-top group-hover:opacity-100 group-hover:scale-100 transition duration-150 bg-zinc-950 text-white text-[11px] font-semibold py-1.5 px-3 rounded-lg shadow-md whitespace-nowrap z-50 pointer-events-none flex flex-col items-center">
                       <span className="text-zinc-400 text-[9px] uppercase tracking-wider font-bold mb-0.5">{item.label}</span>
                       <span>{item.tooltip}</span>
                       {/* Arrow */}
@@ -629,10 +619,10 @@ export default function Dashboard() {
           {user?.orgId && <OrganizationSwitcher />}
           <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
           
-          <button onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} title="Profile" className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-all group">
+          <button onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} title="Profile" className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-colors group">
             <div className="flex flex-col items-start text-left">
               <span className="text-[13px] font-black tracking-tight group-hover:text-indigo-600 transition-colors leading-none border-b border-transparent group-hover:border-indigo-300" style={{ color: '#7d6be1' }}>{user?.name?.split(' ').map((n, i) => i === 0 ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : n.toLowerCase()).join(' ')}</span>
-              <span className="text-[8px] text-gray-400 font-bold mt-1 lowercase">{user?.email || user?.role || 'Staff'}</span>
+              <span className="text-xs text-gray-400 font-bold mt-1 lowercase">{user?.email || user?.role || 'Staff'}</span>
             </div>
             {(currentEmployee?.photoURL || user?.photoURL) ? (
               <img src={currentEmployee?.photoURL || user?.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100" />
@@ -641,14 +631,14 @@ export default function Dashboard() {
             )}
           </button>
           <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
-          <button onClick={() => setShowLog(s => !s)} title="Activity Log" className={`p-1.5 rounded-md transition-all ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}><History size={16} /></button>
-          <button onClick={logout} title="Logout" className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"><LogOut size={16} /></button>
+          <button onClick={() => setShowLog(s => !s)} title="Activity Log" className={`p-2.5 rounded-md transition-colors ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}><History size={16} /></button>
+          <button onClick={logout} title="Logout" className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><LogOut size={16} /></button>
         </div>
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
-        <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
+        <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition duration-300 fixed inset-y-0 left-0 z-50 md:relative md:z-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
           {/* Mobile-only header with close button */}
           <div className="md:hidden p-4 flex items-center justify-end border-b border-gray-200/60 h-14 shrink-0">
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-zinc-500 transition-colors">

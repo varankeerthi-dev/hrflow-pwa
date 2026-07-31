@@ -13,6 +13,7 @@ import TimePicker from '../ui/TimePicker'
 import SelfieCaptureModal from '../ui/SelfieCaptureModal'
 import { useLeaves } from '../../hooks/useLeaves'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
+import EmployeeTasksView from './EmployeeTasksView'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getAttendancePortalBadge, ATTENDANCE_EVENT_IN, ATTENDANCE_EVENT_OUT, ATTENDANCE_STATUS_REJECTED } from '../../lib/attendanceWorkflow'
@@ -46,7 +47,8 @@ import {
   Play,
   Square,
   MessageSquare,
-  Camera
+  Camera,
+  CheckCircle2
 } from 'lucide-react'
 
 export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashboard' }) {
@@ -637,6 +639,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         <div className="grid grid-cols-3 md:flex bg-gray-100 p-1 rounded-lg w-full md:w-auto gap-1">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
+            { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={16} /> },
             { id: 'attendance', label: 'Attendance', icon: <Calendar size={16} /> },
             { id: 'requests', label: 'Requests', icon: <FileText size={16} /> },
             { id: 'salary', label: 'Salary Slip', icon: <Hash size={16} /> },
@@ -815,6 +818,12 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                 Request Permission
               </button>
             </div>
+          </div>
+        )}
+
+        {activePortalTab === 'tasks' && (
+          <div className="max-w-5xl mx-auto">
+            <EmployeeTasksView employeeId={employeeId} employee={employee} />
           </div>
         )}
 

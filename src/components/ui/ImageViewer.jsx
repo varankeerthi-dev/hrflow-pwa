@@ -44,7 +44,7 @@ export default function ImageViewer({ docs = [], index = 0, onClose }) {
                         <>
                             <button
                                 onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
                                 title="Zoom out"
                             >
                                 <ZoomOut size={16} />
@@ -52,7 +52,7 @@ export default function ImageViewer({ docs = [], index = 0, onClose }) {
                             <span className="text-white text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
                             <button
                                 onClick={() => setZoom(z => Math.min(4, z + 0.25))}
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
                                 title="Zoom in"
                             >
                                 <ZoomIn size={16} />
@@ -64,7 +64,7 @@ export default function ImageViewer({ docs = [], index = 0, onClose }) {
                         download={doc.name}
                         target="_blank"
                         rel="noreferrer"
-                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
+                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
                         title="Download"
                         onClick={e => e.stopPropagation()}
                     >
@@ -72,7 +72,7 @@ export default function ImageViewer({ docs = [], index = 0, onClose }) {
                     </a>
                     <button
                         onClick={e => { e.stopPropagation(); onClose() }}
-                        className="p-2 rounded-lg bg-white/10 hover:bg-red-500/60 text-white transition-all"
+                        className="p-2 rounded-lg bg-white/10 hover:bg-red-500/60 text-white transition"
                     >
                         <X size={16} />
                     </button>
@@ -85,7 +85,7 @@ export default function ImageViewer({ docs = [], index = 0, onClose }) {
                 {current > 0 && (
                     <button
                         onClick={() => setCurrent(c => c - 1)}
-                        className="absolute left-4 z-10 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all"
+                        className="absolute left-4 z-10 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition"
                     >
                         <ChevronLeft size={22} />
                     </button>
@@ -108,7 +108,7 @@ export default function ImageViewer({ docs = [], index = 0, onClose }) {
                             href={doc.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-6 py-3 bg-white text-gray-900 font-bold rounded-xl hover:bg-gray-100 transition-all flex items-center gap-2"
+                            className="px-6 py-3 bg-white text-gray-900 font-bold rounded-xl hover:bg-gray-100 transition flex items-center gap-2"
                         >
                             <Download size={18} /> Open / Download
                         </a>
@@ -119,7 +119,7 @@ export default function ImageViewer({ docs = [], index = 0, onClose }) {
                 {current < docs.length - 1 && (
                     <button
                         onClick={() => setCurrent(c => c + 1)}
-                        className="absolute right-4 z-10 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all"
+                        className="absolute right-4 z-10 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition"
                     >
                         <ChevronRight size={22} />
                     </button>
@@ -135,7 +135,7 @@ export default function ImageViewer({ docs = [], index = 0, onClose }) {
                             <button
                                 key={i}
                                 onClick={() => setCurrent(i)}
-                                className={`shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${i === current ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-90'}`}
+                                className={`shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition ${i === current ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-90'}`}
                             >
                                 {isImg ? (
                                     <img src={d.url} alt={d.name} className="w-full h-full object-cover" />

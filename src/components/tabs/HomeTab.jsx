@@ -295,8 +295,8 @@ export default function HomeTab() {
   return (
     <div className="p-6 font-inter space-y-6">
       {/* Quick Access Grid */}
-      <div className="bg-white shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Access</h2>
+      <div className="bg-white shadow-sm p-6 rounded-2xl">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 text-balance">Quick Access</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {quickAccessItems.map(item => {
             const Icon = item.icon
@@ -318,47 +318,47 @@ export default function HomeTab() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-sm p-6 border border-blue-200">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
               <Users size={24} className="text-white" />
             </div>
             <span className="text-sm text-blue-700 font-medium">Total</span>
           </div>
-          <p className="text-3xl font-bold text-blue-900">{stats.total}</p>
+          <p className="text-3xl font-bold text-blue-900 tabular-nums leading-none">{stats.total}</p>
           <p className="text-sm text-blue-700 mt-1">Total Employees</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-sm p-6 border border-green-200">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
               <CheckCircle size={24} className="text-white" />
             </div>
             <span className="text-sm text-green-700 font-medium">Present</span>
           </div>
-          <p className="text-3xl font-bold text-green-900">{stats.present}</p>
+          <p className="text-3xl font-bold text-green-900 tabular-nums leading-none">{stats.present}</p>
           <p className="text-sm text-green-700 mt-1">Present Today</p>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl shadow-sm p-6 border border-amber-200">
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-amber-600 rounded-lg flex items-center justify-center">
               <Calendar size={24} className="text-white" />
             </div>
             <span className="text-sm text-amber-700 font-medium">Leave</span>
           </div>
-          <p className="text-3xl font-bold text-amber-900">{stats.leave}</p>
+          <p className="text-3xl font-bold text-amber-900 tabular-nums leading-none">{stats.leave}</p>
           <p className="text-sm text-amber-700 mt-1">On Leave</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-sm p-6 border border-purple-200">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
               <Briefcase size={24} className="text-white" />
             </div>
             <span className="text-sm text-purple-700 font-medium">Tasks</span>
           </div>
-          <p className="text-3xl font-bold text-purple-900">{pendingApprovals.total}</p>
+          <p className="text-3xl font-bold text-purple-900 tabular-nums leading-none">{pendingApprovals.total}</p>
           <p className="text-sm text-purple-700 mt-1">Pending Approvals</p>
         </div>
       </div>
@@ -366,7 +366,7 @@ export default function HomeTab() {
       {/* Recent Activities */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activities</h2>
+          <h2 className="text-lg font-semibold text-gray-900 text-balance">Recent Activities</h2>
           <span className="text-sm text-gray-500">Last 24 hours</span>
         </div>
         

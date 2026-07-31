@@ -2,7 +2,7 @@ import React from 'react'
 
 export const Card = ({ children, className = '', noPadding = false }) => {
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-xl shadow-sm overflow-hidden ${className}`}>
       <div className={noPadding ? '' : 'p-6'}>
         {children}
       </div>
@@ -19,7 +19,7 @@ export const Button = ({
   loading = false,
   ...props 
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-bold uppercase tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+  const baseStyles = 'inline-flex items-center justify-center font-bold uppercase tracking-widest transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
   
   const variants = {
     primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 shadow-md',
@@ -62,7 +62,7 @@ export const EmptyState = ({
   return (
     <div className={`flex flex-col items-center justify-center p-12 text-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200 ${className}`}>
       {Icon && (
-        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 mb-4">
+        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
           <Icon className="text-gray-400" size={32} />
         </div>
       )}

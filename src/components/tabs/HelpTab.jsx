@@ -155,7 +155,7 @@ export default function HelpTab() {
                 key={filter.id}
                 type="button"
                 onClick={() => setTypeFilter(filter.id)}
-                className={`h-9 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${
+                className={`h-9 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest transition ${
                   typeFilter === filter.id
                     ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
                     : 'text-gray-500 hover:bg-white'

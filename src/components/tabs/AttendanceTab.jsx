@@ -861,7 +861,23 @@ export default function AttendanceTab({ defaultSubTab }) {
         await Promise.all(deleteBatch)
       }
 
+      // Log activity for tracking who made the change
       if (updates.length > 0 || deletes.length > 0) {
+        const affectedEmployees = new Set([
+          ...updates.map(u => u.employeeId),
+          ...deletes.map(d => d.employeeId)
+        ])
+        
+        await logActivity(user.orgId, user, {
+          module: 'Attendance',
+          action: 'Fix Joining History',
+          detail: `Fixed ${updates.length} records and cleaned up ${deletes.length} mistaken absences for ${affectedEmployees.size} employee(s). Updates: ${updates.length} marked as Absent/Restored, Deletes: ${deletes.length} removed.`,
+          affectedEmployees: Array.from(affectedEmployees),
+          updatesCount: updates.length,
+          deletesCount: deletes.length,
+          dateRange: { from: reportData[0]?.date, to: reportData[reportData.length - 1]?.date }
+        })
+        
         alert(`Successfully fixed ${updates.length} records and cleaned up ${deletes.length} mistaken absences.`)
         handleFilterSubmit()
       } else {

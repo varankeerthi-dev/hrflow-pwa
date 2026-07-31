@@ -20,7 +20,7 @@ export default function OperationsTab() {
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition ${
               activeSubTab === tab.id
                 ? 'bg-[#09CE99] text-white shadow-sm'
                 : 'text-[#6B7280] hover:bg-[#F3F4F6]'

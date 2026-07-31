@@ -4365,9 +4365,9 @@ export default function SettingsTab({ initialSubTab }) {
         }} 
         title={`EDIT EMPLOYEE: ${editForm.name || ''}`}
       >
-        <div className="flex flex-col h-[85vh] max-w-3xl mx-auto font-inter bg-white">
+        <div className="flex flex-col max-w-3xl mx-auto font-inter bg-white [&_input]:transition-all [&_select]:transition-all [&_textarea]:transition-all [&_input:hover]:border-gray-400 [&_select:hover]:border-gray-400 [&_textarea:hover]:border-gray-400 [&_input:hover]:shadow-sm [&_select:hover]:shadow-sm [&_textarea:hover]:shadow-sm">
           {/* Scrollable Form Body - Single scroll */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+          <div className="px-6 py-6 space-y-5">
 
             {/* Passport Photo + Name header */}
             <div className="flex items-start gap-4 pb-5 border-b border-gray-100">
@@ -5044,9 +5044,9 @@ export default function SettingsTab({ initialSubTab }) {
 
       {/* ADD NEW EMPLOYEE MODAL - Minimal, Clean Form */}
       <Modal isOpen={showAddEmployee} onClose={() => { setShowAddEmployee(false); setFormErrors({}); }} title="Add Employee">
-        <div className="flex flex-col h-[85vh] max-w-3xl mx-auto font-inter bg-white">
+        <div className="flex flex-col max-w-3xl mx-auto font-inter bg-white [&_input]:transition-all [&_select]:transition-all [&_textarea]:transition-all [&_input:hover]:border-gray-400 [&_select:hover]:border-gray-400 [&_textarea:hover]:border-gray-400 [&_input:hover]:shadow-sm [&_select:hover]:shadow-sm [&_textarea:hover]:shadow-sm">
           {/* Scrollable Form Body - Single scroll */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+          <div className="px-6 py-6 space-y-5">
 
             {/* Passport Photo + Name header */}
             <div className="flex items-start gap-4 pb-5 border-b border-gray-100">
@@ -5201,7 +5201,7 @@ export default function SettingsTab({ initialSubTab }) {
                 className="flex items-center gap-2 w-full px-4 py-2.5 transition-colors cursor-pointer select-none" style={{ backgroundColor: '#09CE99' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#07B888'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#09CE99'}
               >
                 <ChevronDown size={14} className={`text-white transition-transform duration-200 ${collapsedSections.personalDetails ? '-rotate-90' : ''}`} />
-                <span className="text-[10px] font-black text-white uppercase tracking-[0.15em]">Personal Details</span>
+                <span className="text-[10px] font-black text-black uppercase tracking-[0.15em] font-geist">Personal Details</span>
               </button>
               {!collapsedSections.personalDetails && <div className="p-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -5862,8 +5862,8 @@ export default function SettingsTab({ initialSubTab }) {
       </Modal>
 
       <Modal isOpen={showAddRole} onClose={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', isAccountant: false, permissions: { Tasks: { view: true } } }) }} title={editingRole ? 'Edit Role' : 'Create New Role'}>
-        <div className="flex flex-col h-[90vh] max-w-6xl mx-auto bg-white font-inter">
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="flex flex-col max-w-6xl mx-auto bg-white font-inter">
+          <div className="px-5 py-4 space-y-4">
             {/* Identity Section */}
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_280px] gap-4 pb-4 border-b border-gray-100">
               <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,0.85fr)_minmax(0,1.15fr)] gap-4">

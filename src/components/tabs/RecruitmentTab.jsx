@@ -127,16 +127,16 @@ export default function RecruitmentTab() {
     <div className="space-y-6 font-inter animate-in fade-in duration-500">
       {/* Tab Navigation & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
+        <div className="flex bg-gray-100 w-12 rounded-xl w-fit">
           <button
             onClick={() => { setActiveSub('jobs'); setSearchTerm(''); }}
-            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-[13px] font-bold transition-all ${activeSub === 'jobs' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-[13px] font-bold transition ${activeSub === 'jobs' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <Briefcase size={16} /> Job Openings
           </button>
           <button
             onClick={() => { setActiveSub('applicants'); setSearchTerm(''); }}
-            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-[13px] font-bold transition-all ${activeSub === 'applicants' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-[13px] font-bold transition ${activeSub === 'applicants' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <Users size={16} /> Applicants
           </button>
@@ -150,12 +150,12 @@ export default function RecruitmentTab() {
               placeholder={activeSub === 'jobs' ? "Search jobs..." : "Search applicants..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 h-[40px] border border-gray-200 rounded-xl text-sm font-medium bg-white focus:ring-2 focus:ring-indigo-500 outline-none w-[240px] transition-all"
+              className="pl-10 pr-4 h-[40px] border border-gray-200 rounded-xl text-sm font-medium bg-white focus:ring-2 focus:ring-indigo-500 outline-none w-[240px] transition"
             />
           </div>
           <button 
             onClick={() => activeSub === 'jobs' ? setShowAddJob(true) : setShowAddApplicant(true)}
-            className="h-[40px] px-5 bg-indigo-600 text-white font-bold rounded-xl text-[12px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-md"
+            className="h-[40px] px-5 bg-indigo-600 text-white font-bold rounded-xl text-[12px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 transition shadow-md"
           >
             <Plus size={18} /> {activeSub === 'jobs' ? 'Post Job' : 'Add Applicant'}
           </button>
@@ -174,7 +174,7 @@ export default function RecruitmentTab() {
             </div>
           ) : (
             filteredJobs.map(job => (
-              <div key={job.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative">
+              <div key={job.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition group relative">
                 <div className="flex justify-between items-start mb-4">
                   <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${job.status === 'Open' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}>
                     {job.status}
@@ -182,13 +182,13 @@ export default function RecruitmentTab() {
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => { setEditingJob(job); setJobForm(job); setShowAddJob(true); }}
-                      className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                      className="w-12 h-12 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
                     >
                       <Edit size={14} />
                     </button>
                     <button 
                       onClick={() => { if (confirm('Delete this job?')) deleteJob(job.id); }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      className="w-12 h-12 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -223,7 +223,7 @@ export default function RecruitmentTab() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -271,14 +271,14 @@ export default function RecruitmentTab() {
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
                               onClick={() => { setEditingApplicant(applicant); setApplicantForm(applicant); setShowAddApplicant(true); }}
-                              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                              className="w-12 h-12 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
                               title="Edit"
                             >
                               <Edit size={14} />
                             </button>
                             <button 
                               onClick={() => { if (confirm('Delete this applicant?')) deleteApplicant(applicant.id); }}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                              className="w-12 h-12 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                               title="Delete"
                             >
                               <Trash2 size={14} />
@@ -363,7 +363,7 @@ export default function RecruitmentTab() {
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
             />
           </div>
-          <button type="submit" className="w-full h-[46px] bg-gray-900 text-white font-bold rounded-xl text-[12px] uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg">
+          <button type="submit" className="w-full h-[46px] bg-gray-900 text-white font-bold rounded-xl text-[12px] uppercase tracking-widest hover:bg-gray-800 transition shadow-lg">
             {editingJob ? 'Update Job' : 'Post Job'}
           </button>
         </form>
@@ -448,7 +448,7 @@ export default function RecruitmentTab() {
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
             />
           </div>
-          <button type="submit" className="w-full h-[46px] bg-indigo-600 text-white font-bold rounded-xl text-[12px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg">
+          <button type="submit" className="w-full h-[46px] bg-indigo-600 text-white font-bold rounded-xl text-[12px] uppercase tracking-widest hover:bg-indigo-700 transition shadow-lg">
             {editingApplicant ? 'Update Applicant' : 'Save Applicant'}
           </button>
         </form>
