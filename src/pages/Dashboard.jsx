@@ -639,7 +639,7 @@ export default function Dashboard() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
-        <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition duration-300 fixed inset-y-0 left-0 z-50 md:sticky md:top-14 md:h-[calc(100vh-3.5rem)] md:z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
+        <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition duration-300 fixed inset-y-0 left-0 z-50 md:sticky md:top-14 md:bottom-auto md:h-[calc(100vh-3.5rem)] md:z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
           {/* Mobile-only header with close button */}
           <div className="md:hidden p-4 flex items-center justify-end border-b border-gray-200/60 h-14 shrink-0">
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-zinc-500 transition-colors">
