@@ -20,6 +20,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  ChevronLeft,
   Menu,
   X,
   PanelLeft,
@@ -648,6 +649,19 @@ export default function Dashboard() {
           <nav className="flex-1 px-1 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
             {renderMenu()}
           </nav>
+          {/* Collapse sidebar button */}
+          <div className="p-3 border-t border-gray-200/80 shrink-0 hidden md:block">
+            <button
+              onClick={() => toggleSidebar()}
+              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              className={`flex items-center gap-2 h-9 w-full rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 active:scale-[0.98] transition duration-150 cursor-pointer ${
+                isCollapsed ? 'justify-center px-0' : 'px-3'
+              }`}
+            >
+              {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              {!isCollapsed && <span className="text-[13px] font-semibold">Collapse Sidebar</span>}
+            </button>
+          </div>
         </aside>
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <main className="flex-1 overflow-auto bg-white relative flex flex-col">
