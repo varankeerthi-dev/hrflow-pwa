@@ -429,7 +429,7 @@ export default function SettingsTab({ initialSubTab }) {
     if (!isJoinDateConfirmOpen) return null
 
     return (
-      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
+      <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
           <div className="p-6 border-b border-slate-100 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
@@ -480,9 +480,9 @@ export default function SettingsTab({ initialSubTab }) {
               disabled={!isJoinDateConfirmed}
               onClick={() => {
                 if (joinDateContext === 'add') {
-                  setNewEmployee(s => ({ ...s, joinedDate: pendingJoinDate }))
+                  handleAddEmployee(true)
                 } else if (joinDateContext === 'edit') {
-                  setEditForm(s => ({ ...s, joinedDate: pendingJoinDate }))
+                  handleSaveEmployee(true)
                 }
                 setIsJoinDateConfirmOpen(false)
                 setIsJoinDateConfirmed(false)
@@ -1070,7 +1070,7 @@ export default function SettingsTab({ initialSubTab }) {
     }
   }
 
-  const handleSaveEmployee = async () => {
+  const handleSaveEmployee = async (bypassConfirm = false) => {
     if (!user?.orgId) {
       alert('Error: Organization ID not found. Please log in again.')
       return
@@ -1082,6 +1082,16 @@ export default function SettingsTab({ initialSubTab }) {
     const validation = validateEmployeeData(editForm)
     if (!validation.success) {
       alert('Validation Error:\n' + validation.error)
+      return
+    }
+
+    const originalEmp = employees.find(e => e.id === editingEmp)
+    const originalJoinDate = originalEmp?.joinedDate || originalEmp?.doj || ''
+    const newJoinDate = editForm.joinedDate || ''
+    if (!bypassConfirm && originalEmp && newJoinDate !== originalJoinDate) {
+      setPendingJoinDate(newJoinDate)
+      setJoinDateContext('edit')
+      setIsJoinDateConfirmOpen(true)
       return
     }
 
@@ -1328,7 +1338,7 @@ export default function SettingsTab({ initialSubTab }) {
     setNewShift({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   }
 
-  const handleAddEmployee = async () => {
+  const handleAddEmployee = async (bypassConfirm = false) => {
     setFormErrors({})
 
     if (!user?.orgId) {
@@ -1344,6 +1354,13 @@ export default function SettingsTab({ initialSubTab }) {
     const validation = validateEmployeeData(newEmployee)
     if (!validation.success) {
       setFormErrors({ name: 'Please fill in all required fields' })
+      return
+    }
+
+    if (!bypassConfirm && newEmployee.joinedDate) {
+      setPendingJoinDate(newEmployee.joinedDate)
+      setJoinDateContext('add')
+      setIsJoinDateConfirmOpen(true)
       return
     }
 
@@ -3441,7 +3458,7 @@ export default function SettingsTab({ initialSubTab }) {
                                 {normalizedStatus || 'Active'}
                               </span>
                             </td>
-                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{emp.joinedDate || '—'}</td>
+                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{formatDateDDMMYYYY(emp.joinedDate || emp.doj)}</td>
                             <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{emp.site || '—'}</td>
                             <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{emp.emergencyContact || '—'}</td>
                             <td className="px-3 py-1.5 align-middle text-right">
@@ -3712,7 +3729,7 @@ export default function SettingsTab({ initialSubTab }) {
 
                             {/* Joined Date */}
                             {visibleColumns.includes('joinedDate') && (
-                              <td className="px-4 py-3 text-[11px] text-gray-400 tabular-nums">{emp.joinedDate || <span className="text-gray-200">—</span>}</td>
+                              <td className="px-4 py-3 text-[11px] text-gray-400 tabular-nums">{formatDateDDMMYYYY(emp.joinedDate || emp.doj)}</td>
                             )}
 
                             {/* Blood Group */}
@@ -4434,11 +4451,7 @@ export default function SettingsTab({ initialSubTab }) {
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Date of Joining</label>
                 <input type="date" value={editForm.joinedDate || ''}
-                  onChange={e => {
-                    setPendingJoinDate(e.target.value)
-                    setJoinDateContext('edit')
-                    setIsJoinDateConfirmOpen(true)
-                  }}
+                  onChange={e => setEditForm(s => ({ ...s, joinedDate: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
               </div>
@@ -5123,12 +5136,8 @@ export default function SettingsTab({ initialSubTab }) {
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Date of Joining</label>
-                <input type="date" value={newEmployee.joinedDate}
-                  onChange={e => {
-                    setPendingJoinDate(e.target.value)
-                    setJoinDateContext('add')
-                    setIsJoinDateConfirmOpen(true)
-                  }}
+                <input type="date" value={newEmployee.joinedDate || ''}
+                  onChange={e => setNewEmployee(s => ({ ...s, joinedDate: e.target.value }))}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
                 />
               </div>
