@@ -20,6 +20,17 @@ export interface ColumnDef<T> {
   cell?: (info: { row: T; getValue: () => any }) => React.ReactNode;
   secondaryText?: (row: T) => string;
   statusType?: (row: T) => StatusType;
+  headerStyle?: React.CSSProperties;
+  headerClassName?: string;
+  cellStyle?: React.CSSProperties | ((row: T) => React.CSSProperties);
+  cellClassName?: string | ((row: T) => string);
+}
+
+export interface NestedHeaderDef {
+  label: string;
+  colSpan: number;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 export interface DataTableProps<T> {
@@ -70,6 +81,11 @@ export interface DataTableProps<T> {
   hiddenColumnIds?: string[];
   onColumnVisibilityChange?: (hiddenIds: string[]) => void;
   mandatoryColumnIds?: string[];
+
+  // ── Extended nested headers and styling ──
+  nestedHeaders?: NestedHeaderDef[];
+  rowClassName?: (row: T, idx: number) => string;
+  rowStyle?: (row: T, idx: number) => React.CSSProperties;
 }
 
 export function Table<T extends { id?: string | number }>({
@@ -104,6 +120,9 @@ export function Table<T extends { id?: string | number }>({
   hiddenColumnIds = [],
   onColumnVisibilityChange,
   mandatoryColumnIds = [],
+  nestedHeaders,
+  rowClassName,
+  rowStyle,
 }: DataTableProps<T>) {
   const [searchValue, setSearchValue] = useState('');
   const [sortCol, setSortCol] = useState<string | null>(null);
@@ -246,6 +265,7 @@ export function Table<T extends { id?: string | number }>({
         <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
           <TableHeader
             columns={effectiveColumns}
+            nestedHeaders={nestedHeaders}
             selectable={selectable}
             onSelectAll={handleSelectAll}
             allSelected={allSelected}
@@ -273,6 +293,8 @@ export function Table<T extends { id?: string | number }>({
                     key={row.id || rIdx}
                     selected={isSelected}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    className={rowClassName ? rowClassName(row, rIdx) : undefined}
+                    style={rowStyle ? rowStyle(row, rIdx) : undefined}
                   >
                     {selectable && (
                       <td
@@ -347,6 +369,8 @@ export function Table<T extends { id?: string | number }>({
                       const val = col.accessorKey ? row[col.accessorKey] : undefined;
                       const secondaryText = col.secondaryText ? col.secondaryText(row) : undefined;
                       const statusType = col.statusType ? col.statusType(row) : 'neutral';
+                      const cellClass = col.cellClassName ? (typeof col.cellClassName === 'function' ? col.cellClassName(row) : col.cellClassName) : undefined;
+                      const cellStyle = col.cellStyle ? (typeof col.cellStyle === 'function' ? col.cellStyle(row) : col.cellStyle) : undefined;
 
                       return (
                         <TableCell
@@ -362,6 +386,8 @@ export function Table<T extends { id?: string | number }>({
                           align={col.align}
                           secondaryText={secondaryText}
                           statusType={statusType}
+                          className={cellClass}
+                          style={cellStyle}
                         />
                       );
                     })}

@@ -4,12 +4,16 @@ interface TableRowProps {
   children: React.ReactNode;
   selected?: boolean;
   onClick?: () => void;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 export const TableRow: React.FC<TableRowProps> = ({
   children,
   selected = false,
   onClick,
+  className,
+  style,
 }) => {
   return (
     <tr
@@ -20,8 +24,9 @@ export const TableRow: React.FC<TableRowProps> = ({
         borderBottom: '1px solid #F3F4F6',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'background-color 150ms ease',
+        ...style,
       }}
-      className="table-row-item"
+      className={`table-row-item ${className || ''}`}
     >
       {children}
     </tr>

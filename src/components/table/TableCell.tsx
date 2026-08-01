@@ -9,6 +9,8 @@ interface TableCellProps {
   align?: 'left' | 'right' | 'center';
   secondaryText?: string;
   statusType?: StatusType;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 export const TableCell: React.FC<TableCellProps> = ({
@@ -17,6 +19,8 @@ export const TableCell: React.FC<TableCellProps> = ({
   align,
   secondaryText,
   statusType = 'neutral',
+  className,
+  style,
 }) => {
   const isNumeric = type === 'money' || type === 'number';
   const defaultAlign = align || (isNumeric ? 'right' : type === 'checkbox' || type === 'status' || type === 'actions' ? 'center' : 'left');
@@ -80,5 +84,5 @@ export const TableCell: React.FC<TableCellProps> = ({
     return value;
   };
 
-  return <td style={getStyle()}>{renderContent()}</td>;
+  return <td className={className} style={{ ...getStyle(), ...style }}>{renderContent()}</td>;
 };

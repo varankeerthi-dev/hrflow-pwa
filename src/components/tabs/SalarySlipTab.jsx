@@ -18,6 +18,7 @@ import { usePayrollRuns } from '../../hooks/usePayrollRuns'
 import { isPeriodLocked } from '../../lib/payrollLock'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { SubTabsNav } from '../ui/SubTabsNav'
+import { Table as ReusableTable } from '../table/Table'
 
 // --- HELPERS ---
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : Math.round(Number(val)).toLocaleString('en-IN');
@@ -1351,6 +1352,230 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   }, [payrollSubTab, selectedPastRunId, pastRunSlips, activeRun, runSlips, attendanceSummaryData]);
 
   const filteredAttendanceSummaryData = useMemo(() => summaryFilterEmpId ? displayData.filter(e => e.id === summaryFilterEmpId) : displayData, [displayData, summaryFilterEmpId])
+
+  const overviewNestedHeaders = useMemo(() => [
+    { label: 'Staff Profile', colSpan: 2, className: 'text-blue-900 bg-[#EBF8FF] sticky left-0 z-50 border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]' },
+    { label: 'Period Status', colSpan: 3, className: 'text-orange-900 bg-[#FFF5F5] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
+    { label: 'Performance', colSpan: 5, className: 'text-zinc-700 bg-[#F7FAFC] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
+    { label: 'Overtime', colSpan: 1, className: 'text-indigo-900 bg-[#EBF4FF] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
+    { label: 'Sunday/Holiday', colSpan: 2, className: 'text-emerald-900 bg-[#E6FFFA] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
+    { label: 'Summary & Payout', colSpan: 3, className: 'text-white bg-[#16A34A] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
+  ], [])
+
+  const overviewColumns = useMemo(() => [
+    {
+      header: '#',
+      id: 'index',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px', left: '0', zIndex: 50 },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px', left: '0', zIndex: 20 },
+      headerClassName: 'sticky left-0 bg-white border-r border-zinc-100 text-center text-[10px] font-semibold text-zinc-400',
+      cellClassName: 'sticky left-0 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200 border-r border-zinc-50 text-zinc-400 font-bold text-[12px]',
+      cell: ({ row }) => filteredAttendanceSummaryData.indexOf(row) + 1,
+    },
+    {
+      header: 'Employee name',
+      id: 'name',
+      accessorKey: 'name',
+      headerStyle: { paddingLeft: '12px', paddingRight: '12px', width: '160px', minWidth: '160px', left: '32px', zIndex: 50 },
+      cellStyle: { paddingLeft: '12px', paddingRight: '12px', width: '160px', minWidth: '160px', left: '32px', zIndex: 20 },
+      headerClassName: 'sticky left-8 bg-white border-r-[1.2px] border-zinc-300 text-left text-[10px] font-semibold text-zinc-400',
+      cellClassName: 'sticky left-8 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200 border-r-[1.2px] border-zinc-300 text-zinc-800 font-bold text-[12px] truncate',
+      cell: ({ row }) => row.name,
+    },
+    {
+      header: 'Total days',
+      id: 'totalDays',
+      accessorKey: 'totalDays',
+      align: 'center',
+      headerStyle: { paddingLeft: '12px', paddingRight: '12px', width: '64px', minWidth: '64px' },
+      cellStyle: { paddingLeft: '12px', paddingRight: '12px', width: '64px', minWidth: '64px' },
+      headerClassName: 'text-orange-700/60 border-r border-zinc-100 text-[10px] font-semibold',
+      cellClassName: 'border-r border-zinc-50 text-zinc-800 text-[12px] border-b border-zinc-200',
+    },
+    {
+      header: 'Sunday',
+      id: 'sundays',
+      accessorKey: 'sundays',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
+      headerClassName: 'text-orange-700/60 border-r border-zinc-100 text-[10px] font-semibold',
+      cellClassName: 'border-r border-zinc-50 text-red-600 font-bold text-[12px] border-b border-zinc-200',
+    },
+    {
+      header: 'Holiday',
+      id: 'holidays',
+      accessorKey: 'holidays',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '56px', minWidth: '56px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '56px', minWidth: '56px' },
+      headerClassName: 'text-orange-700/60 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
+      cellClassName: 'border-r-[1.2px] border-zinc-300 text-red-600 font-bold text-[12px] border-b border-zinc-200',
+    },
+    {
+      header: 'Worked',
+      id: 'worked',
+      accessorKey: 'worked',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '56px', minWidth: '56px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '56px', minWidth: '56px' },
+      headerClassName: 'border-r border-zinc-100 text-[10px] font-semibold text-zinc-400',
+      cellClassName: 'border-r border-zinc-50 font-black text-zinc-800 text-[12px] border-b border-zinc-200',
+    },
+    {
+      header: 'HD',
+      id: 'hd',
+      accessorKey: 'hd',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '40px', minWidth: '40px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '40px', minWidth: '40px' },
+      headerClassName: 'border-r border-zinc-100 text-[10px] font-semibold text-zinc-400',
+      cellClassName: 'border-r border-zinc-50 font-bold text-zinc-800 text-[12px] border-b border-zinc-200',
+    },
+    {
+      header: 'Leave',
+      id: 'leave',
+      accessorKey: 'leave',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
+      headerClassName: 'border-r border-zinc-100 text-[10px] font-semibold text-zinc-400',
+      cellClassName: 'border-r border-zinc-50 text-zinc-800 text-[12px] border-b border-zinc-200',
+    },
+    {
+      header: 'LOP',
+      id: 'lop',
+      accessorKey: 'lop',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
+      headerClassName: 'text-rose-500/70 border-r border-zinc-100 text-[10px] font-semibold',
+      cellClassName: 'border-r border-zinc-50 font-black text-rose-600 bg-rose-50/30 text-[12px] relative group/tooltip border-b border-zinc-200',
+      cell: ({ row }) => (
+        <>
+          {row.lop}
+          {row.lopDates?.length > 0 && (
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+              <span className="text-red-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {row.lopDates.join(', ')}
+            </span>
+          )}
+        </>
+      )
+    },
+    {
+      header: 'Paid days',
+      id: 'paidDays',
+      accessorKey: 'paidDays',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      headerClassName: 'text-emerald-600/80 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
+      cellClassName: 'border-r-[1.2px] border-zinc-300 font-black text-green-700 bg-green-50/30 text-[12px] border-b border-zinc-200',
+    },
+    {
+      header: 'OT (actual)',
+      id: 'ot',
+      accessorKey: 'ot',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      headerClassName: 'text-indigo-600/70 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
+      cellClassName: 'border-r-[1.2px] border-zinc-300 font-bold text-green-700 bg-green-50/30 text-[12px] border-b border-zinc-200',
+      cell: ({ row }) => (
+        <>
+          {Number(row.ot || 0).toFixed(2)}
+          {row.otAdjustment !== 0 && (
+            <span className="text-green-600 ml-1 font-black text-[9px]">({(Number(row.ot || 0) + Number(row.otAdjustment || 0)).toFixed(2)})</span>
+          )}
+        </>
+      )
+    },
+    {
+      header: 'Sunday wk',
+      id: 'sunW',
+      accessorKey: 'sunW',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      headerClassName: 'text-emerald-600/70 border-r border-zinc-100 text-[10px] font-semibold',
+      cellClassName: 'border-r border-zinc-50 font-black text-green-700 bg-green-50/30 text-[12px] relative group/tooltip border-b border-zinc-200',
+      cell: ({ row }) => (
+        <>
+          {row.sunW}
+          {row.sunWDates?.length > 0 && (
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+              <span className="text-green-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {row.sunWDates.join(', ')}
+            </span>
+          )}
+        </>
+      )
+    },
+    {
+      header: 'Holiday wk',
+      id: 'holW',
+      accessorKey: 'holW',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      headerClassName: 'text-emerald-600/70 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
+      cellClassName: 'border-r-[1.2px] border-zinc-300 font-black text-green-700 bg-green-50/30 text-[12px] relative group/tooltip border-b border-zinc-200',
+      cell: ({ row }) => (
+        <>
+          {row.holW}
+          {row.holWDates?.length > 0 && (
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
+              <span className="text-green-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {row.holWDates.join(', ')}
+            </span>
+          )}
+        </>
+      )
+    },
+    {
+      header: 'Net payout',
+      id: 'netPayout',
+      align: 'left',
+      headerStyle: { paddingLeft: '16px', paddingRight: '16px', width: '96px', minWidth: '96px' },
+      cellStyle: { paddingLeft: '16px', paddingRight: '16px', width: '96px', minWidth: '96px' },
+      headerClassName: 'bg-green-50/20 text-green-700 border-r border-zinc-100 text-[10px] font-semibold',
+      cellClassName: 'border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[12px] tracking-tight border-b border-zinc-200 px-4',
+      cell: ({ row }) => (row.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+    },
+    {
+      header: 'Status',
+      id: 'status',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      headerClassName: 'text-green-700 border-r border-zinc-100 text-[10px] font-semibold',
+      cellClassName: 'border-r border-zinc-50 text-[12px] border-b border-zinc-200',
+      cell: ({ row }) => <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-tighter">Draft</span>,
+    },
+    {
+      header: 'Sync',
+      id: 'sync',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '80px', minWidth: '80px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '80px', minWidth: '80px' },
+      headerClassName: 'text-green-600 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
+      cellClassName: 'border-r-[1.2px] border-zinc-300 border-b border-zinc-200',
+      cell: ({ row }) => <div className="flex justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div></div>,
+    },
+    {
+      header: '',
+      id: 'actions',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px' },
+      headerClassName: 'text-[10px] font-semibold',
+      cellClassName: 'border-b border-zinc-200 text-center',
+      cell: ({ row }) => (
+        <button onClick={() => { setSelectedEmp(row.id); setActiveTab('salary-slip'); handleGenerate(); }} className="p-2 hover:bg-zinc-900 hover:text-white rounded-lg transition-all text-zinc-300 active:scale-90">
+          <ArrowUpRight size={16} />
+        </button>
+      ),
+    }
+  ], [filteredAttendanceSummaryData, summaryMonth])
   
   const dynamicNameWidth = useMemo(() => {
     if (!filteredAttendanceSummaryData.length) return 140;
@@ -2340,105 +2565,26 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     </div>
                   )}
                   {summarySubTab==='overview' ? (
-                    <div className="h-full overflow-auto premium-overview-scroll">
-                    <table className="w-full text-sm border-separate border-spacing-0 bg-white border border-zinc-200 shadow-sm rounded-xl overflow-hidden">
-                  <thead className="sticky top-0 z-40 font-raleway">
-                    {/* Group Headers Row */}
-                    <tr className="h-[48px]">
-                      <th colSpan={2} className="px-5 text-left border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-blue-900 bg-blue-50/90 sticky left-0 z-50 backdrop-blur-sm shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Staff Profile</th>
-                      <th colSpan={3} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-orange-900 bg-orange-50/90 backdrop-blur-sm">Period Status</th>
-                      <th colSpan={5} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-zinc-700 bg-zinc-100/90 backdrop-blur-sm">Performance</th>
-                      <th colSpan={1} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-indigo-900 bg-indigo-50/90 backdrop-blur-sm">Overtime</th>
-                      <th colSpan={2} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-emerald-900 bg-emerald-50/90 backdrop-blur-sm">Sunday/Holiday</th>
-                      <th colSpan={3} className="px-4 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200 font-semibold text-[11px] text-white bg-green-600/95 backdrop-blur-sm">Summary & Payout</th>
-                      <th className="w-12 bg-zinc-50 border-b border-zinc-200"></th>
-                    </tr>
-                    {/* Primary Header Row */}
-                    <tr className="bg-white/95 backdrop-blur-md text-[10px] font-semibold text-zinc-400 h-[44px] border-b border-zinc-200">
-                      <th className="px-2 text-center border-r border-zinc-100 w-8 sticky left-0 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">#</th>
-                      <th className="px-3 text-left border-r-[1.2px] border-zinc-300 w-40 sticky left-8 bg-inherit z-50 shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]">Employee name</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-orange-700/60">Total days</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-12 text-orange-700/60">Sunday</th>
-                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-14 text-orange-700/60">Holiday</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-14">Worked</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-10">HD</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-12">Leave</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-12 text-rose-500/70">LOP</th>
-                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-emerald-600/80">Paid days</th>
-                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-indigo-600/70">OT (actual)</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-emerald-600/70">Sunday wk</th>
-                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-16 text-emerald-600/70">Holiday wk</th>
-                      <th className="px-4 text-left border-r border-zinc-100 w-24 bg-green-50/20 text-green-700">Net payout</th>
-                      <th className="px-1 text-center border-r border-zinc-100 w-16 text-green-700">Status</th>
-                      <th className="px-1 text-center border-r-[1.2px] border-zinc-300 w-20 text-green-600">Sync</th>
-                      <th className="w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="">
-                    {isAttendanceLoading ? (
-                       <tr><td colSpan={17} className="py-20 text-center"><Spinner /></td></tr>
-                    ) : filteredAttendanceSummaryData.map((e, idx)=>{
-                      return (
-                      <tr key={e.id} className={`hover:bg-indigo-50/50 transition-all duration-200 h-[48px] group ${idx%2===0?'bg-white':'bg-zinc-50/40'}`}>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-400 text-[12px] font-bold font-inter sticky left-0 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200">{idx + 1}</td>
-                        <td className="px-3 border-r-[1.2px] border-zinc-300 text-zinc-800 text-[12px] font-bold tracking-tight truncate w-40 font-inter sticky left-8 z-20 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200">{e.name}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-800 text-[12px] font-inter border-b border-zinc-200">{e.totalDays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-red-600 font-bold text-[12px] font-inter border-b border-zinc-200">{e.sundays}</td>
-                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 text-red-600 font-bold text-[12px] font-inter border-b border-zinc-200" title={e.holidayDates?.length ? `Holidays: ${e.holidayDates.join(', ')}` : ''}>{e.holidays}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-zinc-800 text-[12px] font-inter border-b border-zinc-200">{e.worked}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-bold text-zinc-800 text-[12px] font-inter border-b border-zinc-200">{e.hd}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-zinc-800 text-[12px] font-inter border-b border-zinc-200">{e.leave}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-red-600 bg-red-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
-                          {e.lop}
-                          {e.lopDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
-                              <span className="text-red-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.lopDates.join(', ')}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 font-black text-green-700 bg-green-50/30 text-[12px] font-inter border-b border-zinc-200">
-                          {e.paidDays}
-                        </td>
-                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 font-bold text-green-700 bg-green-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
-                          {Number(e.ot || 0).toFixed(2)}
-                          {e.otAdjustment !== 0 && (
-                            <span className="text-green-600 ml-1 font-black text-[9px]">({(Number(e.ot || 0) + Number(e.otAdjustment || 0)).toFixed(2)})</span>
-                          )}
-                        </td>
-                        <td className="px-2 text-center border-r border-zinc-50 font-black text-green-700 bg-green-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
-                          {e.sunW}
-                          {e.sunWDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
-                              <span className="text-green-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.sunWDates.join(', ')}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 font-black text-green-700 bg-green-50/30 text-[12px] font-inter relative group/tooltip border-b border-zinc-200">
-                          {e.holW}
-                          {e.holWDates?.length > 0 && (
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-white/10">
-                              <span className="text-green-400 font-black uppercase tracking-tighter mr-1">{formatMonthShort(summaryMonth)}:</span> {e.holWDates.join(', ')}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 text-left border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[12px] font-inter tracking-tight border-b border-zinc-200">{(e.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        <td className="px-2 text-center border-r border-zinc-50 text-[12px] font-inter border-b border-zinc-200">
-                          <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-tighter">Draft</span>
-                        </td>
-                        <td className="px-2 text-center border-r-[1.2px] border-zinc-300 border-b border-zinc-200">
-                           <div className="flex justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div></div>
-                        </td>
-                        <td className="px-2 text-center font-inter border-b border-zinc-200">
-                          <button onClick={()=>{setSelectedEmp(e.id);setActiveTab('salary-slip');handleGenerate();}} className="p-2 hover:bg-zinc-900 hover:text-white rounded-lg transition-all text-zinc-300 active:scale-90">
-                            <ArrowUpRight size={16}/>
-                          </button>
-                        </td>
-                      </tr>
-                    )})}
-                  </tbody>
-                </table>
-                </div>
-              ) : summarySubTab === 'variable' ? (
+                    <div className="h-full overflow-auto premium-overview-scroll p-4">
+                      {isAttendanceLoading ? (
+                        <div className="py-20 text-center"><Spinner /></div>
+                      ) : (
+                        <ReusableTable
+                          data={filteredAttendanceSummaryData}
+                          columns={overviewColumns}
+                          nestedHeaders={overviewNestedHeaders}
+                          page={1}
+                          pageSize={filteredAttendanceSummaryData.length || 10}
+                          totalRows={filteredAttendanceSummaryData.length}
+                          searchable={false}
+                          selectable={false}
+                          sortable={false}
+                          pagination={false}
+                          rowClassName={(row, idx) => idx % 2 === 0 ? 'bg-white' : 'bg-[#F8F9FA]'}
+                        />
+                      )}
+                    </div>
+                  ) : summarySubTab === 'variable' ? (
                 <div className="h-full flex flex-col bg-white p-6">
                   <div className="flex justify-between items-start mb-6 border-b border-zinc-200 pb-4">
                     <div>

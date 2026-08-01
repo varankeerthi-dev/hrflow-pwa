@@ -1,8 +1,9 @@
 import React from 'react';
-import { ColumnDef } from './Table';
+import { ColumnDef, NestedHeaderDef } from './Table';
 
 interface TableHeaderProps<T> {
   columns: ColumnDef<T>[];
+  nestedHeaders?: NestedHeaderDef[];
   selectable?: boolean;
   onSelectAll?: (checked: boolean) => void;
   allSelected?: boolean;
@@ -14,6 +15,7 @@ interface TableHeaderProps<T> {
 
 export function TableHeader<T>({
   columns,
+  nestedHeaders,
   selectable,
   onSelectAll,
   allSelected = false,
@@ -24,6 +26,29 @@ export function TableHeader<T>({
 }: TableHeaderProps<T>) {
   return (
     <thead>
+      {nestedHeaders && nestedHeaders.length > 0 && (
+        <tr style={{ height: '48px', borderBottom: '1px solid #ECECEC' }}>
+          {selectable && <th style={{ borderBottom: '1px solid #ECECEC', backgroundColor: '#FAFAFA' }} />}
+          {nestedHeaders.map((group, idx) => (
+            <th
+              key={idx}
+              colSpan={group.colSpan}
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                borderBottom: '1px solid #ECECEC',
+                borderRight: '1.2px solid #E5E7EB',
+                ...group.style,
+              }}
+              className={group.className}
+            >
+              {group.label}
+            </th>
+          ))}
+        </tr>
+      )}
       <tr style={{ height: '42px', backgroundColor: '#FAFAFA', borderBottom: '1px solid #ECECEC' }}>
         {selectable && (
           <th
@@ -60,8 +85,8 @@ export function TableHeader<T>({
               key={col.id || String(col.accessorKey) || idx}
               onClick={() => sortable && onSort && (col.id || col.accessorKey) && onSort(col.id || String(col.accessorKey))}
               style={{
-                paddingLeft: '16px',
-                paddingRight: '16px',
+                paddingLeft: col.headerStyle?.paddingLeft !== undefined ? col.headerStyle.paddingLeft : '16px',
+                paddingRight: col.headerStyle?.paddingRight !== undefined ? col.headerStyle.paddingRight : '16px',
                 fontSize: '12px',
                 fontWeight: 500,
                 letterSpacing: '0.02em',
@@ -72,8 +97,9 @@ export function TableHeader<T>({
                 verticalAlign: 'middle',
                 borderBottom: '1px solid #ECECEC',
                 userSelect: 'none',
+                ...col.headerStyle,
               }}
-              className="th-header-cell"
+              className={`th-header-cell ${col.headerClassName || ''}`}
             >
               <div
                 style={{
