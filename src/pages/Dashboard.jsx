@@ -594,7 +594,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="h-screen bg-white flex flex-col overflow-hidden">
       {showLog && <ActivityLogSidebar orgId={user?.orgId} onClose={() => setShowLog(false)} />}
 
       <header className="fixed top-0 left-0 right-0 z-[60] bg-white/80 backdrop-blur-md border-b border-gray-200/80 h-14 shrink-0 px-4 flex items-center justify-between shadow-sm">

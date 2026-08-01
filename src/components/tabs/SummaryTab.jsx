@@ -37,6 +37,16 @@ function calculateWorkingTime(inTime, outTime, inDate, outDate) {
   }
 }
 
+function formatTitleCase(str) {
+  if (!str) return ''
+  return str
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = false }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -303,7 +313,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
   const handleDragEnd = () => { setDraggedItem(null) }
 
   return (
-    <div className="space-y-4 font-inter text-slate-900">
+    <div className="space-y-2.5 font-inter text-slate-900 flex-1 flex flex-col min-h-0">
       {/* Main Tabs Navigation */}
       {!hideMainTabs && (
         <div className="flex gap-0 border-b border-gray-200">
@@ -322,22 +332,21 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
         </div>
       )}
 
-      {/* Control Bar: Month Selection & Actions */}
-      <div className="bg-white px-3 h-[42px] rounded-lg border border-gray-200 shadow-sm flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigateMonth(-1)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"><ChevronLeft size={16} className="text-gray-600" /></button>
-          <div className="flex items-center bg-gray-50 rounded-md px-3 py-1 border border-gray-100 min-w-[140px] justify-center gap-2 h-7">
-            <Calendar size={14} className="text-gray-400" />
-            <span className="text-[12px] font-bold text-gray-700">{formatMonth(selectedMonth)}</span>
+      <div className="bg-white px-2.5 h-9 rounded-lg border border-gray-200/80 shadow-sm flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => navigateMonth(-1)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><ChevronLeft size={14} className="text-gray-600" /></button>
+          <div className="flex items-center bg-gray-50 rounded-md px-2.5 py-0.5 border border-gray-100 min-w-[120px] justify-center gap-1.5 h-6.5">
+            <Calendar size={12} className="text-gray-400" />
+            <span className="text-[11px] font-bold text-gray-700">{formatMonth(selectedMonth)}</span>
           </div>
-          <button onClick={() => navigateMonth(1)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"><ChevronRight size={16} className="text-gray-600" /></button>
+          <button onClick={() => navigateMonth(1)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><ChevronRight size={14} className="text-gray-600" /></button>
           
           {activeMainTab === 'monthlyView' && (
-            <div className="flex items-center gap-1.5 ml-4 pl-4 shadow-[inset_1px_0_0_0_#e5e7eb]">
-              <select value={selectedMonth.split('-')[1]} onChange={(e) => setSelectedMonth(`${selectedMonth.split('-')[0]}-${e.target.value}`)} className="h-7 px-1.5 bg-white border border-gray-300 rounded text-[11px] font-bold text-gray-700 outline-none">
+            <div className="flex items-center gap-1 ml-3 pl-3 shadow-[inset_1px_0_0_0_#e5e7eb]">
+              <select value={selectedMonth.split('-')[1]} onChange={(e) => setSelectedMonth(`${selectedMonth.split('-')[0]}-${e.target.value}`)} className="h-6.5 py-0 px-1.5 bg-white border border-gray-300 rounded text-[10px] font-bold text-gray-700 outline-none">
                 {Array.from({ length: 12 }, (_, i) => { const m = String(i + 1).padStart(2, '0'); return <option key={m} value={m}>{new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'short' })}</option> })}
               </select>
-              <select value={selectedMonth.split('-')[0]} onChange={(e) => setSelectedMonth(`${e.target.value}-${selectedMonth.split('-')[1]}`)} className="h-7 px-1.5 bg-white border border-gray-300 rounded text-[11px] font-bold text-gray-700 outline-none">
+              <select value={selectedMonth.split('-')[0]} onChange={(e) => setSelectedMonth(`${e.target.value}-${selectedMonth.split('-')[1]}`)} className="h-6.5 py-0 px-1.5 bg-white border border-gray-300 rounded text-[10px] font-bold text-gray-700 outline-none">
                 {Array.from({ length: 5 }, (_, i) => { const y = new Date().getFullYear() - 2 + i; return <option key={y} value={y}>{y}</option> })}
               </select>
             </div>
@@ -346,13 +355,13 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
         
         <div className="flex items-center gap-1.5">
           {activeMainTab === 'summary' && (
-            <button onClick={exportCSV} className="h-7 px-3 bg-indigo-600 text-white rounded-md text-[11px] font-black uppercase tracking-wider flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-sm"><Download size={12} /> Export CSV</button>
+            <button onClick={exportCSV} className="h-6.5 px-2.5 bg-indigo-600 text-white rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm"><Download size={11} /> Export CSV</button>
           )}
           {activeMainTab === 'monthlyView' && (
             <>
-              <button onClick={() => setShowColumnSettings(true)} className="h-7 px-2.5 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[10px] font-bold text-gray-700 uppercase"><Filter size={12} /> Columns</button>
-              <button onClick={() => setShowOrderModal(true)} className="h-7 px-2.5 flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[10px] font-bold text-gray-700 uppercase"><GripVertical size={12} /> Order</button>
-              <button onClick={exportPDF} className="h-7 px-3 bg-indigo-600 text-white rounded-md text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm"><Download size={12} /> Export PDF</button>
+              <button onClick={() => setShowColumnSettings(true)} className="h-6.5 px-2 flex items-center gap-1 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[9.5px] font-bold text-gray-700 uppercase"><Filter size={11} /> Columns</button>
+              <button onClick={() => setShowOrderModal(true)} className="h-6.5 px-2 flex items-center gap-1 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[9.5px] font-bold text-gray-700 uppercase"><GripVertical size={11} /> Order</button>
+              <button onClick={exportPDF} className="h-6.5 px-2.5 bg-indigo-600 text-white rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-indigo-700 transition-colors shadow-sm"><Download size={11} /> Export PDF</button>
             </>
           )}
         </div>
@@ -418,7 +427,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                               const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
                               return (
                                 <tr key={row.employeeId} className="hover:bg-gray-50 transition-colors h-[36px]">
-                                  <td className="px-4 py-1 border-r border-gray-200"><div className="flex flex-col"><span className="text-[12px] font-bold text-gray-800 leading-none">{emp?.name || 'Deleted'}</span><span className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{emp?.department || 'Operations'}</span></div></td>
+                                  <td className="px-4 py-1 border-r border-gray-200"><div className="flex flex-col"><span className="text-[12px] font-bold text-gray-800 leading-none">{emp ? formatTitleCase(emp.name) : 'Deleted'}</span><span className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{emp?.department || 'Operations'}</span></div></td>
                                   <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-black">{row.present}D</span></td>
                                   <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-[10px] font-black">{row.absent}D</span></td>
                                   <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">{row.holidayWorked || 0}D</span></td>
@@ -462,7 +471,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                             const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
                             return (
                               <tr key={row.employeeId} className="hover:bg-gray-50 transition-colors h-[36px]">
-                                <td className="px-4 py-1 border-r border-gray-200"><div className="flex flex-col"><span className="text-[12px] font-bold text-gray-800 leading-none">{emp?.name || 'Deleted'}</span><span className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{emp?.department || 'Operations'}</span></div></td>
+                                <td className="px-4 py-1 border-r border-gray-200"><div className="flex flex-col"><span className="text-[12px] font-bold text-gray-800 leading-none">{emp ? formatTitleCase(emp.name) : 'Deleted'}</span><span className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{emp?.department || 'Operations'}</span></div></td>
                                 <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-black">{row.present}D</span></td>
                                 <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-[10px] font-black">{row.absent}D</span></td>
                                 <td className="px-4 py-1 text-center border-r border-gray-200"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">{row.holidayWorked || 0}D</span></td>
@@ -488,9 +497,8 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
       )}
 
       {activeMainTab === 'monthlyView' && (
-        <div className="space-y-3 animate-in fade-in duration-500">
-          {pivotLoading ? (<div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200 shadow-sm"><Spinner /></div>) : (
-            <div className="flex flex-col bg-white border border-gray-300 rounded-xl shadow-sm">
+        <div className="space-y-2 flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
+          <div className="flex-1 flex flex-col min-h-0 bg-white border border-gray-300 rounded-xl shadow-sm overflow-hidden">
               {(() => {
                 const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
                 let blockW = 0
@@ -514,7 +522,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                     <div 
                       ref={tableScrollRef} 
                       onScroll={handleTableScroll} 
-                      className="overflow-x-auto max-h-[85vh] overflow-y-auto"
+                      className="overflow-x-auto flex-1 overflow-y-auto"
                     >
                       <table id="monthly-pivot-table" className="border-separate border-spacing-0 text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
                         <colgroup>
@@ -535,7 +543,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                         <th className="px-2 py-1 text-center font-bold text-gray-700 border-r border-b border-gray-200 bg-gray-100 sticky left-0 z-40" rowSpan={2}><div className="text-[9px] uppercase tracking-wider text-gray-500">Date</div></th>
                         {monthlyViewData.employees?.map((emp, idx) => {
                           const cs = getEmployeeHeaderColor(idx), visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
-                          return (<th key={emp.id} className={`px-1 py-1 text-center font-black text-white border-r-[8px] border-white border-b ${cs.border} ${cs.bg} text-[10px]`} colSpan={visibleCount}><div className="truncate uppercase leading-none tracking-[0.1em]">{emp.name}</div></th>)
+                          return (<th key={emp.id} className={`px-1 py-1 text-center font-black text-white border-r-[8px] border-r-white border-b ${cs.border} ${cs.bg} text-[10px]`} colSpan={visibleCount}><div className="truncate leading-none tracking-wide font-extrabold">{formatTitleCase(emp.name)}</div></th>)
                         })}
                       </tr>
                       <tr className="bg-white">
@@ -543,19 +551,69 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                           const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.workingTime ? 'workingTime' : (columnSettings.outTime ? 'outTime' : 'inTime')))
                           return (
                             <React.Fragment key={emp.id}>
-                              {columnSettings.inTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-l border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>IN</th>}
-                              {columnSettings.outTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'outTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>OUT</th>}
-                              {columnSettings.workingTime && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'workingTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>WT</th>}
-                              {columnSettings.ot && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'ot' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>OT</th>}
-                              {columnSettings.remarks && <th className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 border-l shadow-[inset_-1px_-1px_0_0_#e5e7eb] text-center bg-white text-gray-400 uppercase truncate border-r-[8px] border-white`} title={remarksLabel}>{remarksLabel.substring(0,3)}</th>}
-                              {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-0 py-1 border-r-[8px] border-white border-b border-gray-300 bg-white">-</th>}
+                              {columnSettings.inTime && <th style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[8px] font-black border-b border-l border-gray-200 text-center bg-white text-emerald-600/90 uppercase ${lastCol === 'inTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>IN</th>}
+                              {columnSettings.outTime && <th style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-rose-600/90 uppercase ${lastCol === 'outTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>OUT</th>}
+                              {columnSettings.workingTime && <th style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'workingTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>WT</th>}
+                              {columnSettings.ot && <th style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 text-center bg-white text-gray-400 uppercase ${lastCol === 'ot' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>OT</th>}
+                              {columnSettings.remarks && <th style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className={`px-0 py-1 text-[8px] font-black border-b border-gray-200 border-l text-center bg-white text-gray-400 uppercase truncate border-r-[8px] border-r-white`} title={remarksLabel}>{remarksLabel.substring(0,3)}</th>}
+                              {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <th className="px-0 py-1 border-r-[8px] border-r-white border-b border-gray-300 bg-white">-</th>}
                             </React.Fragment>
                           )
                         })}
                       </tr>
                     </thead>
                     <tbody className="bg-white">
-                      {Array.from({ length: monthlyViewData.daysInMonth || 31 }, (_, i) => i + 1).map(day => {
+                      {pivotLoading ? (
+                        Array.from({ length: monthlyViewData.daysInMonth || 30 }).map((_, dayIdx) => {
+                          const day = dayIdx + 1
+                          return (
+                            <tr key={`skeleton-row-${day}`} className="h-[32px]">
+                              <td className="px-2 py-0.5 border-r border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
+                                <div className="h-3.5 w-8 bg-zinc-200/80 rounded-sm animate-pulse mx-auto"></div>
+                              </td>
+                              {monthlyViewData.employees?.map(emp => {
+                                const visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
+                                const lastCol = columnSettings.remarks ? 'remarks' : (columnSettings.ot ? 'ot' : (columnSettings.workingTime ? 'workingTime' : (columnSettings.outTime ? 'outTime' : 'inTime')))
+                                
+                                return (
+                                  <React.Fragment key={emp.id}>
+                                    {columnSettings.inTime && (
+                                      <td style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'inTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                        <div className="h-3 w-8 bg-zinc-100 rounded animate-pulse mx-auto"></div>
+                                      </td>
+                                    )}
+                                    {columnSettings.outTime && (
+                                      <td style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'outTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                        <div className="h-3 w-8 bg-zinc-100 rounded animate-pulse mx-auto"></div>
+                                      </td>
+                                    )}
+                                    {columnSettings.workingTime && (
+                                      <td style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'workingTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                        <div className="h-3 w-6 bg-zinc-100 rounded animate-pulse mx-auto"></div>
+                                      </td>
+                                    )}
+                                    {columnSettings.ot && (
+                                      <td style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-1 py-0.5 border-b border-gray-200 ${lastCol === 'ot' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
+                                        <div className="h-3 w-4 bg-zinc-100 rounded animate-pulse mx-auto"></div>
+                                      </td>
+                                    )}
+                                    {columnSettings.remarks && (
+                                      <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-1 py-0.5 border-b border-gray-200 border-r-[8px] border-r-white">
+                                        <div className="h-3 w-8 bg-zinc-100 rounded animate-pulse mx-auto"></div>
+                                      </td>
+                                    )}
+                                    {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && (
+                                      <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-1 py-0.5 border-b border-gray-200 border-r-[8px] border-r-white">
+                                        <div className="h-3 w-8 bg-zinc-100 rounded animate-pulse mx-auto"></div>
+                                      </td>
+                                    )}
+                                  </React.Fragment>
+                                )
+                              })}
+                            </tr>
+                          )
+                        })
+                      ) : Array.from({ length: monthlyViewData.daysInMonth || 31 }, (_, i) => i + 1).map(day => {
                         const [y, m] = selectedMonth.split('-').map(Number), cD = new Date(y, m - 1, day), ds = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                         const isSunday = cD.getDay() === 0, isHoliday = (monthlyViewData.holidays || []).some(h => h.date === ds)
                         const dateCls = isSunday ? 'bg-red-50 text-red-700' : (isHoliday ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-900')
@@ -571,20 +629,20 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                               const visibleCount = (Number(!!columnSettings.inTime) + Number(!!columnSettings.outTime) + Number(!!columnSettings.workingTime) + Number(!!columnSettings.ot) + Number(!!columnSettings.remarks)) || 1
                               return (
                                 <React.Fragment key={emp.id}>
-                                  {isOff ? (<td colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-white ${st.bg}`}><span className={`${st.text === 'Holiday' ? 'text-amber-600' : st.color} ${st.type === 'sandwich' ? 'text-[7px] font-black' : 'text-[9px] font-black uppercase'}`}>{st.text}</span></td>) : (
+                                  {isOff ? (<td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} colSpan={visibleCount} className={`px-1 py-0.5 text-center border-b border-gray-200 border-r-[8px] border-r-white ${st.bg}`}><span className={`${st.text === 'Holiday' ? 'text-amber-600' : st.color} ${st.type === 'sandwich' ? 'text-[7px] font-black' : 'text-[9px] font-black uppercase'}`}>{st.text}</span></td>) : (
                                     <>
                                       {columnSettings.inTime && (
-                                        <td className={`px-0 py-0.5 text-center border-b border-l border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
+                                        <td style={lastCol === 'inTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-0.5 text-center border-b border-l border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'inTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
                                           <div className="flex flex-col items-center leading-none">
                                             <span>{formatTimeTo12Hour(att?.inTime) || '—'}</span>
                                             {(att?.shiftType === 'Night' || att?.shiftType === 'DN') && att?.outTime && att?.outDate && (
-                                              <div className="h-[9px] mt-0.5"></div> /* Placeholder for alignment */
+                                              <div className="h-[9px] mt-0.5"></div>
                                             )}
                                           </div>
                                         </td>
                                       )}
                                       {columnSettings.outTime && (
-                                        <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'outTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
+                                        <td style={lastCol === 'outTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-0.5 text-center border-b border-gray-200 text-[10px] font-bold text-gray-700 bg-white ${lastCol === 'outTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
                                           <div className="flex flex-col items-center leading-none">
                                             <span>{formatTimeTo12Hour(att?.outTime) || '—'}</span>
                                             {(att?.shiftType === 'Night' || att?.shiftType === 'DN') && att?.outTime && att?.outDate && (
@@ -597,13 +655,13 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                                         </td>
                                       )}
                                       {columnSettings.workingTime && (
-                                        <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-bold text-gray-600 bg-white ${lastCol === 'workingTime' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>
+                                        <td style={lastCol === 'workingTime' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-bold text-gray-600 bg-white ${lastCol === 'workingTime' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>
                                           {calculateWorkingTime(att?.inTime, att?.outTime, att?.date, att?.outDate || att?.date)}
                                         </td>
                                       )}
-                                      {columnSettings.ot && <td className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-black text-indigo-600 bg-white whitespace-nowrap overflow-hidden ${lastCol === 'ot' ? 'border-r-[8px] border-white' : 'border-r border-gray-200'}`}>{formatOTHours(att?.otHours)}</td>}
-                                      {columnSettings.remarks && <td className={`px-1 py-0.5 text-center border-b shadow-[inset_1px_0_0_0_#e5e7eb] shadow-[inset_-1px_-1px_0_0_#e5e7eb] text-[9px] font-bold text-gray-600 bg-white truncate border-r-[8px] border-white`} title={att?.remarks}>{att?.remarks || '—'}</td>}
-                                      {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <td className="px-0 py-0.5 text-center border-b border-gray-200 bg-white text-[9px] border-r-[8px] border-white">—</td>}
+                                      {columnSettings.ot && <td style={lastCol === 'ot' ? { boxShadow: 'inset -1px 0 0 0 #e5e7eb' } : undefined} className={`px-0 py-0.5 text-center border-b border-gray-200 text-[9px] font-normal text-indigo-600 bg-white whitespace-nowrap overflow-hidden ${lastCol === 'ot' ? 'border-r-[8px] border-r-white' : 'border-r border-gray-200'}`}>{formatOTHours(att?.otHours)}</td>}
+                                      {columnSettings.remarks && <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className={`px-1 py-0.5 text-center border-b text-[9px] font-bold text-gray-600 bg-white truncate border-r-[8px] border-r-white`} title={att?.remarks}>{att?.remarks || '—'}</td>}
+                                      {!columnSettings.inTime && !columnSettings.outTime && !columnSettings.workingTime && !columnSettings.ot && !columnSettings.remarks && <td style={{ boxShadow: 'inset -1px 0 0 0 #e5e7eb' }} className="px-0 py-0.5 text-center border-b border-gray-200 bg-white text-[9px] border-r-[8px] border-r-white">—</td>}
                                     </>
                                   )}
                                 </React.Fragment>
@@ -619,7 +677,6 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                 )
               })()}
             </div>
-          )}
         </div>
       )}
 
@@ -649,7 +706,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-100"><h3 className="text-sm font-bold text-gray-800">Display Order</h3><button onClick={() => setShowOrderModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} className="text-gray-500" /></button></div>
             <div className="flex-1 overflow-auto p-4"><p className="text-[11px] text-gray-500 mb-3 uppercase font-black tracking-widest">Drag to reorder employees</p>
-              <div className="space-y-2">{displayOrder.map((empId, index) => { const emp = monthlyViewData.employees?.find(e => e.id === empId); if (!emp) return null; return (<div key={empId} draggable onDragStart={(e) => handleDragStart(e, index)} onDragOver={(e) => handleDragOver(e, index)} onDragEnd={handleDragEnd} className={`flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 ${draggedItem === index ? 'opacity-50' : ''}`}><GripVertical size={16} className="text-gray-400" /><span className="text-[12px] font-medium text-gray-700">{emp.name}</span></div>) })}</div>
+              <div className="space-y-2">{displayOrder.map((empId, index) => { const emp = monthlyViewData.employees?.find(e => e.id === empId); if (!emp) return null; return (<div key={empId} draggable onDragStart={(e) => handleDragStart(e, index)} onDragOver={(e) => handleDragOver(e, index)} onDragEnd={handleDragEnd} className={`flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 ${draggedItem === index ? 'opacity-50' : ''}`}><GripVertical size={16} className="text-gray-400" /><span className="text-[12px] font-medium text-gray-700">{formatTitleCase(emp.name)}</span></div>) })}</div>
             </div>
             <div className="p-4 border-t border-gray-100 flex gap-2"><button onClick={() => setShowOrderModal(false)} className="flex-1 h-10 bg-gray-100 text-gray-600 rounded-lg text-[12px] font-medium">Cancel</button><button onClick={saveDisplayOrder} className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-[12px] font-medium flex items-center justify-center gap-2"><Save size={14} /> Save Default</button></div>
           </div>

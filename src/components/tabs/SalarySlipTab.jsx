@@ -2237,9 +2237,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           onTabChange={(tab) => setActiveTab(tab.id)}
         />
       </div>
-      <div className="flex-1 p-6 overflow-hidden flex flex-col">
+      <div className="flex-1 px-6 pb-6 pt-2 overflow-hidden flex flex-col">
         {activeTab === 'full-summary' && (
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
           </div>
         )}
@@ -2565,7 +2565,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     </div>
                   )}
                   {summarySubTab==='overview' ? (
-                    <div className="h-full overflow-auto premium-overview-scroll p-4">
+                    <div className="h-full overflow-auto premium-overview-scroll px-4 pb-4 pt-1">
                       {isAttendanceLoading ? (
                         <div className="py-20 text-center"><Spinner /></div>
                       ) : (
@@ -2585,7 +2585,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       )}
                     </div>
                   ) : summarySubTab === 'variable' ? (
-                <div className="h-full flex flex-col bg-white p-6">
+                <div className="h-full flex flex-col bg-white px-4 pb-4 pt-1.5">
                   <div className="flex justify-between items-start mb-6 border-b border-zinc-200 pb-4">
                     <div>
                       <h2 className="text-base font-semibold text-zinc-900">Variable Pay Entry</h2>
@@ -3227,7 +3227,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   )}
                 </div>
               ) : summarySubTab === 'sandwich' ? (
-                <div className="h-full overflow-auto bg-white p-4 flex flex-col">
+                <div className="h-full overflow-auto bg-white px-4 pb-4 pt-1 flex flex-col">
                   {/* Detection Section */}
                   <div className="mb-6">
                     <div className="mb-4 flex justify-between items-end">
