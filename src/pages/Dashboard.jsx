@@ -209,18 +209,51 @@ import { useSidebar } from '../contexts/SidebarContext'
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, logout, joinOrganisation, createOrganisation, loading: authLoading } = useAuth()
-  const { isCollapsed, setIsCollapsed, toggleSidebar } = useSidebar()
-  
+  const { isCollapsed, setIsCollapsed, toggleSidebar, isAutoCollapsed, setIsAutoCollapsed } = useSidebar()
+
   const canFetchEmployees = user && !!user.orgId
   const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
 
   const [activeTab, setActiveTab] = useState('attendance')
+
+  useEffect(() => {
+    if (activeTab === 'salary-slip') {
+      setIsCollapsed(prev => {
+        if (!prev) {
+          setIsAutoCollapsed(true)
+          return true
+        }
+        return prev
+      })
+    } else {
+      setIsAutoCollapsed(prevAuto => {
+        if (prevAuto) {
+          setIsCollapsed(false)
+          return false
+        }
+        return prevAuto
+      })
+    }
+  }, [activeTab, setIsCollapsed, setIsAutoCollapsed])
   const [portalSubTab, setPortalSubTab] = useState('dashboard')
   const [salarySubTab, setSalarySubTab] = useState('detailed')
   const [salaryActiveTab, setSalaryActiveTab] = useState('salary-summary')
   const [tasksSubTab, setTasksSubTab] = useState('checklist')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
+  const [hoveredTooltip, setHoveredTooltip] = useState(null)
+  const [tooltipTop, setTooltipTop] = useState(0)
+  
+  const handleSidebarHover = (e, label) => {
+    if (!isCollapsed) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipTop(rect.top + rect.height / 2 - 56);
+    setHoveredTooltip(label);
+  };
+
+  const handleSidebarLeave = () => {
+    setHoveredTooltip(null);
+  };
   const [orgSettings, setOrgSettings] = useState({})
   const [isFeaturesExpanded, setIsFeaturesExpanded] = useState(() => {
     const saved = localStorage.getItem('isFeaturesExpanded')
@@ -344,23 +377,26 @@ export default function Dashboard() {
   const featuresTabs = ['correction', 'fines', 'engage', 'chat']
 
   const renderMenuItem = (tab, isActive, onClick, fontSize = '13px') => (
-    <button 
-      key={tab.id} 
-      onClick={onClick} 
-      className={`${isActive ? 'sidebar-active' : 'sidebar-inactive'} ${isCollapsed ? 'justify-center px-0' : ''}`}
-    >
-      <span className="shrink-0">
-        {tab.icon && React.cloneElement(tab.icon, { size: 16, strokeWidth: isActive ? 2 : 1.5 })}
-      </span>
-      {!isCollapsed && (
-        <span 
-          className="truncate" 
-          style={{ fontSize }}
-        >
-          {tab.label}
+    <div key={tab.id} className="w-full">
+      <button 
+        onClick={onClick} 
+        onMouseEnter={(e) => handleSidebarHover(e, tab.label)}
+        onMouseLeave={handleSidebarLeave}
+        className={`${isActive ? 'sidebar-active' : 'sidebar-inactive'} ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
+      >
+        <span className="shrink-0">
+          {tab.icon && React.cloneElement(tab.icon, { size: 16, strokeWidth: isActive ? 2 : 1.5 })}
         </span>
-      )}
-    </button>
+        {!isCollapsed && (
+          <span 
+            className="truncate" 
+            style={{ fontSize }}
+          >
+            {tab.label}
+          </span>
+        )}
+      </button>
+    </div>
   )
 
   const renderMenu = () => {
@@ -378,20 +414,24 @@ export default function Dashboard() {
 
         {hrItems.length > 0 && (
           <div className="mt-1">
-            <button
-              onClick={() => setIsHrExpanded(!isHrExpanded)}
-              className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0' : ''}`}
-            >
-              <span className="shrink-0 text-zinc-400">
-                <Users size={16} strokeWidth={1.5} />
-              </span>
-              {!isCollapsed && (
-                <span className="text-[13px] font-semibold truncate flex-1 text-left">HR</span>
-              )}
-              {!isCollapsed && (
-                <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
-              )}
-            </button>
+            <div className="w-full">
+              <button
+                onClick={() => setIsHrExpanded(!isHrExpanded)}
+                onMouseEnter={(e) => handleSidebarHover(e, 'HR')}
+                onMouseLeave={handleSidebarLeave}
+                className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
+              >
+                <span className="shrink-0 text-zinc-400">
+                  <Users size={16} strokeWidth={1.5} />
+                </span>
+                {!isCollapsed && (
+                  <span className="text-[13px] font-semibold truncate flex-1 text-left">HR</span>
+                )}
+                {!isCollapsed && (
+                  <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
+                )}
+              </button>
+            </div>
 
             {isHrExpanded && (
               <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
@@ -403,20 +443,24 @@ export default function Dashboard() {
 
         {featuresItems.length > 0 && (
           <div className="mt-1">
-            <button
-              onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
-              className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0' : ''}`}
-            >
-              <span className="shrink-0 text-zinc-400">
-                <Sparkles size={16} strokeWidth={1.5} />
-              </span>
-              {!isCollapsed && (
-                <span className="text-[13px] font-semibold truncate flex-1 text-left">Features</span>
-              )}
-              {!isCollapsed && (
-                <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
-              )}
-            </button>
+            <div className="w-full">
+              <button
+                onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
+                onMouseEnter={(e) => handleSidebarHover(e, 'Features')}
+                onMouseLeave={handleSidebarLeave}
+                className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
+              >
+                <span className="shrink-0 text-zinc-400">
+                  <Sparkles size={16} strokeWidth={1.5} />
+                </span>
+                {!isCollapsed && (
+                  <span className="text-[13px] font-semibold truncate flex-1 text-left">Features</span>
+                )}
+                {!isCollapsed && (
+                  <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
+                )}
+              </button>
+            </div>
 
             {isFeaturesExpanded && (
               <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
@@ -440,20 +484,24 @@ export default function Dashboard() {
           {/* Reports Collapsible */}
           {visibleTabs.find(t => t.id === 'reports') && (
             <div>
-              <button
-                onClick={() => setIsReportsExpanded(!isReportsExpanded)}
-                className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0' : ''}`}
-              >
-                <span className="shrink-0 text-zinc-400">
-                  <BarChart3 size={16} strokeWidth={1.5} />
-                </span>
-                {!isCollapsed && (
-                  <span className="text-[13px] font-semibold truncate flex-1 text-left">Reports</span>
-                )}
-                {!isCollapsed && (
-                  <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
-                )}
-              </button>
+              <div className="w-full">
+                <button
+                  onClick={() => setIsReportsExpanded(!isReportsExpanded)}
+                  onMouseEnter={(e) => handleSidebarHover(e, 'Reports')}
+                  onMouseLeave={handleSidebarLeave}
+                  className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
+                >
+                  <span className="shrink-0 text-zinc-400">
+                    <BarChart3 size={16} strokeWidth={1.5} />
+                  </span>
+                  {!isCollapsed && (
+                    <span className="text-[13px] font-semibold truncate flex-1 text-left">Reports</span>
+                  )}
+                  {!isCollapsed && (
+                    <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
+                  )}
+                </button>
+              </div>
               
               {isReportsExpanded && (
                 <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
@@ -638,8 +686,19 @@ export default function Dashboard() {
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative mt-14">
+        {/* Global Sidebar Tooltip Layer */}
+        {isCollapsed && hoveredTooltip && (
+          <div 
+            className="absolute left-[72px] z-[100] pointer-events-none"
+            style={{ top: tooltipTop }}
+          >
+            <div className="bg-zinc-900 text-white text-[12px] font-medium px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap border border-zinc-800 -translate-y-1/2 ml-2 animate-in fade-in slide-in-from-left-2 duration-200">
+              {hoveredTooltip}
+            </div>
+          </div>
+        )}
         {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
-        <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition duration-300 fixed inset-y-0 left-0 z-50 md:sticky md:top-14 md:bottom-auto md:h-[calc(100vh-3.5rem)] md:z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
+        <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition duration-300 fixed inset-y-0 left-0 z-50 md:relative md:h-full md:z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
           {/* Mobile-only header with close button */}
           <div className="md:hidden p-4 flex items-center justify-end border-b border-gray-200/60 h-14 shrink-0">
             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-zinc-500 transition-colors">

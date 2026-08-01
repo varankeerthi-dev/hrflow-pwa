@@ -16,6 +16,7 @@ import { useSidebar } from '../../contexts/SidebarContext'
 import JSZip from 'jszip'
 import { usePayrollRuns } from '../../hooks/usePayrollRuns'
 import { isPeriodLocked } from '../../lib/payrollLock'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 
 // --- HELPERS ---
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : Math.round(Number(val)).toLocaleString('en-IN');
@@ -624,7 +625,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
 // --- MAIN COMPONENT ---
 
 export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary', onActiveTabChange }) {
-  const { user } = useAuth(); const { employees } = useEmployees(user?.orgId, true); const { slabs, increments } = useSalarySlab(user?.orgId);
+  const { user } = useAuth(); const { employees: allEmployees } = useEmployees(user?.orgId, false); const { slabs, increments } = useSalarySlab(user?.orgId);
   const { isCollapsed, setIsCollapsed, setIsAutoCollapsed, isAutoCollapsed } = useSidebar();
   const queryClient = useQueryClient();
   const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -647,6 +648,20 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
+
+  const employees = useMemo(() => {
+    if (!allEmployees) return [];
+    if (!summaryMonth) return allEmployees.filter(e => isEmployeeActiveStatus(e.status));
+    
+    const sd = `${summaryMonth}-01`;
+    
+    return allEmployees.filter(emp => {
+      if (emp.hideInAttendance) return false;
+      if (isEmployeeActiveStatus(emp.status)) return true;
+      if (emp.inactiveFrom && emp.inactiveFrom > sd) return true;
+      return false;
+    });
+  }, [allEmployees, summaryMonth]);
 
   const navigateEmployee = (dir) => {
     const idx = sortedEmployees.findIndex(e => e.id === selectedEmp)
