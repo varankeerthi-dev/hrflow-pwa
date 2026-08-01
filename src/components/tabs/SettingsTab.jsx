@@ -44,6 +44,7 @@ import {
   isEmployeeActiveStatus,
   normalizeEmployeeStatus,
 } from '../../lib/employeeStatus'
+import { Table as ReusableTable } from '../table'
 
 const formatDateDDMMYYYY = (dateStr) => {
   if (!dateStr || dateStr === '-') return '-';
@@ -505,6 +506,200 @@ export default function SettingsTab({ initialSubTab }) {
   const [employeeDirectorySearch, setEmployeeDirectorySearch] = useState('')
   const [employeeDirectoryStatus, setEmployeeDirectoryStatus] = useState('All')
   const [employeeDirectoryPage, setEmployeeDirectoryPage] = useState(1)
+  const [employeeDirectoryPageSize, setEmployeeDirectoryPageSize] = useState(10)
+  const [employeeDirectorySelectedIds, setEmployeeDirectorySelectedIds] = useState(new Set())
+  const [employeeDirectoryHiddenColumns, setEmployeeDirectoryHiddenColumns] = useState([])
+
+  const canCreateEmployee = useMemo(() => isAdmin || userPermissions['Employees']?.create === true, [isAdmin, userPermissions])
+  const canEditEmployee = useMemo(() => isAdmin || userPermissions['Employees']?.edit === true, [isAdmin, userPermissions])
+  const canDeleteEmployee = useMemo(() => isAdmin || userPermissions['Employees']?.delete === true, [isAdmin, userPermissions])
+
+  const departmentPalette = [
+    'bg-violet-50 text-violet-700',
+    'bg-emerald-50 text-emerald-700',
+    'bg-amber-50 text-amber-700',
+    'bg-sky-50 text-sky-700',
+    'bg-rose-50 text-rose-700',
+    'bg-indigo-50 text-indigo-700',
+  ]
+  const departmentLookup = useMemo(() => [...new Set(employees.map(emp => emp.department).filter(Boolean))], [employees])
+
+  const employeeColumns = useMemo(() => [
+    {
+      header: 'Employee ID',
+      accessorKey: 'empCode',
+      id: 'empCode',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => row.empCode || `EMP-${row.id.slice(-4).toUpperCase()}`,
+    },
+    {
+      header: 'Employee Name',
+      accessorKey: 'name',
+      id: 'name',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => (
+        <button
+          onClick={() => {
+            if (!canEditEmployee) return
+            openEmployeeEditor(row)
+          }}
+          className={`flex items-center gap-3 text-left ${canEditEmployee ? '' : 'cursor-default'}`}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: getAvatarColor(row.id) }}>
+            {row.photoURL ? <img src={row.photoURL} className="h-full w-full object-cover" alt="" /> : getInitials(row.name)}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-[12px] font-semibold text-zinc-800">{row.name}</p>
+            <p className="truncate text-[11px] text-zinc-400">{row.email || 'No email added'}</p>
+          </div>
+        </button>
+      ),
+    },
+    {
+      header: 'Department',
+      accessorKey: 'department',
+      id: 'department',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => {
+        const deptColor = row.department
+          ? (departmentPalette[departmentLookup.indexOf(row.department) % departmentPalette.length] || 'bg-zinc-100 text-zinc-600')
+          : 'bg-zinc-100 text-zinc-500'
+        return row.department ? (
+          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${deptColor}`}>{row.department}</span>
+        ) : (
+          <span className="text-[11px] text-zinc-300">—</span>
+        )
+      },
+    },
+    {
+      header: 'Designation',
+      accessorKey: 'designation',
+      id: 'designation',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => row.designation || 'Unassigned',
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      id: 'status',
+      type: 'status',
+      align: 'center',
+      statusType: (row) => {
+        const normalizedStatus = normalizeEmployeeStatus(row.status)
+        return normalizedStatus === 'Inactive' ? 'error' : normalizedStatus === 'Rejoined' ? 'warning' : 'success'
+      },
+      cell: ({ row }) => {
+        const normalizedStatus = normalizeEmployeeStatus(row.status)
+        const statusTone =
+          normalizedStatus === 'Inactive'
+            ? { dot: 'bg-rose-500', text: 'text-rose-600' }
+            : normalizedStatus === 'Rejoined'
+              ? { dot: 'bg-amber-500', text: 'text-amber-600' }
+              : { dot: 'bg-emerald-500', text: 'text-emerald-600' }
+        return (
+          <span className={`inline-flex items-center gap-2 text-[11px] font-semibold ${statusTone.text}`}>
+            <span className={`h-2 w-2 rounded-full ${statusTone.dot}`} />
+            {normalizedStatus || 'Active'}
+          </span>
+        )
+      },
+    },
+    {
+      header: 'Join Date',
+      accessorKey: 'joinedDate',
+      id: 'joinedDate',
+      type: 'date',
+      align: 'left',
+      cell: ({ row }) => formatDateDDMMYYYY(row.joinedDate || row.doj),
+    },
+    {
+      header: 'Site',
+      accessorKey: 'site',
+      id: 'site',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => row.site || '—',
+    },
+    {
+      header: 'Contact',
+      accessorKey: 'emergencyContact',
+      id: 'emergencyContact',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => row.emergencyContact || '—',
+    },
+  ], [canEditEmployee, departmentLookup])
+
+  const getRowActions = useCallback((row) => {
+    const actions = []
+    
+    if (row.documents?.length) {
+      actions.push({
+        label: 'View Documents',
+        icon: <Eye size={14} />,
+        onClick: () => setViewerState({ docs: row.documents, index: 0 })
+      })
+    }
+
+    actions.push({
+      label: 'Edit Employee',
+      icon: <Edit size={14} />,
+      onClick: () => openEmployeeEditor(row)
+    })
+
+    if (canDeleteEmployee) {
+      actions.push({
+        label: 'Delete Employee',
+        icon: <Trash2 size={14} />,
+        variant: 'danger',
+        onClick: () => {
+          if (confirm(`Are you sure you want to delete ${row.name}? This action cannot be undone.`)) {
+            deleteEmployee(row.id)
+          }
+        }
+      })
+    }
+
+    return actions
+  }, [canDeleteEmployee, deleteEmployee])
+
+  const bulkActions = useMemo(() => [
+    {
+      label: 'Mark as Active',
+      icon: <Check size={14} />,
+      onClick: (rows) => {
+        if (confirm(`Change status of ${rows.length} employees to Active?`)) {
+          rows.forEach(r => updateEmployee(r.id, { status: 'Active' }))
+          setEmployeeDirectorySelectedIds(new Set())
+        }
+      }
+    },
+    {
+      label: 'Mark as Inactive',
+      icon: <X size={14} />,
+      onClick: (rows) => {
+        if (confirm(`Change status of ${rows.length} employees to Inactive?`)) {
+          rows.forEach(r => updateEmployee(r.id, { status: 'Inactive' }))
+          setEmployeeDirectorySelectedIds(new Set())
+        }
+      }
+    },
+    {
+      label: 'Delete',
+      icon: <Trash2 size={14} />,
+      variant: 'danger',
+      onClick: (rows) => {
+        if (confirm(`Are you sure you want to delete ${rows.length} employees? This action cannot be undone.`)) {
+          rows.forEach(r => deleteEmployee(r.id))
+          setEmployeeDirectorySelectedIds(new Set())
+        }
+      }
+    }
+  ], [updateEmployee, deleteEmployee])
 
   // Roster Columns - Name, Designation, Contact mandatory; rest user-configurable
   const mandatoryColumns = ['name', 'designation', 'emergencyContact']
@@ -2629,6 +2824,7 @@ export default function SettingsTab({ initialSubTab }) {
         .group-header { color: #1e293b; font-weight: 800; font-size: 13px; margin-top: 24px; margin-bottom: 12px; }
       `}</style>
 
+      {!initialSubTab && (
       <div className="mb-3 overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.14),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] shadow-[0_28px_100px_rgba(15,23,42,0.10)] no-print">
         <div className="px-4 py-3 md:px-6 md:py-4">
           <div className="flex flex-col gap-3">
@@ -2644,7 +2840,6 @@ export default function SettingsTab({ initialSubTab }) {
             </div>
           </div>
 
-          {!initialSubTab && (
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {visibleSubTabs.map(tab => {
               const meta = settingsSubTabMeta[tab.id] || {}
@@ -2675,9 +2870,9 @@ export default function SettingsTab({ initialSubTab }) {
               )
             })}
           </div>
-          )}
         </div>
       </div>
+      )}
 
       <div className="flex-1 overflow-auto pr-1">
         {activeSubTab === 'organization' && (
@@ -3313,246 +3508,81 @@ export default function SettingsTab({ initialSubTab }) {
           ]
           const departmentLookup = [...new Set(employees.map(emp => emp.department).filter(Boolean))]
 
+          const FILTER_OPTIONS = [
+            { id: 'All', label: 'All' },
+            { id: 'Active', label: 'Active' },
+            { id: 'Inactive', label: 'Inactive' },
+            { id: 'Rejoined', label: 'Rejoined' }
+          ]
+
           return (
             <div className="space-y-4 no-print">
-              <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-                <div className="border-b border-slate-200 px-5 py-5 md:px-6">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div>
-                      <h2 className="text-[20px] font-black tracking-[-0.03em] text-slate-950">Employee Directory</h2>
-                      <p className="mt-1 text-[12px] text-slate-500">Track people, roles, and employee records from one operational list.</p>
-                    </div>
-
-                    <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[470px]">
-                      <div className="flex flex-col gap-3 md:flex-row">
-                        <label className="relative flex-1">
-                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type="text"
-                            value={employeeDirectorySearch}
-                            onChange={(event) => setEmployeeDirectorySearch(event.target.value)}
-                            placeholder="Search employee, email, department, or site"
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-[12px] font-medium text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                          />
-                        </label>
-
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => { setRowOrder(employees.map(e => e.id)); setShowRowOrder(true) }}
-                            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-[12px] font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50"
-                          >
-                            <Filter size={14} />
-                            Row Order
-                          </button>
-                          {canCreateEmployee && (
-                            <button
-                              onClick={() => setShowAddEmployee(true)}
-                              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-indigo-600 px-4 text-[12px] font-semibold text-white transition-all hover:bg-indigo-700"
-                            >
-                              <Plus size={14} />
-                              Add Employee
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        {statusTabs.map(tab => {
-                          const active = employeeDirectoryStatus === tab.id
-                          return (
-                            <button
-                              key={tab.id}
-                              type="button"
-                              onClick={() => setEmployeeDirectoryStatus(tab.id)}
-                              className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold transition-all ${
-                                active
-                                  ? 'bg-indigo-50 text-indigo-700 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.18)]'
-                                  : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                              }`}
-                            >
-                              <span>{tab.label}</span>
-                              <span className="ml-1 text-slate-400">[{tab.count}]</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white border border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                <div>
+                  <h2 className="text-[18px] font-bold text-slate-900">Employee Directory</h2>
+                  <p className="text-[12px] text-slate-500 mt-0.5">Track people, roles, and employee records from one operational list.</p>
                 </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-left min-w-[900px]">
-                    <thead>
-                      <tr className="bg-zinc-50/80 border-b border-zinc-200">
-                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[140px]">Employee ID</th>
-                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Employee Name</th>
-                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Department</th>
-                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Designation</th>
-                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Status</th>
-                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap w-[120px]">Join Date</th>
-                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Site</th>
-                        <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Contact</th>
-                        <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="[&_tr:last-child]:border-0">
-                      {empLoading ? (
-                        <tr>
-                          <td colSpan={9} className="px-3 py-16 text-center">
-                            <Spinner />
-                          </td>
-                        </tr>
-                      ) : paginatedEmployees.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} className="px-3 py-16 text-center text-xs font-medium text-zinc-400">
-                            {employees.length === 0
-                              ? <>No employees yet. Use <span className="font-semibold text-zinc-500">Add Employee</span> to create the first record.</>
-                              : 'No employees match the current search or status filter.'}
-                          </td>
-                        </tr>
-                      ) : paginatedEmployees.map(emp => {
-                        const normalizedStatus = normalizeEmployeeStatus(emp.status)
-                        const statusTone =
-                          normalizedStatus === 'Inactive'
-                            ? { dot: 'bg-rose-500', text: 'text-rose-600' }
-                            : normalizedStatus === 'Rejoined'
-                              ? { dot: 'bg-amber-500', text: 'text-amber-600' }
-                              : { dot: 'bg-emerald-500', text: 'text-emerald-600' }
-                        const deptColor = emp.department
-                          ? (departmentPalette[departmentLookup.indexOf(emp.department) % departmentPalette.length] || 'bg-zinc-100 text-zinc-600')
-                          : 'bg-zinc-100 text-zinc-500'
-
-                        return (
-                          <tr key={emp.id} className="border-b border-zinc-100 transition-colors hover:bg-zinc-50/80">
-                            <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-700">
-                              {emp.empCode || `EMP-${emp.id.slice(-4).toUpperCase()}`}
-                            </td>
-                            <td className="px-3 py-1.5 align-middle">
-                              <button
-                                onClick={() => {
-                                  if (!canEditEmployee) return
-                                  openEmployeeEditor(emp)
-                                }}
-                                className={`flex items-center gap-3 text-left ${canEditEmployee ? '' : 'cursor-default'}`}
-                              >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: getAvatarColor(emp.id) }}>
-                                  {emp.photoURL ? <img src={emp.photoURL} className="h-full w-full object-cover" alt="" /> : getInitials(emp.name)}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="truncate text-[12px] font-semibold text-zinc-800">{emp.name}</p>
-                                  <p className="truncate text-[11px] text-zinc-400">{emp.email || 'No email added'}</p>
-                                </div>
-                              </button>
-                            </td>
-                            <td className="px-3 py-1.5 align-middle">
-                              {emp.department ? (
-                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${deptColor}`}>{emp.department}</span>
-                              ) : (
-                                <span className="text-[11px] text-zinc-300">—</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-600">{emp.designation || 'Unassigned'}</td>
-                            <td className="px-3 py-1.5 align-middle">
-                              <span className={`inline-flex items-center gap-2 text-[11px] font-semibold ${statusTone.text}`}>
-                                <span className={`h-2 w-2 rounded-full ${statusTone.dot}`} />
-                                {normalizedStatus || 'Active'}
-                              </span>
-                            </td>
-                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{formatDateDDMMYYYY(emp.joinedDate || emp.doj)}</td>
-                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{emp.site || '—'}</td>
-                            <td className="px-3 py-1.5 align-middle text-[12px] text-zinc-500">{emp.emergencyContact || '—'}</td>
-                            <td className="px-3 py-1.5 align-middle text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => {
-                                    if (emp.documents?.length) setViewerState({ docs: emp.documents, index: 0 })
-                                  }}
-                                  title="View documents"
-                                  className={`rounded-lg p-1.5 text-zinc-400 transition-all ${emp.documents?.length ? 'hover:bg-zinc-100 hover:text-zinc-700' : 'cursor-default opacity-20'}`}
-                                >
-                                  <Eye size={14} />
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    await openEmployeeEditor(emp)
-                                  }}
-                                  title="Edit employee"
-                                  className="rounded-lg p-1.5 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
-                                >
-                                  <Edit size={14} />
-                                </button>
-                                {canDeleteEmployee && (
-                                  <button
-                                    onClick={async () => {
-                                      if (confirm(`Are you sure you want to delete ${emp.name}? This action cannot be undone.`)) {
-                                        await deleteEmployee(emp.id)
-                                      }
-                                    }}
-                                    title="Delete employee"
-                                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 text-[12px] text-slate-500 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    {filteredEmployees.length === 0
-                      ? 'Viewing 0 results from employee directory'
-                      : `Viewing ${pageStart + 1}-${Math.min(pageStart + paginatedEmployees.length, filteredEmployees.length)} results of ${filteredEmployees.length} employee records`}
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => { setRowOrder(employees.map(e => e.id)); setShowRowOrder(true) }}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-[12px] font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <Filter size={14} />
+                    Row Order
+                  </button>
+                  {canCreateEmployee && (
                     <button
-                      type="button"
-                      onClick={() => setEmployeeDirectoryPage(page => Math.max(1, page - 1))}
-                      disabled={currentPage === 1}
-                      className="rounded-xl px-3 py-2 text-[12px] font-medium text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => setShowAddEmployee(true)}
+                      className="inline-flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-[12px] font-semibold text-white transition-all hover:bg-indigo-700 shadow-sm"
                     >
-                      Previous
+                      <Plus size={14} />
+                      Add Employee
                     </button>
-                    {visiblePageNumbers.map((page, index) => {
-                      const previousPage = visiblePageNumbers[index - 1]
-                      const showGap = previousPage && page - previousPage > 1
-                      return (
-                        <React.Fragment key={page}>
-                          {showGap && <span className="px-1 text-slate-300">…</span>}
-                          <button
-                            type="button"
-                            onClick={() => setEmployeeDirectoryPage(page)}
-                            className={`h-9 min-w-9 rounded-xl px-3 text-[12px] font-semibold transition-all ${
-                              page === currentPage
-                                ? 'bg-indigo-50 text-indigo-700'
-                                : 'text-slate-500 hover:bg-slate-100'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        </React.Fragment>
-                      )
-                    })}
-                    <button
-                      type="button"
-                      onClick={() => setEmployeeDirectoryPage(page => Math.min(totalPages, page + 1))}
-                      disabled={currentPage === totalPages}
-                      className="rounded-xl px-3 py-2 text-[12px] font-medium text-slate-500 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                    <button onClick={handlePrintRoster} className="ml-2 rounded-xl px-3 py-2 text-[12px] font-medium text-slate-500 transition-all hover:bg-slate-100">
-                      Export PDF
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
+
+              <ReusableTable
+                data={paginatedEmployees}
+                columns={employeeColumns}
+                loading={empLoading}
+                page={currentPage}
+                pageSize={employeeDirectoryPageSize}
+                totalRows={filteredEmployees.length}
+                searchable
+                selectable
+                sortable
+                pagination
+                onPageChange={setEmployeeDirectoryPage}
+                onPageSizeChange={(sz) => { setEmployeeDirectoryPageSize(sz); setEmployeeDirectoryPage(1); }}
+                onSearch={(val) => { setEmployeeDirectorySearch(val); setEmployeeDirectoryPage(1); }}
+                filterOptions={FILTER_OPTIONS}
+                selectedFilterId={employeeDirectoryStatus}
+                onFilterSelect={(id) => { setEmployeeDirectoryStatus(id); setEmployeeDirectoryPage(1); }}
+                selectedRowIds={employeeDirectorySelectedIds}
+                onRowSelectChange={(row, checked) => {
+                  setEmployeeDirectorySelectedIds(prev => {
+                    const next = new Set(prev)
+                    if (checked) next.add(row.id)
+                    else next.delete(row.id)
+                    return next
+                  })
+                }}
+                onSelectAllChange={(checked) => {
+                  if (checked) {
+                    setEmployeeDirectorySelectedIds(new Set(paginatedEmployees.map(r => r.id)))
+                  } else {
+                    setEmployeeDirectorySelectedIds(new Set())
+                  }
+                }}
+                rowActions={getRowActions}
+                bulkActions={bulkActions}
+                hiddenColumnIds={employeeDirectoryHiddenColumns}
+                onColumnVisibilityChange={setEmployeeDirectoryHiddenColumns}
+                mandatoryColumnIds={['name', 'status']}
+                emptyTitle="No employees found"
+                emptySubtitle="Try adjusting your filters or search query."
+              />
             </div>
           )
         })()}

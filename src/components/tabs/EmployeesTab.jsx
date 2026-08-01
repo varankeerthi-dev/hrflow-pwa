@@ -9,6 +9,7 @@ import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { useQuery } from '@tanstack/react-query';
 import { Search, ChevronDown, Calendar, Clock, FileText, Wallet, Gavel, Gift, User, Briefcase, Mail, Phone, MapPin, BadgeCheck, Circle, Activity, Users, List, UserCheck, Cake, ChevronRight } from 'lucide-react';
 import EmployeeDirectoryTab from './EmployeeDirectoryTab';
+import { SubTabsNav } from '../ui/SubTabsNav';
 const formatDate = d => d ? new Date(d).toLocaleDateString('en-IN', {
   day: '2-digit',
   month: 'short',
@@ -491,7 +492,16 @@ export default function EmployeesTab() {
   }];
   return <div className="flex flex-col h-full" style={{
     fontFamily: 'Figtree, system-ui, sans-serif'
-  }}>      <div className="flex items-center gap-1.5 mb-4 shrink-0">        {employeeSubTabs.map(tab => <button key={tab.id} onClick={() => setActiveEmployeeTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition ${activeEmployeeTab === tab.id ? 'bg-[#09CE99] text-white shadow-sm' : 'text-[#6B7280] hover:bg-[#F3F4F6]'}`}>            <span className={activeEmployeeTab === tab.id ? 'text-white' : 'text-[#9CA3AF]'}>{tab.icon}</span>            {tab.label}          </button>)}      </div>      {activeEmployeeTab === 'directory' && <EmployeeDirectoryTab />}      {activeEmployeeTab === 'details' && <DetailsView />}      {activeEmployeeTab === 'birthday' && <BirthdayView />}    </div>;
+  }}>
+      <SubTabsNav
+        tabs={employeeSubTabs}
+        activeTabId={activeEmployeeTab}
+        onTabChange={(tab) => setActiveEmployeeTab(tab.id)}
+      />
+      {activeEmployeeTab === 'directory' && <EmployeeDirectoryTab />}
+      {activeEmployeeTab === 'details' && <DetailsView />}
+      {activeEmployeeTab === 'birthday' && <BirthdayView />}
+    </div>;
 }
 function DetailsView() {
   const {
