@@ -45,12 +45,9 @@ import {
   normalizeEmployeeStatus,
 } from '../../lib/employeeStatus'
 import { Table as ReusableTable } from '../table'
+import { SubTabsNav } from '../ui/SubTabsNav'
 
-const formatDateDDMMYYYY = (dateStr) => {
-  if (!dateStr || dateStr === '-') return '-';
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) { const [y, m, d] = dateStr.split('-'); return `${d}/${m}/${y}`; }
-  try { const date = new Date(dateStr); if (isNaN(date.getTime())) return dateStr; const d = String(date.getDate()).padStart(2, '0'); const m = String(date.getMonth() + 1).padStart(2, '0'); const y = date.getFullYear(); return `${d}/${m}/${y}`; } catch { return dateStr; }
-};
+import { formatDateDDMMYYYY } from '../../lib/utils';
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -242,7 +239,7 @@ const settingsPanelClassName = 'rounded-xl border border-slate-200/80 bg-white s
 const settingsInsetPanelClassName = 'rounded-lg border border-slate-200 bg-slate-50/70'
 const settingsInputClassName = 'w-full h-11 rounded-lg border border-slate-200 bg-white px-4 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
 const settingsTextareaClassName = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-none'
-const settingsSectionLabelClassName = 'mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-700'
+const settingsSectionLabelClassName = 'mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-700'
 const settingsSubTabMeta = {
   organization: {
     title: 'Organization Control Center',
@@ -2306,7 +2303,7 @@ export default function SettingsTab({ initialSubTab }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Site Name</label>
+              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight block mb-1">Site Name</label>
               <input
                 type="text"
                 value={siteForm.siteName}
@@ -2316,7 +2313,7 @@ export default function SettingsTab({ initialSubTab }) {
               />
             </div>
             <div className="lg:col-span-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Map Search</label>
+              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight block mb-1">Map Search</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -2379,7 +2376,7 @@ export default function SettingsTab({ initialSubTab }) {
               )}
             </div>
             <div className="lg:col-span-4">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
+              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight block mb-2">
                 Pick location on map (click or drag marker)
               </label>
               <MapLocationPicker
@@ -2389,7 +2386,7 @@ export default function SettingsTab({ initialSubTab }) {
               />
             </div>
             <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Radius (meters)</label>
+              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight block mb-1">Radius (meters)</label>
               <input
                 type="number"
                 min="50"
@@ -2400,7 +2397,7 @@ export default function SettingsTab({ initialSubTab }) {
               />
             </div>
             <div className="lg:col-span-3">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Notes</label>
+              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight block mb-1">Notes</label>
               <input
                 type="text"
                 value={siteForm.notes}
@@ -2448,11 +2445,11 @@ export default function SettingsTab({ initialSubTab }) {
             <table className="w-full min-w-[700px]">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Site</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Coordinates</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Radius</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-black text-gray-500 uppercase tracking-widest">Action</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-[0.14em] leading-tight">Site</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-[0.14em] leading-tight">Coordinates</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-[0.14em] leading-tight">Radius</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-[0.14em] leading-tight">Status</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-[0.14em] leading-tight">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -2530,7 +2527,7 @@ export default function SettingsTab({ initialSubTab }) {
                       <h3 className="font-black text-gray-800 uppercase tracking-tight text-sm">{mod.label}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <div className={`w-1.5 h-1.5 rounded-full ${current ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight">
                           {current ? (approvalTypeLabels[current.type] || 'Configured') : 'Not Configured'}
                         </span>
                       </div>
@@ -2585,7 +2582,7 @@ export default function SettingsTab({ initialSubTab }) {
                     <X size={20} />
                   </div>
                   <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">No Approval</h4>
-                  <p className="text-[10px] text-gray-400 font-medium mt-1 leading-relaxed">Requests are auto-approved immediately after submission.</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">Requests are auto-approved immediately after submission.</p>
                   {newApproval.type === 'none' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
                 </button>
 
@@ -2597,7 +2594,7 @@ export default function SettingsTab({ initialSubTab }) {
                     <Check size={20} />
                   </div>
                   <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">Single Approval</h4>
-                  <p className="text-[10px] text-gray-400 font-medium mt-1 leading-relaxed">Any authorized person from the selected roles can approve.</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">Any authorized person from the selected roles can approve.</p>
                   {newApproval.type === 'single' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
                 </button>
 
@@ -2609,7 +2606,7 @@ export default function SettingsTab({ initialSubTab }) {
                     <Filter size={20} />
                   </div>
                   <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">Multi-Stage</h4>
-                  <p className="text-[10px] text-gray-400 font-medium mt-1 leading-relaxed">Required sequential approval from multiple members.</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">Required sequential approval from multiple members.</p>
                   {newApproval.type === 'multi' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
                 </button>
               </div>
@@ -2623,7 +2620,7 @@ export default function SettingsTab({ initialSubTab }) {
               ) : newApproval.type === 'single' ? (
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-4">Select Authorized Roles</label>
+                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight block mb-4">Select Authorized Roles</label>
                     <div className="grid grid-cols-2 gap-2">
                       {['Admin', 'HR', 'MD', 'Accountant', 'Finance'].map(role => (
                         <button
@@ -2644,10 +2641,10 @@ export default function SettingsTab({ initialSubTab }) {
               ) : (
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Workflow Stages</label>
+                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight">Workflow Stages</label>
                     <button
                       onClick={() => setNewApproval({ ...newApproval, stages: [...(newApproval.stages || []), { role: '', amountLimit: '' }] })}
-                      className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-widest"
+                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-[0.14em] leading-tight"
                     >
                       + Add Stage
                     </button>
@@ -2655,9 +2652,9 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className="space-y-3">
                     {newApproval.stages?.map((stage, idx) => (
                       <div key={idx} className="flex gap-3 items-end bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group/stage">
-                        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[10px] font-black text-indigo-600 shadow-sm">{idx + 1}</div>
+                        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[11px] font-bold text-indigo-600 shadow-sm">{idx + 1}</div>
                         <div className="flex-1 space-y-1.5">
-                          <label className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Stage Approver</label>
+                          <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight">Stage Approver</label>
                           <select
                             value={stage.role}
                             onChange={(e) => {
@@ -2682,7 +2679,7 @@ export default function SettingsTab({ initialSubTab }) {
                     {newApproval.moduleName === 'Leave' && (
                       <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
                         <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-amber-700 font-medium">For Leave module, the final stage must be <span className="font-black">MD</span>.</p>
+                        <p className="text-[11px] text-amber-700 font-medium">For Leave module, the final stage must be <span className="font-bold">MD</span>.</p>
                       </div>
                     )}
                   </div>
@@ -2825,53 +2822,11 @@ export default function SettingsTab({ initialSubTab }) {
       `}</style>
 
       {!initialSubTab && (
-      <div className="mb-3 overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.14),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] shadow-[0_28px_100px_rgba(15,23,42,0.10)] no-print">
-        <div className="px-4 py-3 md:px-6 md:py-4">
-          <div className="flex flex-col gap-3">
-            <div className="max-w-2xl">
-              {currentSettingsMeta.kicker && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 shadow-sm">
-                  {currentSettingsMeta.kicker}
-                </div>
-              )}
-              <h1 className="mt-1 text-[24px] font-black tracking-[-0.04em] text-slate-950 md:text-[28px]">
-                {currentSettingsMeta.title}
-              </h1>
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {visibleSubTabs.map(tab => {
-              const meta = settingsSubTabMeta[tab.id] || {}
-              const isActive = activeSubTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveSubTab(tab.id)}
-                  aria-pressed={isActive}
-                  className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
-                    isActive
-                      ? 'border-indigo-600 bg-indigo-600 text-white shadow-[0_10px_20px_rgba(79,70,229,0.15)]'
-                      : 'border-slate-200 bg-white/88 text-slate-700 hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-lg'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className={`text-[12px] font-black tracking-[-0.02em] ${isActive ? 'text-white' : 'text-slate-900'}`}>
-                      {tab.label}
-                    </span>
-                    <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] ${
-                      isActive ? 'bg-white/20 text-indigo-100' : 'bg-indigo-50 text-indigo-600'
-                    }`}>
-                      {meta.pill || 'Settings'}
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+      <SubTabsNav
+        tabs={visibleSubTabs}
+        activeTabId={activeSubTab}
+        onTabChange={(tab) => setActiveSubTab(tab.id)}
+      />
       )}
 
       <div className="flex-1 overflow-auto pr-1">
@@ -2887,10 +2842,10 @@ export default function SettingsTab({ initialSubTab }) {
               <div className={`${settingsPanelClassName} p-4 space-y-3.5 md:p-5`}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Brand and profile</p>
-                    <h3 className="mt-1 text-[18px] font-black tracking-[-0.03em] text-slate-950">Organization Information</h3>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] leading-tight text-indigo-600">Brand and profile</p>
+                    <h3 className="mt-1 text-[18px] font-black tracking-tight leading-tight text-slate-950">Organization Information</h3>
                   </div>
-                  <div className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-600">
+                  <div className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] leading-tight text-emerald-600">
                     {saved ? 'Saved' : 'Draft'}
                   </div>
                 </div>
@@ -2899,7 +2854,7 @@ export default function SettingsTab({ initialSubTab }) {
                 <div className={`${settingsInsetPanelClassName} p-3 grid grid-cols-[1.2fr_1.8fr] gap-4 items-center`}>
                   <div>
                     <p className="text-[11px] font-extrabold text-slate-900 leading-tight">Organization Logo</p>
-                    <p className="text-[9.5px] text-slate-500 leading-normal mt-0.5">Supported: PNG, JPG. Click badge to upload.</p>
+                    <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Supported: PNG, JPG. Click badge to upload.</p>
                   </div>
                   <div className="flex justify-end">
                     <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-white transition-all hover:border-indigo-400">
@@ -3010,7 +2965,7 @@ export default function SettingsTab({ initialSubTab }) {
                 <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-1.5">
                   <div>
                     <label className={`${settingsSectionLabelClassName} mb-0`}>Attendance Remarks</label>
-                    <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Add client or site names for the dropdown list.</p>
+                    <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Add client or site names for the dropdown list.</p>
                   </div>
 
                   <div className="space-y-2">
@@ -3072,7 +3027,7 @@ export default function SettingsTab({ initialSubTab }) {
               <div className={`${settingsPanelClassName} p-4 space-y-3.5 md:p-5`}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Operations and access</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] leading-tight text-indigo-600">Operations and access</p>
                     <h3 className="mt-1 text-[18px] font-black tracking-[-0.03em] text-slate-950">Structure & Accounts</h3>
                   </div>
                 </div>
@@ -3082,7 +3037,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-0.5">
                     <div className="pt-1">
                       <label className={`${settingsSectionLabelClassName} mb-0`}>Hierarchy</label>
-                      <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Define reporting structure.</p>
+                      <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Define reporting structure.</p>
                     </div>
                     <textarea
                       value={orgSettings.hierarchy || ''}
@@ -3097,7 +3052,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-0.5">
                     <div className="pt-1">
                       <label className={`${settingsSectionLabelClassName} mb-0`}>Branches</label>
-                      <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Branch office locations.</p>
+                      <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Branch office locations.</p>
                     </div>
                     <textarea
                       value={orgSettings.branches || ''}
@@ -3112,7 +3067,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-0.5">
                     <div className="pt-1">
                       <label className={`${settingsSectionLabelClassName} mb-0`}>Bank Accounts</label>
-                      <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Official company bank details. Add multiple accounts.</p>
+                      <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Official company bank details. Add multiple accounts.</p>
                     </div>
                     <div className="space-y-3 w-full">
                       {/* Bank Accounts List */}
@@ -3122,8 +3077,8 @@ export default function SettingsTab({ initialSubTab }) {
                             <div key={idx} className="flex items-center justify-between p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-[11px] leading-tight">
                               <div className="space-y-0.5">
                                 <p className="font-extrabold text-slate-900">{acc.bankName}</p>
-                                <p className="text-slate-500 font-mono text-[9.5px]">A/C: {acc.accountNo} | IFSC: {acc.ifsc}</p>
-                                <p className="text-slate-400 text-[9.5px]">Branch: {acc.branchName}</p>
+                                <p className="text-slate-500 font-mono text-[11px]">A/C: {acc.accountNo} | IFSC: {acc.ifsc}</p>
+                                <p className="text-slate-400 text-[11px]">Branch: {acc.branchName}</p>
                               </div>
                               <button
                                 type="button"
@@ -3142,7 +3097,7 @@ export default function SettingsTab({ initialSubTab }) {
 
                       {/* Add New Bank Account Form */}
                       <div className="border border-slate-200/80 rounded-xl p-2.5 bg-white space-y-2">
-                        <p className="text-[9.5px] font-black text-slate-700 uppercase tracking-wider">Add Bank Account</p>
+                        <p className="text-[11px] font-bold text-slate-700 uppercase tracking-[0.14em] leading-tight">Add Bank Account</p>
                         
                         <div className="grid grid-cols-2 gap-2">
                           <input
@@ -3179,13 +3134,13 @@ export default function SettingsTab({ initialSubTab }) {
                         </div>
 
                         {bankAccountError && (
-                          <p className="text-[9.5px] text-red-500 font-semibold">{bankAccountError}</p>
+                          <p className="text-[11px] text-red-500 font-semibold">{bankAccountError}</p>
                         )}
 
                         <button
                           type="button"
                           onClick={handleAddBankAccount}
-                          className="w-full h-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[9.5px] font-bold uppercase tracking-wider transition-colors"
+                          className="w-full h-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold uppercase tracking-[0.14em] leading-tight transition-colors"
                         >
                           Add Bank Account
                         </button>
@@ -3216,7 +3171,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-center">
                     <div>
                       <label className={`${settingsSectionLabelClassName} mb-0`}>Employee Link</label>
-                      <p className="text-[9.5px] text-slate-400 leading-normal mt-0.5">Link for registration.</p>
+                      <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Link for registration.</p>
                     </div>
                     <div className="flex gap-2">
                       <div className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[10px] text-indigo-600 break-all select-all flex items-center min-h-[36px]">
@@ -3257,7 +3212,7 @@ export default function SettingsTab({ initialSubTab }) {
         {activeSubTab === 'advance_cat' && (
           <div className="grid max-w-5xl grid-cols-1 gap-5 xl:grid-cols-[0.85fr_1.15fr] no-print">
             <div className={`${settingsPanelClassName} p-6 md:p-7`}>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Create category</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] leading-tight text-indigo-600">Create category</p>
               <h3 className="mt-2 text-[22px] font-black tracking-[-0.03em] text-slate-950">Advance Categories</h3>
               <p className="mt-2 text-[13px] leading-6 text-slate-500">
                 Add request types inline so the finance setup stays quick and predictable for the whole team.
@@ -3331,7 +3286,7 @@ export default function SettingsTab({ initialSubTab }) {
         {activeSubTab === 'holidays' && (
           <div className="grid max-w-6xl grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr] no-print">
             <div className={`${settingsPanelClassName} p-6 md:p-7`}>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Calendar entry</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] leading-tight text-indigo-600">Calendar entry</p>
               <h3 className="mt-2 text-[22px] font-black tracking-[-0.03em] text-slate-950">Annual Holidays</h3>
               <p className="mt-2 text-[13px] leading-6 text-slate-500">
                 Build the holiday calendar with proper date fields instead of popups, so updates are faster and less error-prone.
@@ -3420,7 +3375,7 @@ export default function SettingsTab({ initialSubTab }) {
                       .map(({ holiday, originalIndex }, i) => (
                         <tr key={`${holiday.name}-${holiday.date}-${originalIndex}`} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
                           <td className="px-6 py-4 text-[13px] font-bold text-slate-900">{holiday.name}</td>
-                          <td className="px-6 py-4 font-mono text-[12px] text-indigo-600">{holiday.date}</td>
+                          <td className="px-6 py-4 font-mono text-[12px] text-indigo-600">{formatDateDDMMYYYY(holiday.date)}</td>
                           <td className="px-6 py-4 text-right">
                             <button
                               type="button"

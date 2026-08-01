@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import AttendanceApprovalQueue from './AttendanceApprovalQueue'
+import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR } from '../../lib/salaryUtils'
 import { logActivity } from '../../hooks/useActivityLog'
 import { 
@@ -863,51 +864,16 @@ export default function ApprovalsTab() {
           </p>
         </div>
         
-        <div className="flex bg-zinc-100 p-1.5 rounded-2xl border border-zinc-200 shadow-inner">
-          <button 
-            onClick={() => setActiveSubTab('advance-expense')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${activeSubTab === 'advance-expense' ? 'bg-zinc-900 text-white shadow-xl shadow-zinc-200 translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600 hover:bg-white/50'}`}
-          >
-            Advance / Expense
-            {advExpenses.length > 0 && (
-              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${activeSubTab === 'advance-expense' ? 'bg-white text-zinc-900' : 'bg-zinc-200 text-zinc-500'}`}>
-                {advExpenses.length}
-              </span>
-            )}
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('leave-permission')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${activeSubTab === 'leave-permission' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600 hover:bg-white/50'}`}
-          >
-            Leave / Permission
-            {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length > 0 && (
-              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${activeSubTab === 'leave-permission' ? 'bg-white text-indigo-600' : 'bg-zinc-200 text-zinc-500'}`}>
-                {requests.filter(r => r.status === 'Pending' || r.status === 'Hold').length}
-              </span>
-            )}
-          </button>
-          {canManageAttendance && (
-            <button
-              onClick={() => setActiveSubTab('attendance-queue')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${activeSubTab === 'attendance-queue' ? 'bg-sky-600 text-white shadow-xl shadow-sky-100 translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600 hover:bg-white/50'}`}
-            >
-              Attendance Queue
-            </button>
-          )}
-          {isAccountant && (
-            <button 
-              onClick={() => setActiveSubTab('payment-queue')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${activeSubTab === 'payment-queue' ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-100 translate-y-[-1px]' : 'text-zinc-400 hover:text-zinc-600 hover:bg-white/50'}`}
-            >
-              Payment Queue
-              {paymentQueue.length > 0 && (
-                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${activeSubTab === 'payment-queue' ? 'bg-white text-emerald-600' : 'bg-zinc-200 text-zinc-500'}`}>
-                  {paymentQueue.length}
-                </span>
-              )}
-            </button>
-          )}
-        </div>
+        <SubTabsNav
+          tabs={[
+            { id: 'advance-expense', label: 'Advance / Expense' },
+            { id: 'leave-permission', label: 'Leave / Permission' },
+            ...(canManageAttendance ? [{ id: 'attendance-queue', label: 'Attendance Queue' }] : []),
+            ...(isAccountant ? [{ id: 'payment-queue', label: 'Payment Queue' }] : [])
+          ]}
+          activeTabId={activeSubTab}
+          onTabChange={(tab) => setActiveSubTab(tab.id)}
+        />
       </div>
 
       {activeSubTab === 'attendance-queue' ? (
@@ -944,7 +910,7 @@ export default function ApprovalsTab() {
                             <span className="text-[12px] font-bold text-zinc-700">{formatAdvDateDMY(item.date)}</span>
                           </td>
                           <td className="px-4 border-r border-zinc-100">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-tight ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
                               {item.type}
                             </span>
                           </td>
@@ -952,7 +918,7 @@ export default function ApprovalsTab() {
                             <span className="text-[13px] font-bold text-zinc-800">{item.employeeName}</span>
                           </td>
                           <td className="px-4 border-r border-zinc-100">
-                            <span className="text-[14px] font-black text-indigo-600 tabular-nums">{formatINR(item.amount)}</span>
+                            <span className="text-[14px] font-bold text-indigo-600 tabular-nums">{formatINR(item.amount)}</span>
                           </td>
                           <td className="px-4 border-r border-zinc-100">
                             <select 
@@ -1005,7 +971,7 @@ export default function ApprovalsTab() {
           <div className="mt-12 mb-8">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
-              <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Recent Payment History</h3>
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-500">Recent Payment History</h3>
             </div>
             
             <div className="rounded-lg border border-zinc-200 bg-white shadow-sm overflow-hidden">
@@ -1013,12 +979,12 @@ export default function ApprovalsTab() {
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-zinc-50/80 border-b border-zinc-200">
-                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Paid Date</th>
-                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[200px]">Employee</th>
-                      <th className="h-10 px-4 text-left align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[100px]">Type</th>
-                      <th className="h-10 px-4 text-right align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">Amount</th>
-                      <th className="h-10 px-4 text-center align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Method</th>
-                      <th className="h-10 px-4 text-right align-middle text-[10px] font-black uppercase tracking-widest text-zinc-500">Reference</th>
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-bold uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Paid Date</th>
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-bold uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[200px]">Employee</th>
+                      <th className="h-10 px-4 text-left align-middle text-[10px] font-bold uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[100px]">Type</th>
+                      <th className="h-10 px-4 text-right align-middle text-[10px] font-bold uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[120px]">Amount</th>
+                      <th className="h-10 px-4 text-center align-middle text-[10px] font-bold uppercase tracking-widest text-zinc-500 border-r border-zinc-200 w-[140px]">Method</th>
+                      <th className="h-10 px-4 text-right align-middle text-[10px] font-bold uppercase tracking-widest text-zinc-500">Reference</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-50">
@@ -1042,7 +1008,7 @@ export default function ApprovalsTab() {
                               {item.type}
                             </span>
                           </td>
-                          <td className="px-4 border-r border-zinc-50 text-right text-[13px] font-black tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
+                          <td className="px-4 border-r border-zinc-50 text-right text-[13px] font-bold tabular-nums text-zinc-900">{formatINR(item.amount)}</td>
                           <td className="px-4 border-r border-zinc-50 text-center text-[11px] font-bold text-zinc-600">{item.paymentMethod}</td>
                           <td className="px-4 text-right font-mono text-[11px] font-bold text-indigo-600 uppercase tracking-tight">{item.paymentRef}</td>
                         </tr>
@@ -1352,7 +1318,7 @@ export default function ApprovalsTab() {
                                               className="fixed z-50 w-56 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl"
                                               style={{ top: dropdownPosition.top - 100, left: dropdownPosition.left }}
                                             >
-                                              <p className="mb-2 text-[9px] font-black uppercase text-zinc-400">HR Remarks</p>
+                                              <p className="mb-2 text-[9px] font-semibold uppercase text-zinc-400">HR Remarks</p>
                                               <textarea
                                                 autoFocus
                                                 className="w-full rounded border border-zinc-100 p-2 text-[11px] outline-none focus:border-sky-400"
@@ -1660,7 +1626,7 @@ export default function ApprovalsTab() {
             <div className="w-full lg:w-[20%] space-y-4">
               <div className="flex items-center gap-1.5">
                 <div className="h-3 w-0.5 rounded-full bg-indigo-500" />
-                <h3 className="text-[9px] font-black uppercase tracking-widest text-zinc-500">This Month Paid</h3>
+                <h3 className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500">This Month Paid</h3>
               </div>
               <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
                 <div className="border-b border-zinc-100 px-3 py-2 bg-zinc-50/30">
@@ -1679,7 +1645,7 @@ export default function ApprovalsTab() {
                         <li key={item.id} className="flex flex-col gap-1 px-3 py-2 hover:bg-zinc-50 transition-colors">
                           <div className="flex items-center justify-between">
                             <p className="truncate text-[11px] font-bold text-zinc-900">{item.employeeName}</p>
-                            <p className="shrink-0 text-[11px] font-black tabular-nums text-indigo-600">{formatINR(payAmt)}</p>
+                            <p className="shrink-0 text-[11px] font-bold tabular-nums text-indigo-600">{formatINR(payAmt)}</p>
                           </div>
                           <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-tighter">Paid {formatAdvDateDMY(receivedKey)}</p>
                         </li>
@@ -1694,19 +1660,19 @@ export default function ApprovalsTab() {
             <div className="w-full lg:w-[80%] space-y-4">
               <div className="flex items-center gap-1.5">
                 <div className="h-3 w-0.5 rounded-full bg-emerald-500" />
-                <h3 className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Recent Approval History</h3>
+                <h3 className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500">Recent Approval History</h3>
               </div>
               <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full caption-bottom border-collapse text-[11px]">
                     <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50/95">
                       <tr className="h-10">
-                        <th className="px-3 text-left font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[100px]">Req. Dt</th>
-                        <th className="px-3 text-left font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[60px]">Type</th>
-                        <th className="px-3 text-left font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[180px]">Employee</th>
-                        <th className="px-3 text-right font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[120px]">Amount</th>
-                        <th className="px-3 text-right font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Approvals</th>
-                        <th className="px-3 text-right font-black uppercase tracking-widest text-zinc-500 w-[80px]">Action</th>
+                        <th className="px-3 text-left font-semibold uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[100px]">Req. Dt</th>
+                        <th className="px-3 text-left font-semibold uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[60px]">Type</th>
+                        <th className="px-3 text-left font-semibold uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[180px]">Employee</th>
+                        <th className="px-3 text-right font-semibold uppercase tracking-widest text-zinc-500 border-r border-zinc-100 w-[120px]">Amount</th>
+                        <th className="px-3 text-right font-semibold uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Approvals</th>
+                        <th className="px-3 text-right font-semibold uppercase tracking-widest text-zinc-500 w-[80px]">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-50">
@@ -1720,7 +1686,7 @@ export default function ApprovalsTab() {
                             <td className="whitespace-nowrap px-3 align-middle font-bold text-zinc-700 border-r border-zinc-50">
                               {formatAdvDateDMY(item.date)}
                             </td>
-                            <td className="px-3 align-middle font-black border-r border-zinc-50">
+                            <td className="px-3 align-middle font-bold border-r border-zinc-50">
                               <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
                                 {item.type}
                               </span>
@@ -1728,7 +1694,7 @@ export default function ApprovalsTab() {
                             <td className="px-3 align-middle font-bold text-zinc-800 border-r border-zinc-50 truncate max-w-[180px]" title={item.employeeName}>
                               {item.employeeName}
                             </td>
-                            <td className="whitespace-nowrap px-3 align-middle text-right font-black tabular-nums text-indigo-600 border-r border-zinc-50">
+                            <td className="whitespace-nowrap px-3 align-middle text-right font-bold tabular-nums text-indigo-600 border-r border-zinc-50">
                               {item.status === 'Partial' && item.partialAmount != null ? formatINR(item.partialAmount) : formatINR(item.amount)}
                             </td>
                             <td className="px-3 align-middle text-right border-r border-zinc-50">
@@ -1771,7 +1737,7 @@ export default function ApprovalsTab() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-1 h-4 bg-indigo-600 rounded-full"></div>
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-500">Pending Leave & Permissions</h3>
+                <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Pending Leave & Permissions</h3>
               </div>
             </div>
             <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden w-full">
@@ -1946,7 +1912,7 @@ export default function ApprovalsTab() {
                                               {/* Remarks Popover */}
                                               {advMenuOpen === `${req.id}-dept-rem` && (
                                                 <div className="absolute right-0 bottom-full z-40 mb-2 w-56 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl">
-                                                  <p className="mb-2 text-[9px] font-black uppercase text-zinc-400">Dept Head Remarks</p>
+                                                  <p className="mb-2 text-[9px] font-semibold uppercase text-zinc-400">Dept Head Remarks</p>
                                                   <textarea
                                                     autoFocus
                                                     className="w-full rounded border border-zinc-100 p-2 text-[11px] outline-none focus:border-sky-400"

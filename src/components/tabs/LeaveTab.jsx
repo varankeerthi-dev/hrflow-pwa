@@ -26,6 +26,7 @@ import {
   PencilLine
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
+import { SubTabsNav } from '../ui/SubTabsNav'
 
 export default function LeaveTab() {
   const { user } = useAuth()
@@ -206,17 +207,11 @@ export default function LeaveTab() {
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white md:bg-transparent p-2 md:p-0 rounded-xl border border-slate-100 md:border-none shadow-sm md:shadow-none">
-        <div className="flex flex-wrap h-auto md:h-9 items-center rounded-lg bg-slate-100 p-1 text-slate-500 w-full md:w-auto overflow-x-auto no-scrollbar">
-          {subNav.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setActiveSub(s.id)}
-              className={`flex-1 md:flex-none inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 md:py-1 text-[11px] md:text-sm font-medium transition-all ${activeSub === s.id ? 'bg-white text-slate-950 shadow-sm' : 'hover:text-slate-900'}`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+        <SubTabsNav
+          tabs={subNav}
+          activeTabId={activeSub}
+          onTabChange={(tab) => setActiveSub(tab.id)}
+        />
         <button 
           onClick={() => {
             setActiveSub('dashboard')

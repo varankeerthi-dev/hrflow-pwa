@@ -30,6 +30,7 @@ import {
   Clock
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
+import { SubTabsNav } from '../ui/SubTabsNav'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
@@ -203,32 +204,22 @@ export default function VehicleManagementTab() {
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-6">
           <h1 className="text-xl font-semibold text-gray-900">Vehicle Management</h1>
-          
-          {/* Tabs moved to top */}
-          <div className="flex items-center bg-gray-100 p-1 rounded-lg">
-            <button 
-              onClick={() => setActiveSubTab('all-vehicles')}
-              className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${activeSubTab === 'all-vehicles' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Inventory
-            </button>
-            <button 
-              onClick={() => setActiveSubTab('service-complaints')}
-              className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${activeSubTab === 'service-complaints' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Maintenance
-            </button>
-          </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex gap-2">
-            <div className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md">
-              <span className="text-xs text-gray-600">{vehicles.length} Assets</span>
-            </div>
-            <div className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-md">
-              <span className="text-xs text-rose-600">{vehicles.filter(v => isExpired(v.insuranceExpiry)).length} Expired</span>
-            </div>
+      <SubTabsNav
+        tabs={[{ id: 'all-vehicles', label: 'Inventory' }, { id: 'service-complaints', label: 'Maintenance' }]}
+        activeTabId={activeSubTab}
+        onTabChange={(tab) => setActiveSubTab(tab.id)}
+      />
+
+      <div className="flex items-center gap-3 px-6 py-2 border-b border-gray-200">
+        <div className="flex gap-2">
+          <div className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md">
+            <span className="text-xs text-gray-600">{vehicles.length} Assets</span>
+          </div>
+          <div className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-md">
+            <span className="text-xs text-rose-600">{vehicles.filter(v => isExpired(v.insuranceExpiry)).length} Expired</span>
           </div>
         </div>
       </div>

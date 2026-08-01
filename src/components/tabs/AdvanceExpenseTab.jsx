@@ -11,6 +11,26 @@ import autoTable from 'jspdf-autotable'
 import html2canvas from 'html2canvas'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
+function approvalStatusTextClass(status, lane) {
+  const s = (status || 'Pending').toLowerCase()
+  const isHr = lane === 'hr'
+  if (s === 'approved' || s === 'approve') {
+    return isHr
+      ? 'text-sky-700'
+      : 'text-violet-700'
+  }
+  if (s === 'rejected') {
+    return isHr ? 'text-rose-600' : 'text-red-700'
+  }
+  if (s === 'partial') {
+    return isHr ? 'text-cyan-700' : 'text-indigo-700'
+  }
+  if (s === 'hold') {
+    return isHr ? 'text-slate-500' : 'text-zinc-600'
+  }
+  return isHr ? 'text-amber-700' : 'text-orange-800'
+}
+
 export default function AdvanceExpenseTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)

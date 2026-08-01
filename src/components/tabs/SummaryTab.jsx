@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
 import Spinner from '../ui/Spinner'
+import { SubTabsNav } from '../ui/SubTabsNav'
 import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X, ArrowRight, Table } from 'lucide-react'
 import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
@@ -316,19 +317,15 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     <div className="space-y-2.5 font-inter text-slate-900 flex-1 flex flex-col min-h-0">
       {/* Main Tabs Navigation */}
       {!hideMainTabs && (
-        <div className="flex gap-0 border-b border-gray-200">
-          <button 
-            onClick={() => setActiveMainTab('summary')} 
-            className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeMainTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-          >
-            Summary
-          </button>
-          <button 
-            onClick={() => setActiveMainTab('monthlyView')} 
-            className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeMainTab === 'monthlyView' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-          >
-            Full Summary
-          </button>
+        <div>
+          <SubTabsNav
+            tabs={[
+              { id: 'summary', label: 'Summary' },
+              { id: 'monthlyView', label: 'Full Summary' },
+            ]}
+            activeTabId={activeMainTab}
+            onTabChange={(tab) => setActiveMainTab(tab.id)}
+          />
         </div>
       )}
 

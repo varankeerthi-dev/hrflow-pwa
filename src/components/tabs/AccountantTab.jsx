@@ -40,6 +40,7 @@ import { formatINR } from '../../lib/salaryUtils'
 import { logActivity } from '../../hooks/useActivityLog'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { useQueryClient } from '@tanstack/react-query'
+import { SubTabsNav } from '../ui/SubTabsNav'
 
 const TABS = [
   { id: 'bulk', label: 'Bulk Entry', icon: <LayoutGrid size={16} /> },
@@ -429,14 +430,11 @@ export default function AccountantTab() {
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Finance Control</span>
               <h1 className="text-lg font-bold text-zinc-900 tracking-tight font-raleway uppercase">Accountant Desk</h1>
             </div>
-            <nav className="flex bg-zinc-100 w-12 rounded-xl gap-1">
-              {TABS.map(tab => (
-                <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition duration-200 ${activeSubTab === tab.id ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'}`}>
-                  <span className={activeSubTab === tab.id ? 'text-zinc-900' : 'text-zinc-400'}>{tab.icon}</span>
-                  <span className="text-[13px] font-bold tracking-tight">{tab.label}</span>
-                </button>
-              ))}
-            </nav>
+            <SubTabsNav
+              tabs={TABS}
+              activeTabId={activeSubTab}
+              onTabChange={(tab) => setActiveSubTab(tab.id)}
+            />
           </div>
           <div className="text-right flex items-center gap-4">
             <div className="flex flex-col text-right">

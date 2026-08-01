@@ -45,6 +45,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import ChecklistView from '../../modules/checklist/components/ChecklistView'
+import { SubTabsNav } from '../ui/SubTabsNav'
 
 const STATUSES = [
   { id: 'To Do', label: 'To Do', icon: <Circle size={14} className="text-slate-400" /> },
@@ -1875,21 +1876,12 @@ export default function TasksTab({ defaultSubTab }) {
           >
             Tasks <span className="text-slate-300 font-light">/</span> <span className="text-blue-600 tracking-[-0.03em]">{TABS.find(t => t.id === activeTab)?.label}</span>
           </h1>
-          <div className="flex items-center gap-1.5 mt-3">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-semibold transition-all border ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 border-blue-500 text-white shadow-[0_10px_24px_-14px_rgba(37,99,235,0.95)]'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-white hover:border-slate-200'
-                }`}
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            ))}
+          <div className="mt-3">
+            <SubTabsNav
+              tabs={TABS}
+              activeTabId={activeTab}
+              onTabChange={(tab) => setActiveTab(tab.id)}
+            />
           </div>
         </div>
 

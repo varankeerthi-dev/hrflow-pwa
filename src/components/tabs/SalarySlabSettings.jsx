@@ -7,6 +7,7 @@ import { doc, getDocs, setDoc } from 'firebase/firestore'
 import { salarySlipWindowsCol } from '../../lib/firestore'
 import Spinner from '../ui/Spinner'
 import { Calendar as CalendarIcon, Plus, Save, TrendingUp, Wallet } from 'lucide-react'
+import { SubTabsNav } from '../ui/SubTabsNav'
 
 const panelClassName = 'rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]'
 const insetClassName = 'rounded-[22px] border border-slate-200 bg-slate-50/80'
@@ -122,9 +123,9 @@ export default function SalarySlabSettings() {
   ]
 
   const tabs = [
-    { id: 'structure', label: 'Structure', icon: Wallet },
-    { id: 'increment', label: 'Increments', icon: TrendingUp },
-    { id: 'release', label: 'Release', icon: CalendarIcon },
+    { id: 'structure', label: 'Structure', icon: <Wallet size={14} /> },
+    { id: 'increment', label: 'Increments', icon: <TrendingUp size={14} /> },
+    { id: 'release', label: 'Release', icon: <CalendarIcon size={14} /> },
   ]
 
   return (
@@ -156,26 +157,12 @@ export default function SalarySlabSettings() {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            {tabs.map(tab => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.16em] transition ${
-                    isActive
-                      ? 'border-slate-900 bg-slate-950 text-white shadow-lg'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-600'
-                  }`}
-                >
-                  <Icon size={14} />
-                  {tab.label}
-                </button>
-              )
-            })}
+          <div className="mt-6">
+            <SubTabsNav
+              tabs={tabs}
+              activeTabId={activeTab}
+              onTabChange={(tab) => setActiveTab(tab.id)}
+            />
           </div>
         </div>
       </div>

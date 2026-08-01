@@ -23,11 +23,7 @@ import { Table as ReusableTable } from '../table/Table'
 // --- HELPERS ---
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : Math.round(Number(val)).toLocaleString('en-IN');
 
-const formatDateDDMMYYYY = (dateStr) => {
-  if (!dateStr || dateStr === '-') return '-';
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) { const [y, m, d] = dateStr.split('-'); return `${d}/${m}/${y}`; }
-  try { const date = new Date(dateStr); if (isNaN(date.getTime())) return dateStr; const d = String(date.getDate()).padStart(2, '0'); const m = String(date.getMonth() + 1).padStart(2, '0'); const y = date.getFullYear(); return `${d}/${m}/${y}`; } catch { return dateStr; }
-};
+import { formatDateDDMMYYYY } from '../../lib/utils';
 
 const formatMonthDisplay = (monthStr) => {
   if (!monthStr) return '-';
