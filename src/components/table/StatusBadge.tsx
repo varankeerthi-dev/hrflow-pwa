@@ -27,12 +27,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, children }) =>
         paddingLeft: '10px',
         paddingRight: '10px',
         borderRadius: '999px',
-        fontSize: '12px',
+        fontSize: '11px',
         fontWeight: 500,
         backgroundColor: style.bg,
         color: style.text,
+        border: `1px solid ${style.text}20`,
         userSelect: 'none',
         lineHeight: 1,
+        letterSpacing: '0.02em',
       }}
     >
       {children}

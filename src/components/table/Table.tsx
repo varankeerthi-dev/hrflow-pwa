@@ -208,12 +208,13 @@ export function Table<T extends { id?: string | number }>({
     <div
       style={{
         backgroundColor: '#FFFFFF',
-        border: '1px solid #EAEAEA',
-        borderRadius: '14px',
+        border: '1px solid #E2E8F0',
+        borderRadius: '16px',
         overflow: 'hidden',
         boxSizing: 'border-box',
         width: '100%',
         fontFamily: '"Inter", sans-serif',
+        boxShadow: '0 1px 3px rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.02)',
       }}
       className="enterprise-table-card"
     >
@@ -331,7 +332,7 @@ export function Table<T extends { id?: string | number }>({
                               textAlign: 'right',
                               padding: '12px 16px',
                               verticalAlign: 'middle',
-                              borderBottom: rIdx === data.length - 1 ? 'none' : '1px solid #F3F4F6',
+                              borderBottom: rIdx === data.length - 1 ? 'none' : '1px solid rgba(226,232,240,0.6)',
                               whiteSpace: 'nowrap',
                             }}
                             onClick={(e) => e.stopPropagation()}
@@ -411,11 +412,17 @@ export function Table<T extends { id?: string | number }>({
       )}
       <style>{`
         .table-row-item:hover {
-          background-color: #FAFAFA !important;
+          background-color: #F8FAFC !important;
+        }
+        .table-row-item:nth-child(even) {
+          background-color: rgba(248,250,252,0.4);
+        }
+        .table-row-item:nth-child(even):hover {
+          background-color: #F1F5F9 !important;
         }
         .row-view-btn:hover {
-          background-color: #F3F4F6 !important;
-          color: #111827 !important;
+          background-color: #F1F5F9 !important;
+          color: #0F172A !important;
         }
         @keyframes filterSlideDown {
           from { opacity: 0; transform: translateY(-8px); }

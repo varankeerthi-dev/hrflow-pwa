@@ -27,7 +27,7 @@ export const TableCell: React.FC<TableCellProps> = ({
 
   const getStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = {
-      padding: '12px 16px',
+      padding: '8px 16px',
       fontSize: '13px',
       verticalAlign: 'middle',
       boxSizing: 'border-box',
@@ -38,7 +38,7 @@ export const TableCell: React.FC<TableCellProps> = ({
       return {
         ...base,
         fontWeight: 600,
-        color: '#1F2937',
+        color: '#475569', // text-slate-600
       };
     }
 
@@ -47,20 +47,21 @@ export const TableCell: React.FC<TableCellProps> = ({
         ...base,
         fontVariantNumeric: 'tabular-nums',
         fontWeight: 500,
-        color: '#111827',
+        fontSize: '14px', // Numbers: 14px
+        color: '#334155', // text-slate-700
       };
     }
 
     if (type === 'date') {
       return {
         ...base,
-        color: '#4B5563',
+        color: '#64748B', // text-slate-500
       };
     }
 
     return {
       ...base,
-      color: '#111827',
+      color: '#334155', // text-slate-700
       fontWeight: 500,
     };
   };
@@ -74,7 +75,7 @@ export const TableCell: React.FC<TableCellProps> = ({
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <span>{value}</span>
-          <span style={{ fontSize: '13px', fontWeight: 400, color: '#6B7280' }}>
+          <span style={{ fontSize: '11px', fontWeight: 400, color: '#64748B' }}>
             {secondaryText}
           </span>
         </div>

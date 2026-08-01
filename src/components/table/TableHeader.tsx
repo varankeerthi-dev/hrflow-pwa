@@ -27,8 +27,8 @@ export function TableHeader<T>({
   return (
     <thead>
       {nestedHeaders && nestedHeaders.length > 0 && (
-        <tr style={{ height: '48px', borderBottom: '1px solid #ECECEC' }}>
-          {selectable && <th style={{ borderBottom: '1px solid #ECECEC', backgroundColor: '#FAFAFA' }} />}
+        <tr style={{ height: '40px', borderBottom: '1px solid #E2E8F0' }}>
+          {selectable && <th style={{ borderBottom: '1px solid #E2E8F0', backgroundColor: '#FAFBFC' }} />}
           {nestedHeaders.map((group, idx) => (
             <th
               key={idx}
@@ -38,8 +38,9 @@ export function TableHeader<T>({
                 fontWeight: 600,
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                borderBottom: '1px solid #ECECEC',
-                borderRight: '1.2px solid #E5E7EB',
+                letterSpacing: '0.03em',
+                borderBottom: '1px solid #E2E8F0',
+                borderRight: '1px solid rgba(226,232,240,0.6)',
                 ...group.style,
               }}
               className={group.className}
@@ -49,7 +50,7 @@ export function TableHeader<T>({
           ))}
         </tr>
       )}
-      <tr style={{ height: '42px', backgroundColor: '#FAFAFA', borderBottom: '1px solid #ECECEC' }}>
+      <tr style={{ height: '42px', backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
         {selectable && (
           <th
             style={{
@@ -58,7 +59,7 @@ export function TableHeader<T>({
               paddingLeft: '16px',
               paddingRight: '16px',
               verticalAlign: 'middle',
-              borderBottom: '1px solid #ECECEC',
+              borderBottom: '1px solid #E2E8F0',
             }}
           >
             <input
@@ -89,13 +90,13 @@ export function TableHeader<T>({
                 paddingRight: col.headerStyle?.paddingRight !== undefined ? col.headerStyle.paddingRight : '16px',
                 fontSize: '12px',
                 fontWeight: 500,
-                letterSpacing: '0.02em',
-                color: '#6B7280',
+                letterSpacing: '0.03em',
+                color: '#64748B',
                 textAlign: align,
                 cursor: sortable && (col.id || col.accessorKey) ? 'pointer' : 'default',
                 position: 'relative',
                 verticalAlign: 'middle',
-                borderBottom: '1px solid #ECECEC',
+                borderBottom: '1px solid #E2E8F0',
                 userSelect: 'none',
                 ...col.headerStyle,
               }}

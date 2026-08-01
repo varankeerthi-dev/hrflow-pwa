@@ -1354,12 +1354,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   const filteredAttendanceSummaryData = useMemo(() => summaryFilterEmpId ? displayData.filter(e => e.id === summaryFilterEmpId) : displayData, [displayData, summaryFilterEmpId])
 
   const overviewNestedHeaders = useMemo(() => [
-    { label: 'Staff Profile', colSpan: 2, className: 'text-blue-900 bg-[#EBF8FF] sticky left-0 z-50 border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm shadow-[2px_0_10px_-2px_rgba(0,0,0,0.05)]' },
-    { label: 'Period Status', colSpan: 3, className: 'text-orange-900 bg-[#FFF5F5] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
-    { label: 'Performance', colSpan: 5, className: 'text-zinc-700 bg-[#F7FAFC] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
-    { label: 'Overtime', colSpan: 1, className: 'text-indigo-900 bg-[#EBF4FF] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
-    { label: 'Sunday/Holiday', colSpan: 2, className: 'text-emerald-900 bg-[#E6FFFA] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
-    { label: 'Summary & Payout', colSpan: 3, className: 'text-white bg-[#16A34A] border-r-[1.2px] border-zinc-300 font-semibold text-[11px] backdrop-blur-sm' },
+    { label: 'Staff Profile', colSpan: 2, className: 'text-slate-700 bg-[#f0f7ff] sticky left-0 z-50 border-r border-slate-200 font-semibold text-[11px]' },
+    { label: 'Period Status', colSpan: 3, className: 'text-slate-700 bg-orange-50/25 border-r border-slate-200 font-semibold text-[11px]' },
+    { label: 'Performance', colSpan: 5, className: 'text-slate-700 bg-slate-50/40 border-r border-slate-200 font-semibold text-[11px]' },
+    { label: 'Overtime', colSpan: 1, className: 'text-slate-700 bg-violet-50/25 border-r border-slate-200 font-semibold text-[11px]' },
+    { label: 'Sunday/Holiday', colSpan: 2, className: 'text-slate-700 bg-teal-50/25 border-r border-slate-200 font-semibold text-[11px]' },
+    { label: 'Summary & Payout', colSpan: 3, className: 'text-slate-700 bg-emerald-50/30 border-r border-slate-200 font-semibold text-[11px]' },
   ], [])
 
   const overviewColumns = useMemo(() => [
@@ -1367,20 +1367,20 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       header: '#',
       id: 'index',
       align: 'center',
-      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px', left: '0', zIndex: 50 },
-      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px', left: '0', zIndex: 20 },
-      headerClassName: 'sticky left-0 bg-white border-r border-zinc-100 text-center text-[10px] font-semibold text-zinc-400',
-      cellClassName: 'sticky left-0 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200 border-r border-zinc-50 text-zinc-400 font-bold text-[12px]',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px', position: 'sticky', left: '0', zIndex: 50 },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px', position: 'sticky', left: '0', zIndex: 20 },
+      headerClassName: 'sticky bg-white border-r border-slate-200/60 text-center text-[10px] font-semibold text-slate-400',
+      cellClassName: 'sticky bg-white group-hover:bg-slate-50 shadow-[1px_0_0_0_#e2e8f0] border-b border-slate-200/60 border-r border-slate-100/40 text-slate-400 font-medium text-[12px]',
       cell: ({ row }) => filteredAttendanceSummaryData.indexOf(row) + 1,
     },
     {
       header: 'Employee name',
       id: 'name',
       accessorKey: 'name',
-      headerStyle: { paddingLeft: '12px', paddingRight: '12px', width: '160px', minWidth: '160px', left: '32px', zIndex: 50 },
-      cellStyle: { paddingLeft: '12px', paddingRight: '12px', width: '160px', minWidth: '160px', left: '32px', zIndex: 20 },
-      headerClassName: 'sticky left-8 bg-white border-r-[1.2px] border-zinc-300 text-left text-[10px] font-semibold text-zinc-400',
-      cellClassName: 'sticky left-8 bg-inherit group-hover:bg-indigo-50 shadow-[1px_0_0_0_#f4f4f5] border-b border-zinc-200 border-r-[1.2px] border-zinc-300 text-zinc-800 font-bold text-[12px] truncate',
+      headerStyle: { paddingLeft: '12px', paddingRight: '12px', width: '160px', minWidth: '160px', position: 'sticky', left: '32px', zIndex: 50 },
+      cellStyle: { paddingLeft: '12px', paddingRight: '12px', width: '160px', minWidth: '160px', position: 'sticky', left: '32px', zIndex: 20 },
+      headerClassName: 'sticky bg-white border-r border-slate-200 text-left text-[10px] font-semibold text-slate-400',
+      cellClassName: 'sticky bg-white group-hover:bg-slate-50 shadow-[6px_0_12px_-4px_rgba(15,23,42,0.05)] border-b border-slate-200/60 border-r border-slate-200 text-slate-800 font-semibold text-[12px] truncate',
       cell: ({ row }) => row.name,
     },
     {
@@ -1390,8 +1390,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '12px', paddingRight: '12px', width: '64px', minWidth: '64px' },
       cellStyle: { paddingLeft: '12px', paddingRight: '12px', width: '64px', minWidth: '64px' },
-      headerClassName: 'text-orange-700/60 border-r border-zinc-100 text-[10px] font-semibold',
-      cellClassName: 'border-r border-zinc-50 text-zinc-800 text-[12px] border-b border-zinc-200',
+      headerClassName: 'text-slate-500 border-r border-slate-200/60 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-100/40 text-slate-700 text-[12px] border-b border-slate-200/60',
     },
     {
       header: 'Sunday',
@@ -1400,8 +1400,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
-      headerClassName: 'text-orange-700/60 border-r border-zinc-100 text-[10px] font-semibold',
-      cellClassName: 'border-r border-zinc-50 text-red-600 font-bold text-[12px] border-b border-zinc-200',
+      headerClassName: 'text-slate-500 border-r border-slate-200/60 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-100/40 text-red-500 font-medium text-[12px] border-b border-slate-200/60',
     },
     {
       header: 'Holiday',
@@ -1410,8 +1410,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '56px', minWidth: '56px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '56px', minWidth: '56px' },
-      headerClassName: 'text-orange-700/60 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
-      cellClassName: 'border-r-[1.2px] border-zinc-300 text-red-600 font-bold text-[12px] border-b border-zinc-200',
+      headerClassName: 'text-slate-500 border-r border-slate-200 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-200 text-red-500 font-medium text-[12px] border-b border-slate-200/60',
     },
     {
       header: 'Worked',
@@ -1420,8 +1420,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '56px', minWidth: '56px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '56px', minWidth: '56px' },
-      headerClassName: 'border-r border-zinc-100 text-[10px] font-semibold text-zinc-400',
-      cellClassName: 'border-r border-zinc-50 font-black text-zinc-800 text-[12px] border-b border-zinc-200',
+      headerClassName: 'border-r border-slate-200/60 text-[10px] font-medium text-slate-500',
+      cellClassName: 'border-r border-slate-100/40 font-semibold text-slate-800 text-[12px] border-b border-slate-200/60',
     },
     {
       header: 'HD',
@@ -1430,8 +1430,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '40px', minWidth: '40px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '40px', minWidth: '40px' },
-      headerClassName: 'border-r border-zinc-100 text-[10px] font-semibold text-zinc-400',
-      cellClassName: 'border-r border-zinc-50 font-bold text-zinc-800 text-[12px] border-b border-zinc-200',
+      headerClassName: 'border-r border-slate-200/60 text-[10px] font-medium text-slate-500',
+      cellClassName: 'border-r border-slate-100/40 font-medium text-slate-700 text-[12px] border-b border-slate-200/60',
     },
     {
       header: 'Leave',
@@ -1440,8 +1440,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
-      headerClassName: 'border-r border-zinc-100 text-[10px] font-semibold text-zinc-400',
-      cellClassName: 'border-r border-zinc-50 text-zinc-800 text-[12px] border-b border-zinc-200',
+      headerClassName: 'border-r border-slate-200/60 text-[10px] font-medium text-slate-500',
+      cellClassName: 'border-r border-slate-100/40 text-slate-700 text-[12px] border-b border-slate-200/60',
     },
     {
       header: 'LOP',
@@ -1450,8 +1450,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
-      headerClassName: 'text-rose-500/70 border-r border-zinc-100 text-[10px] font-semibold',
-      cellClassName: 'border-r border-zinc-50 font-black text-rose-600 bg-rose-50/30 text-[12px] relative group/tooltip border-b border-zinc-200',
+      headerClassName: 'text-slate-500 border-r border-slate-200/60 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-100/40 font-semibold text-rose-500 bg-rose-50/20 text-[12px] relative group/tooltip border-b border-slate-200/60',
       cell: ({ row }) => (
         <>
           {row.lop}
@@ -1470,8 +1470,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
-      headerClassName: 'text-emerald-600/80 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
-      cellClassName: 'border-r-[1.2px] border-zinc-300 font-black text-green-700 bg-green-50/30 text-[12px] border-b border-zinc-200',
+      headerClassName: 'text-slate-500 border-r border-slate-200 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-200 font-semibold text-emerald-600 bg-emerald-50/15 text-[12px] border-b border-slate-200/60',
     },
     {
       header: 'OT (actual)',
@@ -1480,8 +1480,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
-      headerClassName: 'text-indigo-600/70 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
-      cellClassName: 'border-r-[1.2px] border-zinc-300 font-bold text-green-700 bg-green-50/30 text-[12px] border-b border-zinc-200',
+      headerClassName: 'text-slate-500 border-r border-slate-200 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-200 font-medium text-slate-700 text-[12px] border-b border-slate-200/60',
       cell: ({ row }) => (
         <>
           {Number(row.ot || 0).toFixed(2)}
@@ -1498,8 +1498,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
-      headerClassName: 'text-emerald-600/70 border-r border-zinc-100 text-[10px] font-semibold',
-      cellClassName: 'border-r border-zinc-50 font-black text-green-700 bg-green-50/30 text-[12px] relative group/tooltip border-b border-zinc-200',
+      headerClassName: 'text-slate-500 border-r border-slate-200/60 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-100/40 font-medium text-slate-700 text-[12px] relative group/tooltip border-b border-slate-200/60',
       cell: ({ row }) => (
         <>
           {row.sunW}
@@ -1518,8 +1518,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
-      headerClassName: 'text-emerald-600/70 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
-      cellClassName: 'border-r-[1.2px] border-zinc-300 font-black text-green-700 bg-green-50/30 text-[12px] relative group/tooltip border-b border-zinc-200',
+      headerClassName: 'text-slate-500 border-r border-slate-200 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-200 font-medium text-slate-700 text-[12px] relative group/tooltip border-b border-slate-200/60',
       cell: ({ row }) => (
         <>
           {row.holW}
@@ -1537,8 +1537,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'left',
       headerStyle: { paddingLeft: '16px', paddingRight: '16px', width: '96px', minWidth: '96px' },
       cellStyle: { paddingLeft: '16px', paddingRight: '16px', width: '96px', minWidth: '96px' },
-      headerClassName: 'bg-green-50/20 text-green-700 border-r border-zinc-100 text-[10px] font-semibold',
-      cellClassName: 'border-r border-zinc-100 font-black text-green-700 bg-green-50/30 text-[12px] tracking-tight border-b border-zinc-200 px-4',
+      headerClassName: 'text-slate-600 border-r border-slate-200/60 text-[10px] font-semibold',
+      cellClassName: 'border-r border-slate-100/40 font-semibold text-emerald-700 text-[13px] tracking-tight border-b border-slate-200/60 px-4',
       cell: ({ row }) => (row.salary?.net || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
     },
     {
@@ -1547,9 +1547,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
-      headerClassName: 'text-green-700 border-r border-zinc-100 text-[10px] font-semibold',
-      cellClassName: 'border-r border-zinc-50 text-[12px] border-b border-zinc-200',
-      cell: ({ row }) => <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 text-[9px] font-black uppercase tracking-tighter">Draft</span>,
+      headerClassName: 'text-slate-500 border-r border-slate-200/60 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-100/40 text-[12px] border-b border-slate-200/60',
+      cell: ({ row }) => <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-medium uppercase tracking-wide">Draft</span>,
     },
     {
       header: 'Sync',
@@ -1557,9 +1557,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '80px', minWidth: '80px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '80px', minWidth: '80px' },
-      headerClassName: 'text-green-600 border-r-[1.2px] border-zinc-300 text-[10px] font-semibold',
-      cellClassName: 'border-r-[1.2px] border-zinc-300 border-b border-zinc-200',
-      cell: ({ row }) => <div className="flex justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div></div>,
+      headerClassName: 'text-slate-500 border-r border-slate-200 text-[10px] font-medium',
+      cellClassName: 'border-r border-slate-200 border-b border-slate-200/60',
+      cell: ({ row }) => <div className="flex justify-center"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.35)]"></div></div>,
     },
     {
       header: '',
@@ -1567,10 +1567,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       align: 'center',
       headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px' },
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '32px', minWidth: '32px' },
-      headerClassName: 'text-[10px] font-semibold',
-      cellClassName: 'border-b border-zinc-200 text-center',
+      headerClassName: 'text-[10px] font-medium text-slate-400',
+      cellClassName: 'border-b border-slate-200/60 text-center',
       cell: ({ row }) => (
-        <button onClick={() => { setSelectedEmp(row.id); setActiveTab('salary-slip'); handleGenerate(); }} className="p-2 hover:bg-zinc-900 hover:text-white rounded-lg transition-all text-zinc-300 active:scale-90">
+        <button onClick={() => { setSelectedEmp(row.id); setActiveTab('salary-slip'); handleGenerate(); }} className="p-2 hover:bg-slate-100 hover:text-slate-700 rounded-lg transition-all text-slate-300 active:scale-95">
           <ArrowUpRight size={16} />
         </button>
       ),

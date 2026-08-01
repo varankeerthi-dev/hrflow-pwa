@@ -30,32 +30,32 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderTop: '1px solid #ECECEC',
+        borderTop: '1px solid #E2E8F0',
         backgroundColor: '#FFFFFF',
         boxSizing: 'border-box',
       }}
     >
       {/* Left: Showing X-Y of Z */}
-      <div style={{ fontSize: '13px', color: '#6B7280', fontFamily: 'Inter' }}>
-        Showing <span style={{ fontWeight: 500, color: '#111827' }}>{startRow}–{endRow}</span> of{' '}
-        <span style={{ fontWeight: 500, color: '#111827' }}>{totalRows}</span>
+      <div style={{ fontSize: '13px', color: '#64748B', fontFamily: 'Inter' }}>
+        Showing <span style={{ fontWeight: 500, color: '#0F172A' }}>{startRow}–{endRow}</span> of{' '}
+        <span style={{ fontWeight: 500, color: '#0F172A' }}>{totalRows}</span>
       </div>
 
       {/* Right: Rows Per Page + Navigation */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         {onPageSizeChange && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '13px', color: '#6B7280' }}>Rows per page</span>
+            <span style={{ fontSize: '13px', color: '#64748B' }}>Rows per page</span>
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
               style={{
                 height: '32px',
                 paddingInline: '8px',
-                border: '1px solid #ECECEC',
+                border: '1px solid #E2E8F0',
                 borderRadius: '8px',
                 fontSize: '13px',
-                color: '#111827',
+                color: '#0F172A',
                 outline: 'none',
                 backgroundColor: '#FFFFFF',
                 cursor: 'pointer',
@@ -79,9 +79,9 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
               height: '32px',
               minWidth: '32px',
               borderRadius: '8px',
-              border: '1px solid #ECECEC',
+              border: '1px solid #E2E8F0',
               backgroundColor: '#FFFFFF',
-              color: '#6B7280',
+              color: '#64748B',
               cursor: page === 1 ? 'not-allowed' : 'pointer',
               opacity: page === 1 ? 0.4 : 1,
               display: 'inline-flex',
@@ -108,9 +108,9 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
                   height: '32px',
                   width: '32px',
                   borderRadius: '8px',
-                  border: isCurrent ? '1px solid transparent' : '1px solid #ECECEC',
-                  backgroundColor: isCurrent ? '#111827' : '#FFFFFF',
-                  color: isCurrent ? '#FFFFFF' : '#6B7280',
+                  border: isCurrent ? '1px solid transparent' : '1px solid #E2E8F0',
+                  backgroundColor: isCurrent ? '#0F172A' : '#FFFFFF',
+                  color: isCurrent ? '#FFFFFF' : '#64748B',
                   fontWeight: isCurrent ? 600 : 500,
                   fontSize: '13px',
                   cursor: 'pointer',
@@ -135,9 +135,9 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
               height: '32px',
               minWidth: '32px',
               borderRadius: '8px',
-              border: '1px solid #ECECEC',
+              border: '1px solid #E2E8F0',
               backgroundColor: '#FFFFFF',
-              color: '#6B7280',
+              color: '#64748B',
               cursor: page === totalPages ? 'not-allowed' : 'pointer',
               opacity: page === totalPages ? 0.4 : 1,
               display: 'inline-flex',

@@ -19,9 +19,9 @@ export const TableRow: React.FC<TableRowProps> = ({
     <tr
       onClick={onClick}
       style={{
-        height: '46px',
-        backgroundColor: selected ? '#F8FAFC' : 'transparent',
-        borderBottom: '1px solid #F3F4F6',
+        height: '44px',
+        backgroundColor: selected ? '#F1F5F9' : 'transparent',
+        borderBottom: '1px solid rgba(226,232,240,0.6)',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'background-color 150ms ease',
         ...style,
