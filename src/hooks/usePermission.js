@@ -6,7 +6,10 @@ export function usePermission() {
   
   const hasPermission = (module, action) => {
     if (!user) return false
-    return true // Everyone is admin now
+    if (user.role?.toLowerCase() === 'admin') return true
+    const modulePerms = user.permissions?.[module]
+    if (!modulePerms) return false
+    return modulePerms[action] === true || modulePerms.full === true
   }
 
   const canView = (module) => hasPermission(module, 'view')

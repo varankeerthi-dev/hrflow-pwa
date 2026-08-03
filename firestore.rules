@@ -1,74 +1,138 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    function getUserData() {
+
+    function userData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
-    function isAdmin() {
-      return isSignedIn() && getUserData().role.lower() == 'admin';
+
+    // Membership is stored either in the legacy `orgId` field or in the
+    // `memberships` array (synced by the client on every login).
+    function isOrgMember(orgId) {
+      let ud = userData();
+      if (ud == null) return false;
+      if (ud.orgId == orgId) return true;
+      if (ud.memberships != null) {
+        for (let m in ud.memberships) {
+          if (m.orgId == orgId) return true;
+        }
+      }
+      return false;
     }
 
-    match /organisations/{orgId} {
-      allow read: if true;
-      allow write: if isAdmin();
-
-      // Explicit rules for core sub-collections
-      match /employees/{employeeId} {
-        allow read, write: if true;
-      }
-      
-      match /attendance/{attendanceId} {
-        allow read, write: if true;
-      }
-
-      match /activityLogs/{logId} {
-        allow read, write: if true;
-      }
-      
-      match /shifts/{shiftId} {
-        allow read, write: if true;
-      }
-      
-      match /roles/{roleId} {
-        allow read, write: if true;
-      }
-      
-      match /minWorkHours/{mwhId} {
-        allow read, write: if true;
-      }
-      
-      match /approvalSettings/{settingId} {
-        allow read, write: if true;
-      }
-      
-      match /requests/{requestId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /advances_expenses/{requestId} {
-        allow read, write: if isSignedIn();
-      }
-      
-      match /logs/{logId} {
-        allow read, write: if true;
-      }
+    // Org admins are whoever appears in the organisation doc's `adminUids` list.
+    function isOrgAdmin(orgId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/organisations/$(orgId)).data.adminUids.hasAny([request.auth.uid]);
     }
+
+    // Reads stay open to any signed-in user so the invitation self-registration
+    // (collectionGroup email lookup) and join-by-code flows keep working.
+    function canReadOrg(orgId) {
+      return isSignedIn();
+    }
+
+    // Writes require actual membership in that organisation.
+    function canWriteOrg(orgId) {
+      return isOrgMember(orgId) || isOrgAdmin(orgId);
+    }
+
+    // A user may edit their own profile, but never promote themselves:
+    // `role` / `permissions` are only ever changed by org admins.
+    function isSelfWriteAllowed() {
+      return resource == null
+        || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions']);
+    }
+
+    // Cross-user user-doc writes are only allowed for admins of an org the
+    // target user belongs to (via `orgId` or `memberships`).
+    function isAdminOfExistingUser() {
+      if (resource == null) return false;
+      let ud = resource.data;
+      if (ud.orgId != null && isOrgAdmin(ud.orgId)) return true;
+      if (ud.memberships != null) {
+        for (let m in ud.memberships) {
+          if (isOrgAdmin(m.orgId)) return true;
+        }
+      }
+      return false;
+    }
+
+    // ── Users (top level) ────────────────────────────────────────────────────
 
     match /users/{userId} {
-      allow read: if true;
-      allow write: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        (request.auth.uid == userId && isSelfWriteAllowed())
+        || isAdminOfExistingUser()
+        || (resource == null && request.resource.data.orgId != null && isOrgAdmin(request.resource.data.orgId))
+      );
     }
 
-    // Catch-all for other sub-collections or top-level docs
-    match /{document=**} {
-      allow read, write: if true;
+    // ── Reminders (top level) ────────────────────────────────────────────────
+
+    match /reminders/{reminderId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
+
+    // ── Personal checklists (top level, owner-scoped) ────────────────────────
+
+    function isOwnChecklistDoc() {
+      if (resource == null) {
+        // create: proposed doc must be owned by the caller
+        return request.resource.data.userId == request.auth.uid;
+      }
+      // update / delete: existing doc must be owned by the caller
+      if (resource.data.userId != request.auth.uid) return false;
+      if (request.resource.data != null && request.resource.data.userId != request.auth.uid) return false;
+      return true;
+    }
+
+    match /checklist_templates/{templateId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if isSignedIn() && isOwnChecklistDoc();
+    }
+
+    match /checklist_logs/{logId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if isSignedIn() && isOwnChecklistDoc();
+    }
+
+    // ── Organisations ────────────────────────────────────────────────────────
+
+    match /organisations/{orgId} {
+      allow read: if canReadOrg(orgId);
+      allow write: if isSignedIn() && (
+        // Org creation: the creator declares themselves in `adminUids`.
+        (resource == null && request.resource.data.adminUids.hasAny([request.auth.uid]))
+        || isOrgAdmin(orgId)
+        // Members may update settings but never the admin list or the join code.
+        || (resource != null && canWriteOrg(orgId)
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['adminUids', 'code']))
+      );
+
+      // All organisation sub-collections (attendance, employees, payroll, chats,
+      // nested logs, etc.): readable by any signed-in user, writable by members/admins.
+      match /{c1}/{d1} {
+        allow read: if canReadOrg(orgId);
+        allow write: if canWriteOrg(orgId);
+      }
+
+      // Nested sub-collections: employee_portal/.../attendance_logs,
+      // chats/.../messages, vehicles/.../history, payroll_runs/.../slips.
+      match /{c1}/{d1}/{c2}/{d2} {
+        allow read: if canReadOrg(orgId);
+        allow write: if canWriteOrg(orgId);
+      }
+    }
+
+    // Everything else is denied by default (no catch-all).
   }
 }

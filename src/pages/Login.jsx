@@ -208,23 +208,12 @@ function LinkAccountModal({ email, googleCredential, onLink, onCancel }) {
 
 // ─── Main Login Page ──────────────────────────────────────────────────────────
 export default function Login() {
-  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation, resetPassword, logout, loginAsAdmin, switchOrganisation } = useAuth()
+  const { user, login, register, loginWithGoogle, linkGoogleToEmail, joinOrganisation, createOrganisation, resetPassword, logout, switchOrganisation } = useAuth()
   const navigate = useNavigate()
 
   const [tab, setTab] = useState('signin')   // 'signin' | 'signup'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  // Hidden Force Admin state
-  const [showForceAdmin, setShowForceAdmin] = useState(false)
-  const [forceAdmin, setForceAdmin] = useState(false)
-  const [clickCount, setClickCount] = useState(0)
-
-  const handleLogoClick = () => {
-    const newCount = clickCount + 1
-    setClickCount(newCount)
-    if (newCount >= 5) setShowForceAdmin(true)
-  }
 
   // Sign-in fields
   const [email, setEmail] = useState('')
@@ -297,11 +286,7 @@ export default function Login() {
       const identifier = email.trim()
 
       if (identifier.includes('@')) {
-        if (forceAdmin && loginAsAdmin) {
-          await loginAsAdmin(identifier, password)
-        } else {
-          await login(identifier, password)
-        }
+        await login(identifier, password)
         
         // Check if login is enabled for this user in Firestore
         const userDoc = await getDocs(query(collection(db, 'users'), where('email', '==', identifier.toLowerCase().trim())))
@@ -328,11 +313,7 @@ export default function Login() {
           return
         }
 
-        if (forceAdmin && loginAsAdmin) {
-          await loginAsAdmin(data.email, password)
-        } else {
-          await login(data.email, password)
-        }
+        await login(data.email, password)
       }
 
       navigate('/')
@@ -489,7 +470,6 @@ export default function Login() {
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
             <div 
-              onClick={handleLogoClick}
               className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-4 cursor-pointer active:scale-95 transition-transform"
             >
               <span className="text-white text-2xl font-bold">H</span>
@@ -556,19 +536,6 @@ export default function Login() {
                     Forgot Password?
                   </button>
                 </div>
-
-                {showForceAdmin && (
-                  <div className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-xl animate-pulse">
-                    <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Force Admin Mode</span>
-                    <button
-                      type="button"
-                      onClick={() => setForceAdmin(!forceAdmin)}
-                      className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${forceAdmin ? 'bg-red-600' : 'bg-gray-300'}`}
-                    >
-                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${forceAdmin ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                )}
 
                 <button
                   type="submit"
