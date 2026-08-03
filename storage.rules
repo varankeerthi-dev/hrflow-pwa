@@ -2,33 +2,22 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOrgMember(orgId) {
-      if (!isSignedIn()) return false;
-      let ud = firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
-      if (ud == null) return false;
-      if (ud.orgId == orgId || ud.currentOrgId == orgId) return true;
-      if (ud.memberships != null) {
-        for (let m in ud.memberships) {
-          if (m.orgId == orgId) return true;
-        }
-      }
-      return false;
-    }
-
     match /organisations/{orgId}/{allPaths=**} {
-      allow read, write: if isOrgMember(orgId);
+      allow read, write: if request.auth != null
+        && (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.orgId == orgId
+            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.currentOrgId == orgId);
     }
 
     match /requests/{orgId}/{allPaths=**} {
-      allow read, write: if isOrgMember(orgId);
+      allow read, write: if request.auth != null
+        && (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.orgId == orgId
+            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.currentOrgId == orgId);
     }
 
     match /orgs/{orgId}/{allPaths=**} {
-      allow read, write: if isOrgMember(orgId);
+      allow read, write: if request.auth != null
+        && (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.orgId == orgId
+            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.currentOrgId == orgId);
     }
   }
 }

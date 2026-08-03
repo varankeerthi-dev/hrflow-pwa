@@ -13,28 +13,23 @@ service cloud.firestore {
     }
 
     // Membership is stored either in the legacy `orgId` field or in the
-    // `memberships` array (synced by the client on every login).
+    // `memberships` array. The client always keeps `orgId`/`currentOrgId`
+    // pointing at the currently-active org, so checking both is sufficient.
     function isOrgMember(orgId) {
       let ud = userData();
-      if (ud == null) return false;
-      if (ud.orgId == orgId) return true;
-      if (ud.memberships != null) {
-        for (let m in ud.memberships) {
-          if (m.orgId == orgId) return true;
-        }
-      }
-      return false;
+      return ud != null && (ud.orgId == orgId || ud.currentOrgId == orgId);
     }
 
     // Org admins are whoever appears in the organisation doc's `adminUids` list.
     function isOrgAdmin(orgId) {
       return isSignedIn()
+        && exists(/databases/$(database)/documents/organisations/$(orgId))
         && get(/databases/$(database)/documents/organisations/$(orgId)).data.adminUids.hasAny([request.auth.uid]);
     }
 
     // Reads stay open to any signed-in user so the invitation self-registration
     // (collectionGroup email lookup) and join-by-code flows keep working.
-    function canReadOrg(orgId) {
+    function canReadOrg() {
       return isSignedIn();
     }
 
@@ -51,17 +46,10 @@ service cloud.firestore {
     }
 
     // Cross-user user-doc writes are only allowed for admins of an org the
-    // target user belongs to (via `orgId` or `memberships`).
+    // target user currently belongs to (via the `orgId` field).
     function isAdminOfExistingUser() {
-      if (resource == null) return false;
       let ud = resource.data;
-      if (ud.orgId != null && isOrgAdmin(ud.orgId)) return true;
-      if (ud.memberships != null) {
-        for (let m in ud.memberships) {
-          if (isOrgAdmin(m.orgId)) return true;
-        }
-      }
-      return false;
+      return resource != null && ud.orgId != null && isOrgAdmin(ud.orgId);
     }
 
     // ── Users (top level) ────────────────────────────────────────────────────
@@ -85,14 +73,10 @@ service cloud.firestore {
     // ── Personal checklists (top level, owner-scoped) ────────────────────────
 
     function isOwnChecklistDoc() {
-      if (resource == null) {
-        // create: proposed doc must be owned by the caller
-        return request.resource.data.userId == request.auth.uid;
-      }
-      // update / delete: existing doc must be owned by the caller
-      if (resource.data.userId != request.auth.uid) return false;
-      if (request.resource.data != null && request.resource.data.userId != request.auth.uid) return false;
-      return true;
+      return resource == null
+        ? request.resource.data.userId == request.auth.uid
+        : (resource.data.userId == request.auth.uid
+           && (request.resource == null || request.resource.data.userId == request.auth.uid));
     }
 
     match /checklist_templates/{templateId} {
@@ -108,7 +92,7 @@ service cloud.firestore {
     // ── Organisations ────────────────────────────────────────────────────────
 
     match /organisations/{orgId} {
-      allow read: if canReadOrg(orgId);
+      allow read: if canReadOrg();
       allow write: if isSignedIn() && (
         // Org creation: the creator declares themselves in `adminUids`.
         (resource == null && request.resource.data.adminUids.hasAny([request.auth.uid]))
@@ -121,14 +105,14 @@ service cloud.firestore {
       // All organisation sub-collections (attendance, employees, payroll, chats,
       // nested logs, etc.): readable by any signed-in user, writable by members/admins.
       match /{c1}/{d1} {
-        allow read: if canReadOrg(orgId);
+        allow read: if canReadOrg();
         allow write: if canWriteOrg(orgId);
       }
 
       // Nested sub-collections: employee_portal/.../attendance_logs,
       // chats/.../messages, vehicles/.../history, payroll_runs/.../slips.
       match /{c1}/{d1}/{c2}/{d2} {
-        allow read: if canReadOrg(orgId);
+        allow read: if canReadOrg();
         allow write: if canWriteOrg(orgId);
       }
     }
