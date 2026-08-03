@@ -2,22 +2,23 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    match /organisations/{orgId}/{allPaths=**} {
-      allow read, write: if request.auth != null
+    function isOrgAuthorized(orgId) {
+      return request.auth != null
         && (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.orgId == orgId
-            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.currentOrgId == orgId);
+            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.currentOrgId == orgId
+            || firestore.get(/databases/(default)/documents/organisations/$(orgId)).data.adminUids.hasAny([request.auth.uid]));
+    }
+
+    match /organisations/{orgId}/{allPaths=**} {
+      allow read, write: if isOrgAuthorized(orgId);
     }
 
     match /requests/{orgId}/{allPaths=**} {
-      allow read, write: if request.auth != null
-        && (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.orgId == orgId
-            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.currentOrgId == orgId);
+      allow read, write: if isOrgAuthorized(orgId);
     }
 
     match /orgs/{orgId}/{allPaths=**} {
-      allow read, write: if request.auth != null
-        && (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.orgId == orgId
-            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.currentOrgId == orgId);
+      allow read, write: if isOrgAuthorized(orgId);
     }
   }
 }

@@ -39,6 +39,8 @@ async function readUserDoc(uid, targetOrgId = null) {
     
     // Ensure activeOrgId is valid and user is actually a member
     const memberships = userData.memberships || []
+    // Persisted orgId (may be missing on docs created before the multi-org sync)
+    const persistedOrgId = userData.orgId
     // If we have a legacy orgId but no memberships, migrate it
     if (userData.orgId && memberships.length === 0) {
       memberships.push({ orgId: userData.orgId, role: userData.role || 'admin', orgName: userData.orgName || 'My Organisation' })
@@ -94,9 +96,9 @@ async function readUserDoc(uid, targetOrgId = null) {
           userData.permissions = defaultPermissions
         }
 
-        // Sync currentOrgId back to Firestore if it changed or wasn't set
-        if (userData.currentOrgId !== activeOrgId) {
-          await setDoc(userRef, { currentOrgId: activeOrgId, memberships }, { merge: true })
+        // Sync currentOrgId (and orgId) back to Firestore if they changed or weren't set
+        if (userData.currentOrgId !== activeOrgId || persistedOrgId !== activeOrgId) {
+          await setDoc(userRef, { orgId: activeOrgId, currentOrgId: activeOrgId, memberships }, { merge: true })
         }
       } catch (err) {
         console.warn('readUserDoc: Error fetching org-specific data:', err)
@@ -325,6 +327,7 @@ const newMembership = { orgId: code, role: 'admin', orgName: orgName.trim() }
         console.log('Creating org with memberships:', JSON.stringify(updatedMemberships))
         await setDoc(doc(db, 'organisations', code), orgData)
         await setDoc(doc(db, 'users', firebaseUser.uid), { 
+          orgId: code,
           currentOrgId: code,
           memberships: updatedMemberships 
         }, { merge: true })
@@ -364,6 +367,7 @@ const newMembership = { orgId: code, role: 'admin', orgName: orgName.trim() }
 
       console.log('Saving memberships:', JSON.stringify(updatedMemberships))
       await setDoc(doc(db, 'users', firebaseUser.uid), { 
+        orgId: code.trim(),
         currentOrgId: code.trim(),
         memberships: updatedMemberships 
       }, { merge: true })
