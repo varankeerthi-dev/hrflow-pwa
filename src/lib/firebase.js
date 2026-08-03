@@ -4,12 +4,12 @@ import { initializeFirestore, enableIndexedDbPersistence } from 'firebase/firest
 import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAuIJ4rON_RWKADbYjV7AfaX4MZoUMfcJo",
-  authDomain: "attendance-108ba.firebaseapp.com",
-  projectId: "attendance-108ba",
-  storageBucket: "attendance-108ba.firebasestorage.app",
-  messagingSenderId: "583226584419",
-  appId: "1:583226584419:web:875278b298151a52ef7756",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAuIJ4rON_RWKADbYjV7AfaX4MZoUMfcJo",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "attendance-108ba.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "attendance-108ba",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "attendance-108ba.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "583226584419",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:583226584419:web:875278b298151a52ef7756",
 }
 
 export const app = initializeApp(firebaseConfig)
