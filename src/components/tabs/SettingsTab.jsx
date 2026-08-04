@@ -36,6 +36,7 @@ import TimePicker from '../ui/TimePicker'
 import MapLocationPicker from '../ui/MapLocationPicker'
 
 import SalarySlabSettings from './SalarySlabSettings'
+import AllowanceSettings from './AllowanceSettings'
 import {
   EMPLOYEE_STATUS_ACTIVE,
   EMPLOYEE_STATUS_OPTIONS,
@@ -295,6 +296,12 @@ const settingsSubTabMeta = {
     kicker: '',
     pill: 'Approvals',
   },
+  allowance: {
+    title: 'Allowance Settings',
+    description: 'Create rule-based allowances (food, tea, travel, night shift) and assign them to employees.',
+    kicker: '',
+    pill: 'Allowances',
+  },
 }
 
 export default function SettingsTab({ initialSubTab }) {
@@ -345,10 +352,11 @@ export default function SettingsTab({ initialSubTab }) {
     { id: 'user_roles', label: 'Users & Roles', module: 'Roles' },
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
-    { id: 'advance_cat', label: 'Advance Cats', module: 'AdvanceExpense' },
+    { id: 'advance_cat', label: 'Advance Categories', module: 'AdvanceExpense' },
     { id: 'holidays', label: 'Holidays', module: 'Settings' },
     { id: 'site_geofence', label: 'Site Geofence', module: 'Settings' },
-    { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' }
+    { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' },
+    { id: 'allowance', label: 'Allowance Settings', module: 'Settings' }
   ]
 
   const visibleSubTabs = useMemo(() => {
@@ -2502,6 +2510,7 @@ export default function SettingsTab({ initialSubTab }) {
       { id: 'Leave', label: 'Leave' },
       { id: 'Permission', label: 'Permission' },
       { id: 'Advance', label: 'Salary Advance' },
+      { id: 'Allowance', label: 'Allowance' },
     ]
     const approvalTypeLabels = {
       none: 'No Approval',
@@ -2513,7 +2522,7 @@ export default function SettingsTab({ initialSubTab }) {
       <div className="space-y-6 no-print">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
           <div className="mb-8">
-            <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest">Approval Workflows</h2>
+            <h2 className="text-lg font-normal text-gray-800 uppercase tracking-widest">Approval Workflows</h2>
             <p className="text-xs text-gray-400 font-medium mt-1">Configure how requests are approved in your organization.</p>
           </div>
 
@@ -2524,7 +2533,7 @@ export default function SettingsTab({ initialSubTab }) {
                 <div key={mod.id} className="bg-gray-50/50 rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all group">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="font-black text-gray-800 uppercase tracking-tight text-sm">{mod.label}</h3>
+                      <h3 className="font-normal text-gray-800 uppercase tracking-tight text-sm">{mod.label}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <div className={`w-1.5 h-1.5 rounded-full ${current ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
                         <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight">
@@ -2554,7 +2563,7 @@ export default function SettingsTab({ initialSubTab }) {
                         }
                         setShowAddApproval(true)
                       }}
-                      className="w-full py-2.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] text-gray-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm"
+                      className="w-full py-2.5 bg-white border border-gray-200 rounded-xl text-[10px] font-normal uppercase tracking-[0.1em] text-gray-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm"
                     >
                       {current ? 'Update Policy' : 'Configure Policy'}
                     </button>
@@ -2581,7 +2590,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className={`w-10 h-10 rounded-xl mb-4 flex items-center justify-center ${newApproval.type === 'none' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                     <X size={20} />
                   </div>
-                  <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">No Approval</h4>
+                  <h4 className="font-normal text-gray-800 uppercase text-xs tracking-tight">No Approval</h4>
                   <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">Requests are auto-approved immediately after submission.</p>
                   {newApproval.type === 'none' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
                 </button>
@@ -2593,7 +2602,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className={`w-10 h-10 rounded-xl mb-4 flex items-center justify-center ${newApproval.type === 'single' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                     <Check size={20} />
                   </div>
-                  <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">Single Approval</h4>
+                  <h4 className="font-normal text-gray-800 uppercase text-xs tracking-tight">Single Approval</h4>
                   <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">Any authorized person from the selected roles can approve.</p>
                   {newApproval.type === 'single' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
                 </button>
@@ -2605,7 +2614,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className={`w-10 h-10 rounded-xl mb-4 flex items-center justify-center ${newApproval.type === 'multi' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                     <Filter size={20} />
                   </div>
-                  <h4 className="font-black text-gray-800 uppercase text-xs tracking-tight">Multi-Stage</h4>
+                  <h4 className="font-normal text-gray-800 uppercase text-xs tracking-tight">Multi-Stage</h4>
                   <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">Required sequential approval from multiple members.</p>
                   {newApproval.type === 'multi' && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-600"></div>}
                 </button>
@@ -2613,7 +2622,7 @@ export default function SettingsTab({ initialSubTab }) {
 
               {newApproval.type === 'none' ? (
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
-                  <p className="text-[11px] font-bold text-emerald-700">
+                  <p className="text-[11px] font-normal text-emerald-700">
                     Requests in this module will skip approval queues and be marked approved right away.
                   </p>
                 </div>
@@ -2630,7 +2639,7 @@ export default function SettingsTab({ initialSubTab }) {
                             const updated = current.includes(role) ? current.filter(r => r !== role) : [...current, role]
                             setNewApproval({ ...newApproval, approvers: updated })
                           }}
-                          className={`px-4 py-2.5 text-[11px] font-bold rounded-xl border transition-all ${newApproval.approvers?.includes(role) ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                          className={`px-4 py-2.5 text-[11px] font-normal rounded-xl border transition-all ${newApproval.approvers?.includes(role) ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}`}
                         >
                           {role}
                         </button>
@@ -2644,7 +2653,7 @@ export default function SettingsTab({ initialSubTab }) {
                     <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight">Workflow Stages</label>
                     <button
                       onClick={() => setNewApproval({ ...newApproval, stages: [...(newApproval.stages || []), { role: '', amountLimit: '' }] })}
-                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-[0.14em] leading-tight"
+                      className="text-[11px] font-normal text-indigo-600 hover:text-indigo-700 uppercase tracking-[0.14em] leading-tight"
                     >
                       + Add Stage
                     </button>
@@ -2652,7 +2661,7 @@ export default function SettingsTab({ initialSubTab }) {
                   <div className="space-y-3">
                     {newApproval.stages?.map((stage, idx) => (
                       <div key={idx} className="flex gap-3 items-end bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group/stage">
-                        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[11px] font-bold text-indigo-600 shadow-sm">{idx + 1}</div>
+                        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[11px] font-normal text-indigo-600 shadow-sm">{idx + 1}</div>
                         <div className="flex-1 space-y-1.5">
                           <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.14em] leading-tight">Stage Approver</label>
                           <select
@@ -2662,7 +2671,7 @@ export default function SettingsTab({ initialSubTab }) {
                               updated[idx].role = e.target.value
                               setNewApproval({ ...newApproval, stages: updated })
                             }}
-                            className="w-full h-10 px-3 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full h-10 px-3 bg-white border border-gray-200 rounded-xl text-xs font-normal outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">Select Role</option>
                             {['Admin', 'HR', 'MD', 'Accountant', 'Finance'].map(r => <option key={r} value={r}>{r}</option>)}
@@ -2679,7 +2688,7 @@ export default function SettingsTab({ initialSubTab }) {
                     {newApproval.moduleName === 'Leave' && (
                       <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
                         <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-amber-700 font-medium">For Leave module, the final stage must be <span className="font-bold">MD</span>.</p>
+                        <p className="text-[11px] text-amber-700 font-medium">For Leave module, the final stage must be <span className="font-normal">MD</span>.</p>
                       </div>
                     )}
                   </div>
@@ -2689,13 +2698,13 @@ export default function SettingsTab({ initialSubTab }) {
               <div className="flex gap-3 pt-6 border-t border-gray-100">
                 <button
                   onClick={() => setShowAddApproval(false)}
-                  className="flex-1 h-12 bg-gray-50 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-100 transition-all"
+                  className="flex-1 h-12 bg-gray-50 text-gray-500 rounded-xl text-xs font-normal uppercase tracking-widest hover:bg-gray-100 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveApproval}
-                  className="flex-1 h-12 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all"
+                  className="flex-1 h-12 bg-indigo-600 text-white rounded-xl text-xs font-normal uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all"
                 >
                   Save Policy
                 </button>
@@ -3213,7 +3222,7 @@ export default function SettingsTab({ initialSubTab }) {
           <div className="grid max-w-5xl grid-cols-1 gap-5 xl:grid-cols-[0.85fr_1.15fr] no-print">
             <div className={`${settingsPanelClassName} p-6 md:p-7`}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] leading-tight text-indigo-600">Create category</p>
-              <h3 className="mt-2 text-[22px] font-black tracking-[-0.03em] text-slate-950">Advance Categories</h3>
+              <h3 className="mt-2 text-[22px] font-normal tracking-[-0.03em] text-slate-950">Advance Categories</h3>
               <p className="mt-2 text-[13px] leading-6 text-slate-500">
                 Add request types inline so the finance setup stays quick and predictable for the whole team.
               </p>
@@ -3233,7 +3242,7 @@ export default function SettingsTab({ initialSubTab }) {
                 <button
                   type="button"
                   onClick={handleAddAdvanceCategory}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-black uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-normal uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
                 >
                   <Plus size={14} />
                   Add Category
@@ -3244,10 +3253,10 @@ export default function SettingsTab({ initialSubTab }) {
             <div className={`${settingsPanelClassName} overflow-hidden`}>
               <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Current list</p>
-                  <h4 className="mt-2 text-[18px] font-black tracking-[-0.03em] text-slate-950">{orgSettings.advanceCategories.length} Categories</h4>
+                  <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-slate-400">Current list</p>
+                  <h4 className="mt-2 text-[18px] font-normal tracking-[-0.03em] text-slate-950">{orgSettings.advanceCategories.length} Categories</h4>
                 </div>
-                <div className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">
+                <div className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-normal uppercase tracking-[0.18em] text-indigo-600">
                   Inline editable
                 </div>
               </div>
@@ -3260,7 +3269,7 @@ export default function SettingsTab({ initialSubTab }) {
                 ) : orgSettings.advanceCategories.map((cat, i) => (
                   <div key={cat} className={`flex items-center justify-between gap-4 px-6 py-4 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}`}>
                     <div>
-                      <p className="text-[13px] font-bold text-slate-900">{cat}</p>
+                      <p className="text-[13px] font-normal text-slate-900">{cat}</p>
                       <p className="mt-1 text-[11px] text-slate-500">Used in advance and expense request forms.</p>
                     </div>
                     <button
@@ -3275,7 +3284,7 @@ export default function SettingsTab({ initialSubTab }) {
               </div>
 
               <div className="border-t border-slate-200 px-6 py-5">
-                <button onClick={() => handleSaveOrg('Advance categories updated successfully!')} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
+                <button onClick={() => handleSaveOrg('Advance categories updated successfully!')} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-normal uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
                   Save Categories
                 </button>
               </div>
@@ -3287,7 +3296,7 @@ export default function SettingsTab({ initialSubTab }) {
           <div className="grid max-w-6xl grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr] no-print">
             <div className={`${settingsPanelClassName} p-6 md:p-7`}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] leading-tight text-indigo-600">Calendar entry</p>
-              <h3 className="mt-2 text-[22px] font-black tracking-[-0.03em] text-slate-950">Annual Holidays</h3>
+              <h3 className="mt-2 text-[22px] font-normal tracking-[-0.03em] text-slate-950">Annual Holidays</h3>
               <p className="mt-2 text-[13px] leading-6 text-slate-500">
                 Build the holiday calendar with proper date fields instead of popups, so updates are faster and less error-prone.
               </p>
@@ -3315,7 +3324,7 @@ export default function SettingsTab({ initialSubTab }) {
                 <button
                   type="button"
                   onClick={handleAddHoliday}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-black uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-normal uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
                 >
                   <Plus size={14} />
                   Add Holiday
@@ -3327,8 +3336,8 @@ export default function SettingsTab({ initialSubTab }) {
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Saturday Configuration</p>
-                      <h4 className="mt-1 text-[14px] font-bold text-slate-950">Configure Saturday as working day</h4>
+                      <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-slate-400">Saturday Configuration</p>
+                      <h4 className="mt-1 text-[14px] font-normal text-slate-950">Configure Saturday as working day</h4>
                     </div>
                   </div>
                   <select
@@ -3351,10 +3360,10 @@ export default function SettingsTab({ initialSubTab }) {
             <div className={`${settingsPanelClassName} overflow-hidden`}>
               <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Calendar list</p>
-                  <h4 className="mt-2 text-[18px] font-black tracking-[-0.03em] text-slate-950">{orgSettings.holidays.length} Holidays</h4>
+                  <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-slate-400">Calendar list</p>
+                  <h4 className="mt-2 text-[18px] font-normal tracking-[-0.03em] text-slate-950">{orgSettings.holidays.length} Holidays</h4>
                 </div>
-                <div className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">
+                <div className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-normal uppercase tracking-[0.18em] text-amber-600">
                   Annual schedule
                 </div>
               </div>
@@ -3363,9 +3372,9 @@ export default function SettingsTab({ initialSubTab }) {
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="bg-slate-50">
-                      <th className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Holiday</th>
-                      <th className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Date</th>
-                      <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Action</th>
+                      <th className="px-6 py-3 text-[10px] font-normal uppercase tracking-[0.18em] text-slate-500">Holiday</th>
+                      <th className="px-6 py-3 text-[10px] font-normal uppercase tracking-[0.18em] text-slate-500">Date</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-normal uppercase tracking-[0.18em] text-slate-500">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3374,7 +3383,7 @@ export default function SettingsTab({ initialSubTab }) {
                       .sort((a, b) => (a.holiday.date || '').localeCompare(b.holiday.date || ''))
                       .map(({ holiday, originalIndex }, i) => (
                         <tr key={`${holiday.name}-${holiday.date}-${originalIndex}`} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
-                          <td className="px-6 py-4 text-[13px] font-bold text-slate-900">{holiday.name}</td>
+                          <td className="px-6 py-4 text-[13px] font-normal text-slate-900">{holiday.name}</td>
                           <td className="px-6 py-4 font-mono text-[12px] text-indigo-600">{formatDateDDMMYYYY(holiday.date)}</td>
                           <td className="px-6 py-4 text-right">
                             <button
@@ -3399,7 +3408,7 @@ export default function SettingsTab({ initialSubTab }) {
               </div>
 
               <div className="border-t border-slate-200 px-6 py-5">
-                <button onClick={() => handleSaveOrg('Holiday list updated successfully!')} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
+                <button onClick={() => handleSaveOrg('Holiday list updated successfully!')} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-normal uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
                   Update Holiday List
                 </button>
               </div>
@@ -3410,6 +3419,8 @@ export default function SettingsTab({ initialSubTab }) {
         {activeSubTab === 'site_geofence' && renderSiteGeofenceSettings()}
 
         {activeSubTab === 'approval_settings' && renderApprovalSettings()}
+
+        {activeSubTab === 'allowance' && <AllowanceSettings />}
 
         {activeSubTab === 'employee' && (() => {
           const canCreateEmployee = isAdmin || userPermissions['Employees']?.create === true
@@ -5856,10 +5867,10 @@ export default function SettingsTab({ initialSubTab }) {
       </Modal>
 
       <Modal isOpen={showAddRole} onClose={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', isAccountant: false, permissions: { Tasks: { view: true } } }) }} title={editingRole ? 'Edit Role' : 'Create New Role'}>
-        <div className="flex flex-col max-w-6xl mx-auto bg-white font-inter">
+        <div className="flex flex-col max-w-6xl mx-auto bg-zinc-50 font-inter">
           <div className="px-5 py-4 space-y-4">
             {/* Identity Section */}
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_280px] gap-4 pb-4 border-b border-gray-100">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_280px] gap-4 pb-4 border-b border-zinc-200">
               <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,0.85fr)_minmax(0,1.15fr)] gap-4">
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.18em] mb-1.5">Role Name *</label>
@@ -5884,8 +5895,8 @@ export default function SettingsTab({ initialSubTab }) {
               </div>
               <div className="flex flex-col justify-center bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100">
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${newRole.isAccountant ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300 group-hover:border-indigo-400'}`}>
-                    {newRole.isAccountant && <Check size={12} className="text-white" />}
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${newRole.isAccountant ? 'bg-zinc-100 border-black' : 'bg-zinc-100 border-zinc-400 group-hover:border-black'}`}>
+                    {newRole.isAccountant && <Check size={12} className="text-black" />}
                   </div>
                   <input 
                     type="checkbox" 
@@ -5910,7 +5921,7 @@ export default function SettingsTab({ initialSubTab }) {
                 </div>
                 <div className="flex gap-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 bg-indigo-600 rounded-sm"></div>
+                    <div className="w-2.5 h-2.5 flex items-center justify-center bg-zinc-100 border border-black rounded-sm"><Check size={8} className="text-black" /></div>
                     <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.18em]">Enabled</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -5920,10 +5931,10 @@ export default function SettingsTab({ initialSubTab }) {
                 </div>
               </div>
 
-              <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+              <div className="border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100">
+                    <tr className="bg-zinc-100/70 border-b border-zinc-200">
                       <th className="px-4 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-[0.18em] w-[28%]">Module Name</th>
                       <th className="px-2 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-[0.14em] text-center">All</th>
                       {roleMatrixActions.map(action => (
@@ -5931,14 +5942,14 @@ export default function SettingsTab({ initialSubTab }) {
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-100">
                     {Object.entries(moduleGroups).map(([group, groupModules]) => (
                       <React.Fragment key={group}>
-                        <tr className="bg-gray-50/30">
+                        <tr className="bg-zinc-100/40">
                           <td colSpan={7} className="px-4 py-1.5 text-[9px] font-black text-indigo-600 uppercase tracking-[0.22em]">{group}</td>
                         </tr>
                         {groupModules.map(mod => (
-                          <tr key={mod.id} className="hover:bg-gray-50/50 transition-colors">
+                          <tr key={mod.id} className="hover:bg-zinc-100/60 transition-colors">
                             <td className="px-4 py-2">
                               <span className="text-[10px] leading-tight font-bold text-gray-700 uppercase tracking-[0.06em]">{mod.label}</span>
                             </td>
@@ -5948,8 +5959,8 @@ export default function SettingsTab({ initialSubTab }) {
                                 onClick={() => toggleAllPermissions(mod.id)}
                                 className={`min-w-[30px] h-4 rounded border inline-flex items-center justify-center px-1.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all ${
                                   areAllRoleMatrixActionsEnabled(newRole.permissions?.[mod.id])
-                                    ? 'bg-indigo-600 border-indigo-600 text-white'
-                                    : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'
+                                    ? 'bg-zinc-100 border-black text-black'
+                                    : 'bg-zinc-100 border-zinc-300 text-zinc-600 hover:border-black'
                                 }`}
                               >
                                 All
@@ -5960,9 +5971,9 @@ export default function SettingsTab({ initialSubTab }) {
                                 <button
                                   type="button"
                                   onClick={() => togglePermission(mod.id, action)}
-                                  className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-all ${newRole.permissions?.[mod.id]?.[action] ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-200 hover:border-indigo-300'}`}
+                                  className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-all ${newRole.permissions?.[mod.id]?.[action] ? 'bg-zinc-100 border-black' : 'bg-zinc-100 border-zinc-300 hover:border-black'}`}
                                 >
-                                  {newRole.permissions?.[mod.id]?.[action] && <Check size={10} className="text-white" />}
+                                  {newRole.permissions?.[mod.id]?.[action] && <Check size={10} className="text-black" />}
                                 </button>
                               </td>
                             ))}
@@ -5977,7 +5988,7 @@ export default function SettingsTab({ initialSubTab }) {
           </div>
 
           {/* Modal Footer */}
-          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+          <div className="px-5 py-3 border-t border-zinc-200 bg-zinc-100 flex justify-between items-center">
             <button
               type="button"
               onClick={() => { setShowAddRole(false); setEditingRole(null); setNewRole({ name: '', description: '', isAccountant: false, permissions: { Tasks: { view: true } } }) }}

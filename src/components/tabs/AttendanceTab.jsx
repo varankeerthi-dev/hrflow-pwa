@@ -12,6 +12,8 @@ import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
 import RemarksDropdown from '../ui/RemarksDropdown'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
+import { getEligibleAllowanceCategories, getAllowanceAmount } from '../../lib/allowanceRules'
+import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode } from '../../hooks/useAllowances'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
@@ -582,7 +584,7 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
   );
 }
 
-export default function AttendanceTab({ defaultSubTab }) {
+export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirtyChange }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId, true)
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
@@ -727,6 +729,40 @@ export default function AttendanceTab({ defaultSubTab }) {
   const [saved, setSaved] = useState(false)
   const [orgData, setOrgData] = useState(null)
   const [existingRecords, setExistingRecords] = useState([])
+
+  // Dirty tracking: warn user when leaving with unsaved attendance edits
+  const [dirty, setDirty] = useState(false)
+
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+
+  useEffect(() => {
+    if (!dirty) return
+    const handler = (e) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
+
+  // Allowance support: rule-based allowance claims raised from the attendance sheet
+  const { categories: allowanceCategories } = useAllowanceCategories(user?.orgId)
+  const { claims: allowanceClaims, upsertClaimsForAttendance } = useAllowanceClaims(user?.orgId)
+  // Per-employee map of selected category ids for the current date: { [employeeId]: [categoryId, ...] }
+  const [allowanceSelections, setAllowanceSelections] = useState({})
+
+  const toggleAllowance = (employeeId, categoryId) => {
+    setDirty(true)
+    setAllowanceSelections(prev => {
+      const current = prev[employeeId] || []
+      const next = current.includes(categoryId)
+        ? current.filter(id => id !== categoryId)
+        : [...current, categoryId]
+      return { ...prev, [employeeId]: next }
+    })
+  }
 
   // Initialize with 5 empty placeholder rows
   useEffect(() => {
@@ -1000,8 +1036,23 @@ export default function AttendanceTab({ defaultSubTab }) {
       } else {
         setRows([])
       }
+      setDirty(false)
     })
   }, [user?.orgId, selectedDate, rowOrder])
+
+  // Pre-populate allowance selections from existing claims for the selected date,
+  // and clear selections whenever the date changes.
+  useEffect(() => {
+    setAllowanceSelections({})
+    if (!user?.orgId) return
+    const dateClaims = (allowanceClaims || []).filter(c => c.date === selectedDate && c.status !== 'Rejected')
+    const map = {}
+    dateClaims.forEach(c => {
+      if (!map[c.employeeId]) map[c.employeeId] = []
+      if (!map[c.employeeId].includes(c.categoryId)) map[c.employeeId].push(c.categoryId)
+    })
+    setAllowanceSelections(map)
+  }, [user?.orgId, selectedDate, allowanceClaims])
 
   // Effect to load fonts
   useEffect(() => {
@@ -1142,6 +1193,7 @@ export default function AttendanceTab({ defaultSubTab }) {
   }
 
   const updateRow = (empId, field, value) => {
+    setDirty(true)
     setRows(prev => prev.map(r => {
       if (r.employeeId !== empId) return r
       const updated = { ...r, [field]: value }
@@ -1171,6 +1223,7 @@ export default function AttendanceTab({ defaultSubTab }) {
   }
 
   const handleStatusChange = (empId, newStatus) => {
+    setDirty(true)
     setRows(prev => prev.map(r => {
       if (r.employeeId !== empId) return r
       const updated = { ...r, status: newStatus }
@@ -1220,6 +1273,25 @@ export default function AttendanceTab({ defaultSubTab }) {
         action: `Attendance submitted for ${rows.length} employee(s) on ${selectedDate}`,
         detail: rows.map(r => r.name).join(', ')
       })
+
+      // Raise allowance claims for any checked allowance categories
+      const approvalMode = await fetchAllowanceApprovalMode(user?.orgId)
+      for (const row of rows) {
+        if (!row.employeeId || row.isAbsent) continue
+        const selected = allowanceSelections[row.employeeId] || []
+        if (selected.length === 0) continue
+        const emp = employees.find(e => e.id === row.employeeId)
+        if (!emp) continue
+        await upsertClaimsForAttendance({
+          employee: emp,
+          date: row.date || row.inDate || selectedDate,
+          outTime: row.outTime,
+          selectedCategoryIds: selected,
+          user,
+          autoApproved: !approvalMode,
+          existingClaims: allowanceClaims,
+        })
+      }
       
       // Refresh existing records after save
       const updatedRecords = await fetchByDate(selectedDate)
@@ -1249,6 +1321,7 @@ export default function AttendanceTab({ defaultSubTab }) {
       setRows(sortedUpdated)
       setSaved(true)
       setShowWarning(false)
+      setDirty(false)
       setTimeout(() => setSaved(false), 3000)
     } catch (error) {
       console.error('Error saving attendance:', error)
@@ -1259,6 +1332,7 @@ export default function AttendanceTab({ defaultSubTab }) {
   }
 
   const handleCopySubmit = () => {
+    setDirty(true)
     setRows(prev => prev.map(r => {
       if (selectedEmps.includes(r.employeeId)) {
         const updated = { ...r }
@@ -1480,15 +1554,27 @@ export default function AttendanceTab({ defaultSubTab }) {
                     <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[95px] bg-orange-50" style={{ color: '#da7025' }}>Out Time</th>
                     <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[50px] bg-orange-50" style={{ color: '#da7025' }}>OT</th>
                     <th className="px-0 text-xs font-semibold uppercase tracking-wider text-center w-[120px] bg-orange-50" style={{ color: '#da7025' }}>{remarksLabel}</th>
+                    <th className="px-1 text-xs font-semibold uppercase tracking-wider text-center w-[110px] bg-orange-50" style={{ color: '#da7025' }}>
+                      <button
+                        type="button"
+                        onClick={onConfigAllowance}
+                        className="group relative inline-flex items-center justify-center gap-1 w-full"
+                      >
+                        <span>Allowance</span>
+                        <span className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 text-white text-[10px] font-medium px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-lg">
+                          Click to Configure
+                        </span>
+                      </button>
+                    </th>
                     <th className="px-0 text-xs font-semibold uppercase tracking-wider text-center w-[100px] bg-orange-50" style={{ color: '#da7025' }}>Status</th>
                     <th className="px-1 text-xs font-semibold uppercase tracking-wider w-[36px] bg-orange-50" style={{ color: '#da7025' }}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {empLoading ? (
-                    <tr><td colSpan={8} className="text-center py-12"><Spinner /></td></tr>
+                    <tr><td colSpan={9} className="text-center py-12"><Spinner /></td></tr>
                   ) : rows.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium text-lg">Ready to generate attendance</td></tr>
+                    <tr><td colSpan={9} className="text-center py-20 text-gray-300 font-medium text-lg">Ready to generate attendance</td></tr>
                   ) : (
                     rows.map((row, idx) => (
                       <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[56px]' : 'h-[40px]'}`}>
@@ -1624,6 +1710,43 @@ export default function AttendanceTab({ defaultSubTab }) {
                             options={remarksOptions}
                             disabled={!row.employeeId || row.isAbsent}
                           />
+                        </td>
+                        <td className="px-2 align-top">
+                          {(() => {
+                            if (!row.employeeId || row.isAbsent) return null
+                            const eligible = getEligibleAllowanceCategories(allowanceCategories, {
+                              employeeId: row.employeeId,
+                              outTime: row.outTime,
+                            })
+                            if (eligible.length === 0) return (
+                              <span className="text-[10px] text-gray-300 italic">—</span>
+                            )
+                            const selected = allowanceSelections[row.employeeId] || []
+                            return (
+                              <div className="flex flex-col gap-1">
+                                {eligible.map(cat => {
+                                  const checked = selected.includes(cat.id)
+                                  const amount = getAllowanceAmount(cat)
+                                  return (
+                                    <label key={cat.id} className="flex items-center gap-1.5 cursor-pointer rounded px-1 py-0.5 hover:bg-indigo-50/60 transition-colors">
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => toggleAllowance(row.employeeId, cat.id)}
+                                        className="w-3 h-3 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                      />
+                                      <span className="text-[10px] font-medium text-gray-700 whitespace-nowrap">
+                                        {cat.name}
+                                      </span>
+                                      <span className="text-[10px] font-bold text-emerald-600 tabular-nums">
+                                        ₹{amount}
+                                      </span>
+                                    </label>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })()}
                         </td>
                         <td className="px-4">
                           <div className="flex items-center gap-2 justify-end">

@@ -17,9 +17,9 @@ export default function Modal({ isOpen, onClose, title, children, size = 'xl' })
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
-      <div className={`relative bg-white rounded-xl shadow-xl w-full ${maxW} mx-4 max-h-[95vh] overflow-hidden flex flex-col`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
-          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+      <div className={`relative bg-zinc-50 border border-zinc-200 rounded-xl shadow-xl w-full ${maxW} mx-4 max-h-[95vh] overflow-hidden flex flex-col`}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
+          <h3 className="text-lg font-semibold text-zinc-800">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl p-2 -mr-2 rounded-lg transition-colors">×</button>
         </div>
         <div className="flex-1 overflow-auto">{children}</div>

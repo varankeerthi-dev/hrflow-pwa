@@ -6,14 +6,30 @@ import { db } from '../../lib/firebase'
 import { doc, getDocs, setDoc } from 'firebase/firestore'
 import { salarySlipWindowsCol } from '../../lib/firestore'
 import Spinner from '../ui/Spinner'
-import { Calendar as CalendarIcon, Plus, Save, TrendingUp, Wallet } from 'lucide-react'
+import { Calendar as CalendarIcon, ChevronDown, Plus, Save, TrendingUp, Wallet } from 'lucide-react'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { SubTabsNav } from '../ui/SubTabsNav'
 
 const panelClassName = 'rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]'
 const insetClassName = 'rounded-[22px] border border-slate-200 bg-slate-50/80'
 const inputClassName = 'w-full h-11 rounded-2xl border border-slate-200 bg-white px-4 text-[13px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
-const headCellClassName = 'px-5 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500'
-const bodyCellClassName = 'px-5 py-4 text-[13px] text-slate-700'
+const headCellClassName = 'px-5 pt-3 pb-4 text-xs font-normal uppercase tracking-[0.10em] text-slate-600'
+const bodyCellClassName = 'px-5 py-5 text-[13px] text-slate-700'
+
+const formatDateForDisplay = (value) => {
+  if (!value) return '—'
+  if (typeof value === 'object' && typeof value?.toDate === 'function') {
+    const d = value.toDate()
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  }
+  const s = String(value)
+  const m = s.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/)
+  if (m) {
+    const day = m[3] || '01'
+    return `${day}/${m[2]}/${m[1]}`
+  }
+  return s
+}
 
 export default function SalarySlabSettings() {
   const { user } = useAuth()
@@ -25,6 +41,9 @@ export default function SalarySlabSettings() {
   const [newInc, setNewInc] = useState({ employeeId: '', newSalary: 0, effectiveFrom: '', reason: '' })
   const [windows, setWindows] = useState([])
   const [newWindow, setNewWindow] = useState({ month: '', viewFrom: '', viewUntil: '' })
+  const [showInactive, setShowInactive] = useState(false)
+  const [showFullSalary, setShowFullSalary] = useState(false)
+  const [showHiddenSalary, setShowHiddenSalary] = useState(false)
 
   useEffect(() => {
     const initialForms = {}
@@ -69,6 +88,7 @@ export default function SalarySlabSettings() {
         includeInPayroll: form.includeInPayroll,
         effectiveFrom: `${year}-${month}`,
         reason: 'Structure Update',
+        editedBy: user?.name || user?.email || user?.uid || 'Unknown',
       })
       alert('Structure updated successfully')
     } catch (err) {
@@ -89,6 +109,7 @@ export default function SalarySlabSettings() {
       totalSalary: Number(newInc.newSalary),
       effectiveFrom: newInc.effectiveFrom,
       reason: newInc.reason || 'Annual Increment',
+      editedBy: user?.name || user?.email || user?.uid || 'Unknown',
     })
     setNewInc({ employeeId: '', newSalary: 0, effectiveFrom: '', reason: '' })
     alert('Increment logged successfully')
@@ -115,12 +136,151 @@ export default function SalarySlabSettings() {
 
   if (empLoading || slabLoading) return <div className="py-12 text-center"><Spinner /></div>
 
-  const payrollEnabledCount = Object.values(forms).filter(form => form?.includeInPayroll).length
-  const statCards = [
-    { label: 'Employees', value: employees.length, helper: `${payrollEnabledCount} in payroll` },
-    { label: 'Increments', value: increments.length, helper: 'Logged history' },
-    { label: 'Release Windows', value: windows.length, helper: 'Visible periods' },
-  ]
+  const activeEmployees = employees.filter(emp => isEmployeeActiveStatus(emp.status) && emp.includeInSalary !== false)
+  const inactiveEmployees = employees.filter(emp => !isEmployeeActiveStatus(emp.status))
+  const fullSalaryEmployees = employees.filter(emp => emp.withdrawFullSalary)
+  const hiddenSalaryEmployees = employees.filter(emp => emp.includeInSalary === false)
+  const incrementEligibleEmployees = employees.filter(emp => isEmployeeActiveStatus(emp.status))
+
+  const renderStructureRow = (emp, index) => {
+    const form = forms[emp.id]
+    if (!form) return null
+
+    return (
+      <tr key={emp.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'} border-b border-slate-100 transition-colors hover:bg-slate-50/70`}>
+        <td className={bodyCellClassName}>
+          <input
+            type="checkbox"
+            checked={form.includeInPayroll}
+            onChange={e => handleFormChange(emp.id, 'includeInPayroll', e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          />
+        </td>
+        <td className={bodyCellClassName}>
+          <div>
+            <p className="text-[17px] font-normal text-slate-900">{emp.name}</p>
+            <p className="mt-2 text-[13px] font-medium uppercase tracking-[0.04em] text-slate-500">{emp.department || 'General'}</p>
+          </div>
+        </td>
+        <td className={bodyCellClassName}>
+          <input
+            type="number"
+            value={form.totalSalary}
+            onChange={e => handleFormChange(emp.id, 'totalSalary', e.target.value)}
+            className="h-11 w-36 rounded-xl border-2 border-slate-200 bg-[#FCFCFD] px-3 text-[16px] font-normal text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+          />
+        </td>
+        <td className={bodyCellClassName}>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="w-10 text-right text-[11px] font-normal uppercase tracking-[0.06em] text-emerald-600">Basic</span>
+              <input
+                type="number"
+                max="999"
+                value={form.basicPercent}
+                onChange={e => handleFormChange(emp.id, 'basicPercent', e.target.value)}
+                className="h-9 w-12 rounded-xl border border-slate-200 bg-[#FCFCFD] px-1 text-center text-[15px] font-semibold text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-10 text-right text-[11px] font-normal uppercase tracking-[0.06em] text-emerald-600">HRA</span>
+              <input
+                type="number"
+                max="999"
+                value={form.hraPercent}
+                onChange={e => handleFormChange(emp.id, 'hraPercent', e.target.value)}
+                className="h-9 w-12 rounded-xl border border-slate-200 bg-[#FCFCFD] px-1 text-center text-[15px] font-semibold text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+          </div>
+        </td>
+        <td className={bodyCellClassName}>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="w-10 text-right text-[11px] font-normal uppercase tracking-[0.06em] text-rose-500">Tax</span>
+              <input
+                type="number"
+                max="999"
+                value={form.incomeTaxPercent}
+                onChange={e => handleFormChange(emp.id, 'incomeTaxPercent', e.target.value)}
+                className="h-9 w-12 rounded-xl border border-slate-200 bg-[#FCFCFD] px-1 text-center text-[15px] font-semibold text-slate-900 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-10 text-right text-[11px] font-normal uppercase tracking-[0.06em] text-rose-500">PF</span>
+              <input
+                type="number"
+                max="999"
+                value={form.pfPercent}
+                onChange={e => handleFormChange(emp.id, 'pfPercent', e.target.value)}
+                className="h-9 w-12 rounded-xl border border-slate-200 bg-[#FCFCFD] px-1 text-center text-[15px] font-semibold text-slate-900 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-10 text-right text-[11px] font-normal uppercase tracking-[0.06em] text-rose-500">ESI</span>
+              <input
+                type="number"
+                max="999"
+                value={form.esiPercent}
+                onChange={e => handleFormChange(emp.id, 'esiPercent', e.target.value)}
+                className="h-9 w-12 rounded-xl border border-slate-200 bg-[#FCFCFD] px-1 text-center text-[15px] font-semibold text-slate-900 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+              />
+            </div>
+          </div>
+        </td>
+        <td className={`${bodyCellClassName} text-right`}>
+          <button
+            type="button"
+            onClick={() => handleSaveStructure(emp.id)}
+            className="inline-flex h-10 items-center justify-center gap-2.5 rounded-xl bg-slate-950 px-5 text-[13px] font-normal uppercase tracking-[0.12em] text-white transition outline-none hover:bg-slate-800 focus:ring-4 focus:ring-slate-200"
+          >
+            <Save size={16} />
+            Update
+          </button>
+        </td>
+      </tr>
+    )
+  }
+
+  const renderCollapsibleSection = ({ title, label, count, badgeClass, open, onToggle, list }) => (
+    <div className={`${panelClassName} overflow-hidden`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between border-b border-slate-200 px-6 py-5 text-left transition-colors hover:bg-slate-50"
+      >
+        <div>
+          <h4 className="text-[20px] font-normal tracking-[-0.03em] text-slate-950">{title}</h4>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`rounded-full px-3 py-1 text-[10px] font-normal uppercase tracking-[0.18em] ${badgeClass}`}>
+            {count} {label}
+          </span>
+          <ChevronDown size={18} className={`text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+
+      {open && (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className={headCellClassName}>Payroll</th>
+                <th className={headCellClassName}>Employee</th>
+                <th className={headCellClassName}>Gross CTC</th>
+                <th className={headCellClassName}>Earnings (Basic % / HRA %)</th>
+                <th className={headCellClassName}>Deductions (Tax % / PF % / ESI %)</th>
+                <th className={`${headCellClassName} text-right`}>Save</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((emp, index) => renderStructureRow(emp, index))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
 
   const tabs = [
     { id: 'structure', label: 'Structure', icon: <Wallet size={14} /> },
@@ -130,211 +290,89 @@ export default function SalarySlabSettings() {
 
   return (
     <div className="space-y-5 font-inter no-print">
-      <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.14),_transparent_34%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] shadow-[0_28px_100px_rgba(15,23,42,0.10)]">
-        <div className="px-5 py-6 md:px-7 md:py-7">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600 shadow-sm">
-                <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                Payroll configuration
-              </div>
-              <h3 className="mt-4 text-[28px] font-black tracking-[-0.04em] text-slate-950 md:text-[32px]">
-                Salary Slab Settings
-              </h3>
-              <p className="mt-3 max-w-xl text-[13px] leading-6 text-slate-600 md:text-[14px]">
-                Structure compensation, track salary changes, and manage slip release timing from one clean payroll workspace.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {statCards.map(card => (
-                <div key={card.label} className="rounded-[22px] border border-white/80 bg-white/85 px-4 py-4 shadow-sm backdrop-blur">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{card.label}</p>
-                  <p className="mt-2 text-[24px] font-black tracking-[-0.04em] text-slate-950">{card.value}</p>
-                  <p className="mt-1 text-[11px] font-medium text-slate-500">{card.helper}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <SubTabsNav
-              tabs={tabs}
-              activeTabId={activeTab}
-              onTabChange={(tab) => setActiveTab(tab.id)}
-            />
-          </div>
-        </div>
-      </div>
+      <SubTabsNav
+        tabs={tabs}
+        activeTabId={activeTab}
+        onTabChange={(tab) => setActiveTab(tab.id)}
+      />
 
       {activeTab === 'structure' && (
-        <div className={`${panelClassName} overflow-hidden`}>
-          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Salary design</p>
-              <h4 className="mt-2 text-[20px] font-black tracking-[-0.03em] text-slate-950">Payroll Structure Definitions</h4>
+        <>
+          <div className={`${panelClassName} overflow-hidden`}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-6">
+              <div>
+                <h4 className="text-[32px] font-normal tracking-[-0.02em] text-slate-950">Active Payroll Structure Definitions</h4>
+              </div>
+              <div className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-normal uppercase tracking-[0.18em] text-emerald-800">
+                {activeEmployees.length} active
+              </div>
             </div>
-            <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">
-              Live configuration
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className={headCellClassName}>Payroll</th>
+                    <th className={headCellClassName}>Employee</th>
+                    <th className={headCellClassName}>Gross CTC</th>
+                    <th className={headCellClassName}>Earnings (Basic % / HRA %)</th>
+                    <th className={headCellClassName}>Deductions (Tax % / PF % / ESI %)</th>
+                    <th className={`${headCellClassName} text-right`}>Save</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeEmployees.map((emp, index) => renderStructureRow(emp, index))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-slate-50">
-                  <th className={headCellClassName}>Payroll</th>
-                  <th className={headCellClassName}>Employee</th>
-                  <th className={headCellClassName}>Gross CTC</th>
-                  <th className={headCellClassName}>Earnings (Basic % / HRA %)</th>
-                  <th className={headCellClassName}>Deductions (Tax % / PF % / ESI %)</th>
-                  <th className={`${headCellClassName} text-right`}>Save</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((emp, index) => {
-                  const form = forms[emp.id]
-                  if (!form) return null
+          {renderCollapsibleSection({ title: 'Draw Full Salary', label: 'eligible', count: fullSalaryEmployees.length, badgeClass: 'bg-amber-50 text-amber-700', open: showFullSalary, onToggle: () => setShowFullSalary(s => !s), list: fullSalaryEmployees })}
 
-                  return (
-                    <tr key={emp.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
-                      <td className={bodyCellClassName}>
-                        <input
-                          type="checkbox"
-                          checked={form.includeInPayroll}
-                          onChange={e => handleFormChange(emp.id, 'includeInPayroll', e.target.checked)}
-                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                      </td>
-                      <td className={bodyCellClassName}>
-                        <div>
-                          <p className="font-bold text-slate-900">{emp.name}</p>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-slate-500">{emp.department || 'General'}</p>
-                        </div>
-                      </td>
-                      <td className={bodyCellClassName}>
-                        <input
-                          type="number"
-                          value={form.totalSalary}
-                          onChange={e => handleFormChange(emp.id, 'totalSalary', e.target.value)}
-                          className="h-10 w-32 rounded-2xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-900 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
-                        />
-                      </td>
-                      <td className={bodyCellClassName}>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">Basic</p>
-                            <input
-                              type="number"
-                              max="999"
-                              value={form.basicPercent}
-                              onChange={e => handleFormChange(emp.id, 'basicPercent', e.target.value)}
-                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-emerald-400"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">HRA</p>
-                            <input
-                              type="number"
-                              max="999"
-                              value={form.hraPercent}
-                              onChange={e => handleFormChange(emp.id, 'hraPercent', e.target.value)}
-                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-emerald-400"
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td className={bodyCellClassName}>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">Tax</p>
-                            <input
-                              type="number"
-                              max="999"
-                              value={form.incomeTaxPercent}
-                              onChange={e => handleFormChange(emp.id, 'incomeTaxPercent', e.target.value)}
-                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-rose-400"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">PF</p>
-                            <input
-                              type="number"
-                              max="999"
-                              value={form.pfPercent}
-                              onChange={e => handleFormChange(emp.id, 'pfPercent', e.target.value)}
-                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-rose-400"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-rose-500">ESI</p>
-                            <input
-                              type="number"
-                              max="999"
-                              value={form.esiPercent}
-                              onChange={e => handleFormChange(emp.id, 'esiPercent', e.target.value)}
-                              className="h-8 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-[11px] font-bold text-slate-900 outline-none focus:border-rose-400"
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td className={`${bodyCellClassName} text-right`}>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveStructure(emp.id)}
-                          className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.16em] text-white transition hover:bg-slate-800"
-                        >
-                          <Save size={14} />
-                          Update
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          {renderCollapsibleSection({ title: 'Hide in Salary', label: 'hidden', count: hiddenSalaryEmployees.length, badgeClass: 'bg-red-50 text-red-600', open: showHiddenSalary, onToggle: () => setShowHiddenSalary(s => !s), list: hiddenSalaryEmployees })}
+
+          {renderCollapsibleSection({ title: 'Inactive Payroll Definitions', label: 'inactive', count: inactiveEmployees.length, badgeClass: 'bg-rose-50 text-rose-600', open: showInactive, onToggle: () => setShowInactive(s => !s), list: inactiveEmployees })}
+        </>
       )}
 
       {activeTab === 'increment' && (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.92fr_1.08fr]">
           <div className={`${panelClassName} p-6 md:p-7`}>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Salary revision</p>
-            <h4 className="mt-2 text-[20px] font-black tracking-[-0.03em] text-slate-950">Log New Increment</h4>
+            <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-indigo-600">Salary revision</p>
+            <h4 className="mt-2 text-[20px] font-normal tracking-[-0.03em] text-slate-950">Log New Increment</h4>
 
             <div className={`${insetClassName} mt-6 space-y-4 p-5`}>
               <div>
-                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Target Employee</label>
+                <label className="mb-2 block text-[11px] font-normal uppercase tracking-[0.16em] text-slate-500">Target Employee</label>
                 <select value={newInc.employeeId} onChange={e => setNewInc(s => ({ ...s, employeeId: e.target.value }))} className={inputClassName}>
                   <option value="">Select employee</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                  {incrementEligibleEmployees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} · {emp.empCode || emp.id.slice(0, 5).toUpperCase()} | {emp.department || 'General'}</option>)}
                 </select>
               </div>
 
               {newInc.employeeId && (
                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-500">Current Salary</p>
-                  <p className="mt-2 text-[18px] font-black text-indigo-700">Rs. {slabs[newInc.employeeId]?.totalSalary?.toLocaleString() || 0}</p>
+                  <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-indigo-500">Current Salary</p>
+                  <p className="mt-2 text-[18px] font-normal text-indigo-700">Rs. {slabs[newInc.employeeId]?.totalSalary?.toLocaleString() || 0}</p>
                 </div>
               )}
 
               <div>
-                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Revised Total CTC</label>
+                <label className="mb-2 block text-[11px] font-normal uppercase tracking-[0.16em] text-slate-500">Revised Total CTC</label>
                 <input type="number" value={newInc.newSalary || ''} onChange={e => setNewInc(s => ({ ...s, newSalary: e.target.value }))} className={inputClassName} placeholder="0.00" />
               </div>
 
               <div>
-                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Effective Month</label>
+                <label className="mb-2 block text-[11px] font-normal uppercase tracking-[0.16em] text-slate-500">Effective Month</label>
                 <input type="month" value={newInc.effectiveFrom} onChange={e => setNewInc(s => ({ ...s, effectiveFrom: e.target.value }))} className={inputClassName} />
               </div>
 
               <div>
-                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Reason</label>
+                <label className="mb-2 block text-[11px] font-normal uppercase tracking-[0.16em] text-slate-500">Reason</label>
                 <input type="text" value={newInc.reason} onChange={e => setNewInc(s => ({ ...s, reason: e.target.value }))} className={inputClassName} placeholder="e.g. Annual Appraisal" />
               </div>
 
-              <button onClick={handleSaveIncrement} className="inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-indigo-600 px-4 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition hover:bg-indigo-700">
+              <button onClick={handleSaveIncrement} className="inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-indigo-600 px-4 py-3 text-[12px] font-normal uppercase tracking-[0.18em] text-white transition hover:bg-indigo-700">
                 <Plus size={14} />
                 Log Increment
               </button>
@@ -343,8 +381,8 @@ export default function SalarySlabSettings() {
 
           <div className={`${panelClassName} overflow-hidden`}>
             <div className="border-b border-slate-200 px-6 py-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Revision history</p>
-              <h4 className="mt-2 text-[20px] font-black tracking-[-0.03em] text-slate-950">Historical Pay Adjustments</h4>
+              <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-slate-400">Revision history</p>
+              <h4 className="mt-2 text-[20px] font-normal tracking-[-0.03em] text-slate-950">Historical Pay Adjustments</h4>
             </div>
 
             <div className="overflow-x-auto">
@@ -355,12 +393,14 @@ export default function SalarySlabSettings() {
                     <th className={headCellClassName}>Employee</th>
                     <th className={headCellClassName}>New Gross</th>
                     <th className={headCellClassName}>Reason</th>
+                    <th className={headCellClassName}>Edited</th>
+                    <th className={headCellClassName}>Edited By</th>
                   </tr>
                 </thead>
                 <tbody>
                   {increments.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-6 py-14 text-center text-[13px] font-medium text-slate-400">
+                      <td colSpan={6} className="px-6 py-14 text-center text-[13px] font-medium text-slate-400">
                         No increment records archived yet.
                       </td>
                     </tr>
@@ -369,10 +409,12 @@ export default function SalarySlabSettings() {
                     const emp = employees.find(employee => employee.id === inc.employeeId)
                     return (
                       <tr key={inc.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
-                        <td className={`${bodyCellClassName} font-bold text-indigo-600`}>{inc.effectiveFrom}</td>
+                        <td className={`${bodyCellClassName} font-normal text-indigo-600`}>{formatDateForDisplay(inc.effectiveFrom)}</td>
                         <td className={bodyCellClassName}>{emp?.name || 'Restricted'}</td>
-                        <td className={`${bodyCellClassName} font-bold text-slate-950`}>Rs. {inc.totalSalary?.toLocaleString()}</td>
+                        <td className={`${bodyCellClassName} font-normal text-slate-950`}>Rs. {inc.totalSalary?.toLocaleString()}</td>
                         <td className={`${bodyCellClassName} text-slate-500`}>{inc.reason || 'Annual Increment'}</td>
+                        <td className={`${bodyCellClassName} text-slate-600`}>{formatDateForDisplay(inc.createdAt)}</td>
+                        <td className={`${bodyCellClassName} text-slate-600`}>{inc.editedBy || '—'}</td>
                       </tr>
                     )
                   })}
@@ -386,23 +428,23 @@ export default function SalarySlabSettings() {
       {activeTab === 'release' && (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.92fr_1.08fr]">
           <div className={`${panelClassName} p-6 md:p-7`}>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Visibility window</p>
-            <h4 className="mt-2 text-[20px] font-black tracking-[-0.03em] text-slate-950">Salary Slip Release</h4>
+            <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-indigo-600">Visibility window</p>
+            <h4 className="mt-2 text-[20px] font-normal tracking-[-0.03em] text-slate-950">Salary Slip Release</h4>
 
             <div className={`${insetClassName} mt-6 space-y-4 p-5`}>
               <div>
-                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Salary Month</label>
+                <label className="mb-2 block text-[11px] font-normal uppercase tracking-[0.16em] text-slate-500">Salary Month</label>
                 <input type="month" value={newWindow.month} onChange={e => setNewWindow(s => ({ ...s, month: e.target.value }))} className={inputClassName} />
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">View From</label>
+                <label className="mb-2 block text-[11px] font-normal uppercase tracking-[0.16em] text-slate-500">View From</label>
                 <input type="date" value={newWindow.viewFrom} onChange={e => setNewWindow(s => ({ ...s, viewFrom: e.target.value }))} className={inputClassName} />
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">View Until</label>
+                <label className="mb-2 block text-[11px] font-normal uppercase tracking-[0.16em] text-slate-500">View Until</label>
                 <input type="date" value={newWindow.viewUntil} onChange={e => setNewWindow(s => ({ ...s, viewUntil: e.target.value }))} className={inputClassName} />
               </div>
-              <button onClick={handleSaveWindow} className="inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-indigo-600 px-4 py-3 text-[12px] font-black uppercase tracking-[0.18em] text-white transition hover:bg-indigo-700">
+              <button onClick={handleSaveWindow} className="inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-indigo-600 px-4 py-3 text-[12px] font-normal uppercase tracking-[0.18em] text-white transition hover:bg-indigo-700">
                 <Save size={14} />
                 Save Window
               </button>
@@ -411,8 +453,8 @@ export default function SalarySlabSettings() {
 
           <div className={`${panelClassName} overflow-hidden`}>
             <div className="border-b border-slate-200 px-6 py-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Release log</p>
-              <h4 className="mt-2 text-[20px] font-black tracking-[-0.03em] text-slate-950">Configured Visibility Periods</h4>
+              <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-slate-400">Release log</p>
+              <h4 className="mt-2 text-[20px] font-normal tracking-[-0.03em] text-slate-950">Configured Visibility Periods</h4>
             </div>
 
             <div className="overflow-x-auto">
@@ -434,7 +476,7 @@ export default function SalarySlabSettings() {
                   )}
                   {windows.map((windowItem, index) => (
                     <tr key={windowItem.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
-                      <td className={`${bodyCellClassName} font-bold text-slate-900`}>{windowItem.month}</td>
+                      <td className={`${bodyCellClassName} font-normal text-slate-900`}>{windowItem.month}</td>
                       <td className={bodyCellClassName}>{windowItem.viewFrom}</td>
                       <td className={bodyCellClassName}>{windowItem.viewUntil}</td>
                     </tr>

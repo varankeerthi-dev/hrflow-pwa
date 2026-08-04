@@ -41,10 +41,12 @@ import { logActivity } from '../../hooks/useActivityLog'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { useQueryClient } from '@tanstack/react-query'
 import { SubTabsNav } from '../ui/SubTabsNav'
+import AllowanceClaimsView from '../ui/AllowanceClaimsView'
 
 const TABS = [
   { id: 'bulk', label: 'Bulk Entry', icon: <LayoutGrid size={16} /> },
   { id: 'pending', label: 'Pending Queue', icon: <ListChecks size={16} /> },
+  { id: 'allowance', label: 'Allowances', icon: <Banknote size={16} /> },
   { id: 'ledger', label: 'Financial Ledger', icon: <History size={16} /> }
 ]
 
@@ -553,6 +555,18 @@ export default function AccountantTab() {
                   </table>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeSubTab === 'allowance' && (
+          <div className="h-full flex flex-col space-y-4">
+            <div>
+              <h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider font-raleway">Allowance Payments</h2>
+              <p className="text-xs text-zinc-500">Approved allowances awaiting payout.</p>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AllowanceClaimsView mode="payment" canManage />
             </div>
           </div>
         )}

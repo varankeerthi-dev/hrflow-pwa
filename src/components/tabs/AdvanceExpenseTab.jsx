@@ -5,6 +5,7 @@ import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
 import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera } from 'lucide-react'
 import Spinner from '../ui/Spinner'
+import Dropdown from '../ui/Dropdown'
 import { formatINR } from '../../lib/salaryUtils'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -31,11 +32,11 @@ function approvalStatusTextClass(status, lane) {
   return isHr ? 'text-amber-700' : 'text-orange-800'
 }
 
-export default function AdvanceExpenseTab() {
+export default function AdvanceExpenseTab({ defaultModule }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const queryClient = useQueryClient()
-  const [activeModule, setActiveModule] = useState('Reports')
+  const [activeModule, setActiveModule] = useState(defaultModule || 'Reports')
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
   
   // Reports Filter States
@@ -108,9 +109,7 @@ export default function AdvanceExpenseTab() {
   // Transferred To Modal State
   const [transferModalRowId, setTransferModalRowId] = useState(null)
 
-  // Paid To Search/Filter State
-  const [paidToDropdownOpen, setPaidToDropdownOpen] = useState(null) // stores rowId when open
-  const [paidToSearchTerm, setPaidToSearchTerm] = useState('')
+  // Paid To state (managed internally by reusable Dropdown)
 
   // Side Drawer State for Approvals
   const [approvalDrawerOpen, setApprovalDrawerOpen] = useState(false)
@@ -181,10 +180,13 @@ export default function AdvanceExpenseTab() {
       const generatedIds = []
       for (const row of newEntries) {
         const emp = employees.find(e => e.id === row.employeeId)
+        const resolvedCategory = row.category === 'custom' && row.customCategory
+          ? row.customCategory.trim()
+          : row.category
         let type = 'Expense'
         if (activeModule === 'Add Advance') type = 'Advance'
         else if (activeModule === 'Add Expense') type = 'Expense'
-        else type = row.category.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
+        else type = resolvedCategory.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
 
         // Generate Professional Transaction No: TYPE-YYMMDD-RAND
         const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '')
@@ -193,8 +195,8 @@ export default function AdvanceExpenseTab() {
         generatedIds.push(txnNo)
 
         const finalCategory = row.transferredToName 
-          ? `${row.category} [${row.transferredToName}]`
-          : row.category
+          ? `${resolvedCategory} [${row.transferredToName}]`
+          : resolvedCategory
 
         // Determine paidTo information
         const paidToEmp = row.paidToType === 'employee' ? employees.find(e => e.id === row.paidTo) : null
@@ -345,50 +347,9 @@ export default function AdvanceExpenseTab() {
 
   // Paid To Dropdown Component Helper
   const PaidToDropdown = ({ rowId, row, isMobile = false }) => {
-    const isOpen = paidToDropdownOpen === rowId
-    const triggerRef = React.useRef(null)
-    const [dropdownPosition, setDropdownPosition] = React.useState({ top: 0, left: 0 })
-    
-    // Filter employees based on search term
-    const filteredEmployees = useMemo(() => {
-      if (!paidToSearchTerm.trim()) return employees
-      return employees.filter(e => 
-        e.name?.toLowerCase().includes(paidToSearchTerm.toLowerCase()) ||
-        e.id?.toLowerCase().includes(paidToSearchTerm.toLowerCase())
-      )
-    }, [employees, paidToSearchTerm])
-    
-    // Calculate dropdown position when opened
-    React.useLayoutEffect(() => {
-      if (isOpen && triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect()
-        setDropdownPosition({
-          top: rect.bottom + 4,
-          left: rect.left
-        })
-      }
-    }, [isOpen])
-    
-    const handleSelectEmployee = (empId) => {
-      handleRowChange(rowId, 'paidTo', empId)
-      setPaidToDropdownOpen(null)
-      setPaidToSearchTerm('')
-    }
-    
-    const handleSelectAddOther = () => {
-      handleRowChange(rowId, 'paidToType', 'custom')
-      setPaidToDropdownOpen(null)
-      setPaidToSearchTerm('')
-    }
-    
-    const handleClose = (e) => {
-      e.stopPropagation()
-      setPaidToDropdownOpen(null)
-      setPaidToSearchTerm('')
-    }
-    
-    // Get display value
-    const getDisplayValue = () => {
+    const employeeOptions = employees.map(e => ({ label: e.name, value: e.id }))
+
+    const displayValue = (() => {
       if (row.paidToType === 'custom' && row.paidToCustomName) {
         return row.paidToCustomName
       }
@@ -397,111 +358,23 @@ export default function AdvanceExpenseTab() {
         return emp ? emp.name : row.paidTo
       }
       return isMobile ? 'Select paid to...' : 'Select...'
-    }
-    
+    })()
+
     return (
-      <div className="relative">
-        {/* Trigger Button */}
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={() => {
-            if (isOpen) {
-              setPaidToDropdownOpen(null)
-            } else {
-              setPaidToDropdownOpen(rowId)
-              setPaidToSearchTerm('')
-            }
-          }}
-          className={`w-full border border-zinc-200 rounded-lg px-2 text-[12px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-colors flex items-center justify-between ${
-            isMobile ? 'h-11 px-3 text-sm' : 'h-9'
-          } ${row.paidToType === 'custom' ? 'text-indigo-600' : 'text-zinc-800'}`}
-        >
-          <span className="truncate">{getDisplayValue()}</span>
-          <svg 
-            className={`w-4 h-4 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        
-        {/* Dropdown Overlay - Fixed position to avoid scroll issues */}
-        {isOpen && (
-          <>
-            {/* Backdrop */}
-            <div 
-              className="fixed inset-0 z-40 bg-black/30"
-              onClick={handleClose}
-            />
-            {/* Dropdown Panel - Centered on screen */}
-            <div 
-              className={`fixed z-50 bg-white rounded-xl border border-zinc-200 shadow-2xl ${
-                isMobile ? 'w-[calc(100vw-3rem)] max-w-sm left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2' : 'w-96 left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2'
-              }`}
-            >
-              {/* Search Input */}
-              <div className="p-3 border-b border-zinc-100">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                  <input
-                    type="text"
-                    placeholder="Search employees..."
-                    value={paidToSearchTerm}
-                    onChange={(e) => setPaidToSearchTerm(e.target.value)}
-                    className="w-full h-10 pl-9 pr-3 border border-zinc-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                    autoFocus
-                  />
-                </div>
-              </div>
-              
-              {/* Options List */}
-              <div className="max-h-72 overflow-y-auto">
-                {/* "Add Other..." Option */}
-                <button
-                  type="button"
-                  onClick={handleSelectAddOther}
-                  className={`w-full px-4 py-3 text-left text-sm font-medium text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 border-b border-zinc-100 ${
-                    row.paidToType === 'custom' ? 'bg-indigo-50' : ''
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Other...
-                </button>
-                
-                {/* Employee Options */}
-                {filteredEmployees.length === 0 ? (
-                  <div className="px-4 py-4 text-sm text-zinc-400 text-center">
-                    No employees found
-                  </div>
-                ) : (
-                  filteredEmployees.map(emp => (
-                    <button
-                      key={emp.id}
-                      type="button"
-                      onClick={() => handleSelectEmployee(emp.id)}
-                      className={`w-full px-4 py-3 text-left text-sm hover:bg-zinc-50 flex items-center justify-between ${
-                        row.paidTo === emp.id && row.paidToType === 'employee' ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700'
-                      }`}
-                    >
-                      <span className="font-medium">{emp.name}</span>
-                      {row.paidTo === emp.id && row.paidToType === 'employee' && (
-                        <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </>
-        )}
-        
+      <div>
+        <Dropdown
+          value={row.paidToType === 'employee' ? (row.paidTo || '') : ''}
+          onChange={(val) => handleRowChange(rowId, 'paidTo', val)}
+          options={employeeOptions}
+          placeholder={displayValue}
+          searchable
+          allowCustom
+          customActive={row.paidToType === 'custom'}
+          onAddOther={() => handleRowChange(rowId, 'paidToType', 'custom')}
+          size={isMobile ? 'md' : 'xs'}
+          panelWidth={isMobile ? 'w-64' : undefined}
+        />
+
         {/* Custom Name Input - shown when "Add Other..." is selected */}
         {row.paidToType === 'custom' && (
           <input
@@ -1926,18 +1799,18 @@ export default function AdvanceExpenseTab() {
                         </select>
                       </td>
                       <td className="px-1 border-r border-gray-200">
-                        <select
-                          value={row.category} 
-                          onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
-                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent cursor-pointer"
-                          style={{ height: '19px' }}
-                        >
-                          <option value="">Select category...</option>
-                          {categories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                          <option value="custom">+ Other (Type below)</option>
-                        </select>
+                        <Dropdown
+                          value={row.category === 'custom' ? '' : row.category}
+                          onChange={(val) => handleRowChange(row.id, 'category', val)}
+                          options={categories}
+                          placeholder="Select category..."
+                          size="xs"
+                          searchable
+                          allowCustom
+                          customActive={row.category === 'custom'}
+                          onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
+                          className="scale-90 origin-left"
+                        />
                         {row.category === 'custom' && (
                           <input 
                             type="text" 

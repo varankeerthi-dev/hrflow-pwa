@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import AttendanceApprovalQueue from './AttendanceApprovalQueue'
+import AllowanceClaimsView from '../ui/AllowanceClaimsView'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR } from '../../lib/salaryUtils'
 import { logActivity } from '../../hooks/useActivityLog'
@@ -628,6 +629,20 @@ export default function ApprovalsTab() {
     }
   }
 
+  const handleDeleteHistory = async (item) => {
+    if (!isAdmin && !isHR && !isMD) return alert('No permission to delete')
+    if (item.paymentStatus === 'Paid') {
+      return alert(`Cannot delete ${item.transactionNo || 'this record'} — the approved amount has already been paid.`)
+    }
+    if (!confirm(`Delete ${item.transactionNo || 'this record'} permanently?`)) return
+    try {
+      await deleteDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', item.id))
+      fetchData()
+    } catch (err) {
+      alert('Failed to delete')
+    }
+  }
+
   const handleUpdateRequestStatus = async (id, status) => {
     if (!canApprove) return alert('No permission')
     const state = actionState[id]
@@ -868,6 +883,7 @@ export default function ApprovalsTab() {
           tabs={[
             { id: 'advance-expense', label: 'Advance / Expense' },
             { id: 'leave-permission', label: 'Leave / Permission' },
+            { id: 'allowance', label: 'Allowances' },
             ...(canManageAttendance ? [{ id: 'attendance-queue', label: 'Attendance Queue' }] : []),
             ...(isAccountant ? [{ id: 'payment-queue', label: 'Payment Queue' }] : [])
           ]}
@@ -878,6 +894,8 @@ export default function ApprovalsTab() {
 
       {activeSubTab === 'attendance-queue' ? (
         <AttendanceApprovalQueue user={user} canManage={canManageAttendance} />
+      ) : activeSubTab === 'allowance' ? (
+        <AllowanceClaimsView mode="approval" canManage={canManageAttendance} />
       ) : loading ? (
         <div className="py-20 flex justify-center"><Spinner /></div>
       ) : activeSubTab === 'payment-queue' ? (
@@ -1019,6 +1037,10 @@ export default function ApprovalsTab() {
               </div>
             </div>
           </div>
+
+          <div className="mt-12 mb-8">
+            <AllowanceClaimsView mode="payment" canManage={isAccountant} />
+          </div>
         </>
       ) : activeSubTab === 'advance-expense' ? (
         <div className="flex w-full flex-col gap-8">
@@ -1058,7 +1080,7 @@ export default function ApprovalsTab() {
                       setTimeout(handleBulkApprove, 100)
                     }}
                     disabled={bulkProcessing}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-normal uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
                   >
                     <Check size={14} strokeWidth={3} />
                     Approve All Pending
@@ -1222,7 +1244,7 @@ export default function ApprovalsTab() {
                                                 <button
                                                   type="button"
                                                   onClick={() => handleHrAdvExpenseSubmit(item.id)}
-                                                  className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
+                                                  className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-normal tracking-widest hover:bg-emerald-700 hover:scale-110 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center gap-1"
                                                   title="Approve"
                                                 >
                                                   <Check size={12} strokeWidth={3} />
@@ -1414,7 +1436,7 @@ export default function ApprovalsTab() {
                                                 <button
                                                   type="button"
                                                   onClick={() => handleMdAdvExpenseSubmit(item.id)}
-                                                  className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
+                                                  className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-normal tracking-widest hover:bg-emerald-700 hover:scale-110 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center gap-1"
                                                   title="Approve"
                                                 >
                                                   <Check size={12} strokeWidth={3} />
@@ -1713,13 +1735,22 @@ export default function ApprovalsTab() {
                               </div>
                             </td>
                             <td className="px-3 align-middle text-right">
-                              <button
-                                onClick={() => handleRevoke(item.id)}
-                                className="p-1.5 text-zinc-300 hover:text-orange-600 transition-colors"
-                                title="Revoke to Pending"
-                              >
-                                <RotateCcw size={14} />
-                              </button>
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  onClick={() => handleRevoke(item.id)}
+                                  className="p-1.5 text-zinc-300 hover:text-orange-600 transition-colors"
+                                  title="Revoke to Pending"
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteHistory(item)}
+                                  className="p-1.5 text-zinc-300 hover:text-rose-600 transition-colors"
+                                  title="Delete permanently"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -1825,7 +1856,7 @@ export default function ApprovalsTab() {
                                               <button
                                                 type="button"
                                                 onClick={() => handleLeaveDeptSubmit(req.id)}
-                                                className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
+                                                className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-normal tracking-widest hover:bg-emerald-700 hover:scale-110 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center gap-1"
                                                 title="Approve"
                                               >
                                                 <Check size={12} strokeWidth={3} />
@@ -1967,7 +1998,7 @@ export default function ApprovalsTab() {
                                                <button
                                                  type="button"
                                                  onClick={() => handleLeaveMdSubmit(req.id)}
-                                                 className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
+                                                 className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-normal tracking-widest hover:bg-emerald-700 hover:scale-110 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center gap-1"
                                                  title="Approve"
                                                >
                                                  <Check size={12} strokeWidth={3} />
@@ -2118,7 +2149,7 @@ export default function ApprovalsTab() {
                                         {/* Approve Button - Default Action */}
                                         <button 
                                           onClick={() => handleUpdateRequestStatus(req.id, 'Approved')} 
-                                          className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-1"
+                                          className="h-7 px-3 bg-emerald-600 text-white rounded-md text-[9px] font-normal tracking-widest hover:bg-emerald-700 hover:scale-110 hover:shadow-lg hover:shadow-emerald-600/30 active:scale-95 transition-all flex items-center gap-1"
                                           title="Approve"
                                         >
                                           <Check size={12} strokeWidth={3} />

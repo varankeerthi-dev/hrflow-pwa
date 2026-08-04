@@ -239,6 +239,8 @@ export default function Dashboard() {
   const [salarySubTab, setSalarySubTab] = useState('detailed')
   const [salaryActiveTab, setSalaryActiveTab] = useState('salary-summary')
   const [tasksSubTab, setTasksSubTab] = useState('checklist')
+  const [settingsSubTab, setSettingsSubTab] = useState(null)
+  const [attendanceDirty, setAttendanceDirty] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
   const [hoveredTooltip, setHoveredTooltip] = useState(null)
@@ -312,7 +314,8 @@ export default function Dashboard() {
     { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, module: 'Tasks' },
     { id: 'salary-slip', label: 'Payroll', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'SalarySlip' },
-    { id: 'advance', label: 'Advances', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
+    { id: 'advance', label: 'Advance', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
+    { id: 'expense', label: 'Expense', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
@@ -360,6 +363,17 @@ export default function Dashboard() {
 
   const [tabSearchParams, setTabSearchParams] = useSearchParams()
 
+  const navigateToTab = (tabId) => {
+    if (tabId === activeTab) return
+    if (attendanceDirty) {
+      const ok = window.confirm('You have unsaved attendance changes. Leaving now will lose your entered data. Continue?')
+      if (!ok) return false
+    }
+    setActiveTab(tabId)
+    setTabSearchParams({ tab: tabId })
+    return true
+  }
+
   useEffect(() => {
     const tabParam = tabSearchParams.get('tab')
     if (tabParam && visibleTabs.find(t => t.id === tabParam)) {
@@ -371,7 +385,7 @@ export default function Dashboard() {
     }
   }, [tabSearchParams, visibleTabs])
 
-  const mainTabs = ['home', 'attendance-list', 'tasks', 'salary-slip', 'advance', 'approvals']
+  const mainTabs = ['home', 'attendance-list', 'tasks', 'salary-slip', 'advance', 'expense', 'approvals']
   
   const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents']
   const featuresTabs = ['correction', 'fines', 'engage', 'chat']
@@ -410,7 +424,7 @@ export default function Dashboard() {
 
     return (
       <>
-        {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }))}
+        {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }))}
 
         {hrItems.length > 0 && (
           <div className="mt-1">
@@ -435,7 +449,7 @@ export default function Dashboard() {
 
             {isHrExpanded && (
               <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
-                {hrItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }, '12px'))}
+                {hrItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }, '12px'))}
               </div>
             )}
           </div>
@@ -464,7 +478,7 @@ export default function Dashboard() {
 
             {isFeaturesExpanded && (
               <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
-                {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { setActiveTab(tab.id); setTabSearchParams({ tab: tab.id }); setIsMobileMenuOpen(false) }, '12px'))}
+                {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }, '12px'))}
               </div>
             )}
           </div>
@@ -472,14 +486,14 @@ export default function Dashboard() {
 
         {operationsItem && (
           <div className="mt-1">
-            {renderMenuItem(operationsItem, activeTab === 'operations', () => { setActiveTab('operations'); setTabSearchParams({ tab: 'operations' }); setIsMobileMenuOpen(false) })}
+            {renderMenuItem(operationsItem, activeTab === 'operations', () => { if (navigateToTab('operations')) setIsMobileMenuOpen(false) })}
           </div>
         )}
 
         <div className="sidebar-divider mt-auto" />
 
         <div className="pt-1 space-y-0.5">
-          {visibleTabs.find(t => t.id === 'accountant') && renderMenuItem(visibleTabs.find(t => t.id === 'accountant'), activeTab === 'accountant', () => { setActiveTab('accountant'); setTabSearchParams({ tab: 'accountant' }); setIsMobileMenuOpen(false) })}
+          {visibleTabs.find(t => t.id === 'accountant') && renderMenuItem(visibleTabs.find(t => t.id === 'accountant'), activeTab === 'accountant', () => { if (navigateToTab('accountant')) setIsMobileMenuOpen(false) })}
           
           {/* Reports Collapsible */}
           {visibleTabs.find(t => t.id === 'reports') && (
@@ -505,16 +519,16 @@ export default function Dashboard() {
               
               {isReportsExpanded && (
                 <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
-                  {visibleTabs.find(t => t.id === 'attendance-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'attendance-reports'), activeTab === 'attendance-reports', () => { setActiveTab('attendance-reports'); setTabSearchParams({ tab: 'attendance-reports' }); setIsMobileMenuOpen(false) }, '11px')}
-                  {visibleTabs.find(t => t.id === 'site-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'site-reports'), activeTab === 'site-reports', () => { setActiveTab('site-reports'); setTabSearchParams({ tab: 'site-reports' }); setIsMobileMenuOpen(false) }, '11px')}
+                  {visibleTabs.find(t => t.id === 'attendance-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'attendance-reports'), activeTab === 'attendance-reports', () => { if (navigateToTab('attendance-reports')) setIsMobileMenuOpen(false) }, '11px')}
+                  {visibleTabs.find(t => t.id === 'site-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'site-reports'), activeTab === 'site-reports', () => { if (navigateToTab('site-reports')) setIsMobileMenuOpen(false) }, '11px')}
                 </div>
               )}
             </div>
           )}
           
-          {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { setActiveTab('settings'); setTabSearchParams({ tab: 'settings' }); setIsMobileMenuOpen(false) })}
-          {portalItem && renderMenuItem(portalItem, activeTab === 'portal', () => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setIsMobileMenuOpen(false) })}
-          {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { setActiveTab('help'); setTabSearchParams({ tab: 'help' }); setIsMobileMenuOpen(false) })}
+          {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { if (navigateToTab('settings')) setIsMobileMenuOpen(false) })}
+          {portalItem && renderMenuItem(portalItem, activeTab === 'portal', () => { if (navigateToTab('portal')) setIsMobileMenuOpen(false) })}
+          {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { if (navigateToTab('help')) setIsMobileMenuOpen(false) })}
         </div>
       </>
     )
@@ -534,7 +548,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-bold text-gray-900 mb-2">Access Denied</h3>
               <p className="text-sm text-gray-500 mb-6 leading-relaxed text-pretty">You don't have permission to access this module. Please contact your administrator.</p>
               <button 
-                onClick={() => { setActiveTab('home'); setTabSearchParams({ tab: 'home' }); }}
+                onClick={() => { navigateToTab('home') }}
                 className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-semibold hover:shadow-md hover:shadow-indigo-200 transition duration-200"
               >
                 Go to Dashboard
@@ -546,10 +560,10 @@ export default function Dashboard() {
     }
     
     switch (activeTab) {
-      case 'home': return <HomeTab onTabChange={(t) => { setActiveTab(t); setTabSearchParams({ tab: t }); }} />
+      case 'home': return <HomeTab onTabChange={(t) => { navigateToTab(t) }} />
       case 'attendance':
-      case 'attendance-list': return <AttendanceTab />
-      case 'attendance-reports': return <AttendanceTab defaultSubTab="reports" />
+      case 'attendance-list': return <AttendanceTab onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} />
+      case 'attendance-reports': return <AttendanceTab defaultSubTab="reports" onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} />
       case 'site-reports': return <SiteReportTab />
       case 'correction': return <CorrectionTab />
       case 'leave': return <LeaveTab />
@@ -562,12 +576,13 @@ export default function Dashboard() {
       case 'accountant': return <AccountantTab />
       case 'salary-slip': return <SalarySlipTab defaultSummarySubTab={salarySubTab} defaultActiveTab={salaryActiveTab} onActiveTabChange={setSalaryActiveTab} />
       case 'advance': return <AdvanceExpenseTab />
+      case 'expense': return <AdvanceExpenseTab defaultModule="Add Expense" />
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
       case 'chat': return <ChatTab />
       case 'tasks': return <TasksTab defaultSubTab={tasksSubTab} />
       case 'portal': return <EmployeePortalTab portalSubTab={portalSubTab} />
-      case 'settings': return <SettingsTab />
+      case 'settings': return <SettingsTab initialSubTab={settingsSubTab} />
       case 'help': return <HelpTab />
       default: return <EmployeePortalTab portalSubTab={portalSubTab} />
     }
@@ -616,7 +631,7 @@ export default function Dashboard() {
             const quickActions = [
               { label: 'Add attendance', tab: 'attendance-list', tooltip: 'New entry?', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
               { label: 'Add Employee', tab: 'employees', tooltip: 'New employee?', icon: <Users size={14} />, module: 'Employees', right: 'create' },
-              { label: 'Advances', tab: 'advance', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
+              { label: 'Expense', tab: 'expense', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
               { label: 'Full Summary', tab: 'salary-slip', salaryActiveTab: 'full-summary', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'SalarySlip', right: 'view' },
               { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', tooltip: 'Track daily checklist?', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
             ].filter(action => {
@@ -632,8 +647,7 @@ export default function Dashboard() {
                   <div key={item.tab} className="relative group">
                     <button 
                       onClick={() => { 
-                        setActiveTab(item.tab); 
-                        setTabSearchParams({ tab: item.tab }); 
+                        if (!navigateToTab(item.tab)) return
                         if (item.tab === 'salary-slip' && item.salaryActiveTab) setSalaryActiveTab(item.salaryActiveTab); 
                         if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); 
                         if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) 
@@ -668,7 +682,7 @@ export default function Dashboard() {
           {user?.orgId && <OrganizationSwitcher />}
           <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
           
-          <button onClick={() => { setActiveTab('portal'); setTabSearchParams({ tab: 'portal' }); setPortalSubTab('profile') }} title="Profile" className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-colors group">
+          <button onClick={() => { if (navigateToTab('portal')) setPortalSubTab('profile') }} title="Profile" className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-colors group">
             <div className="flex flex-col items-start text-left">
               <span className="text-[13px] font-black tracking-tight group-hover:text-indigo-600 transition-colors leading-none border-b border-transparent group-hover:border-indigo-300" style={{ color: '#7d6be1' }}>{user?.name?.split(' ').map((n, i) => i === 0 ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : n.toLowerCase()).join(' ')}</span>
               <span className="text-xs text-gray-400 font-bold mt-1 lowercase">{user?.email || user?.role || 'Staff'}</span>
