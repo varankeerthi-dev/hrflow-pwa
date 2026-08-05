@@ -52,6 +52,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
   const [reportFilterTxn, setReportFilterTxn] = useState('')
   const [reportFilterType, setReportFilterType] = useState('All') // All | Advance | Expense
   const [reportFilterPayout, setReportFilterPayout] = useState('All') // All | Immediate | With Salary
+  const [reportFilterProject, setReportFilterProject] = useState('')
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
   
@@ -73,6 +74,9 @@ export default function AdvanceExpenseTab({ defaultModule }) {
   
   // Ref for reports container (screenshot)
   const reportsContainerRef = useRef(null)
+  
+  // Ref for CSV file input
+  const csvFileInputRef = useRef(null)
   
   // Helper to close all dropdowns
   const closeAllDropdowns = () => {
@@ -147,6 +151,17 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       )
       const snap = await getDocs(q)
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    },
+    enabled: !!user?.orgId
+  })
+
+  // Fetch org settings for advance cap
+  const { data: orgSettings = {} } = useQuery({
+    queryKey: ['orgSettings', user?.orgId],
+    queryFn: async () => {
+      if (!user?.orgId) return {}
+      const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
+      return orgSnap.exists() ? orgSnap.data() : {}
     },
     enabled: !!user?.orgId
   })
@@ -469,7 +484,11 @@ export default function AdvanceExpenseTab({ defaultModule }) {
         // Payout filter
         const matchesPayout = reportFilterPayout === 'All' || e.payoutMethod === reportFilterPayout
         
-        return matchesDate && matchesEmployee && matchesCategory && matchesRemarks && matchesTxn && matchesType && matchesPayout
+        // Project filter
+        const matchesProject = !reportFilterProject || 
+          (e.project && e.project.toLowerCase().includes(reportFilterProject.toLowerCase()))
+        
+        return matchesDate && matchesEmployee && matchesCategory && matchesRemarks && matchesTxn && matchesType && matchesPayout && matchesProject
       })
       
       setFilteredEntries(filtered)
@@ -479,7 +498,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     if (entries.length > 0) {
       autoApplyFilters()
     }
-  }, [entries, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategory, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportMonth])
+  }, [entries, reportFromDate, reportToDate, reportSelectedEmployees, reportFilterCategory, reportFilterRemarks, reportFilterTxn, reportFilterType, reportFilterPayout, reportMonth, reportFilterProject])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -529,6 +548,136 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     const currentUserEmp = employees.find(e => e.email === user.email || e.id === user.uid)
     const empId = currentUserEmp ? currentUserEmp.id : (user.uid || '')
     setAddRows(addRows.map(row => ({ ...row, employeeId: empId })))
+  }
+
+  const handleCSVImport = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+    
+    if (!file.name.endsWith('.csv')) {
+      alert('Please select a CSV file')
+      return
+    }
+    
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result
+        const lines = text.split('\n').filter(line => line.trim())
+        
+        if (lines.length < 2) {
+          alert('CSV file must have a header row and at least one data row')
+          return
+        }
+        
+        // Parse header
+        const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''))
+        
+        // Find column indices
+        const dateIdx = header.findIndex(h => h.includes('date'))
+        const empIdx = header.findIndex(h => h.includes('employee') || h.includes('name') || h.includes('emp'))
+        const catIdx = header.findIndex(h => h.includes('category') || h.includes('type'))
+        const amtIdx = header.findIndex(h => h.includes('amount') || h.includes('amt'))
+        const reasonIdx = header.findIndex(h => h.includes('reason') || h.includes('remark') || h.includes('note'))
+        const projectIdx = header.findIndex(h => h.includes('project'))
+        
+        if (amtIdx === -1) {
+          alert('CSV must have an "Amount" column')
+          return
+        }
+        
+        const newRows = []
+        const errors = []
+        
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim()
+          if (!line) continue
+          
+          // Parse CSV row (handle quoted values)
+          const values = []
+          let current = ''
+          let inQuotes = false
+          for (const char of line) {
+            if (char === '"') {
+              inQuotes = !inQuotes
+            } else if (char === ',' && !inQuotes) {
+              values.push(current.trim())
+              current = ''
+            } else {
+              current += char
+            }
+          }
+          values.push(current.trim())
+          
+          const amount = parseFloat(values[amtIdx]?.replace(/[₹,]/g, ''))
+          if (isNaN(amount) || amount <= 0) {
+            errors.push(`Row ${i + 1}: Invalid amount "${values[amtIdx]}"`)
+            continue
+          }
+          
+          // Find employee by name
+          let employeeId = ''
+          if (empIdx !== -1 && values[empIdx]) {
+            const empName = values[empIdx].toLowerCase()
+            const foundEmp = employees.find(e => 
+              e.name?.toLowerCase().includes(empName) || 
+              empName.includes(e.name?.toLowerCase())
+            )
+            if (foundEmp) {
+              employeeId = foundEmp.id
+            } else {
+              errors.push(`Row ${i + 1}: Employee "${values[empIdx]}" not found`)
+              continue
+            }
+          }
+          
+          // Parse date
+          let date = new Date().toISOString().split('T')[0]
+          if (dateIdx !== -1 && values[dateIdx]) {
+            const parsedDate = new Date(values[dateIdx])
+            if (!isNaN(parsedDate.getTime())) {
+              date = parsedDate.toISOString().split('T')[0]
+            }
+          }
+          
+          const row = {
+            id: Date.now() + i,
+            date,
+            employeeId,
+            category: catIdx !== -1 ? values[catIdx] || '' : '',
+            amount,
+            reason: reasonIdx !== -1 ? values[reasonIdx] || '' : '',
+            project: projectIdx !== -1 ? values[projectIdx] || '' : '',
+            requestType: 'Reimbursement',
+            payoutMethod: 'Immediate',
+            transferredToName: '',
+            paidTo: '',
+            paidToType: 'employee',
+            paidToCustomName: ''
+          }
+          
+          newRows.push(row)
+        }
+        
+        if (errors.length > 0) {
+          const proceed = confirm(`Import errors:\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more` : ''}\n\nProceed with ${newRows.length} valid rows?`)
+          if (!proceed) return
+        }
+        
+        if (newRows.length === 0) {
+          alert('No valid rows found in CSV')
+          return
+        }
+        
+        setAddRows([...addRows, ...newRows])
+        alert(`Successfully imported ${newRows.length} rows from CSV`)
+      } catch (err) {
+        console.error('CSV parse error:', err)
+        alert('Failed to parse CSV file: ' + err.message)
+      }
+    }
+    reader.readAsText(file)
+    event.target.value = ''
   }
 
   const handleRowChange = (id, field, value) => {
@@ -625,23 +774,99 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       return alert(`The following categories require "Paid To" field:\n\n${rowsMissingPaidTo.map(r => `• ${r.category} (Employee: ${employees.find(e => e.id === r.employeeId)?.name || 'Unknown'})`).join('\n')}\n\nPlease select who the money is being paid to.`)
     }
     
+    // Check for over-advance cap (Advances only)
+    const maxCap = parseFloat(orgSettings.maxAdvanceAmount)
+    if (maxCap > 0) {
+      const rowsOverCap = addRows.filter(r => {
+        const isAdvance = r.category?.toLowerCase().includes('advance') || r.type === 'Advance'
+        return isAdvance && parseFloat(r.amount) > maxCap
+      })
+      if (rowsOverCap.length > 0) {
+        const msg = rowsOverCap.map(r => {
+          const emp = employees.find(e => e.id === r.employeeId)
+          return `• ${emp?.name || 'Unknown'}: ₹${parseFloat(r.amount).toLocaleString('en-IN')} (Max: ₹${maxCap.toLocaleString('en-IN')})`
+        }).join('\n')
+        if (!confirm(`The following advance requests exceed the maximum limit of ₹${maxCap.toLocaleString('en-IN')}:\n\n${msg}\n\nSubmit anyway?`)) {
+          return
+        }
+      }
+    }
+    
+    // Check for expense category limits
+    const expenseLimits = orgSettings.expenseCategoryLimits || {}
+    const rowsOverExpenseLimit = addRows.filter(r => {
+      const isExpense = r.category?.toLowerCase().includes('expense') || r.type === 'Expense'
+      if (!isExpense) return false
+      const limit = parseFloat(expenseLimits[r.category])
+      return limit > 0 && parseFloat(r.amount) > limit
+    })
+    if (rowsOverExpenseLimit.length > 0) {
+      const msg = rowsOverExpenseLimit.map(r => {
+        const emp = employees.find(e => e.id === r.employeeId)
+        const limit = parseFloat(expenseLimits[r.category])
+        return `• ${emp?.name || 'Unknown'}: ${r.category} ₹${parseFloat(r.amount).toLocaleString('en-IN')} (Max: ₹${limit.toLocaleString('en-IN')})`
+      }).join('\n')
+      if (!confirm(`The following expense requests exceed category limits:\n\n${msg}\n\nSubmit anyway?`)) {
+        return
+      }
+    }
+    
     // All rows are valid
     const validRows = addRows
     
-    // Pro Duplicate Detection
+    // Enhanced Duplicate Detection with fuzzy matching
     const duplicates = []
+    const AMOUNT_TOLERANCE = 0.05 // 5% tolerance for amount matching
+    const DATE_TOLERANCE_DAYS = 2 // Within 2 days for date proximity
+    
     validRows.forEach(row => {
-      const isDuplicate = entries.find(existing => 
-        existing.employeeId === row.employeeId &&
-        Number(existing.amount) === Number(row.amount) &&
-        existing.date === row.date &&
-        existing.category.toLowerCase().trim() === row.category.toLowerCase().trim() &&
-        existing.status !== 'Rejected'
-      )
+      const rowAmount = Number(row.amount)
+      const rowDate = new Date(row.date)
+      const rowCategory = row.category?.toLowerCase().trim() || ''
+      
+      const isDuplicate = entries.find(existing => {
+        if (existing.employeeId !== row.employeeId) return false
+        if (existing.status === 'Rejected') return false
+        
+        // Exact amount match
+        const exactAmountMatch = Number(existing.amount) === rowAmount
+        
+        // Fuzzy amount match (within tolerance)
+        const existingAmount = Number(existing.amount)
+        const amountDiff = Math.abs(rowAmount - existingAmount)
+        const avgAmount = (rowAmount + existingAmount) / 2
+        const fuzzyAmountMatch = avgAmount > 0 && (amountDiff / avgAmount) <= AMOUNT_TOLERANCE
+        
+        if (!exactAmountMatch && !fuzzyAmountMatch) return false
+        
+        // Exact date match
+        const exactDateMatch = existing.date === row.date
+        
+        // Proximity date match
+        const existingDate = new Date(existing.date)
+        const daysDiff = Math.abs((rowDate - existingDate) / (1000 * 60 * 60 * 24))
+        const proximityDateMatch = daysDiff <= DATE_TOLERANCE_DAYS
+        
+        if (!exactDateMatch && !proximityDateMatch) return false
+        
+        // Category match (exact or fuzzy)
+        const existingCategory = existing.category?.toLowerCase().trim() || ''
+        const exactCategoryMatch = existingCategory === rowCategory
+        const fuzzyCategoryMatch = existingCategory.includes(rowCategory) || rowCategory.includes(existingCategory)
+        
+        if (!exactCategoryMatch && !fuzzyCategoryMatch) return false
+        
+        return true
+      })
       
       if (isDuplicate) {
         const emp = employees.find(e => e.id === row.employeeId)
-        duplicates.push(`${emp?.name || 'Employee'} - ₹${row.amount} on ${row.date} (${row.category})`)
+        const matchType = []
+        if (Number(isDuplicate.amount) === rowAmount) matchType.push('exact amount')
+        else matchType.push('similar amount')
+        if (isDuplicate.date === row.date) matchType.push('same date')
+        else matchType.push('nearby date')
+        duplicates.push(`${emp?.name || 'Employee'} - ₹${row.amount} on ${row.date} (${row.category}) [${matchType.join(', ')}]`)
       }
     })
 
@@ -1098,6 +1323,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     setReportFilterTxn('')
     setReportFilterType('All')
     setReportFilterPayout('All')
+    setReportFilterProject('')
     setReportMonth(new Date().toISOString().slice(0, 7))
   }
 
@@ -1350,6 +1576,109 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       console.error('PDF Export Error:', err)
       console.error('Error stack:', err.stack)
       alert(`Failed to generate PDF. Error: ${err.message || 'Unknown error'}. Please check console for details.`)
+    }
+  }
+
+  const exportCSV = () => {
+    try {
+      if (!filteredEntries || filteredEntries.length === 0) {
+        alert('No data to export. Please apply filters first.')
+        return
+      }
+
+      const escapeCSV = (val) => {
+        if (val === null || val === undefined) return ''
+        const str = String(val)
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return '"' + str.replace(/"/g, '""') + '"'
+        }
+        return str
+      }
+
+      const formatAmount = (amount) => {
+        try {
+          const num = parseFloat(amount)
+          if (isNaN(num)) return '0.00'
+          return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
+        } catch { return '0.00' }
+      }
+
+      const formatDate = (dateStr) => {
+        try {
+          if (!dateStr) return ''
+          const date = new Date(dateStr)
+          if (isNaN(date.getTime())) return ''
+          return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        } catch { return '' }
+      }
+
+      const dataToUseAdv = advForReport || []
+      const dataToUseExp = expForReport || []
+
+      const rows = []
+      rows.push(['Type', 'Date', 'Name', 'Category', 'Request Type', 'Payout Method', 'Remarks', 'Amount', 'Paid To', 'Project', 'Status', 'HR Approval', 'MD Approval', 'Payment Status', 'Transaction No'])
+
+      dataToUseAdv.forEach(a => {
+        rows.push([
+          'Advance',
+          formatDate(a.date),
+          a.employeeName || '',
+          a.category || '',
+          a.requestType || '',
+          a.payoutMethod || '',
+          a.remarks || a.reason || '',
+          formatAmount(a.amount),
+          a.paidToName || a.paidToCustomName || '',
+          a.project || '',
+          a.status || '',
+          a.hrApproval || '',
+          a.mdApproval || '',
+          a.paymentStatus || '',
+          a.transactionNo || ''
+        ])
+      })
+
+      dataToUseExp.forEach(e => {
+        rows.push([
+          'Expense',
+          formatDate(e.date),
+          e.employeeName || '',
+          e.category || '',
+          e.requestType || '',
+          e.payoutMethod || '',
+          e.remarks || e.reason || '',
+          formatAmount(e.amount),
+          e.paidToName || e.paidToCustomName || '',
+          e.project || '',
+          e.status || '',
+          e.hrApproval || '',
+          e.mdApproval || '',
+          e.paymentStatus || '',
+          e.transactionNo || ''
+        ])
+      })
+
+      const csvContent = rows.map(row => row.map(escapeCSV).join(',')).join('\n')
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+
+      let filenameDate = reportMonth
+      if (reportFromDate || reportToDate) {
+        const from = reportFromDate ? reportFromDate.replace(/-/g, '') : 'start'
+        const to = reportToDate ? reportToDate.replace(/-/g, '') : 'end'
+        filenameDate = `${from}_to_${to}`
+      }
+
+      link.href = url
+      link.download = `Adv_Exp_Report_${filenameDate}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('CSV Export Error:', err)
+      alert(`Failed to generate CSV. Error: ${err.message || 'Unknown error'}. Please check console for details.`)
     }
   }
 
@@ -1705,6 +2034,20 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 className="flex-1 sm:flex-none h-10 px-3 sm:px-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg text-sm shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all whitespace-nowrap"
               >
                 Self
+              </button>
+              
+              <input
+                type="file"
+                ref={csvFileInputRef}
+                accept=".csv"
+                onChange={handleCSVImport}
+                className="hidden"
+              />
+              <button 
+                onClick={() => csvFileInputRef.current?.click()}
+                className="flex-1 sm:flex-none h-10 px-3 sm:px-4 bg-white border border-purple-200 text-purple-600 font-medium rounded-lg text-sm hover:bg-purple-50 active:bg-purple-100 transition-all whitespace-nowrap"
+              >
+                Import CSV
               </button>
               
               <button 
@@ -2118,6 +2461,29 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       {/* Reports Module */}
       {activeModule === 'Reports' && (
         <div className="space-y-4">
+          {/* Fiscal Period Quick Presets */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { label: 'This Month', getRange: () => { const d = new Date(); return { from: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10), to: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0,10) } } },
+              { label: 'This Quarter', getRange: () => { const d = new Date(); const q = Math.floor(d.getMonth() / 3); return { from: new Date(d.getFullYear(), q * 3, 1).toISOString().slice(0,10), to: new Date(d.getFullYear(), q * 3 + 3, 0).toISOString().slice(0,10) } } },
+              { label: 'Current FY', getRange: () => { const d = new Date(); const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return { from: new Date(fy, 3, 1).toISOString().slice(0,10), to: new Date(fy + 1, 2, 31).toISOString().slice(0,10) } } },
+              { label: 'Last Quarter', getRange: () => { const d = new Date(); const q = Math.floor(d.getMonth() / 3) - 1; const yr = q < 0 ? d.getFullYear() - 1 : d.getFullYear(); const mq = q < 0 ? 9 : q * 3; return { from: new Date(yr, mq, 1).toISOString().slice(0,10), to: new Date(yr, mq + 3, 0).toISOString().slice(0,10) } } },
+              { label: 'Last FY', getRange: () => { const d = new Date(); const fy = d.getMonth() >= 3 ? d.getFullYear() - 1 : d.getFullYear() - 2; return { from: new Date(fy, 3, 1).toISOString().slice(0,10), to: new Date(fy + 1, 2, 31).toISOString().slice(0,10) } } },
+            ].map(({ label, getRange }) => {
+              const range = getRange()
+              const isActive = reportFromDate === range.from && reportToDate === range.to
+              return (
+                <button
+                  key={label}
+                  onClick={() => { setReportFromDate(range.from); setReportToDate(range.to); setReportMonth('') }}
+                  className={`px-2.5 py-1 text-[10px] font-medium rounded border transition-colors ${isActive ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+
           {/* Compact Filter Bar - Single Row */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
             <div className="flex flex-wrap items-center gap-2" style={{ lineHeight: '15px' }}>
@@ -2400,6 +2766,21 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 </div>
               </div>
 
+              {/* Project Filter */}
+              <div className="flex-1 min-w-[150px] max-w-[200px]">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Search project..."
+                    value={reportFilterProject}
+                    onChange={(e) => setReportFilterProject(e.target.value)}
+                    className="w-full pl-7 pr-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none"
+                    style={{ lineHeight: '15px' }}
+                  />
+                </div>
+              </div>
+
               {/* Type Filter */}
               <select 
                 value={reportFilterType}
@@ -2425,7 +2806,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
               </select>
 
               {/* Clear Filters */}
-              {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All') && (
+              {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All' || reportFilterProject) && (
                 <button 
                   onClick={clearAllFilters}
                   className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -2439,7 +2820,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
             </div>
             
             {/* Active Filters Summary */}
-            {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All') && (
+            {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All' || reportFilterProject) && (
               <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">
                 <span className="text-[10px] text-gray-500">Active:</span>
                 {reportSelectedEmployees.length > 0 && (
@@ -2470,6 +2851,11 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 {reportFilterPayout !== 'All' && (
                   <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[9px] rounded border border-gray-200">
                     {reportFilterPayout}
+                  </span>
+                )}
+                {reportFilterProject && (
+                  <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] rounded border border-indigo-100">
+                    Project: {reportFilterProject}
                   </span>
                 )}
               </div>
@@ -2513,6 +2899,15 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 >
                   <FileDown size={14} />
                   Export PDF
+                </button>
+                <button 
+                  onClick={exportCSV}
+                  disabled={filteredEntries.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white text-[11px] font-medium rounded hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Export to CSV"
+                >
+                  <FileDown size={14} />
+                  Export CSV
                 </button>
               </div>
             </div>

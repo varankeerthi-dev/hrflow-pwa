@@ -14,7 +14,7 @@ import RemarksDropdown from '../ui/RemarksDropdown'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getEligibleAllowanceCategories, getAllowanceAmount } from '../../lib/allowanceRules'
 import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode } from '../../hooks/useAllowances'
-import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
 
@@ -586,7 +586,7 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
 
 export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirtyChange }) {
   const { user } = useAuth()
-  const { employees, loading: empLoading } = useEmployees(user?.orgId, true)
+  const { employees, loading: empLoading } = useEmployees(user?.orgId, false)
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
 
   const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' ? 'reports' : 'daily') // 'daily' or 'reports'
@@ -855,7 +855,7 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
           const normalizedInactive = normalizeDate(emp.inactiveFrom)
           
           const isBeforeJoined = normalizedJoined && normalizedRowDate < normalizedJoined
-          const isAfterInactive = normalizedInactive && normalizedRowDate > normalizedInactive
+          const isAfterInactive = !isEmployeeActiveStatus(emp.status) && normalizedInactive && normalizedRowDate > normalizedInactive
           
           const shouldBeAbsent = isBeforeJoined || isAfterInactive
           
@@ -922,6 +922,69 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
     } catch (err) {
       console.error('Error fixing history:', err)
       alert("Error fixing history: " + err.message)
+    } finally {
+      setFixingHistory(false)
+    }
+  }
+
+  const handleFixFutureAbsences = async () => {
+    if (!user?.orgId) return
+    if (!window.confirm("This will remove auto-created 'Absent' records for FUTURE dates (after today) for employees who are currently Active. Continue?")) return
+
+    setFixingHistory(true)
+    try {
+      const today = new Date()
+      const end = new Date()
+      end.setDate(end.getDate() + 90)
+      const from = formatDateForInput(today)
+      const to = formatDateForInput(end)
+      const future = await fetchRange(from, to)
+
+      const updates = []
+      const deletes = []
+      for (const row of future) {
+        const emp = employees.find(e => e.id === row.employeeId)
+        if (!emp || !isEmployeeActiveStatus(emp.status)) continue
+        if (row.status === 'Absent' || row.isAbsent) {
+          if (row.inTime || row.checkIn) {
+            updates.push({ ...row, status: 'Present', isAbsent: false })
+          } else {
+            deletes.push({ date: row.date, employeeId: row.employeeId })
+          }
+        }
+      }
+
+      if (updates.length > 0) {
+        await upsertAttendance(updates)
+      }
+      if (deletes.length > 0) {
+        await Promise.all(deletes.map(d => deleteIndividualAttendance(d.date, d.employeeId)))
+      }
+
+      if (updates.length > 0 || deletes.length > 0) {
+        const affectedEmployees = [...new Set([
+          ...updates.map(u => u.employeeId),
+          ...deletes.map(d => d.employeeId)
+        ])]
+
+        await logActivity(user.orgId, user, {
+          module: 'Attendance',
+          action: 'Fix Future Absences',
+          detail: `Restored ${updates.length} and removed ${deletes.length} future absences for ${affectedEmployees.length} active employee(s).`,
+          affectedEmployees,
+          updatesCount: updates.length,
+          deletesCount: deletes.length,
+          dateRange: { from, to }
+        })
+
+        alert(`Successfully restored ${updates.length} records and removed ${deletes.length} future absences.`)
+        handleFilterSubmit()
+      } else {
+        alert("No future 'Absent' records found for currently-active employees.")
+      }
+    } catch (err) {
+      console.error('Error fixing future absences:', err)
+      alert("Error fixing future absences: " + err.message)
     } finally {
       setFixingHistory(false)
     }
@@ -1097,7 +1160,7 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
       
       // Otherwise, generate a fresh row for this active employee
       const isBeforeJoined = emp.joinedDate && selectedDate < emp.joinedDate;
-      const isAfterInactive = emp.inactiveFrom && selectedDate > emp.inactiveFrom;
+      const isAfterInactive = !isEmployeeActiveStatus(emp.status) && emp.inactiveFrom && selectedDate > emp.inactiveFrom;
       const isAbsentState = isBeforeJoined || isAfterInactive;
 
       return {
@@ -1876,6 +1939,14 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
                   >
                     {fixingHistory ? <Spinner size="w-3 h-3" color="text-red-600" /> : <AlertCircle size={14} />}
                     Fix Joining History
+                  </button>
+                  <button
+                    onClick={handleFixFutureAbsences}
+                    disabled={reportLoading || fixingHistory}
+                    className="h-9 px-3 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg text-xs font-semibold uppercase tracking-wider hover:bg-amber-100 transition-all flex items-center gap-2"
+                  >
+                    {fixingHistory ? <Spinner size="w-3 h-3" color="text-amber-600" /> : <CalendarX size={14} />}
+                    Fix Future Absences
                   </button>
                   <button
                     onClick={handleFilterSubmit}

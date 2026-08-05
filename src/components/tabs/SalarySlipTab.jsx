@@ -1806,11 +1806,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const r = attByDate.get(ds);
         const status = String(r?.status || '').toLowerCase();
         
-        if (emp.joinedDate && ds < emp.joinedDate) {
+        if (emp.joinedDate && ds < emp.joinedDate && !isWorkedAttendanceRecord(r)) {
           lop++;
           continue;
         }
-        if (emp.inactiveFrom && ds > emp.inactiveFrom) {
+        if (!isEmployeeActiveStatus(emp.status) && emp.inactiveFrom && ds > emp.inactiveFrom && !isWorkedAttendanceRecord(r)) {
           lop++;
           continue;
         }

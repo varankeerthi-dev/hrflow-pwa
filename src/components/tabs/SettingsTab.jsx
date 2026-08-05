@@ -400,7 +400,9 @@ export default function SettingsTab({ initialSubTab }) {
     holidays: [],
     saturdayType: 'working', // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
     remarksOptions: [],
-    newRemarkOption: ''
+    newRemarkOption: '',
+    maxAdvanceAmount: '',
+    expenseCategoryLimits: {}
   })
   const [newBankAccount, setNewBankAccount] = useState({
     bankName: '',
@@ -686,8 +688,38 @@ export default function SettingsTab({ initialSubTab }) {
     {
       label: 'Mark as Inactive',
       icon: <X size={14} />,
-      onClick: (rows) => {
-        if (confirm(`Change status of ${rows.length} employees to Inactive?`)) {
+      onClick: async (rows) => {
+        if (!user?.orgId) return
+        // Check for outstanding advances for each employee
+        const warnings = []
+        for (const r of rows) {
+          try {
+            const q = query(
+              collection(db, 'organisations', user.orgId, 'advances_expenses'),
+              where('employeeId', '==', r.id),
+              where('type', '==', 'Advance'),
+              where('paymentStatus', '!=', 'Paid')
+            )
+            const snap = await getDocs(q)
+            let outstanding = 0
+            snap.forEach(d => {
+              const data = d.data()
+              outstanding += parseFloat(data.amount) || 0
+            })
+            if (outstanding > 0) {
+              warnings.push(`${r.name}: ₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(outstanding)} outstanding`)
+            }
+          } catch (err) {
+            console.error('Error checking advances for', r.name, err)
+          }
+        }
+        
+        let message = `Change status of ${rows.length} employees to Inactive?`
+        if (warnings.length > 0) {
+          message += `\n\n⚠️ Outstanding advances:\n${warnings.join('\n')}\n\nProceed anyway?`
+        }
+        
+        if (confirm(message)) {
           rows.forEach(r => updateEmployee(r.id, { status: 'Inactive' }))
           setEmployeeDirectorySelectedIds(new Set())
         }
@@ -1149,6 +1181,7 @@ export default function SettingsTab({ initialSubTab }) {
 
     if (transitionMeta.field === 'activeFrom') {
       nextData.activeFrom = effectiveDate
+      delete nextData.inactiveFrom
     }
 
     if (transitionMeta.field === 'inactiveFrom') {
@@ -1158,6 +1191,7 @@ export default function SettingsTab({ initialSubTab }) {
     if (transitionMeta.field === 'rejoinDate') {
       nextData.rejoinDate = effectiveDate
       nextData.activeFrom = effectiveDate
+      delete nextData.inactiveFrom
     }
 
     return nextData
@@ -1285,6 +1319,33 @@ export default function SettingsTab({ initialSubTab }) {
       return
     }
 
+    // Check for outstanding advances when changing to Inactive
+    const normalizedNextStatusCheck = normalizeEmployeeStatus(editForm.status)
+    if (normalizedNextStatusCheck === 'Inactive' && editingEmp) {
+      try {
+        const q = query(
+          collection(db, 'organisations', user.orgId, 'advances_expenses'),
+          where('employeeId', '==', editingEmp),
+          where('type', '==', 'Advance'),
+          where('paymentStatus', '!=', 'Paid')
+        )
+        const snap = await getDocs(q)
+        let outstanding = 0
+        snap.forEach(d => {
+          const data = d.data()
+          outstanding += parseFloat(data.amount) || 0
+        })
+        if (outstanding > 0) {
+          const empName = editForm.name || 'this employee'
+          if (!confirm(`${empName} has ₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(outstanding)} in outstanding advances.\n\nProceed with deactivation anyway?`)) {
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Error checking outstanding advances:', err)
+      }
+    }
+
     const originalEmp = employees.find(e => e.id === editingEmp)
     const originalJoinDate = originalEmp?.joinedDate || originalEmp?.doj || ''
     const newJoinDate = editForm.joinedDate || ''
@@ -1367,6 +1428,10 @@ export default function SettingsTab({ initialSubTab }) {
       }
 
       const employeePayload = applyStatusMetadata(cleanEditForm, statusTransition, statusHistoryEntry)
+
+      if (isEmployeeActiveStatus(employeePayload.status)) {
+        delete employeePayload.inactiveFrom
+      }
       
       if (employeePayload.minDailyHoursCategory) delete employeePayload.minDailyHoursCategory
       if (employeePayload.id) delete employeePayload.id
@@ -3247,6 +3312,46 @@ export default function SettingsTab({ initialSubTab }) {
                   <Plus size={14} />
                   Add Category
                 </button>
+              </div>
+
+              <div className={`${settingsInsetPanelClassName} mt-4 space-y-4 p-5`}>
+                <div>
+                  <label className={settingsSectionLabelClassName}>Maximum Advance Amount (₹)</label>
+                  <p className="mt-1 text-[11px] text-slate-500">Set a cap per advance request. Leave empty for no limit.</p>
+                  <input
+                    type="number"
+                    min="0"
+                    value={orgSettings.maxAdvanceAmount}
+                    onChange={e => setOrgSettings(s => ({ ...s, maxAdvanceAmount: e.target.value }))}
+                    className={`${settingsInputClassName} mt-2`}
+                    placeholder="e.g. 50000"
+                  />
+                </div>
+              </div>
+
+              <div className={`${settingsInsetPanelClassName} mt-4 space-y-4 p-5`}>
+                <div>
+                  <label className={settingsSectionLabelClassName}>Expense Category Limits (₹)</label>
+                  <p className="mt-1 text-[11px] text-slate-500">Set maximum amount per expense category. Leave empty for no limit.</p>
+                  <div className="mt-3 space-y-2">
+                    {orgSettings.advanceCategories.map(cat => (
+                      <div key={cat} className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-700 w-32 truncate">{cat}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={orgSettings.expenseCategoryLimits?.[cat] || ''}
+                          onChange={e => setOrgSettings(s => ({
+                            ...s,
+                            expenseCategoryLimits: { ...s.expenseCategoryLimits, [cat]: e.target.value }
+                          }))}
+                          className="flex-1 h-9 border border-slate-200 rounded-lg px-3 text-[12px] font-normal outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                          placeholder="No limit"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
