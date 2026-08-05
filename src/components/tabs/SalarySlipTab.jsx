@@ -2515,7 +2515,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     )}
                   </div>
                 )}
-                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status !== 'locked' && activeRun.status !== 'approved' && (
+                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
                   <button onClick={() => setIsOtModalOpen(true)} className="h-8 px-3 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all text-[12px] font-semibold whitespace-nowrap">Click to Revise OT hours</button>
                 )}
               </div>
