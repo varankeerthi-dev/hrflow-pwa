@@ -32,6 +32,114 @@ function approvalStatusTextClass(status, lane) {
   return isHr ? 'text-amber-700' : 'text-orange-800'
 }
 
+function EmployeeLedgerCard({ emp, formatINR }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const getStatusBadge = (status) => {
+    const s = (status || '').toLowerCase()
+    if (s === 'approved') return 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+    if (s === 'rejected') return 'bg-rose-50 text-rose-700 border border-rose-100'
+    if (s === 'partial') return 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+    if (s === 'hold') return 'bg-zinc-100 text-zinc-600 border border-zinc-200'
+    return 'bg-amber-50 text-amber-700 border border-amber-100'
+  }
+
+  const getPaymentBadge = (paymentStatus) => {
+    const s = (paymentStatus || '').toLowerCase()
+    if (s === 'paid') return 'bg-emerald-500 text-white'
+    if (s === 'unpaid') return 'bg-rose-500 text-white'
+    return 'bg-gray-400 text-white'
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
+      {/* Employee Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-5 py-4 flex items-center justify-between hover:bg-zinc-50/50 transition-colors"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-100 to-cyan-200 flex items-center justify-center text-cyan-700 font-black text-sm">
+            {emp.name?.charAt(0) || '?'}
+          </div>
+          <div className="text-left">
+            <h3 className="text-sm font-bold text-zinc-800">{emp.name}</h3>
+            <p className="text-[11px] text-zinc-500 font-medium">
+              {emp.empCode} &middot; {emp.designation}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Outstanding</p>
+            <p className={`text-lg font-black tabular-nums ${emp.outstanding > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+              {formatINR(emp.outstanding)}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Advanced</p>
+            <p className="text-sm font-bold text-zinc-700 tabular-nums">{formatINR(emp.totalAdvanced)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Paid</p>
+            <p className="text-sm font-bold text-emerald-600 tabular-nums">{formatINR(emp.totalPaid)}</p>
+          </div>
+          <ChevronRight
+            size={16}
+            className={`text-zinc-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          />
+        </div>
+      </button>
+
+      {/* Transaction History (Expandable) */}
+      {expanded && (
+        <div className="border-t border-zinc-100">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="bg-zinc-50/80 border-b border-zinc-200">
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Date</th>
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Txn No</th>
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Category</th>
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-200">Amount</th>
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-200">Paid</th>
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-200">Balance</th>
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Status</th>
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Payment</th>
+                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Payout</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {emp.transactions.map(txn => (
+                  <tr key={txn.id} className="h-11 border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-4 border-r border-zinc-50 text-[12px] font-medium text-zinc-600">{txn.date || '-'}</td>
+                    <td className="px-4 border-r border-zinc-50 text-[11px] font-bold text-zinc-700">{txn.transactionNo}</td>
+                    <td className="px-4 border-r border-zinc-50 text-[12px] font-medium text-zinc-600">{txn.category}</td>
+                    <td className="px-4 text-right border-r border-zinc-50 text-[12px] font-bold text-zinc-800 tabular-nums">{formatINR(txn.amount)}</td>
+                    <td className="px-4 text-right border-r border-zinc-50 text-[12px] font-bold text-emerald-600 tabular-nums">{formatINR(txn.paidAmount)}</td>
+                    <td className="px-4 text-right border-r border-zinc-50 text-[12px] font-black tabular-nums text-rose-600">{formatINR(txn.balance)}</td>
+                    <td className="px-4 border-r border-zinc-50">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight ${getStatusBadge(txn.status)}`}>
+                        {txn.status}
+                      </span>
+                    </td>
+                    <td className="px-4 border-r border-zinc-50">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight ${getPaymentBadge(txn.paymentStatus)}`}>
+                        {txn.paymentStatus}
+                      </span>
+                    </td>
+                    <td className="px-4 text-[11px] font-medium text-zinc-500">{txn.payoutMethod}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AdvanceExpenseTab({ defaultModule }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -188,6 +296,69 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     },
     enabled: !!user?.orgId && showDeletedModal
   })
+
+  // Advance Ledger: Per-employee outstanding balances
+  const ledgerData = useMemo(() => {
+    if (!entries.length || !employees.length) return { employees: [], totalOutstanding: 0 }
+
+    const employeeMap = new Map()
+    employees.forEach(emp => {
+      employeeMap.set(emp.id, {
+        id: emp.id,
+        name: emp.name,
+        empCode: emp.empCode || emp.id.slice(0, 5),
+        designation: emp.designation || '-',
+        totalAdvanced: 0,
+        totalPaid: 0,
+        outstanding: 0,
+        transactions: []
+      })
+    })
+
+    // Process all advance entries
+    entries.forEach(entry => {
+      if (entry.type !== 'Advance') return
+      const emp = employeeMap.get(entry.employeeId)
+      if (!emp) return
+
+      const amount = Number(entry.amount) || 0
+      const paidAmount = entry.paymentStatus === 'Paid'
+        ? (Number(entry.partialAmount) || amount)
+        : 0
+
+      emp.totalAdvanced += amount
+      emp.totalPaid += paidAmount
+      emp.outstanding += (amount - paidAmount)
+
+      emp.transactions.push({
+        id: entry.id,
+        transactionNo: entry.transactionNo || '-',
+        date: entry.date,
+        category: entry.category || '-',
+        amount,
+        paidAmount,
+        balance: amount - paidAmount,
+        status: entry.status || 'Pending',
+        paymentStatus: entry.paymentStatus || 'Pending',
+        payoutMethod: entry.payoutMethod || '-',
+        reason: entry.reason || '-',
+        project: entry.project || '-'
+      })
+    })
+
+    // Sort transactions by date descending
+    employeeMap.forEach(emp => {
+      emp.transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    })
+
+    const employeeArray = Array.from(employeeMap.values())
+      .filter(emp => emp.totalAdvanced > 0)
+      .sort((a, b) => b.outstanding - a.outstanding)
+
+    const totalOutstanding = employeeArray.reduce((sum, emp) => sum + emp.outstanding, 0)
+
+    return { employees: employeeArray, totalOutstanding }
+  }, [entries, employees])
 
   // Mutations
   const addMutation = useMutation({
@@ -421,7 +592,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
 
   const [submitting, setSubmitting] = useState(false)
 
-  const modules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Reports']
+  const modules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Advance Ledger', 'Reports']
   const defaultCategories = ['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Others']
 
   const fetchCategories = async () => {
@@ -1986,6 +2157,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 if (mod === 'Add Expense') return 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/25'
                 if (mod === 'Escalation') return 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/25'
                 if (mod === 'Summary') return 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/25'
+                if (mod === 'Advance Ledger') return 'bg-cyan-500 text-white border-cyan-500 shadow-lg shadow-cyan-500/25'
                 return 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/25'
               }
 
@@ -1994,6 +2166,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 if (mod === 'Add Expense') return 'Exp'
                 if (mod === 'Escalation') return 'Esc'
                 if (mod === 'Summary') return 'Sum'
+                if (mod === 'Advance Ledger') return 'Ledger'
                 return 'Rep'
               }
 
@@ -2965,7 +3138,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{a.remarks || '—'}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200 whitespace-normal break-words">{a.remarks || '—'}</td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums w-[60px]">
                           <div className="flex flex-col">
                             <span>{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}</span>
@@ -3065,7 +3238,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                             )}
                           </div>
                         </td>
-                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">{e.remarks || '—'}</td>
+                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200 whitespace-normal break-words">{e.remarks || '—'}</td>
                         <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">
                           {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(e.amount)}
                         </td>
@@ -3223,6 +3396,45 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                   </table>
                 </div>
               </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Advance Ledger Module */}
+      {activeModule === 'Advance Ledger' && (
+        <div className="space-y-6">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Spinner />
+            </div>
+          ) : (
+            <>
+              {/* Total Outstanding Summary */}
+              <div className="bg-gradient-to-br from-cyan-50 to-white rounded-xl border border-cyan-200 p-5 shadow-card">
+                <div className="flex items-center gap-2 text-cyan-700 mb-3">
+                  <Banknote size={20} />
+                  <span className="text-sm font-medium">Total Outstanding Advances</span>
+                </div>
+                <p className="text-3xl font-black text-cyan-900">{formatINR(ledgerData.totalOutstanding)}</p>
+                <p className="text-xs text-cyan-600 font-medium mt-1">
+                  {ledgerData.employees.length} employee{ledgerData.employees.length !== 1 ? 's' : ''} with active advances
+                </p>
+              </div>
+
+              {/* Employee Ledger Cards */}
+              {ledgerData.employees.length === 0 ? (
+                <div className="bg-white rounded-xl border border-zinc-200 shadow-sm p-12 text-center">
+                  <Banknote size={40} className="mx-auto text-zinc-300 mb-3" />
+                  <p className="text-zinc-400 font-bold uppercase italic tracking-widest text-sm">No outstanding advances</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {ledgerData.employees.map(emp => (
+                    <EmployeeLedgerCard key={emp.id} emp={emp} formatINR={formatINR} />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
