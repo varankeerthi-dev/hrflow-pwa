@@ -533,6 +533,10 @@ export default function AdvanceExpenseTab({ defaultModule }) {
 
   // Paid To Dropdown Component Helper
   const PaidToDropdown = ({ rowId, row, isMobile = false }) => {
+    const categoriesRequiringPaidTo = ['salary to others', 'given to others']
+    const categoryLower = row.category?.toLowerCase().trim() || ''
+    const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => categoryLower.includes(reqCat))
+
     const employeeOptions = employees.map(e => ({ label: e.name, value: e.id }))
 
     const displayValue = (() => {
@@ -545,6 +549,14 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       }
       return isMobile ? 'Select paid to...' : 'Select...'
     })()
+
+    if (!requiresPaidTo) {
+      return (
+        <div className="text-[10px] text-gray-400 italic">
+          Select category first
+        </div>
+      )
+    }
 
     return (
       <div>
