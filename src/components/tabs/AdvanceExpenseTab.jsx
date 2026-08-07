@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
 import { formatINR } from '../../lib/salaryUtils'
@@ -592,6 +592,41 @@ export default function AdvanceExpenseTab({ defaultModule }) {
   const [addRows, setAddRows] = useState([
     { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }
   ])
+
+  const [expenseMode, setExpenseMode] = useState('self') // 'self' | 'employee' | 'advance_settlement'
+  const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [sessionAccount, setSessionAccount] = useState('Petty Cash - HO')
+  const [sessionDefaultEmp, setSessionDefaultEmp] = useState('')
+  const [sessionPayout, setSessionPayout] = useState('Immediate')
+  const [showAdvanceFields, setShowAdvanceFields] = useState(false)
+  const [showAdvancedColumns, setShowAdvancedColumns] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+
+  const handleDuplicateRow = (rowId) => {
+    const target = addRows.find(r => r.id === rowId)
+    if (!target) return
+    const newRow = {
+      ...target,
+      id: Date.now() + Math.random()
+    }
+    const idx = addRows.findIndex(r => r.id === rowId)
+    const updated = [...addRows]
+    updated.splice(idx + 1, 0, newRow)
+    setAddRows(updated)
+  }
+
+  const handleClearSession = () => {
+    const todayStr = new Date().toISOString().split('T')[0]
+    setSessionDate(todayStr)
+    setSessionAccount('Petty Cash - HO')
+    setSessionDefaultEmp('')
+    setSessionPayout('Immediate')
+    const myId = !canSelectAll ? getMyEmpId() : ''
+    setAddRows([
+      { id: Date.now(), date: todayStr, employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }
+    ])
+  }
 
   useEffect(() => {
     if (!canSelectAll && employees.length > 0 && addRows.length === 1 && !addRows[0].employeeId) {
@@ -2196,21 +2231,610 @@ export default function AdvanceExpenseTab({ defaultModule }) {
         </div>
       </div>
 
-      {/* Add Expense / Add Advance Module */}
-      {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
-        <div className={`rounded-xl border overflow-hidden shadow-card transition-colors ${
-          activeModule === 'Add Advance' 
-            ? 'bg-amber-50/50 border-amber-200' 
-            : 'bg-blue-50/50 border-blue-200'
-        }`}>
+      {/* Add Expense Module (New Modern Design) */}
+      {activeModule === 'Add Expense' && (() => {
+        const totalExpensesCount = addRows.length;
+        const totalExpensesAmount = addRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+        const getCategoryIconDetails = (catName) => {
+          const c = String(catName || '').toLowerCase()
+          if (c.includes('fuel') || c.includes('petrol') || c.includes('diesel')) return { icon: Car, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' }
+          if (c.includes('tea') || c.includes('snack') || c.includes('coffee')) return { icon: Coffee, color: 'text-blue-600 bg-blue-50 border-blue-200' }
+          if (c.includes('hotel') || c.includes('stay') || c.includes('lodging')) return { icon: Hotel, color: 'text-purple-600 bg-purple-50 border-purple-200' }
+          if (c.includes('taxi') || c.includes('travel') || c.includes('cab')) return { icon: Car, color: 'text-sky-600 bg-sky-50 border-sky-200' }
+          if (c.includes('stationery') || c.includes('office') || c.includes('paper')) return { icon: PenTool, color: 'text-indigo-600 bg-indigo-50 border-indigo-200' }
+          if (c.includes('lunch') || c.includes('food') || c.includes('dinner')) return { icon: Utensils, color: 'text-amber-600 bg-amber-50 border-amber-200' }
+          return { icon: Tag, color: 'text-slate-600 bg-slate-50 border-slate-200' }
+        }
+
+        const getEmpAvatarInitials = (empId) => {
+          const empObj = employees.find(e => e.id === empId)
+          if (!empObj || !empObj.name) return { initial: '?', name: 'Select Employee' }
+          const name = empObj.name.trim()
+          const parts = name.split(' ').filter(Boolean)
+          const initial = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0][0].toUpperCase()
+          const isCurrentUser = user && (user.email === empObj.email || user.uid === empObj.id)
+          return { initial, name: isCurrentUser ? `${name} (You)` : name }
+        }
+
+        return (
+          <div className="space-y-6">
+            {/* 1. Header & Main Action Bar */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Add Expenses</h1>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Fast, consistent and smart expense entry</p>
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <input
+                  type="file"
+                  ref={csvFileInputRef}
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => csvFileInputRef.current?.click()}
+                  className="h-10 px-4 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-all flex items-center gap-2"
+                >
+                  <FileDown size={15} className="text-slate-500" />
+                  Import CSV
+                </button>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className="h-10 px-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-all flex items-center gap-1.5"
+                  >
+                    More
+                    <ChevronDown size={14} className="text-slate-500" />
+                  </button>
+                  {showMoreMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1.5 text-xs font-medium text-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => { handleClearSession(); setShowMoreMenu(false); }}
+                        className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600 flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Clear Session
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSubmitAll}
+                  disabled={submitting}
+                  className="h-10 px-5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <Spinner size="w-4 h-4" color="text-white" />
+                  ) : (
+                    <>
+                      <Send size={15} />
+                      Submit Expenses
+                      <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] bg-blue-500/40 text-blue-100 rounded font-semibold border border-blue-400/30">
+                        Ctrl + Enter
+                      </kbd>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Mode Selection Radio Cards (3 Cards) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Card 1: Company Expenses (Self) */}
+              <div
+                onClick={() => { setExpenseMode('self'); handleSelfExpense(); }}
+                className={`cursor-pointer p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between shadow-sm ${
+                  expenseMode === 'self'
+                    ? 'bg-blue-50/40 border-blue-500 ring-2 ring-blue-500/20 shadow-blue-500/5'
+                    : 'bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className={`p-3 rounded-xl ${expenseMode === 'self' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}>
+                    <Building2 size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Company Expenses (Self)</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Expenses paid by company / you</p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                  expenseMode === 'self' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                }`}>
+                  {expenseMode === 'self' && <div className="w-2 h-2 rounded-full bg-white" />}
+                </div>
+              </div>
+
+              {/* Card 2: Employee Expenses */}
+              <div
+                onClick={() => setExpenseMode('employee')}
+                className={`cursor-pointer p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between shadow-sm ${
+                  expenseMode === 'employee'
+                    ? 'bg-blue-50/40 border-blue-500 ring-2 ring-blue-500/20 shadow-blue-500/5'
+                    : 'bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className={`p-3 rounded-xl ${expenseMode === 'employee' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    <User size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Employee Expenses</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Expenses paid for an employee</p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                  expenseMode === 'employee' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                }`}>
+                  {expenseMode === 'employee' && <div className="w-2 h-2 rounded-full bg-white" />}
+                </div>
+              </div>
+
+              {/* Card 3: Advance Settlement */}
+              <div
+                onClick={() => setExpenseMode('advance_settlement')}
+                className={`cursor-pointer p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between shadow-sm ${
+                  expenseMode === 'advance_settlement'
+                    ? 'bg-emerald-50/40 border-emerald-500 ring-2 ring-emerald-500/20 shadow-emerald-500/5'
+                    : 'bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className={`p-3 rounded-xl ${expenseMode === 'advance_settlement' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                    <Repeat size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Advance Settlement</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Settle advance paid to employee</p>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                  expenseMode === 'advance_settlement' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
+                }`}>
+                  {expenseMode === 'advance_settlement' && <div className="w-2 h-2 rounded-full bg-white" />}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Session Details Bar (Applies to all rows) */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-slate-900">Session Details</h2>
+                  <span className="text-xs text-slate-400 font-normal">(applies to all rows)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearSession}
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+                >
+                  <RotateCcw size={13} />
+                  Clear Session
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5 items-center">
+                {/* Date */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Date <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={sessionDate}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSessionDate(val);
+                        setAddRows(addRows.map(r => ({ ...r, date: val })));
+                      }}
+                      className="w-full h-10 bg-slate-50/50 border border-slate-200 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Paid From (Account) */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Paid From (Account) <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={sessionAccount}
+                    onChange={(e) => setSessionAccount(e.target.value)}
+                    className="w-full h-10 bg-slate-50/50 border border-slate-200 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  >
+                    <option value="Petty Cash - HO">Petty Cash - HO</option>
+                    <option value="Main Bank Account">Main Bank Account</option>
+                    <option value="Cash in Hand">Cash in Hand</option>
+                    <option value="Director Account">Director Account</option>
+                  </select>
+                </div>
+
+                {/* Default Employee */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Default Employee <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={sessionDefaultEmp}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSessionDefaultEmp(val);
+                      if (val) {
+                        setAddRows(addRows.map(r => ({ ...r, employeeId: val })));
+                      }
+                    }}
+                    className="w-full h-10 bg-slate-50/50 border border-slate-200 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  >
+                    <option value="">Select employee...</option>
+                    {employees.map(e => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Payout */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Payout <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={sessionPayout}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSessionPayout(val);
+                      setAddRows(addRows.map(r => ({ ...r, payoutMethod: val })));
+                    }}
+                    className="w-full h-10 bg-slate-50/50 border border-slate-200 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  >
+                    <option value="Immediate">Immediate</option>
+                    <option value="With Salary">Monthly (With Salary)</option>
+                  </select>
+                </div>
+
+                {/* Tip Box (Right Column) */}
+                <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3 flex items-start gap-2.5">
+                  <Lightbulb size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-blue-800 leading-snug font-medium">
+                    <strong className="font-bold">Tip:</strong> All rows will use the above Payout unless changed in a row.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Expenses Table Header & Controls Bar */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
+              <div className="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/40">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-base font-bold text-slate-900">
+                    Expenses <span className="text-slate-500 font-medium text-sm">({addRows.length} rows)</span>
+                  </h2>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  {/* Show Advance fields toggle */}
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={showAdvanceFields}
+                      onChange={(e) => setShowAdvanceFields(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                    />
+                    <span>Show Advance fields</span>
+                    <span className="text-[10px] text-slate-400 font-normal">(Paid To, Advance Ref)</span>
+                  </label>
+
+                  {/* Advanced Columns Dropdown */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedColumns(!showAdvancedColumns)}
+                    className="h-9 px-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl text-xs shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                  >
+                    <Layers size={14} className="text-slate-500" />
+                    Advanced Columns
+                    <ChevronDown size={13} className="text-slate-400" />
+                  </button>
+
+                  {/* + Add Row Button */}
+                  <button
+                    type="button"
+                    onClick={handleAddRow}
+                    className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all"
+                  >
+                    <Plus size={15} />
+                    Add Row
+                    <kbd className="px-1.5 py-0.5 text-[9px] bg-emerald-500/40 text-emerald-100 rounded font-semibold border border-emerald-400/30">
+                      Enter
+                    </kbd>
+                  </button>
+                </div>
+              </div>
+
+              {/* 5. High-Density Spreadsheet Table Grid */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                      <th className="py-3 px-3 w-10 text-center">#</th>
+                      <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>
+                      <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
+                      {showAdvanceFields && (
+                        <th className="py-3 px-3 min-w-[160px]">Paid To <span className="text-rose-500">*</span></th>
+                      )}
+                      <th className="py-3 px-3 min-w-[140px]">Payout <span className="text-rose-500">*</span></th>
+                      <th className="py-3 px-3 min-w-[130px] text-right">Amount (₹) <span className="text-rose-500">*</span></th>
+                      <th className="py-3 px-3 min-w-[220px]">Remarks</th>
+                      <th className="py-3 px-3 min-w-[160px]">Project (Optional)</th>
+                      <th className="py-3 px-3 w-20 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/60">
+                    {addRows.map((row, idx) => {
+                      const empInfo = getEmpAvatarInitials(row.employeeId);
+                      const catDetails = getCategoryIconDetails(row.category);
+                      const CategoryIcon = catDetails.icon;
+
+                      return (
+                        <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
+                          {/* Row Index */}
+                          <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-xs">
+                            {idx + 1}
+                          </td>
+
+                          {/* Employee */}
+                          <td className="py-2 px-3">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0">
+                                {empInfo.initial}
+                              </span>
+                              <select
+                                value={row.employeeId}
+                                onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
+                                disabled={!canSelectAll}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="">Select Employee...</option>
+                                {employees.map(e => (
+                                  <option key={e.id} value={e.id}>{e.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* Category */}
+                          <td className="py-2 px-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`p-1.5 rounded-lg border flex-shrink-0 ${catDetails.color}`}>
+                                <CategoryIcon size={14} />
+                              </span>
+                              <div className="w-full">
+                                <Dropdown
+                                  value={row.category === 'custom' ? '' : row.category}
+                                  onChange={(val) => handleRowChange(row.id, 'category', val)}
+                                  options={categories}
+                                  placeholder="Select Category..."
+                                  size="xs"
+                                  searchable
+                                  allowCustom
+                                  customActive={row.category === 'custom'}
+                                  onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
+                                />
+                                {row.category === 'custom' && (
+                                  <input
+                                    type="text"
+                                    value={row.customCategory || ''}
+                                    onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
+                                    className="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-500"
+                                    placeholder="Custom category..."
+                                    autoFocus
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Paid To (Conditional) */}
+                          {showAdvanceFields && (
+                            <td className="py-2 px-3">
+                              <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
+                            </td>
+                          )}
+
+                          {/* Payout */}
+                          <td className="py-2 px-3">
+                            <select
+                              value={row.payoutMethod}
+                              onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"
+                            >
+                              <option value="Immediate">Immediate</option>
+                              <option value="With Salary">Monthly</option>
+                            </select>
+                          </td>
+
+                          {/* Amount */}
+                          <td className="py-2 px-3">
+                            <input
+                              type="number"
+                              value={row.amount}
+                              onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)}
+                              placeholder="0.00"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-right text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            />
+                          </td>
+
+                          {/* Remarks */}
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              value={row.reason}
+                              onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
+                              placeholder="Remarks..."
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+                            />
+                          </td>
+
+                          {/* Project (Optional) */}
+                          <td className="py-2 px-3">
+                            <select
+                              value={row.project || ''}
+                              onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+                            >
+                              <option value="">—</option>
+                              <option value="P-0001">P-0001</option>
+                              <option value="P-0002">P-0002</option>
+                              <option value="P-0008">P-0008</option>
+                              <option value="P-0012">P-0012</option>
+                              <option value="Site visit - Client Meeting">Site visit - Client Meeting</option>
+                            </select>
+                          </td>
+
+                          {/* Action */}
+                          <td className="py-2 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleDuplicateRow(row.id)}
+                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="Duplicate Row (Ctrl+D)"
+                              >
+                                <Copy size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                title="Delete Row"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Grid Footer Bar */}
+              <div className="p-4 bg-slate-50/60 border-t border-slate-200/80 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleAddRow}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 bg-white hover:bg-blue-50 transition-colors shadow-sm"
+                  >
+                    <Plus size={14} /> Add Row
+                  </button>
+                  <span className="text-xs text-slate-500 font-medium">{addRows.length} rows</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-600">Total Amount</span>
+                  <span className="text-base font-extrabold text-blue-600">
+                    {formatINR(totalExpensesAmount)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 6. Summary KPI Cards (Footer) */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+                  <Building2 size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Expenses</p>
+                  <p className="text-lg font-bold text-slate-900">{totalExpensesCount}</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600">
+                  <Receipt size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Amount</p>
+                  <p className="text-lg font-bold text-slate-900">{formatINR(totalExpensesAmount)}</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-sky-50 text-sky-600">
+                  <Shield size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Taxable Amount</p>
+                  <p className="text-lg font-bold text-slate-900">₹ 0.00</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
+                  <Calculator size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total GST</p>
+                  <p className="text-lg font-bold text-slate-900">₹ 0.00</p>
+                </div>
+              </div>
+
+              <div className="bg-blue-600 text-white p-4 rounded-2xl border border-blue-700 shadow-md shadow-blue-500/10 col-span-2 md:col-span-1 flex flex-col justify-center">
+                <p className="text-[10px] font-bold text-blue-200 uppercase tracking-wider">Grand Total</p>
+                <p className="text-xl font-extrabold tracking-tight mt-0.5">{formatINR(totalExpensesAmount)}</p>
+              </div>
+            </div>
+
+            {/* 7. Keyboard Shortcuts Footer Bar */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center gap-3 font-medium">
+                <span className="font-bold text-slate-800">Keyboard Shortcuts</span>
+                <span className="text-slate-300">•</span>
+                <span><kbd className="px-1.5 py-0.5 bg-white border rounded text-[10px]">Tab</kbd> / <kbd className="px-1.5 py-0.5 bg-white border rounded text-[10px]">Enter</kbd> Next field</span>
+                <span className="text-slate-300">•</span>
+                <span><kbd className="px-1.5 py-0.5 bg-white border rounded text-[10px]">Shift + Tab</kbd> Previous field</span>
+                <span className="text-slate-300">•</span>
+                <span><kbd className="px-1.5 py-0.5 bg-white border rounded text-[10px]">Enter</kbd> Add row</span>
+                <span className="text-slate-300">•</span>
+                <span><kbd className="px-1.5 py-0.5 bg-white border rounded text-[10px]">Ctrl + D</kbd> Duplicate row</span>
+                <span className="text-slate-300">•</span>
+                <span><kbd className="px-1.5 py-0.5 bg-white border rounded text-[10px]">Ctrl + Enter</kbd> Submit</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(true)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 font-semibold hover:bg-slate-100 transition-colors whitespace-nowrap shadow-sm text-xs"
+              >
+                View All Shortcuts
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Add Advance Module (Restored Original View) */}
+      {activeModule === 'Add Advance' && (
+        <div className="rounded-xl border border-amber-200 overflow-hidden shadow-card bg-amber-50/50 transition-colors">
           {/* Header */}
-          <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-5 border-b gap-3 transition-colors ${
-            activeModule === 'Add Advance' 
-              ? 'border-amber-100 bg-amber-100/50' 
-              : 'border-blue-100 bg-blue-100/50'
-          }`}>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-5 border-b border-amber-100 bg-amber-100/50 gap-3">
             <h2 className="text-lg sm:text-xl font-bold text-gray-800">
-              {activeModule === 'Add Advance' ? 'Add Advance' : 'Add Expenses'}
+              Add Advance
             </h2>
             
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -2245,11 +2869,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
               <button 
                 onClick={handleSubmitAll} 
                 disabled={submitting} 
-                className={`flex-1 sm:flex-none h-10 px-4 sm:px-6 text-white font-medium rounded-lg text-sm flex items-center justify-center gap-2 shadow-elevated transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                  activeModule === 'Add Advance'
-                    ? 'bg-amber-600 hover:bg-amber-700 active:bg-amber-800'
-                    : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
-                }`}
+                className="flex-1 sm:flex-none h-10 px-4 sm:px-6 text-white font-medium rounded-lg text-sm flex items-center justify-center gap-2 shadow-elevated transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-amber-600 hover:bg-amber-700 active:bg-amber-800"
               >
                 {submitting ? <Spinner size="w-4 h-4" color="text-white" /> : 'Submit'}
               </button>
@@ -2262,163 +2882,48 @@ export default function AdvanceExpenseTab({ defaultModule }) {
               <table className="w-full border-collapse" style={{ fontSize: '11px' }}>
                 <thead>
                   <tr className="bg-gray-100 border-b border-gray-300" style={{ height: '21px' }}>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
-                      Date
-                    </th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '180px', fontSize: '10px' }}>
-                      Employee
-                    </th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '140px', fontSize: '10px' }}>
-                      Category
-                    </th>
-                    {activeModule === 'Add Expense' && (
-                      <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '160px', fontSize: '10px' }} title="Required for 'Salary to others' and 'Given to others'">
-                        Paid To *
-                      </th>
-                    )}
-                    {activeModule === 'Add Expense' && (
-                      <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
-                        Type
-                      </th>
-                    )}
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
-                      Payout
-                    </th>
-                    <th className="px-2 text-right font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
-                      Amount
-                    </th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ minWidth: '150px', fontSize: '10px' }}>
-                      Remarks
-                    </th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>
-                      Project
-                    </th>
-                    <th className="px-1 text-center font-semibold text-gray-700 bg-gray-50" style={{ width: '28px', fontSize: '10px' }}>
-                      ×
-                    </th>
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>Date</th>
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '180px', fontSize: '10px' }}>Employee</th>
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '140px', fontSize: '10px' }}>Category</th>
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>Payout</th>
+                    <th className="px-2 text-right font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>Amount</th>
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ minWidth: '150px', fontSize: '10px' }}>Remarks</th>
+                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>Project</th>
+                    <th className="px-1 text-center font-semibold text-gray-700 bg-gray-50" style={{ width: '28px', fontSize: '10px' }}>×</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {addRows.map((row, idx) => (
-                    <tr 
-                      key={row.id} 
-                      className="border-b border-gray-200 hover:bg-blue-50/30"
-                      style={{ height: '21px' }}
-                    >
+                  {addRows.map((row) => (
+                    <tr key={row.id} className="border-b border-gray-200 hover:bg-amber-50/30" style={{ height: '21px' }}>
                       <td className="px-1 border-r border-gray-200">
-                        <input 
-                          type="date" 
-                          value={row.date} 
-                          onChange={e => handleRowChange(row.id, 'date', e.target.value)} 
-                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent" 
-                          style={{ height: '19px' }}
-                        />
+                        <input type="date" value={row.date} onChange={e => handleRowChange(row.id, 'date', e.target.value)} className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent" style={{ height: '19px' }} />
                       </td>
                       <td className="px-1 border-r border-gray-200">
-                        <select 
-                          value={row.employeeId} 
-                          onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
-                          disabled={!canSelectAll}
-                          className={`w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent ${!canSelectAll ? 'opacity-60' : ''}`}
-                          style={{ height: '19px' }}
-                        >
+                        <select value={row.employeeId} onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} disabled={!canSelectAll} className={`w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent ${!canSelectAll ? 'opacity-60' : ''}`} style={{ height: '19px' }}>
                           <option value="">Select...</option>
                           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                       </td>
                       <td className="px-1 border-r border-gray-200">
-                        <Dropdown
-                          value={row.category === 'custom' ? '' : row.category}
-                          onChange={(val) => handleRowChange(row.id, 'category', val)}
-                          options={categories}
-                          placeholder="Select category..."
-                          size="xs"
-                          searchable
-                          allowCustom
-                          customActive={row.category === 'custom'}
-                          onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
-                          className="scale-90 origin-left"
-                        />
-                        {row.category === 'custom' && (
-                          <input 
-                            type="text" 
-                            value={row.customCategory || ''} 
-                            onChange={e => handleRowChange(row.id, 'customCategory', e.target.value)} 
-                            className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent mt-1"
-                            style={{ height: '19px' }}
-                            placeholder="Enter custom category..."
-                            autoFocus
-                          />
-                        )}
+                        <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(val) => handleRowChange(row.id, 'category', val)} options={categories} placeholder="Select category..." size="xs" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} className="scale-90 origin-left" />
                       </td>
-                      {activeModule === 'Add Expense' && (
-                        <td className="px-1 border-r border-gray-200">
-                          <div style={{ transform: 'scale(0.85)', transformOrigin: 'left center' }}>
-                            <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
-                          </div>
-                        </td>
-                      )}
-                      {activeModule === 'Add Expense' && (
-                        <td className="px-1 border-r border-gray-200">
-                          <select 
-                            value={row.requestType} 
-                            onChange={e => handleRowChange(row.id, 'requestType', e.target.value)} 
-                            className="w-full border-0 px-1 py-0 text-[10px] outline-none focus:bg-yellow-50 bg-transparent uppercase"
-                            style={{ height: '19px' }}
-                          >
-                            <option value="Reimbursement">Spent</option>
-                            <option value="Pre-Approval">Request</option>
-                          </select>
-                        </td>
-                      )}
                       <td className="px-1 border-r border-gray-200">
-                        <select 
-                          value={row.payoutMethod} 
-                          onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
-                          className="w-full border-0 px-1 py-0 text-[10px] outline-none focus:bg-yellow-50 bg-transparent uppercase"
-                          style={{ height: '19px' }}
-                        >
+                        <select value={row.payoutMethod} onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="w-full border-0 px-1 py-0 text-[10px] outline-none focus:bg-yellow-50 bg-transparent uppercase" style={{ height: '19px' }}>
                           <option value="Immediate">Immediate</option>
                           <option value="With Salary">Monthly</option>
                         </select>
                       </td>
                       <td className="px-1 border-r border-gray-200">
-                        <input 
-                          type="number" 
-                          value={row.amount} 
-                          onChange={e => handleRowChange(row.id, 'amount', e.target.value)} 
-                          className="w-full border-0 px-1 py-0 text-[11px] text-right outline-none focus:bg-yellow-50 bg-transparent text-indigo-600 font-semibold"
-                          style={{ height: '19px' }}
-                          placeholder="0.00"
-                        />
+                        <input type="number" value={row.amount} onChange={e => handleRowChange(row.id, 'amount', e.target.value)} className="w-full border-0 px-1 py-0 text-[11px] text-right outline-none focus:bg-yellow-50 bg-transparent text-amber-700 font-semibold" style={{ height: '19px' }} placeholder="0.00" />
                       </td>
                       <td className="px-1 border-r border-gray-200">
-                        <input 
-                          type="text" 
-                          value={row.reason} 
-                          onChange={e => handleRowChange(row.id, 'reason', e.target.value)} 
-                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent"
-                          style={{ height: '19px' }}
-                          placeholder="..."
-                        />
+                        <input type="text" value={row.reason} onChange={e => handleRowChange(row.id, 'reason', e.target.value)} className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent" style={{ height: '19px' }} placeholder="..." />
                       </td>
                       <td className="px-1 border-r border-gray-200">
-                        <input 
-                          type="text" 
-                          value={row.project} 
-                          onChange={e => handleRowChange(row.id, 'project', e.target.value)} 
-                          className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent"
-                          style={{ height: '19px' }}
-                          placeholder="..."
-                        />
+                        <input type="text" value={row.project} onChange={e => handleRowChange(row.id, 'project', e.target.value)} className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent" style={{ height: '19px' }} placeholder="..." />
                       </td>
                       <td className="px-0 text-center">
-                        <button 
-                          onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} 
-                          className="w-full h-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center"
-                          style={{ height: '21px' }}
-                          title="Delete row"
-                        >
+                        <button onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} className="w-full h-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center" style={{ height: '21px' }} title="Delete row">
                           <span className="text-[14px] leading-none">×</span>
                         </button>
                       </td>
@@ -2427,218 +2932,6 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 </tbody>
               </table>
             </div>
-            
-            {/* Spreadsheet Toolbar */}
-            <div className="flex items-center justify-between mt-2 px-1">
-              <div className="text-[10px] text-gray-500">
-                {addRows.length} row{addRows.length !== 1 ? 's' : ''}
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-[9px] text-gray-600">Tab</kbd>
-                <span className="text-[10px] text-gray-500">to navigate</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Card View */}
-          <div className="md:hidden p-4 space-y-4">
-            <datalist id="categories-list-mobile">
-              {categories.map(cat => <option key={cat} value={cat} />)}
-            </datalist>
-            
-            {addRows.map((row, idx) => (
-              <div 
-                key={row.id} 
-                className={`bg-white rounded-xl border overflow-hidden shadow-sm ${
-                  activeModule === 'Add Advance' ? 'border-amber-200' : 'border-blue-200'
-                }`}
-              >
-                {/* Card Header */}
-                <div className={`px-4 py-3 flex items-center justify-between ${
-                  activeModule === 'Add Advance' 
-                    ? 'bg-gradient-to-r from-amber-50 to-white border-b border-amber-100' 
-                    : 'bg-gradient-to-r from-blue-50 to-white border-b border-blue-100'
-                }`}>
-                  <span className="text-sm font-bold text-gray-700">Entry #{idx + 1}</span>
-                  <button 
-                    onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))}
-                    className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-                
-                {/* Card Body */}
-                <div className="p-4 space-y-4">
-                  {/* Date & Employee Row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                        Date
-                      </label>
-                      <input 
-                        type="date" 
-                        value={row.date} 
-                        onChange={e => handleRowChange(row.id, 'date', e.target.value)} 
-                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                        Employee
-                      </label>
-                      <select 
-                        value={row.employeeId} 
-                        onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} 
-                        disabled={!canSelectAll}
-                        className={`w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white ${!canSelectAll ? 'opacity-70 cursor-not-allowed' : ''}`}
-                      >
-                        <option value="">Select...</option>
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  
-                  {/* Category */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Category
-                    </label>
-                    <input 
-                      list="categories-list-mobile" 
-                      value={row.category} 
-                      onChange={e => handleRowChange(row.id, 'category', e.target.value)} 
-                      className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white" 
-                      placeholder="Select or type category..."
-                    />
-                    {row.transferredToName && (
-                      <p className="text-red-500 text-xs mt-1 font-medium">
-                        → {row.transferredToName}
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Paid To - Only for Expense */}
-                  {activeModule === 'Add Expense' && (
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5" title="Required for 'Salary to others' and 'Given to others' categories">
-                        Paid To <span className="text-[8px] text-zinc-400 font-normal">*</span>
-                      </label>
-                      <PaidToDropdown rowId={row.id} row={row} isMobile={true} />
-                    </div>
-                  )}
-                  
-                  {/* Type & Payout Row - Only for Expense */}
-                  {activeModule === 'Add Expense' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                          Type
-                        </label>
-                        <select 
-                          value={row.requestType} 
-                          onChange={e => handleRowChange(row.id, 'requestType', e.target.value)} 
-                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-xs font-bold uppercase bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                          <option value="Reimbursement">Spent</option>
-                          <option value="Pre-Approval">Request</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                          Payout
-                        </label>
-                        <select 
-                          value={row.payoutMethod} 
-                          onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
-                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-xs font-bold uppercase bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                          <option value="Immediate">Immediate</option>
-                          <option value="With Salary">Monthly</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Payout Only for Advance */}
-                  {activeModule === 'Add Advance' && (
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                        Payout Method
-                      </label>
-                      <select 
-                        value={row.payoutMethod} 
-                        onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} 
-                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-bold uppercase bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="Immediate">Immediate</option>
-                        <option value="With Salary">With Salary</option>
-                      </select>
-                    </div>
-                  )}
-                  
-                  {/* Amount with Quick Toggle */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Amount (₹)
-                    </label>
-                    <input 
-                      type="number" 
-                      value={row.amount} 
-                      onChange={e => handleRowChange(row.id, 'amount', e.target.value)} 
-                      className="w-full h-11 border border-gray-200 rounded-lg px-3 text-base font-bold text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-500 bg-white mb-2" 
-                      placeholder="0.00"
-                    />
-                    {/* Quick Amount Toggles */}
-                    <div className="flex gap-2 flex-wrap">
-                      {[500, 1000, 2000, 3000].map(amt => (
-                        <button
-                          key={amt}
-                          onClick={() => handleRowChange(row.id, 'amount', amt.toString())}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            row.amount === amt.toString()
-                              ? activeModule === 'Add Advance'
-                                ? 'bg-amber-500 text-white shadow-md'
-                                : 'bg-blue-500 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          ₹{amt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Remarks */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Remarks
-                    </label>
-                    <input 
-                      type="text" 
-                      value={row.reason} 
-                      onChange={e => handleRowChange(row.id, 'reason', e.target.value)} 
-                      className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white" 
-                      placeholder="Enter reason..."
-                    />
-                  </div>
-                  
-                  {/* Project */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                      Project
-                    </label>
-                    <input 
-                      type="text" 
-                      value={row.project} 
-                      onChange={e => handleRowChange(row.id, 'project', e.target.value)} 
-                      className="w-full h-11 border border-gray-200 rounded-lg px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 bg-white" 
-                      placeholder="Enter project name..."
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
