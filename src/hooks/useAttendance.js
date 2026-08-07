@@ -75,49 +75,89 @@ export function useAttendance(orgId) {
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
       const otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
 
-      const q = query(attendanceCol(orgId), where('date', '>=', yearMonth), where('date', '<', yearMonth + '-31'))
-      const snapshot = await getDocs(q)
-      const records = snapshot.docs.map(d => d.data())
+      const normalizeDate = (dateStr) => {
+        if (!dateStr || dateStr === '-') return null;
+        if (typeof dateStr !== 'string') {
+          if (dateStr?.seconds) dateStr = new Date(dateStr.seconds * 1000).toISOString().split('T')[0];
+          else if (dateStr instanceof Date) dateStr = dateStr.toISOString().split('T')[0];
+          else dateStr = String(dateStr);
+        }
+        const str = String(dateStr).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+        const parts = str.split(/[-/]/);
+        if (parts.length === 3) {
+          let y, m, d;
+          if (parts[0].length === 4) {
+            y = parts[0]; m = parts[1]; d = parts[2];
+          } else {
+            d = parts[0]; m = parts[1]; y = parts[2];
+          }
+          return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+        try {
+          const date = new Date(str);
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+          }
+        } catch (e) {}
+        return str;
+      };
+
+      const snapshot = await getDocs(attendanceCol(orgId))
+      const records = snapshot.docs
+        .map(d => d.data())
+        .filter(r => {
+          const recDate = r.date || r.inDate;
+          const nd = normalizeDate(recDate);
+          return nd && nd.startsWith(yearMonth);
+        })
 
       const summary = {}
       records.forEach(r => {
-        if (!summary[r.employeeId]) {
-          summary[r.employeeId] = { present: 0, absent: 0, otHours: 0, holidayWorked: 0, holidayCount: 0, sunWorked: 0, sunCount: 0, otAdjustment: otAdjs[r.employeeId] || 0 }
+        const empId = String(r.employeeId || r.empId || '').trim();
+        if (!summary[empId]) {
+          summary[empId] = { present: 0, absent: 0, otHours: 0, holidayWorked: 0, holidayCount: 0, sunWorked: 0, sunCount: 0, otAdjustment: otAdjs[empId] || 0 }
         }
-        const [y, m, day] = r.date.split('-').map(Number)
+        const recDate = r.date || r.inDate;
+        const normDate = normalizeDate(recDate);
+        const [y, m, day] = normDate.split('-').map(Number)
         const d = new Date(y, m - 1, day)
         const isS = d.getDay() === 0
-        const isH = holidayDates.has(r.date) && !isS
+        const isH = holidayDates.has(normDate) && !isS
         const status = String(r.status || '').toLowerCase()
-        const isPresent = (status === 'worked' || status === 'present' || r.checkIn || r.sundayWorked || r.holidayWorked || status === 'sunworked') && !r.isAbsent
+        const hasTime = !!(r.inTime && r.inTime !== 'Absent' && r.inTime !== '-') || !!(r.checkIn && r.checkIn !== 'Absent')
+        const isExplicitAbsent = (r.isAbsent || status === 'absent') && !hasTime
+        const isPresent = (status === 'worked' || status === 'present' || r.checkIn || hasTime || r.sundayWorked || r.holidayWorked || status === 'sunworked') && !isExplicitAbsent
 
-        if (isS) summary[r.employeeId].sunCount++
-        if (isH) summary[r.employeeId].holidayCount++
+        if (isS) summary[empId].sunCount++
+        if (isH) summary[empId].holidayCount++
 
-        if (r.isAbsent || status === 'absent') {
-          summary[r.employeeId].absent++
+        if (isExplicitAbsent) {
+          summary[empId].absent++
         } else if (r.isHalfDay || r.status === 'Half-Day') {
-          summary[r.employeeId].absent += 0.5
-          if (isS) summary[r.employeeId].sunWorked += 0.5;
-          else if (isH) summary[r.employeeId].holidayWorked += 0.5;
-          else summary[r.employeeId].present += 0.5;
+          summary[empId].absent += 0.5
+          if (isS) summary[empId].sunWorked += 0.5;
+          else if (isH) summary[empId].holidayWorked += 0.5;
+          else summary[empId].present += 0.5;
         } else {
           if (isS) {
-            if (isPresent) summary[r.employeeId].sunWorked++
+            if (isPresent) summary[empId].sunWorked++
           } else if (isH) {
-            if (isPresent) summary[r.employeeId].holidayWorked++
+            if (isPresent) summary[empId].holidayWorked++
           } else if (isPresent) {
-            summary[r.employeeId].present++
+            summary[empId].present++
           }
         }
         if (r.otHours) {
           const [h, mi] = r.otHours.split(':').map(Number)
-          summary[r.employeeId].otHours += (h || 0) + (mi || 0) / 60
+          if (!isNaN(h) && !isNaN(mi)) {
+            summary[empId].otHours += h + mi / 60
+          }
         }
       })
-      return Object.entries(summary).map(([employeeId, stats]) => ({ employeeId, ...stats }))
+      return Object.entries(summary).map(([employeeId, data]) => ({ employeeId, ...data }))
     } catch (e) {
-      setError(e.message)
+      console.error(e)
       return []
     } finally {
       setLoading(false)

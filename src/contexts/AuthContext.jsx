@@ -51,6 +51,7 @@ async function readUserDoc(uid, targetOrgId = null) {
         const orgSnap = await getDoc(doc(db, 'organisations', activeOrgId))
         if (orgSnap.exists()) {
           userData.orgName = orgSnap.data().name
+          userData.logoURL = orgSnap.data().logoURL || ''
           userData.orgId = activeOrgId
         }
         

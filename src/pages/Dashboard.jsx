@@ -257,6 +257,8 @@ export default function Dashboard() {
     setHoveredTooltip(null);
   };
   const [orgSettings, setOrgSettings] = useState({})
+  const [logoError, setLogoError] = useState(false)
+
   const [isFeaturesExpanded, setIsFeaturesExpanded] = useState(() => {
     const saved = localStorage.getItem('isFeaturesExpanded')
     return saved !== null ? JSON.parse(saved) : false
@@ -302,7 +304,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (user?.orgId) {
       const unsub = onSnapshot(doc(db, 'organisations', user.orgId), (snap) => {
-        if (snap.exists()) setOrgSettings(snap.data())
+        if (snap.exists()) {
+          setOrgSettings(snap.data())
+          setLogoError(false)
+        }
       })
       return () => unsub()
     }
@@ -616,8 +621,13 @@ export default function Dashboard() {
         <div className="flex items-center gap-3">
           <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 hover:bg-indigo-50 rounded-xl text-gray-500 hover:text-indigo-600 md:hidden transition duration-200"><Menu size={18} /></button>
           <div className="flex items-center gap-2.5">
-            {orgSettings?.logoURL ? (
-              <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-xl object-cover shadow-sm ring-2 ring-gray-100" />
+            {orgSettings?.logoURL && !logoError ? (
+              <img 
+                src={orgSettings.logoURL} 
+                alt="Logo" 
+                className="w-8 h-8 rounded-xl object-cover shadow-sm ring-2 ring-gray-100"
+                onError={() => setLogoError(true)} 
+              />
             ) : (
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-sm"><Building2 size={16} className="text-white" /></div>
             )}

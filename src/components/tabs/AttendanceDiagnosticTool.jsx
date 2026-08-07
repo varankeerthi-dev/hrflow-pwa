@@ -117,7 +117,8 @@ export default function AttendanceDiagnosticTool() {
       let fixed = 0
       
       for (const record of futureRecords) {
-        const attendanceDocRef = doc(db, 'organisations', orgId, 'attendance', record.date, record.employeeId)
+        const docId = record.id || `${record.date}_${record.employeeId}`
+        const attendanceDocRef = doc(db, 'organisations', orgId, 'attendance', docId)
         
         // Delete the record if it has no meaningful data
         if (!record.inTime && !record.checkIn) {

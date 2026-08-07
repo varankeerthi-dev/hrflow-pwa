@@ -213,6 +213,7 @@ export default function MobileDashboard() {
   const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
   
   const [orgSettings, setOrgSettings] = useState({})
+  const [logoError, setLogoError] = useState(false)
   const [stats, setStats] = useState({
     totalEmployees: 0,
     presentToday: 0,
@@ -321,9 +322,13 @@ export default function MobileDashboard() {
 
   useEffect(() => {
     if (!user?.orgId) return
-    getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
-      if (snap.exists()) setOrgSettings(snap.data())
+    const unsub = onSnapshot(doc(db, 'organisations', user.orgId), (snap) => {
+      if (snap.exists()) {
+        setOrgSettings(snap.data())
+        setLogoError(false)
+      }
     })
+    return () => unsub()
   }, [user?.orgId])
 
   useEffect(() => {
@@ -524,8 +529,13 @@ export default function MobileDashboard() {
       {/* ─── Desktop Sidebar (Hidden on Mobile) ─── */}
       <aside className="hidden lg:flex flex-col w-[240px] bg-white text-gray-900 border-r border-gray-200/80 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="p-5 flex items-center gap-3 border-b border-gray-200/80">
-          {orgSettings?.logoURL ? (
-            <img src={orgSettings.logoURL} alt="Logo" className="w-9 h-9 rounded-xl object-cover ring-2 ring-gray-100 shadow-sm" />
+          {orgSettings?.logoURL && !logoError ? (
+            <img 
+              src={orgSettings.logoURL} 
+              alt="Logo" 
+              className="w-9 h-9 rounded-xl object-cover ring-2 ring-gray-100 shadow-sm"
+              onError={() => setLogoError(true)} 
+            />
           ) : (
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
               <Building2 size={18} />
@@ -671,10 +681,14 @@ export default function MobileDashboard() {
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
             <div className="p-6 flex items-center justify-between border-b border-gray-200">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
-                  <Building2 size={16} />
-                </div>
-                <span className="text-sm font-bold text-gray-900 tracking-tight uppercase">HRFlow Menu</span>
+                {orgSettings?.logoURL && !logoError ? (
+                  <img src={orgSettings.logoURL} alt="Logo" className="w-8 h-8 rounded-lg object-cover ring-1 ring-gray-200" onError={() => setLogoError(true)} />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+                    <Building2 size={16} />
+                  </div>
+                )}
+                <span className="text-sm font-bold text-gray-900 tracking-tight uppercase">{orgSettings?.name || 'HRFlow'}</span>
               </div>
               <button onClick={() => setShowMenu(false)} className="p-2 text-gray-500 hover:text-gray-900 rounded-lg transition-colors">
                 <X size={20} />

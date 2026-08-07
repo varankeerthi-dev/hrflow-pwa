@@ -139,23 +139,51 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
 
     const [year, month] = selectedMonth.split('-').map(Number)
     const daysInMonth = new Date(year, month, 0).getDate()
-    const endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`
 
-    const attQuery = query(
-      collection(db, 'organisations', user.orgId, 'attendance'),
-      where('date', '>=', `${selectedMonth}-01`),
-      where('date', '<=', endDate)
-    )
+    const normalizeDate = (dateStr) => {
+      if (!dateStr || dateStr === '-') return null;
+      if (typeof dateStr !== 'string') {
+        if (dateStr?.seconds) dateStr = new Date(dateStr.seconds * 1000).toISOString().split('T')[0];
+        else if (dateStr instanceof Date) dateStr = dateStr.toISOString().split('T')[0];
+        else dateStr = String(dateStr);
+      }
+      const str = String(dateStr).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      const parts = str.split(/[-/]/);
+      if (parts.length === 3) {
+        let y, m, d;
+        if (parts[0].length === 4) {
+          y = parts[0]; m = parts[1]; d = parts[2];
+        } else {
+          d = parts[0]; m = parts[1]; y = parts[2];
+        }
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      }
+      try {
+        const date = new Date(str);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString().split('T')[0];
+        }
+      } catch (e) {}
+      return str;
+    };
+
+    const attQuery = collection(db, 'organisations', user.orgId, 'attendance')
 
     const unsubAttendance = onSnapshot(attQuery, (attSnap) => {
       const attendanceMap = {}
       const employeesWithAttendance = new Set()
       attSnap.docs.forEach(d => {
         const data = d.data()
-        const day = parseInt(data.date.split('-')[2], 10)
-        if (!attendanceMap[data.employeeId]) attendanceMap[data.employeeId] = {}
-        attendanceMap[data.employeeId][day] = data
-        employeesWithAttendance.add(data.employeeId)
+        const recDate = data.date || data.inDate
+        const normDate = normalizeDate(recDate)
+        if (!normDate || !normDate.startsWith(selectedMonth)) return;
+
+        const day = parseInt(normDate.split('-')[2], 10)
+        const empId = String(data.employeeId || '').trim();
+        if (!attendanceMap[empId]) attendanceMap[empId] = {}
+        attendanceMap[empId][day] = data
+        employeesWithAttendance.add(empId)
       })
 
       Promise.all([
@@ -166,14 +194,14 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
       ]).then(([eSnap, sSnap, oSnap, sandSnap]) => {
         const shiftMap = {}
         sSnap.docs.forEach(d => { shiftMap[d.id] = d.data() })
-        const orgData = oSnap.exists() ? oSnap.data() : {}
+        const orgData = oSnap.exists() ? orgSnap.data() : {}
         const holidays = orgData.holidays || []
         const sandwichSet = new Set(sandSnap.docs.map(d => `${d.data().employeeId}_${d.data().date}`))
         const allEmployees = eSnap.docs.map(d => ({ id: d.id, ...d.data() }))
         const filteredEmployees = allEmployees.filter(emp => {
           if (emp.hideInAttendance) return false
           if (isEmployeeActiveStatus(emp.status)) return true
-          return employeesWithAttendance.has(emp.id)
+          return employeesWithAttendance.has(emp.id) || employeesWithAttendance.has(String(emp.id).trim())
         })
         const savedOrder = Array.isArray(orgData.employeeOrder) ? orgData.employeeOrder : []
         const orderedEmployees = [...filteredEmployees].sort((a, b) => {
@@ -192,31 +220,69 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
   const formatMonth = (m) => new Date(m.split('-')[0], parseInt(m.split('-')[1]) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   const getStatusBadge = (att, day, emp, holidays = [], sandwichSet = new Set()) => {
+    const normalizeDate = (dateStr) => {
+      if (!dateStr || dateStr === '-') return null;
+      if (typeof dateStr !== 'string') {
+        if (dateStr?.seconds) dateStr = new Date(dateStr.seconds * 1000).toISOString().split('T')[0];
+        else if (dateStr instanceof Date) dateStr = dateStr.toISOString().split('T')[0];
+        else dateStr = String(dateStr);
+      }
+      const str = String(dateStr).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      const parts = str.split(/[-/]/);
+      if (parts.length === 3) {
+        let y, m, d;
+        if (parts[0].length === 4) {
+          y = parts[0]; m = parts[1]; d = parts[2];
+        } else {
+          d = parts[0]; m = parts[1]; y = parts[2];
+        }
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      }
+      try {
+        const date = new Date(str);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString().split('T')[0];
+        }
+      } catch (e) {}
+      return str;
+    };
+
     const [y, m] = selectedMonth.split('-').map(Number), ds = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const isSun = new Date(y, m - 1, day).getDay() === 0, isHol = holidays.some(h => h.date === ds)
 
     if (!att) {
-      const isBeforeJoined = emp.joinedDate && ds < emp.joinedDate;
-      const isAfterInactive = !isEmployeeActiveStatus(emp.status) && emp.inactiveFrom && ds > emp.inactiveFrom;
+      const normJoined = normalizeDate(emp.joinedDate);
+      const normInactive = normalizeDate(emp.inactiveFrom);
+      const isBeforeJoined = normJoined && ds < normJoined;
+      const isAfterInactive = !isEmployeeActiveStatus(emp.status) && normInactive && ds > normInactive;
       if (isBeforeJoined || isAfterInactive) {
         return { bg: 'bg-red-50', text: 'Absent', color: 'text-red-600', type: 'absent' }
       }
       return { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
     }
+    const empId = String(emp.id || '').trim();
     if (att.sundayWorked) return { bg: 'bg-amber-50', text: 'SW', color: 'text-amber-600', type: 'sunworked' }
     if (att.holidayWorked) return { bg: 'bg-indigo-50', text: 'HW', color: 'text-indigo-600', type: 'holworked' }
-    if (sandwichSet.has(`${att.employeeId}_${ds}`)) {
+    if (sandwichSet.has(`${empId}_${ds}`) || sandwichSet.has(`${att.employeeId}_${ds}`)) {
       return { bg: 'bg-rose-100', text: 'Absent (S)', color: 'text-rose-600', type: 'sandwich' }
     }
     if (att.isHalfDay) {
-      let label = isHol ? 'Half-Day' : (isSun ? 'Half-Day' : 'Half-Day')
+      let label = 'Half-Day'
       return { bg: 'bg-amber-50', text: label, color: 'text-amber-600', type: 'halfday' }
     }
-    if (att.isAbsent || isHol || isSun) {
-      let label = isHol ? 'Holiday' : (isSun ? 'Sunday' : 'Absent')
-      return { bg: 'bg-red-50', text: label, color: 'text-red-600', type: isSun ? 'sunday' : (isHol ? 'holiday' : 'absent') }
+
+    const hasInTime = !!(att.inTime && att.inTime !== 'Absent' && att.inTime !== '-') || !!(att.checkIn && att.checkIn !== 'Absent');
+    const isExplicitAbsent = att.isAbsent && !hasInTime;
+
+    if (isExplicitAbsent) {
+      return { bg: 'bg-red-50', text: 'Absent', color: 'text-red-600', type: 'absent' }
     }
-    return att.inTime ? { bg: 'bg-green-50', text: 'P', color: 'text-green-600', type: 'present' } : { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
+    if (isHol || isSun) {
+      let label = isHol ? 'Holiday' : 'Sunday'
+      return { bg: 'bg-red-50', text: label, color: 'text-red-600', type: isSun ? 'sunday' : 'holiday' }
+    }
+    return hasInTime ? { bg: 'bg-green-50', text: 'P', color: 'text-green-600', type: 'present' } : { bg: 'bg-gray-50', text: '-', color: 'text-gray-300', type: 'none' }
   }
 
   const getEmployeeHeaderColor = (idx) => {
@@ -299,10 +365,16 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
     try { await setDoc(doc(db, 'organisations', user.orgId), { employeeOrder: displayOrder }, { merge: true }); alert('Display order saved!'); setShowOrderModal(false); fetchPivotData() } catch (err) { alert('Failed to save order') }
   }
 
+  const findEmp = (empIdOrCode) => {
+    if (!empIdOrCode) return null;
+    const target = String(empIdOrCode).trim();
+    return employees.find(e => String(e.id || '').trim() === target || (e.empCode && String(e.empCode).trim() === target));
+  }
+
   const exportCSV = () => {
     const headers = ['Employee Name', 'Present Days', 'Absent Days', 'OT Hours', 'Attendance %']
     const rows = summaryData.map(row => {
-      const emp = employees.find(e => e.id === row.employeeId)
+      const emp = findEmp(row.employeeId)
       const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
       return [emp?.name || row.employeeId, row.present, row.absent, row.otHours.toFixed(2), `${pct}%`]
     })
@@ -388,7 +460,10 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {(() => {
-                    const filtered = summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance))
+                    const filtered = summaryData.filter(row => {
+                      const emp = findEmp(row.employeeId)
+                      return emp && !emp.hideInAttendance
+                    })
                     return [
                       { label: 'Avg. Attendance', value: `${Math.round(filtered.reduce((acc, curr) => acc + (curr.present / (curr.present + curr.absent || 1)), 0) / (filtered.length || 1) * 100)}%`, color: 'blue', icon: BarChart3 },
                       { label: 'Total OT Logged', value: `${filtered.reduce((acc, curr) => acc + curr.otHours, 0).toFixed(1)}h`, color: 'green', icon: Calendar },
@@ -420,8 +495,11 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {summaryLoading ? (<tr><td colSpan={6} className="text-center py-12 bg-gray-50"><Spinner /></td></tr>) : summaryData.length === 0 ? (<tr><td colSpan={6} className="text-center py-20 text-gray-400 text-sm italic">No activity data</td></tr>) : (
-                            summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance)).map(row => {
-                              const emp = employees.find(e => e.id === row.employeeId)
+                            summaryData.filter(row => {
+                              const emp = findEmp(row.employeeId)
+                              return emp && !emp.hideInAttendance
+                            }).map(row => {
+                              const emp = findEmp(row.employeeId)
                               const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
                               return (
                                 <tr key={row.employeeId} className="hover:bg-gray-50 transition-colors h-[36px]">
@@ -464,8 +542,11 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {summaryLoading ? (<tr><td colSpan={6} className="text-center py-12 bg-gray-50"><Spinner /></td></tr>) : summaryData.length === 0 ? (<tr><td colSpan={6} className="text-center py-20 text-gray-400 text-sm italic">No activity data</td></tr>) : (
-                          summaryData.filter(row => employees.find(e => e.id === row.employeeId && !e.hideInAttendance)).map(row => {
-                            const emp = employees.find(e => e.id === row.employeeId)
+                          summaryData.filter(row => {
+                            const emp = findEmp(row.employeeId)
+                            return emp && !emp.hideInAttendance
+                          }).map(row => {
+                            const emp = findEmp(row.employeeId)
                             const total = row.present + row.absent, pct = total > 0 ? Math.round((row.present / total) * 100) : 0
                             return (
                               <tr key={row.employeeId} className="hover:bg-gray-50 transition-colors h-[36px]">
@@ -619,7 +700,9 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                           <tr key={day} className="hover:bg-gray-50 transition-colors h-[32px]">
                             <td className={`px-2 py-0.5 text-center font-bold sticky left-0 z-20 border-r border-b border-gray-200 ${dateCls}`}><div className="flex items-baseline justify-center gap-1"><span className="text-[11px]">{String(day).padStart(2, '0')}</span><span className="text-[8px] text-gray-400 uppercase">{cD.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></td>
                             {monthlyViewData.employees?.map(emp => {
-                              const att = monthlyViewData.attendanceMap?.[emp.id]?.[day]
+                              const empIdStr = String(emp.id || '').trim();
+                              const empCodeStr = String(emp.empCode || '').trim();
+                              const att = monthlyViewData.attendanceMap?.[emp.id]?.[day] || monthlyViewData.attendanceMap?.[empIdStr]?.[day] || (empCodeStr ? monthlyViewData.attendanceMap?.[empCodeStr]?.[day] : null);
                               const st = getStatusBadge(att, day, emp, monthlyViewData.holidays || [], monthlyViewData.sandwichSet || new Set())
                               const isOff = st?.type === 'absent' || st?.type === 'sunday' || st?.type === 'holiday' || st?.type === 'sandwich'
                               

@@ -740,18 +740,19 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
   const handleResync = async () => {
     if (!activeRun) return;
-    if (activeRun.status !== 'draft') {
-      alert('Cannot re-sync: Only draft runs can be re-synced.');
+    if (activeRun.status === 'locked') {
+      alert('Cannot re-sync: Locked runs cannot be modified. Please unlock to draft status first.');
       return;
     }
     if (window.confirm('Re-sync payroll calculations with live database? This will reload attendance, leaves, advances, and expenses.')) {
       try {
         setLoading(true);
-        await refetchSummary();
-        await payrollRuns.resyncPayrollRun(summaryMonth, attendanceSummaryData, user.uid);
+        const { data: freshSummary } = await refetchSummary();
+        const dataToSync = freshSummary && freshSummary.length ? freshSummary : attendanceSummaryData;
+        await payrollRuns.resyncPayrollRun(summaryMonth, dataToSync, user.uid);
         alert('Payroll run re-synced successfully!');
-        refetchActiveRun();
-        refetchRunSlips();
+        await refetchActiveRun();
+        await refetchRunSlips();
       } catch (err) {
         alert('Failed to re-sync: ' + err.message);
       } finally {
@@ -769,8 +770,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       try {
         setLoading(true);
         if (newStatus === 'locked') {
-          await refetchSummary();
-          await payrollRuns.resyncPayrollRun(summaryMonth, attendanceSummaryData, user.uid);
+          const { data: freshSummary } = await refetchSummary();
+          const dataToSync = freshSummary && freshSummary.length ? freshSummary : attendanceSummaryData;
+          await payrollRuns.resyncPayrollRun(summaryMonth, dataToSync, user.uid);
         }
         await payrollRuns.updateRunStatus(summaryMonth, newStatus, {
           action: actionLabel,
@@ -957,7 +959,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         
         if (orgData) {
           if (orgData.employeeRowOrder) setEmployeeRowOrder(orgData.employeeRowOrder)
-          if (orgData.logoURL) setOrgLogo(orgData.logoURL)
+          if (orgData.logoURL) {
+            const img = new window.Image()
+            img.onload = () => setOrgLogo(orgData.logoURL)
+            img.onerror = () => setOrgLogo('')
+            img.src = orgData.logoURL
+          }
         }
 
         if (userPrefSnap.exists()) {
@@ -1160,21 +1167,48 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         allVariables[row.employeeId].bonus += Number(row.bonus || 0);
       });
 
-      const allAtt = aSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
+      const normalizeDate = (dateStr) => {
+        if (!dateStr || dateStr === '-') return null;
+        if (typeof dateStr !== 'string') {
+          if (dateStr?.seconds) dateStr = new Date(dateStr.seconds * 1000).toISOString().split('T')[0];
+          else if (dateStr instanceof Date) dateStr = dateStr.toISOString().split('T')[0];
+          else dateStr = String(dateStr);
+        }
+        const str = String(dateStr).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+        const parts = str.split(/[-/]/);
+        if (parts.length === 3) {
+          let y, m, d;
+          if (parts[0].length === 4) {
+            y = parts[0]; m = parts[1]; d = parts[2];
+          } else {
+            d = parts[0]; m = parts[1]; y = parts[2];
+          }
+          return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+        try {
+          const date = new Date(str);
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+          }
+        } catch (e) {}
+        return str;
+      };
+
+      const allAtt = aSnap.docs.map(d => d.data()).filter(a => {
+        const recDate = a.date || a.inDate;
+        const nd = normalizeDate(recDate);
+        return nd && nd >= sd && nd <= ed;
+      }), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
       
       return sortedEmployees.map((emp, idx) => {
-        const normalizeDate = (dateStr) => {
-          if (!dateStr || dateStr === '-') return null;
-          const parts = dateStr.split(/[-/]/);
-          if (parts.length === 3) {
-            if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-          return dateStr;
-        };
-
-        const empAtt = allAtt.filter(a => a.employeeId === emp.id);
-        const attByDate = new Map(empAtt.map(a => [normalizeDate(a.date), a]));
+        const empIdStr = String(emp.id || '').trim();
+        const empCodeStr = String(emp.empCode || '').trim();
+        const empAtt = allAtt.filter(a => {
+          const attEmpId = String(a.employeeId || a.empId || '').trim();
+          return (empIdStr && attEmpId === empIdStr) || (empCodeStr && attEmpId === empCodeStr);
+        });
+        const attByDate = new Map(empAtt.map(a => [normalizeDate(a.date || a.inDate), a]));
         
         let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
         const holDatesList = []
@@ -1182,7 +1216,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const sunWDatesList = []
         const holWDatesList = []
         const otDatesList = []
-        const appliedForThisEmp = appliedSandwiches.filter(s => s.employeeId === emp.id);
+        const appliedForThisEmp = appliedSandwiches.filter(s => {
+          const sEmpId = String(s.employeeId || '').trim();
+          return (empIdStr && sEmpId === empIdStr) || (empCodeStr && sEmpId === empCodeStr);
+        });
 
         const normalizedJoined = normalizeDate(emp.joinedDate)
         const normalizedInactive = normalizeDate(emp.inactiveFrom)
@@ -1190,11 +1227,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         for (let i = 1; i <= end; i++) {
           const dateStr = `${summaryMonth}-${String(i).padStart(2, '0')}`, d = new Date(y, m - 1, i), isS = d.getDay() === 0, isSat = d.getDay() === 6, isH = holidayDates.has(dateStr) && !isS, r = attByDate.get(dateStr), status = String(r?.status || '').toLowerCase()
           
-          if (normalizedJoined && dateStr < normalizedJoined) {
+          if (normalizedJoined && dateStr < normalizedJoined && !isWorkedAttendanceRecord(r)) {
             lop++; lopDatesList.push(i);
             continue;
           }
-          if (normalizedInactive && dateStr > normalizedInactive) {
+          if (!isEmployeeActiveStatus(emp.status) && normalizedInactive && dateStr > normalizedInactive && !isWorkedAttendanceRecord(r)) {
             lop++; lopDatesList.push(i);
             continue;
           }
@@ -1214,10 +1251,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             }
           }
           
-          const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked'
-          const isHD = status === 'half-day' || r?.isHalfDay
+          const hasTime = !!(r?.inTime && r.inTime !== 'Absent' && r.inTime !== '-') || !!(r?.checkIn && r.checkIn !== 'Absent');
+          const isExplicitAbsent = (status === 'absent' || r?.isAbsent || status === 'leave') && !hasTime;
+          const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked';
+          const isHD = status === 'half-day' || r?.isHalfDay;
 
-          if (status === 'absent' || r?.isAbsent || status === 'leave') { 
+          if (isExplicitAbsent) { 
             lop++; lopDatesList.push(i); 
             if (payrollVersion === 'v2') {
               if (isS) sunCount--;
@@ -1687,8 +1726,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
   const isWorkedAttendanceRecord = (r) => {
     if (!r) return false;
-    const status = String(r.status || '').toLowerCase();
-    return (status === 'worked' || status === 'present' || r.checkIn) && !r.isAbsent;
+    const hasTime = !!(r.inTime && r.inTime !== 'Absent' && r.inTime !== '-') || !!(r.checkIn && r.checkIn !== 'Absent');
+    if (r.isAbsent && !hasTime) return false;
+    const status = String(r.status || '').toLowerCase().trim();
+    if ((status === 'absent' || status === 'leave' || status === 'sunholiday') && !hasTime) return false;
+    const workedStatuses = ['worked', 'present', 'sunworked', 'p', 'w', 'sw', 'sun-worked', 'holidayworked', 'hw'];
+    return workedStatuses.includes(status) || hasTime || !!r.sundayWorked || !!r.holidayWorked;
   }
   const calcEMI = (l, m) => { if (l.status !== 'Active' || l.remainingAmount <= 0) return 0; return Math.min(l.emiAmount, l.remainingAmount) }
 
@@ -1762,11 +1805,34 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       const appliedSandwiches = sandwichSnap.docs.map(d => d.data());
       const appliedForThisEmp = appliedSandwiches.filter(s => s.employeeId === selectedEmp);
 
-      // Filter attendance in memory
+      const normalizeDate = (dateStr) => {
+        if (!dateStr || dateStr === '-') return null;
+        const str = String(dateStr).trim();
+        const parts = str.split(/[-/]/);
+        if (parts.length === 3) {
+          if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+        return str;
+      };
+
+      const empIdStr = String(selectedEmp || '').trim();
+      const empObj = employees.find(e => String(e.id || '').trim() === empIdStr || (e.empCode && String(e.empCode).trim() === empIdStr)) || emp;
+      const empCodeStr = String(empObj?.empCode || '').trim();
+      const targetEmpId = String(empObj?.id || selectedEmp).trim();
+
+      // Filter attendance in memory with date & employee ID normalization
       const aData = aDataSnap.docs
         .map(d => d.data())
-        .filter(a => a.employeeId === selectedEmp && a.date >= sd && a.date <= ed);
-      const attByDate = new Map(aData.map(a => [a.date, a]));
+        .filter(a => {
+          const attEmpId = String(a.employeeId || a.empId || '').trim();
+          const matchesEmp = (targetEmpId && attEmpId === targetEmpId) || (empIdStr && attEmpId === empIdStr) || (empCodeStr && attEmpId === empCodeStr);
+          if (!matchesEmp) return false;
+          const recDate = a.date || a.inDate;
+          const nd = normalizeDate(recDate);
+          return nd && nd >= sd && nd <= ed;
+        });
+      const attByDate = new Map(aData.map(a => [normalizeDate(a.date || a.inDate), a]));
 
       const orgData = orgSnap.exists() ? orgSnap.data() : {};
       const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : [];
@@ -1778,7 +1844,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       let foodP = 0, convP = 0, bonusP = 0;
       varLogsSnap.docs.forEach(d => {
         const row = d.data();
-        if (row.employeeId === selectedEmp && row.month === selectedMonth && !row.isSettled) {
+        const rowEmpId = String(row.employeeId || '').trim();
+        const matchesEmp = (targetEmpId && rowEmpId === targetEmpId) || (empIdStr && rowEmpId === empIdStr) || (empCodeStr && rowEmpId === empCodeStr);
+        if (matchesEmp && row.month === selectedMonth && !row.isSettled) {
           foodP += Number(row.food || 0);
           convP += Number(row.convenience || 0);
           bonusP += Number(row.bonus || 0);
@@ -1787,7 +1855,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
       const allAE = aeSnap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(a => a.employeeId === selectedEmp && a.date >= sd && a.date <= ed);
+        .filter(a => {
+          const aEmpId = String(a.employeeId || '').trim();
+          const matchesEmp = (targetEmpId && aEmpId === targetEmpId) || (empIdStr && aEmpId === empIdStr) || (empCodeStr && aEmpId === empCodeStr);
+          return matchesEmp && a.date >= sd && a.date <= ed;
+        });
       
       setAdvExpRows(allAE.map(a => ({ date: a.date, type: a.type, amount: Number(a.amount) })));
       
@@ -1806,11 +1878,14 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const r = attByDate.get(ds);
         const status = String(r?.status || '').toLowerCase();
         
-        if (emp.joinedDate && ds < emp.joinedDate && !isWorkedAttendanceRecord(r)) {
+        const normJoined = normalizeDate(emp.joinedDate);
+        const normInactive = normalizeDate(emp.inactiveFrom);
+
+        if (normJoined && ds < normJoined && !isWorkedAttendanceRecord(r)) {
           lop++;
           continue;
         }
-        if (!isEmployeeActiveStatus(emp.status) && emp.inactiveFrom && ds > emp.inactiveFrom && !isWorkedAttendanceRecord(r)) {
+        if (!isEmployeeActiveStatus(emp.status) && normInactive && ds > normInactive && !isWorkedAttendanceRecord(r)) {
           lop++;
           continue;
         }
@@ -1828,10 +1903,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           }
         }
         
+        const hasTime = !!(r?.inTime && r.inTime !== 'Absent' && r.inTime !== '-') || !!(r?.checkIn && r.checkIn !== 'Absent');
+        const isExplicitAbsent = (status === 'absent' || r?.isAbsent || status === 'leave') && !hasTime;
         const isPresent = isWorkedAttendanceRecord(r) || r?.sundayWorked || r?.holidayWorked || status === 'sunworked';
         const isHD = status === 'half-day' || r?.isHalfDay;
 
-        if (status === 'absent' || r?.isAbsent || status === 'leave') {
+        if (isExplicitAbsent) {
           lop++;
           leaveDates.push(i);
           if (isS) sunCount--;

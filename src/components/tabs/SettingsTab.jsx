@@ -7,7 +7,7 @@ import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTime
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { z } from 'zod'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2 } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -49,6 +49,7 @@ import { Table as ReusableTable } from '../table'
 import { SubTabsNav } from '../ui/SubTabsNav'
 
 import { formatDateDDMMYYYY } from '../../lib/utils';
+import { compressImageToBase64 } from '../../lib/imageUtils';
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -508,6 +509,7 @@ export default function SettingsTab({ initialSubTab }) {
 
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [logoError, setLogoError] = useState(false)
   const [saved, setSaved] = useState(false)
   const [orgError, setOrgError] = useState('')
   const [employeeDirectorySearch, setEmployeeDirectorySearch] = useState('')
@@ -1101,15 +1103,56 @@ export default function SettingsTab({ initialSubTab }) {
     }
   }
 
+  const compressImageToBase64 = (file, maxWidth = 256, maxHeight = 256) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = (event) => {
+        const img = new Image()
+        img.src = event.target.result
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width)
+              width = maxWidth
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height)
+              height = maxHeight
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, width, height)
+          resolve(canvas.toDataURL('image/png', 0.85))
+        }
+        img.onerror = (err) => reject(err)
+      }
+      reader.onerror = (err) => reject(err)
+    })
+  }
+
   const handleFileUpload = async (file, path) => {
     if (!file) return null
-    if (file.size > 2 * 1024 * 1024) {
-      alert('File size must be less than 2MB')
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB')
       return null
     }
-    const storageRef = ref(storage, path)
-    await uploadBytes(storageRef, file)
-    return await getDownloadURL(storageRef)
+    try {
+      const storageRef = ref(storage, path)
+      await uploadBytes(storageRef, file)
+      return await getDownloadURL(storageRef)
+    } catch (storageErr) {
+      console.warn('Firebase Storage upload failed, compressing image locally to base64:', storageErr)
+      return await compressImageToBase64(file)
+    }
   }
 
   const getEmployeeFormWithDefaults = (employee) => {
@@ -2928,10 +2971,29 @@ export default function SettingsTab({ initialSubTab }) {
                 <div className={`${settingsInsetPanelClassName} p-3 grid grid-cols-[1.2fr_1.8fr] gap-4 items-center`}>
                   <div>
                     <p className="text-[11px] font-extrabold text-slate-900 leading-tight">Organization Logo</p>
-                    <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Supported: PNG, JPG. Click badge to upload.</p>
+                    <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Supported: PNG, JPG, WebP. Click box to upload.</p>
+                    {orgSettings.logoURL && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!window.confirm('Remove organization logo?')) return
+                          try {
+                            setOrgSettings(s => ({ ...s, logoURL: '' }))
+                            setLogoError(false)
+                            await setDoc(doc(db, 'organisations', user.orgId), { logoURL: '' }, { merge: true })
+                            alert('Logo removed successfully!')
+                          } catch (err) {
+                            console.error('Failed to remove logo:', err)
+                          }
+                        }}
+                        className="text-[10px] font-semibold text-rose-600 hover:text-rose-700 hover:underline mt-1 block"
+                      >
+                        Remove Logo
+                      </button>
+                    )}
                   </div>
                   <div className="flex justify-end">
-                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-white transition-all hover:border-indigo-400">
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-white transition-all hover:border-indigo-400 shadow-sm">
                       {uploadingLogo ? (
                         <div className="flex flex-col items-center justify-center">
                           <svg className="animate-spin h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none">
@@ -2939,19 +3001,16 @@ export default function SettingsTab({ initialSubTab }) {
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                           </svg>
                         </div>
-                      ) : orgSettings.logoURL ? (
+                      ) : orgSettings.logoURL && !logoError ? (
                         <img 
                           src={orgSettings.logoURL} 
                           className="w-full h-full object-cover rounded-xl" 
                           alt="Logo" 
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-                          }}
+                          onError={() => setLogoError(true)}
                         />
                       ) : (
-                        <div className="flex flex-col items-center justify-center">
-                          <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 12a8 8 0 018-8v8H4z" /></svg>
+                        <div className="flex flex-col items-center justify-center text-slate-400">
+                          <Building2 className="w-5 h-5" />
                         </div>
                       )}
                       <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploadingLogo} onChange={async (e) => {
@@ -2960,11 +3019,11 @@ export default function SettingsTab({ initialSubTab }) {
                         
                         try {
                           setUploadingLogo(true)
-                          const url = await handleFileUpload(file, `orgs/${user.orgId}/logo_${Date.now()}`)
-                          if (url) {
-                            setOrgSettings(s => ({ ...s, logoURL: url }))
-                            // Immediately persist to Firestore
-                            await setDoc(doc(db, 'organisations', user.orgId), { logoURL: url }, { merge: true })
+                          const base64Url = await compressImageToBase64(file, 300, 300, 0.8)
+                          if (base64Url) {
+                            setLogoError(false)
+                            setOrgSettings(s => ({ ...s, logoURL: base64Url }))
+                            await setDoc(doc(db, 'organisations', user.orgId), { logoURL: base64Url }, { merge: true })
                             alert('Organisation logo updated successfully!')
                           }
                         } catch (err) {
