@@ -3527,8 +3527,8 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                   <span className="text-[10px] font-normal text-black/90">Cash in hand</span>
                   <span className="text-xs font-black text-amber-600">
                     ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                      advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
-                      expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+                      advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
+                      expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
                     )}
                   </span>
                 </div>

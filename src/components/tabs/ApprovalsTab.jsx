@@ -264,13 +264,18 @@ export default function ApprovalsTab() {
     }
   }
 
+  const [allApprovalSettings, setAllApprovalSettings] = useState([])
+
   useEffect(() => {
     if (!user?.orgId) return
     const fetchSettings = async () => {
-      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'), where('moduleName', '==', 'Leave'))
+      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'))
       const snap = await getDocs(q)
-      if (!snap.empty) {
-        setLeaveApprovalSetting(snap.docs[0].data())
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      setAllApprovalSettings(list)
+      const leaveSetting = list.find(s => s.moduleName === 'Leave')
+      if (leaveSetting) {
+        setLeaveApprovalSetting(leaveSetting)
       }
     }
     fetchSettings()
@@ -449,7 +454,18 @@ export default function ApprovalsTab() {
       } else if (pick === 'Hold') {
         updateData.status = 'Hold'
       } else if (pick === 'Approve' || pick === 'Partial') {
-        if (item?.status === 'Hold') updateData.status = 'Pending'
+        const itemType = item?.type || 'Expense'
+        const moduleSetting = allApprovalSettings.find(s => s.moduleName === itemType)
+        const isSingleApproval = moduleSetting?.type === 'single'
+
+        if (isSingleApproval) {
+          updateData.status = pick === 'Partial' ? 'Partial' : 'Approved'
+          updateData.mdApproval = pick === 'Partial' ? 'Partial' : 'Approved'
+          updateData.approved_by = user.uid
+          updateData.approved_at = serverTimestamp()
+        } else if (item?.status === 'Hold') {
+          updateData.status = 'Pending'
+        }
       }
 
       await updateDoc(doc(db, 'organisations', user.orgId, 'advances_expenses', id), updateData)
@@ -467,8 +483,12 @@ export default function ApprovalsTab() {
     if (!state) return
 
     const item = advExpenses.find((x) => x.id === id)
+    const itemType = item?.type || 'Expense'
+    const moduleSetting = allApprovalSettings.find(s => s.moduleName === itemType)
+    const isSingleApproval = moduleSetting?.type === 'single'
+
     const hrOk = ['Approved', 'Partial'].includes(item?.hrApproval || '')
-    if (!hrOk && !isAdmin) {
+    if (!hrOk && !isAdmin && !isSingleApproval) {
       return showFeedback(id, 'HR approval req.', true)
     }
 
@@ -493,6 +513,7 @@ export default function ApprovalsTab() {
       if (pick === 'Approve') {
         updateData.status = 'Approved'
         updateData.mdApproval = 'Approved'
+        if (isSingleApproval) updateData.hrApproval = 'Approved'
         updateData.approved_by = user.uid
         updateData.approved_at = serverTimestamp()
       } else if (pick === 'Partial') {
