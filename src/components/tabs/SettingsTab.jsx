@@ -2618,6 +2618,7 @@ export default function SettingsTab({ initialSubTab }) {
       { id: 'Leave', label: 'Leave' },
       { id: 'Permission', label: 'Permission' },
       { id: 'Advance', label: 'Salary Advance' },
+      { id: 'Expense', label: 'Expense Claim' },
       { id: 'Allowance', label: 'Allowance' },
     ]
     const approvalTypeLabels = {

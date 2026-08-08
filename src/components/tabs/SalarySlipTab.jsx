@@ -276,7 +276,7 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
         <View style={{flexDirection:'row'}}>
           <View style={{flex:5, backgroundColor:'#dcfce7', color:'#166534', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#0f172a', flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>EARNINGS (CREDIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
           <View style={{flex:4, backgroundColor:'#fee2e2', color:'#991b1b', paddingVertical:6, paddingHorizontal:8, borderRightWidth:1, borderColor:'#0f172a', flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>DEDUCTIONS (DEBIT)</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
-          <View style={{flex:3, backgroundColor:'#f0fdf4', color:'#475569', paddingVertical:6, paddingHorizontal:8, flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>ADVANCE/EXPENSE</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
+          <View style={{flex:3, backgroundColor:'#f0f9ff', color:'#0369a1', paddingVertical:6, paddingHorizontal:8, flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:8, fontWeight:'bold'}}>ADVANCE/EXPENSE</Text><Text style={{fontSize:8, fontWeight:'bold'}}>AMOUNT</Text></View>
         </View>
         <View style={{flexDirection:'row'}}>
           <View style={{flex:5, borderRightWidth:1, borderColor:'#e2e8f0'}}>
@@ -321,11 +321,11 @@ const SalarySlipPDF = ({ data, orgName, orgLogo }) => (
           </View>
         </View>
         <View style={{flexDirection:'row', borderTopWidth:1, borderColor:'#0f172a'}}>
-          <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8, borderRightWidth:1, borderColor:'#0f172a', backgroundColor:'#f0fdf4'}}>
+          <View style={{flex:5, flexDirection:'row', justifyContent:'space-between', padding:8, borderRightWidth:1, borderColor:'#0f172a', backgroundColor:'#f0fdf4'}}>
             <Text style={{fontWeight:'bold', color:'#166534'}}>GROSS PAY</Text>
             <Text style={{fontWeight:'bold', color:'#166534'}}>{formatINR(data.grossEarnings)}</Text>
           </View>
-          <View style={{flex:1, flexDirection:'row', justifyContent:'space-between', padding:8, backgroundColor:'#fef2f2'}}>
+          <View style={{flex:7, flexDirection:'row', justifyContent:'space-between', padding:8, backgroundColor:'#fef2f2'}}>
             <Text style={{fontWeight:'bold', color:'#991b1b'}}>TOTAL DED.</Text>
             <Text style={{fontWeight:'bold', color:'#991b1b'}}>{formatINR(data.totalDeductions)}</Text>
           </View>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
 import { formatINR } from '../../lib/salaryUtils'
@@ -274,6 +275,18 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     enabled: !!user?.orgId
   })
 
+  // Fetch approval settings
+  const { data: approvalSettings = [] } = useQuery({
+    queryKey: ['approvalSettings', user?.orgId],
+    queryFn: async () => {
+      if (!user?.orgId) return []
+      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'))
+      const snap = await getDocs(q)
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    },
+    enabled: !!user?.orgId
+  })
+
   // TanStack Query for fetching deleted items
   const { data: deletedEntries = [], isLoading: loadingDeleted } = useQuery({
     queryKey: ['deleted_advances_expenses', user?.orgId],
@@ -422,6 +435,24 @@ export default function AdvanceExpenseTab({ defaultModule }) {
           linkedAdvanceId = advanceDoc.id
         }
 
+        // Check Approval Settings rule for Advance or Expense module
+        const moduleSetting = approvalSettings.find(s => s.moduleName === type)
+        const appTypeSetting = moduleSetting?.type || 'multi'
+
+        let initialStatus = 'Pending'
+        let initialHrApproval = 'Pending'
+        let initialMdApproval = 'Pending'
+        let initialApprovedBy = null
+        let initialApprovedAt = null
+
+        if (appTypeSetting === 'none') {
+          initialStatus = 'Approved'
+          initialHrApproval = 'Approved'
+          initialMdApproval = 'Approved'
+          initialApprovedBy = user.name || user.email
+          initialApprovedAt = serverTimestamp()
+        }
+
         const expenseDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
           transactionNo: txnNo,
           employeeId: row.employeeId,
@@ -434,11 +465,11 @@ export default function AdvanceExpenseTab({ defaultModule }) {
           date: row.date,
           reason: row.reason,
           project: row.project || '',
-          status: 'Pending',
-          approved_by: null,
-          approved_at: null,
-          hrApproval: 'Pending',
-          mdApproval: 'Pending',
+          status: initialStatus,
+          approved_by: initialApprovedBy,
+          approved_at: initialApprovedAt,
+          hrApproval: initialHrApproval,
+          mdApproval: initialMdApproval,
           createdBy: user.name || user.email,
           createdAt: serverTimestamp(),
           paidTo: row.paidTo || null,
@@ -461,6 +492,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     onSuccess: (txnNos) => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
       setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
+      try { localStorage.removeItem('hrflow_expense_draft') } catch (e) { /* ignore */ }
       // Note: Drawer will open automatically showing submitted items
     }
   })
@@ -537,7 +569,8 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     const categoryLower = row.category?.toLowerCase().trim() || ''
     const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => categoryLower.includes(reqCat))
 
-    const employeeOptions = employees.map(e => ({ label: e.name, value: e.id }))
+    const activeEmps = employees.filter(e => (e.status || 'Active').toLowerCase() === 'active')
+    const employeeOptions = activeEmps.map(e => ({ label: e.name, value: e.id }))
 
     const displayValue = (() => {
       if (row.paidToType === 'custom' && row.paidToCustomName) {
@@ -589,19 +622,91 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     )
   }
 
-  const [addRows, setAddRows] = useState([
-    { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }
-  ])
+  // LocalStorage persistence helpers
+  const LS_KEY = 'hrflow_expense_draft'
+  const loadDraft = () => {
+    try {
+      const saved = localStorage.getItem(LS_KEY)
+      if (saved) return JSON.parse(saved)
+    } catch (e) { /* ignore parse errors */ }
+    return null
+  }
+  const draft = loadDraft()
 
-  const [expenseMode, setExpenseMode] = useState('self') // 'self' | 'employee' | 'advance_settlement'
-  const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [sessionAccount, setSessionAccount] = useState('Petty Cash - HO')
-  const [sessionDefaultEmp, setSessionDefaultEmp] = useState('')
-  const [sessionPayout, setSessionPayout] = useState('Immediate')
-  const [showAdvanceFields, setShowAdvanceFields] = useState(false)
+  const [addRows, setAddRows] = useState(() => {
+    if (draft?.addRows?.length) return draft.addRows
+    return [{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }]
+  })
+
+  const [expenseMode, setExpenseMode] = useState(draft?.expenseMode || 'self')
+  const [sessionDate, setSessionDate] = useState(() => draft?.sessionDate || new Date().toISOString().split('T')[0])
+  const [sessionAccount, setSessionAccount] = useState(draft?.sessionAccount || 'Petty Cash - HO')
+  const [sessionDefaultEmp, setSessionDefaultEmp] = useState(draft?.sessionDefaultEmp || '')
+  const [sessionPayout, setSessionPayout] = useState(draft?.sessionPayout || 'Immediate')
+  const [showAdvanceFields, setShowAdvanceFields] = useState(draft?.showAdvanceFields || false)
   const [showAdvancedColumns, setShowAdvancedColumns] = useState(false)
-  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+  const [showAdvanceFieldsDropdown, setShowAdvanceFieldsDropdown] = useState(false)
+  const [showProjectColumn, setShowProjectColumn] = useState(draft?.showProjectColumn ?? false)
+  const [activePaidToRowId, setActivePaidToRowId] = useState(null)
+  const [paidToPopoverPos, setPaidToPopoverPos] = useState({ top: 200, left: 200 })
+  const [paidToSearchTerm, setPaidToSearchTerm] = useState('')
+  const advanceFieldsDropdownRef = useRef(null)
+  const paidToPopoverRef = useRef(null)
+
+  // Auto-save draft to localStorage on state changes
+  useEffect(() => {
+    const draftData = {
+      addRows,
+      expenseMode,
+      sessionDate,
+      sessionAccount,
+      sessionDefaultEmp,
+      sessionPayout,
+      showAdvanceFields,
+      showProjectColumn,
+    }
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(draftData))
+    } catch (e) { /* quota exceeded, ignore */ }
+  }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn])
+
+  const openPaidToPopover = (rowId, targetElem) => {
+    if (!rowId) {
+      setActivePaidToRowId(null)
+      return
+    }
+    setTimeout(() => {
+      const cellElem = document.getElementById(`category-cell-${rowId}`) || targetElem
+      if (cellElem) {
+        const rect = cellElem.getBoundingClientRect()
+        const popupHeight = 220
+        const spaceBelow = window.innerHeight - rect.bottom
+        let topPos = rect.bottom + 4
+        if (spaceBelow < popupHeight && rect.top > popupHeight) {
+          topPos = rect.top - popupHeight - 4
+        }
+        setPaidToPopoverPos({
+          top: Math.max(10, topPos),
+          left: Math.min(window.innerWidth - 270, Math.max(10, rect.left))
+        })
+      }
+      setActivePaidToRowId(rowId)
+    }, 10)
+  }
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (advanceFieldsDropdownRef.current && !advanceFieldsDropdownRef.current.contains(event.target)) {
+        setShowAdvanceFieldsDropdown(false)
+      }
+      if (paidToPopoverRef.current && !paidToPopoverRef.current.contains(event.target)) {
+        setActivePaidToRowId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleDuplicateRow = (rowId) => {
     const target = addRows.find(r => r.id === rowId)
@@ -626,16 +731,21 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     setAddRows([
       { id: Date.now(), date: todayStr, employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }
     ])
+    try { localStorage.removeItem('hrflow_expense_draft') } catch (e) { /* ignore */ }
   }
 
   useEffect(() => {
-    if (!canSelectAll && employees.length > 0 && addRows.length === 1 && !addRows[0].employeeId) {
+    if (employees.length > 0) {
       const myId = getMyEmpId()
-      if (myId) {
-        setAddRows([{ ...addRows[0], employeeId: myId }])
+      if (myId && !sessionDefaultEmp) {
+        setSessionDefaultEmp(myId)
+      }
+      const activeEmp = sessionDefaultEmp || myId
+      if (activeEmp) {
+        setAddRows(rows => rows.map(r => (!r.employeeId ? { ...r, employeeId: activeEmp } : r)))
       }
     }
-  }, [employees, canSelectAll])
+  }, [employees, user?.email])
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -758,8 +868,18 @@ export default function AdvanceExpenseTab({ defaultModule }) {
   }, [toDateDropdownOpen])
 
   const handleAddRow = () => {
-    const myId = !canSelectAll ? getMyEmpId() : ''
-    setAddRows([...addRows, { id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: myId, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
+    const activeEmp = sessionDefaultEmp || getMyEmpId() || ''
+    const newId = Date.now() + Math.random()
+    setAddRows(prev => [...prev, { id: newId, date: new Date().toISOString().split('T')[0], employeeId: activeEmp, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: sessionPayout || 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
+    // Auto-focus the new row's category cell after React renders it
+    setTimeout(() => {
+      const catCell = document.getElementById(`category-cell-${newId}`)
+      if (catCell) {
+        const select = catCell.querySelector('select')
+        if (select) select.focus()
+      }
+    }, 50)
+    return newId
   }
 
   const handleSelfExpense = () => {
@@ -1102,22 +1222,29 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       // After successful submission, open drawer with submitted items
       if (result && result.length > 0) {
         // Transform submitted rows to match approval display format
-        const justSubmitted = validRows.map((row, idx) => ({
-          id: result[idx], // Transaction number
-          transactionNo: result[idx],
-          employeeName: employees.find(e => e.id === row.employeeId)?.name || 'Unknown',
-          employeeId: row.employeeId,
-          category: row.category,
-          amount: row.amount,
-          date: row.date,
-          type: activeModule === 'Add Advance' ? 'Advance' : 'Expense',
-          hrApproval: 'Pending',
-          mdApproval: 'Pending',
-          status: 'Pending',
-          payoutMethod: row.payoutMethod,
-          requestType: row.requestType,
-          _isNew: true // Flag to identify just-submitted items
-        }))
+        const justSubmitted = validRows.map((row, idx) => {
+          const rowType = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
+          const moduleSetting = approvalSettings.find(s => s.moduleName === rowType)
+          const appType = moduleSetting?.type || 'multi'
+          const isNoAppr = appType === 'none'
+
+          return {
+            id: result[idx], // Transaction number
+            transactionNo: result[idx],
+            employeeName: employees.find(e => e.id === row.employeeId)?.name || 'Unknown',
+            employeeId: row.employeeId,
+            category: row.category,
+            amount: row.amount,
+            date: row.date,
+            type: rowType,
+            hrApproval: isNoAppr ? 'Approved' : 'Pending',
+            mdApproval: isNoAppr ? 'Approved' : 'Pending',
+            status: isNoAppr ? 'Approved' : 'Pending',
+            payoutMethod: row.payoutMethod,
+            requestType: row.requestType,
+            _isNew: true // Flag to identify just-submitted items
+          }
+        })
         
         console.log('Just submitted items:', justSubmitted)
         setSubmittedItems(justSubmitted)
@@ -1154,7 +1281,11 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       }
 
       const docId = snap.docs[0].id
+      const currentData = snap.docs[0].data()
       const docRef = doc(db, 'organisations', user.orgId, 'advances_expenses', docId)
+
+      const moduleSetting = approvalSettings.find(s => s.moduleName === (currentData.type || 'Expense'))
+      const isSingleApproval = moduleSetting?.type === 'single'
 
       let updateData = {
         updatedAt: serverTimestamp()
@@ -1167,19 +1298,17 @@ export default function AdvanceExpenseTab({ defaultModule }) {
             updateData.hrApproval = 'Approved'
             updateData.hrApprovedBy = user.uid
             updateData.hrApprovedAt = serverTimestamp()
-            // Check if MD is also approved, then mark as fully approved
-            const currentData = snap.docs[0].data()
-            if (currentData.mdApproval === 'Approved') {
+            if (isSingleApproval || currentData.mdApproval === 'Approved') {
               updateData.status = 'Approved'
+              if (isSingleApproval) updateData.mdApproval = 'Approved'
             }
           } else {
             updateData.mdApproval = 'Approved'
             updateData.mdApprovedBy = user.uid
             updateData.mdApprovedAt = serverTimestamp()
-            // Check if HR is also approved, then mark as fully approved
-            const currentData = snap.docs[0].data()
-            if (currentData.hrApproval === 'Approved') {
+            if (isSingleApproval || currentData.hrApproval === 'Approved') {
               updateData.status = 'Approved'
+              if (isSingleApproval) updateData.hrApproval = 'Approved'
             }
           }
           break
@@ -2232,7 +2361,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       </div>
 
       {/* Add Expense Module (New Modern Design) */}
-      {activeModule === 'Add Expense' && (() => {
+      {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (() => {
         const totalExpensesCount = addRows.length;
         const totalExpensesAmount = addRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
@@ -2258,17 +2387,56 @@ export default function AdvanceExpenseTab({ defaultModule }) {
         }
 
         return (
-          <div className="space-y-6">
-            {/* 1. Header & Main Action Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Add Expenses</h1>
+          <div className="space-y-3">
+            {/* 1. Integrated Header, Compact Mode Selector & Main Actions */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200/90 shadow-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-bold text-slate-800 tracking-tight">{activeModule === 'Add Advance' ? 'Advance' : 'Expense'} type:</span>
+
+                {/* Ultra-Compact Segmented Mode Selector with Uniform Active/Hover Styles */}
+                <div className="flex items-center gap-2 text-[15px]">
+                  <button
+                    type="button"
+                    onClick={() => { setExpenseMode('self'); handleSelfExpense(); }}
+                    className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-2 tracking-wide ${
+                      expenseMode === 'self'
+                        ? 'bg-white text-blue-600 shadow-sm border border-slate-200/80 font-medium'
+                        : 'text-slate-600 hover:text-slate-900 font-normal hover:bg-slate-100/50'
+                    }`}
+                  >
+                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
+                      expenseMode === 'self' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                    }`}>
+                      {expenseMode === 'self' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </span>
+                    <Building2 size={13} />
+                    Company {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'} (Self)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setExpenseMode('employee')}
+                    className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-2 tracking-wide ${
+                      expenseMode === 'employee'
+                        ? 'bg-white text-blue-600 shadow-sm border border-slate-200/80 font-medium'
+                        : 'text-slate-600 hover:text-slate-900 font-normal hover:bg-slate-100/50'
+                    }`}
+                  >
+                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
+                      expenseMode === 'employee' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                    }`}>
+                      {expenseMode === 'employee' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </span>
+                    <User size={13} />
+                    Employee {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}
+                  </button>
+
+
                 </div>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Fast, consistent and smart expense entry</p>
               </div>
 
-              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
                 <input
                   type="file"
                   ref={csvFileInputRef}
@@ -2276,182 +2444,33 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                   onChange={handleCSVImport}
                   className="hidden"
                 />
-                <button
-                  type="button"
-                  onClick={() => csvFileInputRef.current?.click()}
-                  className="h-10 px-4 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-all flex items-center gap-2"
-                >
-                  <FileDown size={15} className="text-slate-500" />
-                  Import CSV
-                </button>
-
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowMoreMenu(!showMoreMenu)}
-                    className="h-10 px-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-all flex items-center gap-1.5"
-                  >
-                    More
-                    <ChevronDown size={14} className="text-slate-500" />
-                  </button>
-                  {showMoreMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1.5 text-xs font-medium text-slate-700">
-                      <button
-                        type="button"
-                        onClick={() => { handleClearSession(); setShowMoreMenu(false); }}
-                        className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600 flex items-center gap-2"
-                      >
-                        <Trash2 size={14} /> Clear Session
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSubmitAll}
-                  disabled={submitting}
-                  className="h-10 px-5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
-                >
-                  {submitting ? (
-                    <Spinner size="w-4 h-4" color="text-white" />
-                  ) : (
-                    <>
-                      <Send size={15} />
-                      Submit Expenses
-                      <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] bg-blue-500/40 text-blue-100 rounded font-semibold border border-blue-400/30">
-                        Ctrl + Enter
-                      </kbd>
-                    </>
-                  )}
-                </button>
               </div>
             </div>
-
-            {/* 2. Mode Selection Radio Cards (3 Cards) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Card 1: Company Expenses (Self) */}
-              <div
-                onClick={() => { setExpenseMode('self'); handleSelfExpense(); }}
-                className={`cursor-pointer p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between shadow-sm ${
-                  expenseMode === 'self'
-                    ? 'bg-blue-50/40 border-blue-500 ring-2 ring-blue-500/20 shadow-blue-500/5'
-                    : 'bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50'
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className={`p-3 rounded-xl ${expenseMode === 'self' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}>
-                    <Building2 size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Company Expenses (Self)</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Expenses paid by company / you</p>
-                  </div>
-                </div>
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                  expenseMode === 'self' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
-                }`}>
-                  {expenseMode === 'self' && <div className="w-2 h-2 rounded-full bg-white" />}
-                </div>
-              </div>
-
-              {/* Card 2: Employee Expenses */}
-              <div
-                onClick={() => setExpenseMode('employee')}
-                className={`cursor-pointer p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between shadow-sm ${
-                  expenseMode === 'employee'
-                    ? 'bg-blue-50/40 border-blue-500 ring-2 ring-blue-500/20 shadow-blue-500/5'
-                    : 'bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50'
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className={`p-3 rounded-xl ${expenseMode === 'employee' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                    <User size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Employee Expenses</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Expenses paid for an employee</p>
-                  </div>
-                </div>
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                  expenseMode === 'employee' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
-                }`}>
-                  {expenseMode === 'employee' && <div className="w-2 h-2 rounded-full bg-white" />}
-                </div>
-              </div>
-
-              {/* Card 3: Advance Settlement */}
-              <div
-                onClick={() => setExpenseMode('advance_settlement')}
-                className={`cursor-pointer p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between shadow-sm ${
-                  expenseMode === 'advance_settlement'
-                    ? 'bg-emerald-50/40 border-emerald-500 ring-2 ring-emerald-500/20 shadow-emerald-500/5'
-                    : 'bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50'
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className={`p-3 rounded-xl ${expenseMode === 'advance_settlement' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                    <Repeat size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Advance Settlement</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Settle advance paid to employee</p>
-                  </div>
-                </div>
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                  expenseMode === 'advance_settlement' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
-                }`}>
-                  {expenseMode === 'advance_settlement' && <div className="w-2 h-2 rounded-full bg-white" />}
-                </div>
-              </div>
-            </div>
-
-            {/* 3. Session Details Bar (Applies to all rows) */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-bold text-slate-900">Session Details</h2>
-                  <span className="text-xs text-slate-400 font-normal">(applies to all rows)</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleClearSession}
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-1.5"
-                >
-                  <RotateCcw size={13} />
-                  Clear Session
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5 items-center">
+            {/* 2. Session Details Ribbon (Clean Row without Outer Container Background) */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3 flex-1">
                 {/* Date */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Date <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={sessionDate}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSessionDate(val);
-                        setAddRows(addRows.map(r => ({ ...r, date: val })));
-                      }}
-                      className="w-full h-10 bg-slate-50/50 border border-slate-200 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                    />
-                  </div>
+                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Date:</span>
+                  <input
+                    type="date"
+                    value={sessionDate}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSessionDate(val);
+                      setAddRows(addRows.map(r => ({ ...r, date: val })));
+                    }}
+                    className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
+                  />
                 </div>
 
-                {/* Paid From (Account) */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Paid From (Account) <span className="text-rose-500">*</span>
-                  </label>
+                {/* Paid From */}
+                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
                   <select
                     value={sessionAccount}
                     onChange={(e) => setSessionAccount(e.target.value)}
-                    className="w-full h-10 bg-slate-50/50 border border-slate-200 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
                   >
                     <option value="Petty Cash - HO">Petty Cash - HO</option>
                     <option value="Main Bank Account">Main Bank Account</option>
@@ -2461,10 +2480,8 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 </div>
 
                 {/* Default Employee */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Default Employee <span className="text-rose-500">*</span>
-                  </label>
+                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
                   <select
                     value={sessionDefaultEmp}
                     onChange={(e) => {
@@ -2474,22 +2491,23 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                         setAddRows(addRows.map(r => ({ ...r, employeeId: val })));
                       }
                     }}
-                    className="w-full h-10 bg-slate-50/50 border border-slate-200 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer max-w-[200px] truncate h-full"
                   >
-                    <option value="">Select employee...</option>
-                    {employees.map(e => (
-                      <option key={e.id} value={e.id}>
-                        {e.name}
-                      </option>
-                    ))}
+                    <option value="">Select...</option>
+                    {employees.map(e => {
+                      const isMe = e.id === getMyEmpId() || e.email === user?.email;
+                      return (
+                        <option key={e.id} value={e.id}>
+                          {e.name} {isMe ? '(You)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
-                {/* Payout */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Payout <span className="text-rose-500">*</span>
-                  </label>
+                {/* Default Payout */}
+                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
                   <select
                     value={sessionPayout}
                     onChange={(e) => {
@@ -2497,20 +2515,27 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                       setSessionPayout(val);
                       setAddRows(addRows.map(r => ({ ...r, payoutMethod: val })));
                     }}
-                    className="w-full h-10 bg-slate-50/50 border border-slate-200 rounded-xl px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
                   >
                     <option value="Immediate">Immediate</option>
-                    <option value="With Salary">Monthly (With Salary)</option>
+                    <option value="With Salary">Monthly</option>
                   </select>
                 </div>
+              </div>
 
-                {/* Tip Box (Right Column) */}
-                <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3 flex items-start gap-2.5">
-                  <Lightbulb size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-blue-800 leading-snug font-medium">
-                    <strong className="font-bold">Tip:</strong> All rows will use the above Payout unless changed in a row.
-                  </p>
-                </div>
+              {/* Tip & Reset */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="hidden xl:inline-block text-xs text-blue-700 bg-blue-50/80 px-2.5 py-1.5 rounded-lg border border-blue-100 font-medium">
+                  💡 Tip: All rows use default Payout
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearSession}
+                  className="p-2 text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-colors"
+                  title="Clear Session"
+                >
+                  <RotateCcw size={15} />
+                </button>
               </div>
             </div>
 
@@ -2524,41 +2549,52 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                  {/* Show Advance fields toggle */}
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={showAdvanceFields}
-                      onChange={(e) => setShowAdvanceFields(e.target.checked)}
-                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-                    />
-                    <span>Show Advance fields</span>
-                    <span className="text-[10px] text-slate-400 font-normal">(Paid To, Advance Ref)</span>
-                  </label>
+                  {/* Show Advance fields Dropdown with Checkboxes & Click Outside Close */}
+                  <div className="relative" ref={advanceFieldsDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanceFieldsDropdown(!showAdvanceFieldsDropdown)}
+                      className="flex items-center gap-2 text-xs font-semibold text-slate-700 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors"
+                    >
+                      <Layers size={14} className="text-slate-500" />
+                      <span>Show Advance fields</span>
+                      <ChevronDown size={13} className={`text-slate-400 transition-transform ${showAdvanceFieldsDropdown ? 'rotate-180' : ''}`} />
+                    </button>
 
-                  {/* Advanced Columns Dropdown */}
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvancedColumns(!showAdvancedColumns)}
-                    className="h-9 px-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl text-xs shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
-                  >
-                    <Layers size={14} className="text-slate-500" />
-                    Advanced Columns
-                    <ChevronDown size={13} className="text-slate-400" />
-                  </button>
+                    {showAdvanceFieldsDropdown && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-3 space-y-2.5 text-xs">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          Optional Columns
+                        </div>
+                        
+                        <label className="flex items-start gap-2.5 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
+                          <input
+                            type="checkbox"
+                            checked={showAdvanceFields}
+                            onChange={(e) => setShowAdvanceFields(e.target.checked)}
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5"
+                          />
+                          <div>
+                            <span className="block font-semibold">Paid To & Advance Ref</span>
+                            <span className="text-[10px] text-slate-400 font-normal">Show payment tracking fields</span>
+                          </div>
+                        </label>
 
-                  {/* + Add Row Button */}
-                  <button
-                    type="button"
-                    onClick={handleAddRow}
-                    className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all"
-                  >
-                    <Plus size={15} />
-                    Add Row
-                    <kbd className="px-1.5 py-0.5 text-[9px] bg-emerald-500/40 text-emerald-100 rounded font-semibold border border-emerald-400/30">
-                      Enter
-                    </kbd>
-                  </button>
+                        <label className="flex items-start gap-2.5 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none pt-2 border-t border-slate-100">
+                          <input
+                            type="checkbox"
+                            checked={showProjectColumn}
+                            onChange={(e) => setShowProjectColumn(e.target.checked)}
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5"
+                          />
+                          <div>
+                            <span className="block font-semibold">Projects</span>
+                            <span className="text-[10px] text-slate-400 font-normal">Show project selector column</span>
+                          </div>
+                        </label>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -2576,7 +2612,9 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                       <th className="py-3 px-3 min-w-[140px]">Payout <span className="text-rose-500">*</span></th>
                       <th className="py-3 px-3 min-w-[130px] text-right">Amount (₹) <span className="text-rose-500">*</span></th>
                       <th className="py-3 px-3 min-w-[220px]">Remarks</th>
-                      <th className="py-3 px-3 min-w-[160px]">Project (Optional)</th>
+                      {showProjectColumn && (
+                        <th className="py-3 px-3 min-w-[160px]">Project (Optional)</th>
+                      )}
                       <th className="py-3 px-3 w-20 text-center">Action</th>
                     </tr>
                   </thead>
@@ -2595,53 +2633,180 @@ export default function AdvanceExpenseTab({ defaultModule }) {
 
                           {/* Employee */}
                           <td className="py-2 px-3">
-                            <div className="flex items-center gap-2">
-                              <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0">
-                                {empInfo.initial}
-                              </span>
-                              <select
-                                value={row.employeeId}
-                                onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
-                                disabled={!canSelectAll}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                              >
-                                <option value="">Select Employee...</option>
-                                {employees.map(e => (
-                                  <option key={e.id} value={e.id}>{e.name}</option>
-                                ))}
-                              </select>
-                            </div>
+                            <select
+                              value={row.employeeId}
+                              onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
+                              disabled={!canSelectAll}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            >
+                              <option value="">Select Employee...</option>
+                              {employees.map(e => (
+                                <option key={e.id} value={e.id}>{e.name}</option>
+                              ))}
+                            </select>
                           </td>
 
                           {/* Category */}
-                          <td className="py-2 px-3">
-                            <div className="flex items-center gap-2">
-                              <span className={`p-1.5 rounded-lg border flex-shrink-0 ${catDetails.color}`}>
-                                <CategoryIcon size={14} />
-                              </span>
-                              <div className="w-full">
-                                <Dropdown
-                                  value={row.category === 'custom' ? '' : row.category}
-                                  onChange={(val) => handleRowChange(row.id, 'category', val)}
-                                  options={categories}
-                                  placeholder="Select Category..."
-                                  size="xs"
-                                  searchable
-                                  allowCustom
-                                  customActive={row.category === 'custom'}
-                                  onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
+                          <td id={`category-cell-${row.id}`} className="py-2 px-3 relative">
+                            <div className="w-full">
+                              <Dropdown
+                                value={row.category === 'custom' ? '' : row.category}
+                                onChange={(val, e) => {
+                                  handleRowChange(row.id, 'category', val);
+                                  const lower = (val || '').toLowerCase();
+                                  if (lower.includes('given to others') || lower.includes('salary to others')) {
+                                    openPaidToPopover(row.id, e?.target);
+                                  }
+                                }}
+                                options={categories}
+                                placeholder="Select Category..."
+                                size="xs"
+                                searchable
+                                allowCustom
+                                customActive={row.category === 'custom'}
+                                onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
+                              />
+                              {row.category === 'custom' && (
+                                <input
+                                  type="text"
+                                  value={row.customCategory || ''}
+                                  onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
+                                  className="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-500"
+                                  placeholder="Custom category..."
+                                  autoFocus
                                 />
-                                {row.category === 'custom' && (
-                                  <input
-                                    type="text"
-                                    value={row.customCategory || ''}
-                                    onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
-                                    className="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-500"
-                                    placeholder="Custom category..."
-                                    autoFocus
-                                  />
-                                )}
-                              </div>
+                              )}
+
+                              {/* Sub-badge: [1st Column Employee] → [Chosen Recipient] with -2px spacing */}
+                              {(row.category?.toLowerCase().includes('given to others') || row.category?.toLowerCase().includes('salary to others')) && (
+                                <div
+                                  onClick={(e) => openPaidToPopover(activePaidToRowId === row.id ? null : row.id, e.currentTarget)}
+                                  className="mt-[-2px] flex items-center justify-between gap-1.5 text-[10px] font-bold text-blue-900 bg-blue-50/90 hover:bg-blue-100/90 px-2 py-0.5 rounded-md border border-blue-200/80 shadow-2xs cursor-pointer transition-all group/badge"
+                                  title="Click to change recipient"
+                                >
+                                  <div className="flex items-center gap-1.5 overflow-hidden">
+                                    <span className="text-slate-700 font-semibold truncate max-w-[85px]">
+                                      {(() => {
+                                        const mainEmp = employees.find(e => e.id === row.employeeId);
+                                        return mainEmp ? mainEmp.name : (row.employeeId || 'Employee');
+                                      })()}
+                                    </span>
+                                    <span className="text-blue-600 font-extrabold">→</span>
+                                    <span className="text-blue-900 font-bold truncate max-w-[95px]">
+                                      {(() => {
+                                        if (row.paidToType === 'custom' && row.paidToCustomName) return row.paidToCustomName;
+                                        if (row.paidTo) {
+                                          const emp = employees.find(e => e.id === row.paidTo || e.name === row.paidTo);
+                                          return emp ? emp.name : row.paidTo;
+                                        }
+                                        return 'Select recipient...';
+                                      })()}
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] text-blue-600 opacity-70 group-hover/badge:opacity-100 font-bold underline shrink-0">
+                                    {row.paidTo || row.paidToCustomName ? 'Change' : 'Choose'}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* 2-Column Searchable Recipient Employee Popup - Excludes 1st Column Employee */}
+                              {activePaidToRowId === row.id && createPortal(
+                                <div
+                                  ref={paidToPopoverRef}
+                                  style={{
+                                    position: 'fixed',
+                                    top: `${paidToPopoverPos.top}px`,
+                                    left: `${paidToPopoverPos.left}px`,
+                                    zIndex: 9999
+                                  }}
+                                  className="w-80 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2 animate-in fade-in zoom-in-95 duration-150"
+                                >
+                                  <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                      Select Recipient Employee
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
+                                      className="text-slate-400 hover:text-slate-600 p-0.5 rounded hover:bg-slate-100"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  </div>
+
+                                  {/* Search by type input */}
+                                  <div className="relative">
+                                    <Search size={12} className="absolute left-2.5 top-2 text-slate-400" />
+                                    <input
+                                      type="text"
+                                      value={paidToSearchTerm}
+                                      onChange={(e) => setPaidToSearchTerm(e.target.value)}
+                                      placeholder="Type to search employee..."
+                                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2.5 py-1 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                                      autoFocus
+                                    />
+                                  </div>
+
+                                  {/* 2-Column Grid Layout of Active Employees (Excludes Column 1 Employee) */}
+                                  <div className="max-h-44 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-0.5">
+                                    {employees
+                                      .filter(e => {
+                                        const isActive = (e.status || 'Active').toLowerCase() === 'active';
+                                        const notCol1Emp = e.id !== row.employeeId && e.name !== row.employeeId;
+                                        const matchesSearch = e.name.toLowerCase().includes((paidToSearchTerm || '').toLowerCase());
+                                        return isActive && notCol1Emp && matchesSearch;
+                                      })
+                                      .map(e => (
+                                        <button
+                                          key={e.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setAddRows(addRows.map(r => r.id === row.id ? { ...r, paidTo: e.id, paidToType: 'employee', paidToCustomName: '' } : r));
+                                            setActivePaidToRowId(null);
+                                            setPaidToSearchTerm('');
+                                          }}
+                                          className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] font-semibold ${
+                                            row.paidTo === e.id
+                                              ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200'
+                                              : 'text-slate-700 hover:bg-slate-100 border border-slate-100'
+                                          }`}
+                                        >
+                                          <span className="truncate">{e.name}</span>
+                                          {row.paidTo === e.id && <Check size={12} className="text-blue-600 shrink-0" />}
+                                        </button>
+                                      ))}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRowChange(row.id, 'paidToType', 'custom')}
+                                    className="w-full text-left px-2 py-1 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold border-t border-slate-100 pt-1.5"
+                                  >
+                                    + Add Other Name...
+                                  </button>
+
+                                  {row.paidToType === 'custom' && (
+                                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+                                      <input
+                                        type="text"
+                                        value={row.paidToCustomName || ''}
+                                        onChange={(e) => handleRowChange(row.id, 'paidToCustomName', e.target.value)}
+                                        placeholder="Enter recipient name..."
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500"
+                                        autoFocus
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
+                                        className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px] shrink-0"
+                                      >
+                                        Save
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>,
+                                document.body
+                              )}
                             </div>
                           </td>
 
@@ -2670,6 +2835,12 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                               type="number"
                               value={row.amount}
                               onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && idx === addRows.length - 1) {
+                                  e.preventDefault()
+                                  handleAddRow()
+                                }
+                              }}
                               placeholder="0.00"
                               className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-right text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             />
@@ -2681,26 +2852,37 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                               type="text"
                               value={row.reason}
                               onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && rowIdx === addRows.length - 1) {
+                                  e.preventDefault()
+                                  handleAddRow()
+                                }
+                              }}
                               placeholder="Remarks..."
                               className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
                             />
                           </td>
 
-                          {/* Project (Optional) */}
-                          <td className="py-2 px-3">
-                            <select
-                              value={row.project || ''}
-                              onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
-                            >
-                              <option value="">—</option>
-                              <option value="P-0001">P-0001</option>
-                              <option value="P-0002">P-0002</option>
-                              <option value="P-0008">P-0008</option>
-                              <option value="P-0012">P-0012</option>
-                              <option value="Site visit - Client Meeting">Site visit - Client Meeting</option>
-                            </select>
-                          </td>
+                          {/* Project (Optional - Conditional) */}
+                          {showProjectColumn && (
+                            <td className="py-2 px-3">
+                              <select
+                                value={row.project || ''}
+                                onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+                              >
+                                <option value="">—</option>
+                                <option value="General">General / Non-Project</option>
+                                <option value="HO Expansion">HO Expansion</option>
+                                <option value="Client Onboarding">Client Onboarding</option>
+                                <option value="P-0001">P-0001</option>
+                                <option value="P-0002">P-0002</option>
+                                <option value="P-0008">P-0008</option>
+                                <option value="P-0012">P-0012</option>
+                                <option value="Site visit - Client Meeting">Site visit - Client Meeting</option>
+                              </select>
+                            </td>
+                          )}
 
                           {/* Action */}
                           <td className="py-2 px-3 text-center">
@@ -2730,8 +2912,9 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 </table>
               </div>
 
-              {/* Grid Footer Bar */}
+              {/* Grid Footer Bar — Add Row | Total | Submit Expenses — all in one row */}
               <div className="p-4 bg-slate-50/60 border-t border-slate-200/80 flex items-center justify-between">
+                {/* Left: + Add Row */}
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -2743,60 +2926,27 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                   <span className="text-xs text-slate-500 font-medium">{addRows.length} rows</span>
                 </div>
 
+                {/* Center: Total Amount */}
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-600">Total Amount</span>
-                  <span className="text-base font-extrabold text-blue-600">
-                    {formatINR(totalExpensesAmount)}
+                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total:</span>
+                  <span className="text-sm font-bold text-slate-900">{formatINR(totalExpensesAmount)}</span>
+                </div>
+
+                {/* Right: Submit Expenses */}
+                <button
+                  type="button"
+                  onClick={handleSubmitAll}
+                  disabled={submitting}
+                  className="gemini-glow-border bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-800 px-4 h-8 rounded-lg shadow-sm flex items-center gap-2 group transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {submitting ? <Spinner size="w-3.5 h-3.5" color="text-blue-600" /> : <Send size={14} className="text-blue-600" />}
+                  <span className="text-xs font-medium tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+                    {submitting ? 'Submitting...' : `Submit ${activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}`}
                   </span>
-                </div>
-              </div>
-            </div>
-
-            {/* 6. Summary KPI Cards (Footer) */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
-                  <Building2 size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Expenses</p>
-                  <p className="text-lg font-bold text-slate-900">{totalExpensesCount}</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600">
-                  <Receipt size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Amount</p>
-                  <p className="text-lg font-bold text-slate-900">{formatINR(totalExpensesAmount)}</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-sky-50 text-sky-600">
-                  <Shield size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Taxable Amount</p>
-                  <p className="text-lg font-bold text-slate-900">₹ 0.00</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
-                  <Calculator size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total GST</p>
-                  <p className="text-lg font-bold text-slate-900">₹ 0.00</p>
-                </div>
-              </div>
-
-              <div className="bg-blue-600 text-white p-4 rounded-2xl border border-blue-700 shadow-md shadow-blue-500/10 col-span-2 md:col-span-1 flex flex-col justify-center">
-                <p className="text-[10px] font-bold text-blue-200 uppercase tracking-wider">Grand Total</p>
-                <p className="text-xl font-extrabold tracking-tight mt-0.5">{formatINR(totalExpensesAmount)}</p>
+                  <span className="hidden sm:inline-block text-[10px] font-medium bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md border border-slate-200/80">
+                    Ctrl+Enter
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -2828,113 +2978,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
         );
       })()}
 
-      {/* Add Advance Module (Restored Original View) */}
-      {activeModule === 'Add Advance' && (
-        <div className="rounded-xl border border-amber-200 overflow-hidden shadow-card bg-amber-50/50 transition-colors">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-5 border-b border-amber-100 bg-amber-100/50 gap-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800">
-              Add Advance
-            </h2>
-            
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button 
-                onClick={handleSelfExpense} 
-                className="flex-1 sm:flex-none h-10 px-3 sm:px-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg text-sm shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all whitespace-nowrap"
-              >
-                Self
-              </button>
-              
-              <input
-                type="file"
-                ref={csvFileInputRef}
-                accept=".csv"
-                onChange={handleCSVImport}
-                className="hidden"
-              />
-              <button 
-                onClick={() => csvFileInputRef.current?.click()}
-                className="flex-1 sm:flex-none h-10 px-3 sm:px-4 bg-white border border-purple-200 text-purple-600 font-medium rounded-lg text-sm hover:bg-purple-50 active:bg-purple-100 transition-all whitespace-nowrap"
-              >
-                Import CSV
-              </button>
-              
-              <button 
-                onClick={handleAddRow} 
-                className="flex-1 sm:flex-none h-10 px-3 sm:px-4 bg-white border border-teal-200 text-teal-600 font-medium rounded-lg text-sm hover:bg-teal-50 active:bg-teal-100 transition-all whitespace-nowrap"
-              >
-                + Add
-              </button>
-              
-              <button 
-                onClick={handleSubmitAll} 
-                disabled={submitting} 
-                className="flex-1 sm:flex-none h-10 px-4 sm:px-6 text-white font-medium rounded-lg text-sm flex items-center justify-center gap-2 shadow-elevated transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-amber-600 hover:bg-amber-700 active:bg-amber-800"
-              >
-                {submitting ? <Spinner size="w-4 h-4" color="text-white" /> : 'Submit'}
-              </button>
-            </div>
-          </div>
 
-          {/* Desktop Spreadsheet View */}
-          <div className="hidden md:block overflow-x-auto">
-            <div className="border border-gray-300 bg-white shadow-sm" style={{ fontFamily: 'Segoe UI, Arial, sans-serif' }}>
-              <table className="w-full border-collapse" style={{ fontSize: '11px' }}>
-                <thead>
-                  <tr className="bg-gray-100 border-b border-gray-300" style={{ height: '21px' }}>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>Date</th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '180px', fontSize: '10px' }}>Employee</th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '140px', fontSize: '10px' }}>Category</th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>Payout</th>
-                    <th className="px-2 text-right font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>Amount</th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ minWidth: '150px', fontSize: '10px' }}>Remarks</th>
-                    <th className="px-2 text-left font-semibold text-gray-700 border-r border-gray-300 bg-gray-50" style={{ width: '100px', fontSize: '10px' }}>Project</th>
-                    <th className="px-1 text-center font-semibold text-gray-700 bg-gray-50" style={{ width: '28px', fontSize: '10px' }}>×</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {addRows.map((row) => (
-                    <tr key={row.id} className="border-b border-gray-200 hover:bg-amber-50/30" style={{ height: '21px' }}>
-                      <td className="px-1 border-r border-gray-200">
-                        <input type="date" value={row.date} onChange={e => handleRowChange(row.id, 'date', e.target.value)} className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent" style={{ height: '19px' }} />
-                      </td>
-                      <td className="px-1 border-r border-gray-200">
-                        <select value={row.employeeId} onChange={e => handleRowChange(row.id, 'employeeId', e.target.value)} disabled={!canSelectAll} className={`w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent ${!canSelectAll ? 'opacity-60' : ''}`} style={{ height: '19px' }}>
-                          <option value="">Select...</option>
-                          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                        </select>
-                      </td>
-                      <td className="px-1 border-r border-gray-200">
-                        <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(val) => handleRowChange(row.id, 'category', val)} options={categories} placeholder="Select category..." size="xs" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} className="scale-90 origin-left" />
-                      </td>
-                      <td className="px-1 border-r border-gray-200">
-                        <select value={row.payoutMethod} onChange={e => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="w-full border-0 px-1 py-0 text-[10px] outline-none focus:bg-yellow-50 bg-transparent uppercase" style={{ height: '19px' }}>
-                          <option value="Immediate">Immediate</option>
-                          <option value="With Salary">Monthly</option>
-                        </select>
-                      </td>
-                      <td className="px-1 border-r border-gray-200">
-                        <input type="number" value={row.amount} onChange={e => handleRowChange(row.id, 'amount', e.target.value)} className="w-full border-0 px-1 py-0 text-[11px] text-right outline-none focus:bg-yellow-50 bg-transparent text-amber-700 font-semibold" style={{ height: '19px' }} placeholder="0.00" />
-                      </td>
-                      <td className="px-1 border-r border-gray-200">
-                        <input type="text" value={row.reason} onChange={e => handleRowChange(row.id, 'reason', e.target.value)} className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent" style={{ height: '19px' }} placeholder="..." />
-                      </td>
-                      <td className="px-1 border-r border-gray-200">
-                        <input type="text" value={row.project} onChange={e => handleRowChange(row.id, 'project', e.target.value)} className="w-full border-0 px-1 py-0 text-[11px] outline-none focus:bg-yellow-50 bg-transparent" style={{ height: '19px' }} placeholder="..." />
-                      </td>
-                      <td className="px-0 text-center">
-                        <button onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))} className="w-full h-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center" style={{ height: '21px' }} title="Delete row">
-                          <span className="text-[14px] leading-none">×</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Reports Module */}
       {activeModule === 'Reports' && (

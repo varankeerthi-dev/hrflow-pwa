@@ -379,3 +379,58 @@ body {
     @apply font-sans;
   }
 }
+
+/* Gemini-style glowing rotating border animation */
+@property --gemini-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes gemini-border-spin {
+  to {
+    --gemini-angle: 360deg;
+  }
+}
+
+.gemini-glow-border {
+  position: relative;
+  overflow: visible;
+  border: none !important;
+  z-index: 0;
+}
+
+.gemini-glow-border::before,
+.gemini-glow-border::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--gemini-angle),
+    #4285f4 0%,
+    #9b72cb 25%,
+    #d96570 50%,
+    #d2a139 62%,
+    #4285f4 100%
+  );
+  animation: gemini-border-spin 3s linear infinite;
+  z-index: -1;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  padding: 1.5px;
+}
+
+.gemini-glow-border::before {
+  inset: -3px;
+  padding: 3px;
+  filter: blur(4px);
+  opacity: 0.5;
+}
+
+.gemini-glow-border::after {
+  filter: blur(0px);
+  opacity: 1;
+}
