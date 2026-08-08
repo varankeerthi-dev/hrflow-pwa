@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
-import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder } from 'lucide-react'
+import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
 import { formatINR } from '../../lib/salaryUtils'
@@ -12,6 +12,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import html2canvas from 'html2canvas'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 
 function approvalStatusTextClass(status, lane) {
   const s = (status || 'Pending').toLowerCase()
@@ -144,6 +145,16 @@ function EmployeeLedgerCard({ emp, formatINR }) {
 export default function AdvanceExpenseTab({ defaultModule }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
+  
+  // Sort employees: Active employees at top, Inactive employees at bottom
+  const sortedEmployees = useMemo(() => {
+    return [...employees].sort((a, b) => {
+      const aActive = isEmployeeActiveStatus(a.status) ? 0 : 1
+      const bActive = isEmployeeActiveStatus(b.status) ? 0 : 1
+      if (aActive !== bActive) return aActive - bActive
+      return (a.name || '').localeCompare(b.name || '')
+    })
+  }, [employees])
   const queryClient = useQueryClient()
   const [activeModule, setActiveModule] = useState(defaultModule || 'Reports')
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
@@ -170,12 +181,14 @@ export default function AdvanceExpenseTab({ defaultModule }) {
   const [fromDateDropdownOpen, setFromDateDropdownOpen] = useState(false)
   const [toDateDropdownOpen, setToDateDropdownOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
+  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false)
   
   // Refs for dropdown containers
   const employeeDropdownRef = useRef(null)
   const fromDateDropdownRef = useRef(null)
   const toDateDropdownRef = useRef(null)
   const categoryDropdownRef = useRef(null)
+  const moreDropdownRef = useRef(null)
   
   // Refs for date inputs to auto-open date picker
   const fromDateInputRef = useRef(null)
@@ -193,6 +206,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     setFromDateDropdownOpen(false)
     setToDateDropdownOpen(false)
     setCategoryDropdownOpen(false)
+    setMoreDropdownOpen(false)
   }
   
   // Ref for current toDate value (for interval callback)
@@ -791,8 +805,20 @@ export default function AdvanceExpenseTab({ defaultModule }) {
         }
         
         // Employee multi-select filter
+        const selectedEmpNamesLower = reportSelectedEmployees
+          .map(id => employees.find(emp => emp.id === id)?.name)
+          .filter(Boolean)
+          .map(n => n.toLowerCase().trim())
+
+        const empNameLower = (e.employeeName || '').toLowerCase().trim()
+        const paidToNameLower = (e.paidToName || e.paidToCustomName || '').toLowerCase().trim()
+
         const matchesEmployee = reportSelectedEmployees.length === 0 || 
-          reportSelectedEmployees.some(empId => e.employeeId === empId)
+          reportSelectedEmployees.includes(e.employeeId) ||
+          (e.paidTo && reportSelectedEmployees.includes(e.paidTo)) ||
+          (e.paidToId && reportSelectedEmployees.includes(e.paidToId)) ||
+          (empNameLower && selectedEmpNamesLower.includes(empNameLower)) ||
+          (paidToNameLower && selectedEmpNamesLower.includes(paidToNameLower))
         
         // Category filter
         const matchesCategory = !reportFilterCategory || 
@@ -836,17 +862,18 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       const isOutsideFromDate = fromDateDropdownRef.current && !fromDateDropdownRef.current.contains(event.target)
       const isOutsideToDate = toDateDropdownRef.current && !toDateDropdownRef.current.contains(event.target)
       const isOutsideCategory = categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)
+      const isOutsideMore = moreDropdownRef.current && !moreDropdownRef.current.contains(event.target)
       
       // Only close if at least one dropdown is open and click is outside all of them
-      if ((employeeDropdownOpen || fromDateDropdownOpen || toDateDropdownOpen || categoryDropdownOpen) &&
-          isOutsideEmployee && isOutsideFromDate && isOutsideToDate && isOutsideCategory) {
+      if ((employeeDropdownOpen || fromDateDropdownOpen || toDateDropdownOpen || categoryDropdownOpen || moreDropdownOpen) &&
+          isOutsideEmployee && isOutsideFromDate && isOutsideToDate && isOutsideCategory && isOutsideMore) {
         closeAllDropdowns()
       }
     }
     
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [employeeDropdownOpen, fromDateDropdownOpen, toDateDropdownOpen, categoryDropdownOpen])
+  }, [employeeDropdownOpen, fromDateDropdownOpen, toDateDropdownOpen, categoryDropdownOpen, moreDropdownOpen])
 
   // Auto-open date picker when dropdown opens
   useEffect(() => {
@@ -1674,8 +1701,76 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     setReportMonth(new Date().toISOString().slice(0, 7))
   }
 
-  const advForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Advance'), [filteredEntries])
-  const expForReport = useMemo(() => filteredEntries.filter(e => e.type === 'Expense'), [filteredEntries])
+  const advForReport = useMemo(() => {
+    const list = []
+    const selectedEmpNamesLower = reportSelectedEmployees
+      .map(id => employees.find(emp => emp.id === id)?.name)
+      .filter(Boolean)
+      .map(n => n.toLowerCase().trim())
+    
+    filteredEntries.forEach(e => {
+      if (e.type === 'Advance') {
+        if (reportSelectedEmployees.length > 0) {
+          const empNameLower = (e.employeeName || '').toLowerCase().trim()
+          const paidToNameLower = (e.paidToName || e.paidToCustomName || '').toLowerCase().trim()
+          const matches = reportSelectedEmployees.includes(e.employeeId) ||
+            (e.paidTo && reportSelectedEmployees.includes(e.paidTo)) ||
+            (e.paidToId && reportSelectedEmployees.includes(e.paidToId)) ||
+            (empNameLower && selectedEmpNamesLower.includes(empNameLower)) ||
+            (paidToNameLower && selectedEmpNamesLower.includes(paidToNameLower))
+          if (matches) list.push(e)
+        } else {
+          list.push(e)
+        }
+      } else if (e.type === 'Expense') {
+        const recipientName = e.paidToName || e.paidToCustomName
+        const isGivenToOthers = (e.category && e.category.toLowerCase().includes('given to others')) || (recipientName && recipientName !== e.employeeName)
+        
+        if (isGivenToOthers && recipientName) {
+          const recipientNameLower = recipientName.toLowerCase().trim()
+          const recipientId = e.paidTo || e.paidToId
+          
+          const matchesRecipient = reportSelectedEmployees.length === 0 ||
+            (recipientId && reportSelectedEmployees.includes(recipientId)) ||
+            (selectedEmpNamesLower.includes(recipientNameLower))
+
+          if (matchesRecipient) {
+            list.push({
+              ...e,
+              id: `${e.id}_adv_recipient`,
+              employeeId: recipientId || e.employeeId,
+              employeeName: recipientName,
+              category: e.category || 'Given to others',
+              givenByEmployeeName: e.employeeName,
+              type: 'Advance',
+              isTransferredAdvance: true
+            })
+          }
+        }
+      }
+    })
+    
+    return list
+  }, [filteredEntries, reportSelectedEmployees, employees])
+
+  const expForReport = useMemo(() => {
+    const selectedEmpNamesLower = reportSelectedEmployees
+      .map(id => employees.find(emp => emp.id === id)?.name)
+      .filter(Boolean)
+      .map(n => n.toLowerCase().trim())
+
+    return filteredEntries.filter(e => {
+      if (e.type !== 'Expense') return false
+      
+      if (reportSelectedEmployees.length > 0) {
+        const empNameLower = (e.employeeName || '').toLowerCase().trim()
+        const isGiver = reportSelectedEmployees.includes(e.employeeId) || selectedEmpNamesLower.includes(empNameLower)
+        return isGiver
+      }
+      
+      return true
+    })
+  }, [filteredEntries, reportSelectedEmployees, employees])
 
   const handleScreenshot = async () => {
     try {
@@ -1723,7 +1818,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       
       // Reset button
       if (button) {
-        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Screenshot PNG'
+        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Screenshot'
         button.disabled = false
       }
     } catch (err) {
@@ -1735,7 +1830,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       // Reset button on error
       const button = document.querySelector('button[title="Take Screenshot"]')
       if (button) {
-        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Screenshot PNG'
+        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Screenshot'
         button.disabled = false
       }
     }
@@ -2983,32 +3078,9 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       {/* Reports Module */}
       {activeModule === 'Reports' && (
         <div className="space-y-4">
-          {/* Fiscal Period Quick Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[
-              { label: 'This Month', getRange: () => { const d = new Date(); return { from: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10), to: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0,10) } } },
-              { label: 'This Quarter', getRange: () => { const d = new Date(); const q = Math.floor(d.getMonth() / 3); return { from: new Date(d.getFullYear(), q * 3, 1).toISOString().slice(0,10), to: new Date(d.getFullYear(), q * 3 + 3, 0).toISOString().slice(0,10) } } },
-              { label: 'Current FY', getRange: () => { const d = new Date(); const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return { from: new Date(fy, 3, 1).toISOString().slice(0,10), to: new Date(fy + 1, 2, 31).toISOString().slice(0,10) } } },
-              { label: 'Last Quarter', getRange: () => { const d = new Date(); const q = Math.floor(d.getMonth() / 3) - 1; const yr = q < 0 ? d.getFullYear() - 1 : d.getFullYear(); const mq = q < 0 ? 9 : q * 3; return { from: new Date(yr, mq, 1).toISOString().slice(0,10), to: new Date(yr, mq + 3, 0).toISOString().slice(0,10) } } },
-              { label: 'Last FY', getRange: () => { const d = new Date(); const fy = d.getMonth() >= 3 ? d.getFullYear() - 1 : d.getFullYear() - 2; return { from: new Date(fy, 3, 1).toISOString().slice(0,10), to: new Date(fy + 1, 2, 31).toISOString().slice(0,10) } } },
-            ].map(({ label, getRange }) => {
-              const range = getRange()
-              const isActive = reportFromDate === range.from && reportToDate === range.to
-              return (
-                <button
-                  key={label}
-                  onClick={() => { setReportFromDate(range.from); setReportToDate(range.to); setReportMonth('') }}
-                  className={`px-2.5 py-1 text-[10px] font-medium rounded border transition-colors ${isActive ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-
           {/* Compact Filter Bar - Single Row */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
-            <div className="flex flex-wrap items-center gap-2" style={{ lineHeight: '15px' }}>
+            <div className="flex flex-wrap items-center gap-2">
               
               {/* Employee Multi-Select Dropdown */}
               <div className="relative" ref={employeeDropdownRef}>
@@ -3017,10 +3089,9 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                     closeAllDropdowns()
                     setEmployeeDropdownOpen(true)
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
-                  style={{ lineHeight: '15px' }}
+                  className="flex items-center justify-between gap-2 px-3.5 py-1 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-100 transition-colors min-w-[160px] flex-1 max-w-[240px] h-[45px]"
                 >
-                  <span className="font-medium">
+                  <span className="font-medium truncate">
                     {reportSelectedEmployees.length === 0 
                       ? 'All Employees' 
                       : reportSelectedEmployees.length === 1 
@@ -3028,45 +3099,55 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                         : `${reportSelectedEmployees.length} Selected`
                     }
                   </span>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
                 
                 {employeeDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                  <div className="absolute top-full left-0 mt-1 w-60 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
                     <div className="p-2 border-b border-gray-100">
                       <button 
                         onClick={() => {
                           setReportSelectedEmployees([])
                           closeAllDropdowns()
                         }}
-                        className="text-[10px] text-blue-600 hover:underline"
+                        className="text-xs text-blue-600 hover:underline"
                       >
                         Clear All
                       </button>
                     </div>
-                    {employees.map(emp => (
-                      <label key={emp.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
-                        <input 
-                          type="checkbox"
-                          checked={reportSelectedEmployees.includes(emp.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setReportSelectedEmployees([...reportSelectedEmployees, emp.id])
-                            } else {
-                              setReportSelectedEmployees(reportSelectedEmployees.filter(id => id !== emp.id))
-                            }
-                          }}
-                          className="w-3.5 h-3.5 rounded border-gray-300"
-                        />
-                        <span className="text-[11px] text-gray-700">{emp.name}</span>
-                      </label>
-                    ))}
+                    {sortedEmployees.map(emp => {
+                      const isActive = isEmployeeActiveStatus(emp.status)
+                      return (
+                        <label key={emp.id} className={`flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer ${!isActive ? 'bg-gray-50/60' : ''}`}>
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <input 
+                              type="checkbox"
+                              checked={reportSelectedEmployees.includes(emp.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setReportSelectedEmployees([...reportSelectedEmployees, emp.id])
+                                } else {
+                                  setReportSelectedEmployees(reportSelectedEmployees.filter(id => id !== emp.id))
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 flex-shrink-0"
+                            />
+                            <span className={`text-xs truncate ${isActive ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{emp.name}</span>
+                          </div>
+                          {!isActive && (
+                            <span className="text-[10px] text-red-500 font-medium px-1.5 py-0.5 bg-red-50 border border-red-100 rounded flex-shrink-0">
+                              Inactive
+                            </span>
+                          )}
+                        </label>
+                      )
+                    })}
                     <div className="p-2 border-t border-gray-100">
                       <button 
                         onClick={() => closeAllDropdowns()}
-                        className="w-full text-center text-[10px] bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
+                        className="w-full text-center text-xs bg-primary-600 text-white px-2 py-1.5 rounded hover:bg-primary-700 font-medium"
                       >
                         Done
                       </button>
@@ -3082,17 +3163,16 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                     closeAllDropdowns()
                     setFromDateDropdownOpen(true)
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
-                  style={{ lineHeight: '15px' }}
+                  className="flex items-center gap-2 px-3.5 py-1 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-100 transition-colors h-[45px]"
                 >
-                  <Calendar size={12} />
-                  <span className="font-medium">
+                  <Calendar size={14} className="text-gray-500 flex-shrink-0" />
+                  <span className="font-medium whitespace-nowrap">
                     {reportFromDate 
                       ? `From: ${new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
                       : 'From Date'
                     }
                   </span>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
@@ -3110,7 +3190,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                       >
                         <ChevronLeft size={14} />
                       </button>
-                      <span className="text-[11px] font-medium text-gray-700">
+                      <span className="text-xs font-medium text-gray-700">
                         {reportFromDate ? new Date(reportFromDate).toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month'}
                       </span>
                       <button 
@@ -3132,7 +3212,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                         setReportFromDate(e.target.value)
                         closeAllDropdowns()
                       }}
-                      className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded"
+                      className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded"
                     />
                     <div className="flex justify-between gap-2 mt-2 pt-2 border-t border-gray-100">
                       <button 
@@ -3140,13 +3220,13 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                           setReportFromDate('')
                           closeAllDropdowns()
                         }}
-                        className="text-[10px] text-gray-500 hover:text-gray-700"
+                        className="text-xs text-gray-500 hover:text-gray-700"
                       >
                         Clear
                       </button>
                       <button 
                         onClick={() => closeAllDropdowns()}
-                        className="text-[10px] bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
+                        className="text-xs bg-primary-600 text-white px-2.5 py-1 rounded hover:bg-primary-700 font-medium"
                       >
                         Done
                       </button>
@@ -3162,17 +3242,16 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                     closeAllDropdowns()
                     setToDateDropdownOpen(true)
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
-                  style={{ lineHeight: '15px' }}
+                  className="flex items-center gap-2 px-3.5 py-1 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-100 transition-colors h-[45px]"
                 >
-                  <Calendar size={12} />
-                  <span className="font-medium">
+                  <Calendar size={14} className="text-gray-500 flex-shrink-0" />
+                  <span className="font-medium whitespace-nowrap">
                     {reportToDate 
                       ? `To: ${new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
                       : 'To Date'
                     }
                   </span>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
@@ -3190,7 +3269,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                       >
                         <ChevronLeft size={14} />
                       </button>
-                      <span className="text-[11px] font-medium text-gray-700">
+                      <span className="text-xs font-medium text-gray-700">
                         {reportToDate ? new Date(reportToDate).toLocaleString('default', { month: 'short', year: 'numeric' }) : 'Select Month'}
                       </span>
                       <button 
@@ -3212,7 +3291,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                         setReportToDate(e.target.value)
                         closeAllDropdowns()
                       }}
-                      className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded"
+                      className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded"
                     />
                     <div className="flex justify-between gap-2 mt-2 pt-2 border-t border-gray-100">
                       <button 
@@ -3220,13 +3299,13 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                           setReportToDate('')
                           closeAllDropdowns()
                         }}
-                        className="text-[10px] text-gray-500 hover:text-gray-700"
+                        className="text-xs text-gray-500 hover:text-gray-700"
                       >
                         Clear
                       </button>
                       <button 
                         onClick={() => closeAllDropdowns()}
-                        className="text-[10px] bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
+                        className="text-xs bg-primary-600 text-white px-2.5 py-1 rounded hover:bg-primary-700 font-medium"
                       >
                         Done
                       </button>
@@ -3242,21 +3321,20 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                     closeAllDropdowns()
                     setCategoryDropdownOpen(true)
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded text-[11px] text-gray-700 hover:bg-gray-100 transition-colors"
-                  style={{ lineHeight: '15px' }}
+                  className="flex items-center gap-2 px-3.5 py-1 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-100 transition-colors h-[45px]"
                 >
-                  <Filter size={12} />
-                  <span className="font-medium">{reportFilterCategory || 'All Categories'}</span>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <Filter size={14} className="text-gray-500 flex-shrink-0" />
+                  <span className="font-medium whitespace-nowrap">{reportFilterCategory || 'All Categories'}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
                 
                 {categoryDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                     <button 
                       onClick={() => { setReportFilterCategory(''); closeAllDropdowns(); }}
-                      className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 ${!reportFilterCategory ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${!reportFilterCategory ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
                     >
                       All Categories
                     </button>
@@ -3264,7 +3342,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                       <button 
                         key={cat}
                         onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
-                        className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                        className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
                       >
                         {cat}
                       </button>
@@ -3274,136 +3352,188 @@ export default function AdvanceExpenseTab({ defaultModule }) {
               </div>
 
               {/* Search Remarks */}
-              <div className="flex-1 min-w-[150px] max-w-[200px]">
-                <div className="relative">
-                  <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div className="flex-1 min-w-[160px] max-w-[220px]">
+                <div className="relative h-[45px] flex items-center">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex-shrink-0" />
                   <input 
                     type="text" 
                     placeholder="Search remarks..."
                     value={reportFilterRemarks}
                     onChange={(e) => setReportFilterRemarks(e.target.value)}
-                    className="w-full pl-7 pr-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none"
-                    style={{ lineHeight: '15px' }}
+                    className="w-full pl-8 pr-3 py-1 text-xs bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none h-[45px]"
                   />
                 </div>
               </div>
 
-              {/* Project Filter */}
-              <div className="flex-1 min-w-[150px] max-w-[200px]">
-                <div className="relative">
-                  <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Search project..."
-                    value={reportFilterProject}
-                    onChange={(e) => setReportFilterProject(e.target.value)}
-                    className="w-full pl-7 pr-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none"
-                    style={{ lineHeight: '15px' }}
-                  />
-                </div>
+              {/* More Filters Dropdown */}
+              <div className="relative" ref={moreDropdownRef}>
+                <button 
+                  onClick={() => {
+                    const state = !moreDropdownOpen
+                    closeAllDropdowns()
+                    setMoreDropdownOpen(state)
+                  }}
+                  className={`flex items-center gap-2 px-3.5 py-1 border rounded text-xs font-medium transition-colors h-[45px] ${
+                    moreDropdownOpen || (reportFilterProject || reportFilterType !== 'All' || reportFilterPayout !== 'All')
+                      ? 'bg-primary-50 border-primary-300 text-primary-700' 
+                      : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <SlidersHorizontal size={14} className="flex-shrink-0" />
+                  <span>More</span>
+                  {(reportFilterProject || reportFilterType !== 'All' || reportFilterPayout !== 'All') && (
+                    <span className="w-2 h-2 rounded-full bg-primary-600 flex-shrink-0"></span>
+                  )}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                
+                {moreDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 space-y-3">
+                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100 pb-1.5 flex justify-between items-center">
+                      <span>More Filters</span>
+                      <button onClick={() => setMoreDropdownOpen(false)} className="text-gray-400 hover:text-gray-600">
+                        <X size={14} />
+                      </button>
+                    </div>
+
+                    {/* Period Preset */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Period Preset</label>
+                      <select
+                        value={(() => {
+                          const check = (getRange) => {
+                            const r = getRange()
+                            return reportFromDate === r.from && reportToDate === r.to
+                          }
+                          if (check(() => { const d = new Date(); return { from: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10), to: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0,10) } })) return 'this_month'
+                          if (check(() => { const d = new Date(); const q = Math.floor(d.getMonth() / 3); return { from: new Date(d.getFullYear(), q * 3, 1).toISOString().slice(0,10), to: new Date(d.getFullYear(), q * 3 + 3, 0).toISOString().slice(0,10) } })) return 'this_quarter'
+                          if (check(() => { const d = new Date(); const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return { from: new Date(fy, 3, 1).toISOString().slice(0,10), to: new Date(fy + 1, 2, 31).toISOString().slice(0,10) } })) return 'current_fy'
+                          if (check(() => { const d = new Date(); const q = Math.floor(d.getMonth() / 3) - 1; const yr = q < 0 ? d.getFullYear() - 1 : d.getFullYear(); const mq = q < 0 ? 9 : q * 3; return { from: new Date(yr, mq, 1).toISOString().slice(0,10), to: new Date(yr, mq + 3, 0).toISOString().slice(0,10) } })) return 'last_quarter'
+                          if (check(() => { const d = new Date(); const fy = d.getMonth() >= 3 ? d.getFullYear() - 1 : d.getFullYear() - 2; return { from: new Date(fy, 3, 1).toISOString().slice(0,10), to: new Date(fy + 1, 2, 31).toISOString().slice(0,10) } })) return 'last_fy'
+                          return ''
+                        })()}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (!val) return
+                          const getRangeMap = {
+                            this_month: () => { const d = new Date(); return { from: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10), to: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0,10) } },
+                            this_quarter: () => { const d = new Date(); const q = Math.floor(d.getMonth() / 3); return { from: new Date(d.getFullYear(), q * 3, 1).toISOString().slice(0,10), to: new Date(d.getFullYear(), q * 3 + 3, 0).toISOString().slice(0,10) } },
+                            current_fy: () => { const d = new Date(); const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return { from: new Date(fy, 3, 1).toISOString().slice(0,10), to: new Date(fy + 1, 2, 31).toISOString().slice(0,10) } },
+                            last_quarter: () => { const d = new Date(); const q = Math.floor(d.getMonth() / 3) - 1; const yr = q < 0 ? d.getFullYear() - 1 : d.getFullYear(); const mq = q < 0 ? 9 : q * 3; return { from: new Date(yr, mq, 1).toISOString().slice(0,10), to: new Date(yr, mq + 3, 0).toISOString().slice(0,10) } },
+                            last_fy: () => { const d = new Date(); const fy = d.getMonth() >= 3 ? d.getFullYear() - 1 : d.getFullYear() - 2; return { from: new Date(fy, 3, 1).toISOString().slice(0,10), to: new Date(fy + 1, 2, 31).toISOString().slice(0,10) } },
+                          }
+                          if (getRangeMap[val]) {
+                            const range = getRangeMap[val]()
+                            setReportFromDate(range.from)
+                            setReportToDate(range.to)
+                            setReportMonth('')
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer font-medium"
+                      >
+                        <option value="">Select Period Preset</option>
+                        <option value="this_month">This Month</option>
+                        <option value="this_quarter">This Quarter</option>
+                        <option value="current_fy">Current FY</option>
+                        <option value="last_quarter">Last Quarter</option>
+                        <option value="last_fy">Last FY</option>
+                      </select>
+                    </div>
+
+                    {/* Project Search */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Project</label>
+                      <div className="relative">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input 
+                          type="text" 
+                          placeholder="Search project..."
+                          value={reportFilterProject}
+                          onChange={(e) => setReportFilterProject(e.target.value)}
+                          className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Type Filter */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Transaction Type</label>
+                      <select 
+                        value={reportFilterType}
+                        onChange={(e) => setReportFilterType(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer font-medium"
+                      >
+                        <option value="All">All Types</option>
+                        <option value="Advance">Advances</option>
+                        <option value="Expense">Expenses</option>
+                      </select>
+                    </div>
+
+                    {/* Payout Filter */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Payout Method</label>
+                      <select 
+                        value={reportFilterPayout}
+                        onChange={(e) => setReportFilterPayout(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer font-medium"
+                      >
+                        <option value="All">All Payouts</option>
+                        <option value="Immediate">Immediate</option>
+                        <option value="With Salary">With Salary</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Type Filter */}
-              <select 
-                value={reportFilterType}
-                onChange={(e) => setReportFilterType(e.target.value)}
-                className="px-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer"
-                style={{ lineHeight: '15px' }}
-              >
-                <option value="All">All Types</option>
-                <option value="Advance">Advances</option>
-                <option value="Expense">Expenses</option>
-              </select>
-
-              {/* Payout Filter */}
-              <select 
-                value={reportFilterPayout}
-                onChange={(e) => setReportFilterPayout(e.target.value)}
-                className="px-2 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 outline-none cursor-pointer"
-                style={{ lineHeight: '15px' }}
-              >
-                <option value="All">All Payouts</option>
-                <option value="Immediate">Immediate</option>
-                <option value="With Salary">With Salary</option>
-              </select>
 
               {/* Clear Filters */}
               {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All' || reportFilterProject) && (
                 <button 
                   onClick={clearAllFilters}
-                  className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-600 hover:bg-red-50 rounded transition-colors"
-                  style={{ lineHeight: '15px' }}
+                  className="flex items-center gap-1 px-3 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors h-[45px] font-medium"
                   title="Clear all filters"
                 >
-                  <X size={12} />
+                  <X size={14} />
                   Clear
                 </button>
               )}
             </div>
-            
-            {/* Active Filters Summary */}
-            {(reportFromDate || reportToDate || reportSelectedEmployees.length > 0 || reportFilterCategory || reportFilterRemarks || reportFilterTxn || reportFilterType !== 'All' || reportFilterPayout !== 'All' || reportFilterProject) && (
-              <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">
-                <span className="text-[10px] text-gray-500">Active:</span>
-                {reportSelectedEmployees.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[9px] rounded border border-blue-100">
-                    {reportSelectedEmployees.length} Employees
-                  </span>
-                )}
-                {(reportFromDate || reportToDate) && (
-                  <span className="px-1.5 py-0.5 bg-green-50 text-green-700 text-[9px] rounded border border-green-100">
-                    Date Range
-                  </span>
-                )}
-                {reportFilterCategory && (
-                  <span className="px-1.5 py-0.5 bg-purple-50 text-purple-700 text-[9px] rounded border border-purple-100">
-                    {reportFilterCategory}
-                  </span>
-                )}
-                {reportFilterRemarks && (
-                  <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[9px] rounded border border-amber-100">
-                    Remarks: "{reportFilterRemarks}"
-                  </span>
-                )}
-                {reportFilterType !== 'All' && (
-                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[9px] rounded border border-gray-200">
-                    {reportFilterType}s
-                  </span>
-                )}
-                {reportFilterPayout !== 'All' && (
-                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[9px] rounded border border-gray-200">
-                    {reportFilterPayout}
-                  </span>
-                )}
-                {reportFilterProject && (
-                  <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] rounded border border-indigo-100">
-                    Project: {reportFilterProject}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
           
-          {/* Totals Summary Row - Between filters and tables */}
+          {/* Totals Summary Row - Compact Stat Cards */}
           {reportApplied && (
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-6 text-[11px]">
-                <span className="text-gray-700">
-                  <span className="font-semibold text-gray-900">Advance:</span>{' '}
-                  <span className="font-semibold text-amber-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}</span>
-                </span>
-                <span className="text-gray-700">
-                  <span className="font-semibold text-gray-900">Expense:</span>{' '}
-                  <span className="font-semibold text-blue-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}</span>
-                </span>
-                <span className="text-gray-700">
-                  <span className="font-semibold text-gray-900">Cash in hand:</span>{' '}
-                  <span className="font-semibold text-emerald-600">{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                    advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
-                    expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
-                  )}</span>
-                </span>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-2.5 mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center justify-center gap-x-2.5 gap-y-[5px] flex-wrap sm:mx-auto">
+                {/* Advance Card */}
+                <div className="bg-amber-50/70 border border-amber-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
+                  <span className="text-[10px] font-normal text-black/90">Advance</span>
+                  <span className="text-xs font-black text-emerald-600">
+                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}
+                  </span>
+                </div>
+
+                {/* Expense Card */}
+                <div className="bg-blue-50/70 border border-blue-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
+                  <span className="text-[10px] font-normal text-black/90">Expense</span>
+                  <span className="text-xs font-black text-rose-600">
+                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}
+                  </span>
+                </div>
+
+                {/* Cash in hand Card */}
+                <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
+                  <span className="text-[10px] font-normal text-black/90">Cash in hand</span>
+                  <span className="text-xs font-black text-amber-600">
+                    ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                      advForReport.filter(a => a.paidByName).reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
+                      expForReport.filter(e => e.paidToName || e.paidToCustomName).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+                    )}
+                  </span>
+                </div>
               </div>
+
               <div className="flex items-center gap-2">
                 <button 
                   onClick={handleScreenshot}
@@ -3411,7 +3541,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                   title="Take Screenshot"
                 >
                   <Camera size={14} />
-                  Screenshot PNG
+                  Screenshot
                 </button>
                 <button 
                   onClick={exportPDF}
@@ -3458,41 +3588,46 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-white border-b border-gray-300">
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px]">Date</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Name</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[60px]">Amount</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[60px]">Actions</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px] tracking-[0.5px]">Date</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left tracking-[0.5px]">Name</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left tracking-[0.5px]">Category Type</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px] tracking-[0.5px]">Remarks</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[60px] tracking-[0.5px]">Amount</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 text-left w-[60px] tracking-[0.5px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? advForReport : advances).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[10px] italic">
+                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[10.5px] italic tracking-[0.5px]">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? advForReport : advances).map(a => (
                       <tr key={a.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 tracking-[0.5px]">
                           {new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200 font-medium">{a.employeeName}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
-                          <div className="flex flex-col">
-                            <span>{a.category || a.type || '—'}</span>
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 font-medium tracking-[0.5px]">{a.employeeName}</td>
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 tracking-[0.5px]">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium">{a.category || a.type || '—'}</span>
+                            {a.givenByEmployeeName && (
+                              <span className="text-[9.5px] text-blue-700 font-medium leading-tight tracking-[0.5px]">
+                                Given by {a.givenByEmployeeName}
+                              </span>
+                            )}
                             {a.requestType && (
-                              <span className="text-[9px] text-gray-500">{a.requestType}</span>
+                              <span className="text-[9.5px] text-gray-500 tracking-[0.5px]">{a.requestType}</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200 whitespace-normal break-words">{a.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums w-[60px]">
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 whitespace-normal break-words tracking-[0.5px]">{a.remarks || '—'}</td>
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-900 font-medium border-r border-gray-200 tabular-nums w-[60px] tracking-[0.5px]">
                           <div className="flex flex-col">
                             <span>{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}</span>
                             {a.paidByName && (
-                              <span className="text-[8px] text-gray-500 mt-0.5">
+                              <span className="text-[8.5px] text-gray-500 mt-0.5 tracking-[0.5px]">
                                 {a.paidByName}
                               </span>
                             )}
@@ -3557,42 +3692,43 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-white border-b border-gray-300">
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px]">Date</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Name</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Category Type</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px]">Remarks</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left w-[60px]">Amount</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 border-r border-gray-200 text-left">Paid To</th>
-                      <th className="px-2 py-1.5 text-[10px] font-medium text-gray-600 text-left w-[50px]">Actions</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px] tracking-[0.5px]">Date</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left tracking-[0.5px]">Name</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left tracking-[0.5px]">Category Type</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px] tracking-[0.5px]">Remarks</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[60px] tracking-[0.5px]">Amount</th>
+                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 text-left w-[50px] tracking-[0.5px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-8 text-gray-400 text-[10px] italic">
+                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[10.5px] italic tracking-[0.5px]">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? expForReport : expenses).map(e => (
                       <tr key={e.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 tracking-[0.5px]">
                           {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200 font-medium">{e.employeeName}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
-                          <div className="flex flex-col">
-                            <span>{e.category || e.type || '—'}</span>
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 font-medium tracking-[0.5px]">{e.employeeName}</td>
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 tracking-[0.5px]">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium">{e.category || e.type || '—'}</span>
+                            {(e.paidToName || e.paidToCustomName) && ((e.category && e.category.toLowerCase().includes('given to others')) || (e.paidToName || e.paidToCustomName) !== e.employeeName) && (
+                              <span className="text-[9.5px] text-blue-700 font-medium leading-tight tracking-[0.5px]">
+                                {e.employeeName} &rarr; {e.paidToName || e.paidToCustomName}
+                              </span>
+                            )}
                             {e.requestType && (
-                              <span className="text-[9px] text-gray-500">{e.requestType}</span>
+                              <span className="text-[9.5px] text-gray-500 tracking-[0.5px]">{e.requestType}</span>
                             )}
                           </div>
                         </td>
-                         <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200 whitespace-normal break-words">{e.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-900 font-medium border-r border-gray-200 tabular-nums">
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 whitespace-normal break-words tracking-[0.5px]">{e.remarks || '—'}</td>
+                        <td className="px-2 py-1.5 text-[10.5px] text-gray-900 font-medium border-r border-gray-200 tabular-nums tracking-[0.5px]">
                           {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(e.amount)}
-                        </td>
-                        <td className="px-2 py-1.5 text-[10px] text-gray-700 border-r border-gray-200">
-                          {e.paidToName || e.paidToCustomName || e.employeeName}
                         </td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center gap-0.5">
