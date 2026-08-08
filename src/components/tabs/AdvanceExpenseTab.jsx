@@ -450,7 +450,11 @@ export default function AdvanceExpenseTab({ defaultModule }) {
         }
 
         // Check Approval Settings rule for Advance or Expense module
-        const moduleSetting = approvalSettings.find(s => s.moduleName === type)
+        const moduleSetting = approvalSettings.find(s => {
+          const mName = String(s.moduleName || '').toLowerCase()
+          const tName = String(type || '').toLowerCase()
+          return mName === tName || mName.includes(tName) || tName.includes(mName)
+        })
         const appTypeSetting = moduleSetting?.type || 'multi'
 
         let initialStatus = 'Pending'
@@ -1246,34 +1250,58 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       console.log('Submission result:', result)
       console.log('Valid rows:', validRows)
       
-      // After successful submission, open drawer with submitted items
+      // After successful submission
       if (result && result.length > 0) {
-        // Transform submitted rows to match approval display format
-        const justSubmitted = validRows.map((row, idx) => {
-          const rowType = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
-          const moduleSetting = approvalSettings.find(s => s.moduleName === rowType)
-          const appType = moduleSetting?.type || 'multi'
-          const isNoAppr = appType === 'none'
-
-          return {
-            id: result[idx], // Transaction number
-            transactionNo: result[idx],
-            employeeName: employees.find(e => e.id === row.employeeId)?.name || 'Unknown',
-            employeeId: row.employeeId,
-            category: row.category,
-            amount: row.amount,
-            date: row.date,
-            type: rowType,
-            hrApproval: isNoAppr ? 'Approved' : 'Pending',
-            mdApproval: isNoAppr ? 'Approved' : 'Pending',
-            status: isNoAppr ? 'Approved' : 'Pending',
-            payoutMethod: row.payoutMethod,
-            requestType: row.requestType,
-            _isNew: true // Flag to identify just-submitted items
-          }
+        const rowType = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
+        const moduleSetting = approvalSettings.find(s => {
+          const mName = String(s.moduleName || '').toLowerCase()
+          const tName = String(rowType || '').toLowerCase()
+          return mName === tName || mName.includes(tName) || tName.includes(mName)
         })
+        const appType = moduleSetting?.type || 'multi'
+        const isNoAppr = appType === 'none'
+
+        if (isNoAppr) {
+          // If No Approval is configured in Settings, do NOT open the Approval Drawer!
+          alert(`Successfully submitted ${result.length} ${rowType.toLowerCase()}(s)! Auto-approved (No approval required).`)
+          setAddRows([{
+            id: 'row-1',
+            date: new Date().toISOString().slice(0, 10),
+            employeeId: user?.uid || '',
+            paidToType: 'employee',
+            paidTo: '',
+            paidToCustomName: '',
+            category: activeModule === 'Add Advance' ? 'Salary Advance' : '',
+            customCategory: '',
+            transferredToName: '',
+            requestType: 'Reimbursement',
+            payoutMethod: 'Immediate',
+            amount: '',
+            project: '',
+            reason: ''
+          }])
+          setActiveModule('Reports')
+          return
+        }
+
+        // If Single or Multi-stage approval is required, open approval drawer
+        const justSubmitted = validRows.map((row, idx) => ({
+          id: result[idx], // Transaction number
+          transactionNo: result[idx],
+          employeeName: employees.find(e => e.id === row.employeeId)?.name || 'Unknown',
+          employeeId: row.employeeId,
+          category: row.category,
+          amount: row.amount,
+          date: row.date,
+          type: rowType,
+          hrApproval: 'Pending',
+          mdApproval: 'Pending',
+          status: 'Pending',
+          payoutMethod: row.payoutMethod,
+          requestType: row.requestType,
+          _isNew: true // Flag to identify just-submitted items
+        }))
         
-        console.log('Just submitted items:', justSubmitted)
         setSubmittedItems(justSubmitted)
         setApprovalDrawerOpen(true)
       }
@@ -1836,72 +1864,193 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     }
   }
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     try {
-      // Validate data exists
       if (!filteredEntries || filteredEntries.length === 0) {
         alert('No data to export. Please apply filters first.')
         return
       }
-      
-      const doc = new jsPDF('landscape') // Use landscape for more columns
-      
-      // Title with date range
-      let titleText = 'Advances & Expenses Report'
-      try {
-        if (reportFromDate && reportToDate) {
-          const fromDate = new Date(reportFromDate)
-          const toDate = new Date(reportToDate)
-          if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
-            const from = fromDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            const to = toDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            titleText += ` (${from} - ${to})`
-          }
-        } else if (reportFromDate) {
-          const fromDate = new Date(reportFromDate)
-          if (!isNaN(fromDate.getTime())) {
-            const from = fromDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            titleText += ` (From ${from})`
-          }
-        } else if (reportToDate) {
-          const toDate = new Date(reportToDate)
-          if (!isNaN(toDate.getTime())) {
-            const to = toDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            titleText += ` (To ${to})`
-          }
-        } else {
-          const [year, month] = reportMonth.split('-').map(Number)
-          if (!isNaN(year) && !isNaN(month)) {
-            const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
-            titleText += ` - ${monthName}`
-          }
+
+      // Helper function to fetch base64 logo
+      const getBase64FromUrl = async (url) => {
+        try {
+          const response = await fetch(url)
+          const blob = await response.blob()
+          return new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result)
+            reader.onerror = () => resolve(null)
+            reader.readAsDataURL(blob)
+          })
+        } catch {
+          return null
         }
-      } catch (dateErr) {
-        console.error('Date formatting error:', dateErr)
-        // Continue with default title
       }
+
+      // Initialize Portrait A4 Document
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      const pageWidth = doc.internal.pageSize.width || 210
+      const pageHeight = doc.internal.pageSize.height || 297
+      const margin = 14
+      const contentWidth = pageWidth - margin * 2 // 182mm
+
+      // Fetch org logo if available
+      let logoData = null
+      if (orgSettings?.logoURL) {
+        logoData = await getBase64FromUrl(orgSettings.logoURL)
+      }
+
+      let startY = 14
+
+      // Header Section with Logo and Enterprise Title
+      const orgTitleName = orgSettings?.displayName || orgSettings?.name || user?.orgName || 'HRFlow Enterprise'
       
-      doc.setFontSize(14)
-      doc.text(titleText, 14, 15)
-      
-      // Filter summary
+      if (logoData) {
+        try {
+          doc.addImage(logoData, 'PNG', margin, startY, 20, 12)
+          doc.setFontSize(14)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(15, 23, 42) // Slate 900
+          doc.text(orgTitleName, margin + 24, startY + 5)
+          
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(100, 116, 139) // Slate 500
+          doc.text('ADVANCES & EXPENSES FINANCIAL REPORT', margin + 24, startY + 10)
+        } catch {
+          doc.setFontSize(15)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(15, 23, 42)
+          doc.text(orgTitleName, margin, startY + 5)
+          
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(100, 116, 139)
+          doc.text('ADVANCES & EXPENSES FINANCIAL REPORT', margin, startY + 10)
+        }
+      } else {
+        doc.setFontSize(15)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        doc.text(orgTitleName, margin, startY + 5)
+        
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 116, 139)
+        doc.text('ADVANCES & EXPENSES FINANCIAL REPORT', margin, startY + 10)
+      }
+
+      // Generated timestamp on top-right
+      const nowStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 116, 139)
+      doc.text(`Generated: ${nowStr}`, pageWidth - margin, startY + 5, { align: 'right' })
+
+      startY += 16
+
+      // Divider Line
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(0.4)
+      doc.line(margin, startY, pageWidth - margin, startY)
+
+      startY += 5
+
+      // Report Period Subtitle & Filters Summary
+      let periodStr = 'Period: All Time'
+      if (reportFromDate && reportToDate) {
+        const from = new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        const to = new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        periodStr = `Period: ${from} — ${to}`
+      } else if (reportFromDate) {
+        const from = new Date(reportFromDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        periodStr = `Period: From ${from}`
+      } else if (reportToDate) {
+        const to = new Date(reportToDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        periodStr = `Period: To ${to}`
+      }
+
       const activeFilters = []
-      if (reportSelectedEmployees.length > 0) activeFilters.push(`${reportSelectedEmployees.length} Employees`)
+      if (reportSelectedEmployees.length > 0) activeFilters.push(`${reportSelectedEmployees.length} Employee(s)`)
       if (reportFilterCategory) activeFilters.push(`Category: ${reportFilterCategory}`)
       if (reportFilterRemarks) activeFilters.push(`Remarks: "${reportFilterRemarks}"`)
       if (reportFilterType !== 'All') activeFilters.push(`Type: ${reportFilterType}`)
       if (reportFilterPayout !== 'All') activeFilters.push(`Payout: ${reportFilterPayout}`)
-      
+
+      doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(30, 41, 59)
+      doc.text(periodStr, margin, startY)
+
       if (activeFilters.length > 0) {
-        doc.setFontSize(9)
-        doc.text(`Filters: ${activeFilters.join(' | ')}`, 14, 22)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(100, 116, 139)
+        doc.text(`Active Filters: ${activeFilters.join(' | ')}`, margin, startY + 4)
+        startY += 8
+      } else {
+        startY += 5
       }
-      
-      // Get filtered data safely
+
+      // KPI Summary Cards
       const dataToUseAdv = advForReport || []
       const dataToUseExp = expForReport || []
 
-      // Format date safely
+      const totalAdvSum = dataToUseAdv.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
+      const totalExpSum = dataToUseExp.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+      const cashInHand = totalAdvSum - totalExpSum
+
+      const formatCurrency = (num) => 'Rs. ' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
+
+      const cardW = (contentWidth - 8) / 3 // ~58mm each
+      const cardH = 11
+
+      // Advance KPI
+      doc.setFillColor(254, 243, 199) // amber-100
+      doc.setDrawColor(251, 191, 36) // amber-400
+      doc.roundedRect(margin, startY, cardW, cardH, 1, 1, 'FD')
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(120, 53, 15)
+      doc.text('TOTAL ADVANCES', margin + 3, startY + 3.8)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(5, 150, 105) // emerald-600
+      doc.text(formatCurrency(totalAdvSum), margin + 3, startY + 8.8)
+
+      // Expense KPI (Neutral Slate Grey card)
+      doc.setFillColor(241, 245, 249) // slate-100
+      doc.setDrawColor(203, 213, 225) // slate-300
+      doc.roundedRect(margin + cardW + 4, startY, cardW, cardH, 1, 1, 'FD')
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(51, 65, 85) // slate-700
+      doc.text('TOTAL EXPENSES', margin + cardW + 7, startY + 3.8)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(225, 29, 72) // rose-600
+      doc.text(formatCurrency(totalExpSum), margin + cardW + 7, startY + 8.8)
+
+      // Cash in hand KPI
+      doc.setFillColor(236, 253, 245) // emerald-50
+      doc.setDrawColor(110, 231, 183) // emerald-300
+      doc.roundedRect(margin + (cardW + 4) * 2, startY, cardW, cardH, 1, 1, 'FD')
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(6, 78, 59)
+      doc.text('CASH IN HAND', margin + (cardW + 4) * 2 + 3, startY + 3.8)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(217, 119, 6) // amber-600
+      doc.text(formatCurrency(cashInHand), margin + (cardW + 4) * 2 + 3, startY + 8.8)
+
+      startY += cardH + 6
+
+      // Date formatter
       const formatDateSafe = (dateStr) => {
         try {
           if (!dateStr) return '—'
@@ -1912,96 +2061,147 @@ export default function AdvanceExpenseTab({ defaultModule }) {
           return '—'
         }
       }
-      
-      // Format amount safely
-      const formatAmountSafe = (amount) => {
-        try {
-          const num = parseFloat(amount)
-          if (isNaN(num)) return '0.00'
-          return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
-        } catch {
-          return '0.00'
-        }
-      }
 
+      // Advances Table
       if (dataToUseAdv.length > 0) {
-        doc.setFontSize(11)
-        doc.text(`Advances (${dataToUseAdv.length} records)`, 14, 30)
-        
-        const advBody = dataToUseAdv.map(a => [
-          formatDateSafe(a.date),
-          a.employeeName || '—',
-          a.category || '—',
-          ((a.remarks || a.reason || '—').toString()).substring(0, 30),
-          formatAmountSafe(a.amount),
-          a.status || '—'
-        ])
-        
+        doc.setFontSize(9.5)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 41, 59)
+        doc.text(`Advances (${dataToUseAdv.length} records)`, margin, startY)
+        startY += 3
+
+        const advBody = dataToUseAdv.map(a => {
+          let categoryDisplay = a.category || a.type || '—'
+          if (a.givenByEmployeeName) {
+            categoryDisplay += `\n(Given by ${a.givenByEmployeeName})`
+          }
+          return [
+            formatDateSafe(a.date),
+            a.employeeName || '—',
+            categoryDisplay,
+            (a.remarks || a.reason || '—').toString(),
+            formatCurrency(parseFloat(a.amount) || 0),
+            a.status || 'Approved'
+          ]
+        })
+
         autoTable(doc, {
-          startY: 35,
-          head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Status']],
+          startY: startY,
+          margin: { left: margin, right: margin },
+          head: [['Date', 'Name', 'Category Type', 'Remarks', 'Amount', 'Status']],
           body: advBody,
           theme: 'grid',
-          styles: { fontSize: 7, cellPadding: 1.5 },
-          headStyles: { fillColor: [245, 158, 11], textColor: 255, fontSize: 8 },
+          styles: { 
+            font: 'helvetica',
+            fontSize: 7.5, 
+            cellPadding: 2,
+            textColor: [51, 65, 85],
+            valign: 'middle',
+            lineWidth: 0.15,
+            borderColor: [226, 232, 240]
+          },
+          headStyles: { 
+            fillColor: [51, 65, 85], // Charcoal Slate Grey
+            textColor: [255, 255, 255], 
+            fontSize: 8,
+            fontStyle: 'bold',
+            halign: 'left'
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          },
           columnStyles: {
-            0: { cellWidth: 25 },
-            1: { cellWidth: 35 },
-            2: { cellWidth: 30 },
-            3: { cellWidth: 50 },
-            4: { cellWidth: 25 },
-            5: { cellWidth: 25 }
+            0: { cellWidth: 18 },
+            1: { cellWidth: 42 }, // Equal width
+            2: { cellWidth: 42 }, // Equal width
+            3: { cellWidth: 42 }, // Equal width
+            4: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+            5: { cellWidth: 16, halign: 'center', overflow: 'linebreak' }
           }
         })
+
+        startY = (doc.lastAutoTable?.finalY || startY) + 8
       }
-      
-      const finalY = (doc.lastAutoTable?.finalY || 30) + 10
-      
+
+      // Expenses Table
       if (dataToUseExp.length > 0) {
-        // Check if we need a new page
-        if (finalY > 180 && dataToUseAdv.length > 0) {
+        if (startY > pageHeight - 40) {
           doc.addPage()
+          startY = 14
         }
-        
-        doc.setFontSize(11)
-        const expTitleY = dataToUseAdv.length > 0 && finalY > 180 ? 15 : finalY
-        doc.text(`Expenses (${dataToUseExp.length} records)`, 14, expTitleY)
-        
-        const expBody = dataToUseExp.map(e => [
-          formatDateSafe(e.date),
-          e.employeeName || '—',
-          e.category || '—',
-          ((e.remarks || e.reason || '—').toString()).substring(0, 30),
-          formatAmountSafe(e.amount),
-          e.paidToName || e.paidToCustomName || e.employeeName || '—',
-          e.status || '—'
-        ])
-        
+
+        doc.setFontSize(9.5)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 41, 59)
+        doc.text(`Expenses (${dataToUseExp.length} records)`, margin, startY)
+        startY += 3
+
+        const expBody = dataToUseExp.map(e => {
+          let categoryDisplay = e.category || e.type || '—'
+          const recipientName = e.paidToName || e.paidToCustomName
+          const isGivenToOthers = (e.category && e.category.toLowerCase().includes('given to others')) || (recipientName && recipientName !== e.employeeName)
+          if (isGivenToOthers && recipientName) {
+            categoryDisplay += `\n(${e.employeeName} -> ${recipientName})`
+          }
+
+          return [
+            formatDateSafe(e.date),
+            e.employeeName || '—',
+            categoryDisplay,
+            (e.remarks || e.reason || '—').toString(),
+            formatCurrency(parseFloat(e.amount) || 0),
+            e.status || 'Approved'
+          ]
+        })
+
         autoTable(doc, {
-          startY: dataToUseAdv.length > 0 && finalY > 180 ? 20 : finalY + 5,
-          head: [['Date', 'Name', 'Category', 'Remarks', 'Amount', 'Paid To', 'Status']],
+          startY: startY,
+          margin: { left: margin, right: margin },
+          head: [['Date', 'Name', 'Category Type', 'Remarks', 'Amount', 'Status']],
           body: expBody,
           theme: 'grid',
-          styles: { fontSize: 7, cellPadding: 1.5 },
-          headStyles: { fillColor: [37, 99, 235], textColor: 255, fontSize: 8 },
+          styles: { 
+            font: 'helvetica',
+            fontSize: 7.5, 
+            cellPadding: 2,
+            textColor: [51, 65, 85],
+            valign: 'middle',
+            lineWidth: 0.15,
+            borderColor: [226, 232, 240]
+          },
+          headStyles: { 
+            fillColor: [71, 85, 105], // Medium Slate Grey
+            textColor: [255, 255, 255], 
+            fontSize: 8,
+            fontStyle: 'bold',
+            halign: 'left'
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          },
           columnStyles: {
-            0: { cellWidth: 22 },
-            1: { cellWidth: 30 },
-            2: { cellWidth: 28 },
-            3: { cellWidth: 45 },
-            4: { cellWidth: 22 },
-            5: { cellWidth: 30 },
-            6: { cellWidth: 22 }
+            0: { cellWidth: 18 },
+            1: { cellWidth: 42 }, // Equal width
+            2: { cellWidth: 42 }, // Equal width
+            3: { cellWidth: 42 }, // Equal width
+            4: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+            5: { cellWidth: 16, halign: 'center', overflow: 'linebreak' }
           }
         })
       }
-      
-      if (dataToUseAdv.length === 0 && dataToUseExp.length === 0) {
-        doc.setFontSize(12)
-        doc.text('No records found for the selected filters.', 14, 40)
+
+      // Page numbers & Footer on every page
+      const totalPages = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        doc.setFontSize(7.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(148, 163, 184)
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' })
+        doc.text(`${orgTitleName} | Confidential Financial Report`, margin, pageHeight - 6)
       }
-      
-      // Generate filename with date range
+
+      // Filename generation
       let filenameDate = reportMonth
       try {
         if (reportFromDate || reportToDate) {
@@ -2009,15 +2209,14 @@ export default function AdvanceExpenseTab({ defaultModule }) {
           const to = reportToDate ? reportToDate.replace(/-/g, '') : 'end'
           filenameDate = `${from}_to_${to}`
         }
-      } catch (filenameErr) {
+      } catch {
         filenameDate = new Date().toISOString().slice(0, 10)
       }
-      
+
       doc.save(`Adv_Exp_Report_${filenameDate}.pdf`)
     } catch (err) {
       console.error('PDF Export Error:', err)
-      console.error('Error stack:', err.stack)
-      alert(`Failed to generate PDF. Error: ${err.message || 'Unknown error'}. Please check console for details.`)
+      alert(`Failed to generate PDF: ${err.message}`)
     }
   }
 
