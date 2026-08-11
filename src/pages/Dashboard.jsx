@@ -320,8 +320,7 @@ export default function Dashboard() {
     { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, module: 'Tasks' },
     { id: 'salary-slip', label: 'Payroll', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'SalarySlip' },
-    { id: 'advance', label: 'Advance', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
-    { id: 'expense', label: 'Expense', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
+    { id: 'advance', label: 'Advance/Expense', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
@@ -392,12 +391,12 @@ export default function Dashboard() {
     }
   }, [tabSearchParams, visibleTabs])
 
-  const mainTabs = ['home', 'attendance-list', 'tasks', 'salary-slip', 'advance', 'expense', 'approvals']
+  const mainTabs = ['home', 'attendance-list', 'advance', 'vehicle', 'approvals']
   
   const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents']
   const featuresTabs = ['correction', 'fines', 'engage', 'chat']
 
-  const renderMenuItem = (tab, isActive, onClick, fontSize = '13px') => (
+  const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
     <div key={tab.id} className="w-full">
       <button 
         onClick={onClick} 
@@ -405,16 +404,19 @@ export default function Dashboard() {
         onMouseLeave={handleSidebarLeave}
         className={`${isActive ? 'sidebar-active' : 'sidebar-inactive'} ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
       >
-        <span className="shrink-0">
-          {tab.icon && React.cloneElement(tab.icon, { size: 16, strokeWidth: isActive ? 2 : 1.5 })}
+        <span className={`shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
+          {tab.icon && React.cloneElement(tab.icon, { size: 17, strokeWidth: isActive ? 2 : 1.75 })}
         </span>
         {!isCollapsed && (
           <span 
-            className="truncate" 
+            className="truncate flex-1 text-left" 
             style={{ fontSize }}
           >
             {tab.label}
           </span>
+        )}
+        {!isCollapsed && isActive && (
+          <ChevronRight size={15} className="ml-auto text-blue-600 shrink-0" />
         )}
       </button>
     </div>
@@ -492,15 +494,15 @@ export default function Dashboard() {
           </div>
         )}
 
-        {vehicleItem && (
-          <div className="mt-1">
-            {renderMenuItem(vehicleItem, activeTab === 'vehicle', () => { if (navigateToTab('vehicle')) setIsMobileMenuOpen(false) })}
-          </div>
-        )}
-
         {operationsItem && (
           <div className="mt-0.5">
             {renderMenuItem(operationsItem, activeTab === 'operations', () => { if (navigateToTab('operations')) setIsMobileMenuOpen(false) })}
+          </div>
+        )}
+
+        {visibleTabs.find(t => t.id === 'tasks') && (
+          <div className="mt-0.5">
+            {renderMenuItem(visibleTabs.find(t => t.id === 'tasks'), activeTab === 'tasks', () => { if (navigateToTab('tasks')) setIsMobileMenuOpen(false) })}
           </div>
         )}
 
@@ -508,6 +510,7 @@ export default function Dashboard() {
 
         <div className="pt-1 space-y-0.5">
           {visibleTabs.find(t => t.id === 'accountant') && renderMenuItem(visibleTabs.find(t => t.id === 'accountant'), activeTab === 'accountant', () => { if (navigateToTab('accountant')) setIsMobileMenuOpen(false) })}
+          {visibleTabs.find(t => t.id === 'salary-slip') && renderMenuItem(visibleTabs.find(t => t.id === 'salary-slip'), activeTab === 'salary-slip', () => { if (navigateToTab('salary-slip')) setIsMobileMenuOpen(false) })}
           
           {/* Reports Collapsible */}
           {visibleTabs.find(t => t.id === 'reports') && (
@@ -651,7 +654,7 @@ export default function Dashboard() {
             const quickActions = [
               { label: 'Add attendance', tab: 'attendance-list', tooltip: 'New entry?', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
               { label: 'Add Employee', tab: 'employees', tooltip: 'New employee?', icon: <Users size={14} />, module: 'Employees', right: 'create' },
-              { label: 'Expense', tab: 'expense', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
+              { label: 'Expense', tab: 'advance', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
               { label: 'Full Summary', tab: 'salary-slip', salaryActiveTab: 'full-summary', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'SalarySlip', right: 'view' },
               { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', tooltip: 'Track daily checklist?', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
             ].filter(action => {
@@ -702,16 +705,22 @@ export default function Dashboard() {
           {user?.orgId && <OrganizationSwitcher />}
           <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
           
-          <button onClick={() => { if (navigateToTab('portal')) setPortalSubTab('profile') }} title="Profile" className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 rounded-md transition-colors group">
-            <div className="flex flex-col items-start text-left">
-              <span className="text-[13px] font-black tracking-tight group-hover:text-indigo-600 transition-colors leading-none border-b border-transparent group-hover:border-indigo-300" style={{ color: '#7d6be1' }}>{user?.name?.split(' ').map((n, i) => i === 0 ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : n.toLowerCase()).join(' ')}</span>
-              <span className="text-xs text-gray-400 font-bold mt-1 lowercase">{user?.email || user?.role || 'Staff'}</span>
-            </div>
+          <button 
+            onClick={() => { if (navigateToTab('portal')) setPortalSubTab('profile') }} 
+            title="Profile" 
+            className="hidden sm:flex items-center gap-2.5 p-1.5 px-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/60 rounded-xl transition-colors group cursor-pointer"
+          >
             {(currentEmployee?.photoURL || user?.photoURL) ? (
-              <img src={currentEmployee?.photoURL || user?.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100" />
+              <img src={currentEmployee?.photoURL || user?.photoURL} alt="Profile" className="w-7 h-7 rounded-full object-cover shadow-2xs border border-white" />
             ) : (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-black text-[10px] font-black shadow-sm border border-gray-100 bg-gray-200">{getInitials(user?.name)}</div>
+              <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-2xs">{getInitials(user?.name)}</div>
             )}
+            <div className="flex flex-col items-start text-left min-w-0">
+              <span className="text-xs font-medium text-slate-900 leading-tight group-hover:text-blue-600 transition-colors truncate max-w-[120px]">
+                {user?.name?.split(' ').map((n, i) => i === 0 ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : n.toLowerCase()).join(' ')}
+              </span>
+              <span className="text-[11px] text-slate-500 truncate max-w-[120px]">{user?.email || user?.role || 'Staff'}</span>
+            </div>
           </button>
           <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
           <button onClick={() => setShowLog(s => !s)} title="Activity Log" className={`p-2.5 rounded-md transition-colors ${showLog ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}><History size={16} /></button>
@@ -731,28 +740,42 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-        {isMobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
-        <aside className={`bg-[#ffffff] border-r border-gray-200/80 flex flex-col shrink-0 transition duration-300 fixed inset-y-0 left-0 z-50 md:relative md:h-full md:z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-[72px]' : 'md:w-[200px] w-72'}`}>
-          {/* Mobile-only header with close button */}
-          <div className="md:hidden p-4 flex items-center justify-end border-b border-gray-200/60 h-14 shrink-0">
-            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl text-zinc-500 transition-colors">
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 md:hidden transition-opacity duration-300" 
+            onClick={() => setIsMobileMenuOpen(false)} 
+          />
+        )}
+        <aside 
+          className={`bg-[#ffffff] border-r border-slate-200 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:h-full md:z-30 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-16' : 'md:w-56 w-56'}`}
+          style={{ backgroundColor: '#ffffff' }}
+        >
+          {/* Mobile-only close button header */}
+          <div className="md:hidden p-4 flex items-center justify-end border-b border-slate-200 h-14 shrink-0 bg-[#ffffff]">
+            <button 
+              onClick={() => setIsMobileMenuOpen(false)} 
+              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+            >
               <X size={18} />
             </button>
           </div>
-          <nav className="flex-1 px-1 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
+
+          {/* Nav Items */}
+          <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto no-scrollbar bg-[#ffffff]" style={{ backgroundColor: '#ffffff' }}>
             {renderMenu()}
           </nav>
-          {/* Collapse sidebar button */}
-          <div className="p-3 border-t border-gray-200/80 shrink-0 hidden md:block">
+
+          {/* Footer Collapse Button */}
+          <div className="p-2 border-t border-slate-200 shrink-0 hidden md:block">
             <button
               onClick={() => toggleSidebar()}
               title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              className={`flex items-center gap-2 h-9 w-full rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 active:scale-[0.98] transition duration-150 cursor-pointer ${
+              className={`flex items-center gap-2 h-9 w-full rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition duration-150 cursor-pointer ${
                 isCollapsed ? 'justify-center px-0' : 'px-3'
               }`}
             >
               {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-              {!isCollapsed && <span className="text-[13px] font-semibold">Collapse Sidebar</span>}
+              {!isCollapsed && <span className="text-xs font-semibold">Collapse Sidebar</span>}
             </button>
           </div>
         </aside>

@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
 import Spinner from '../ui/Spinner'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { BarChart3, FileSpreadsheet, Download, ChevronLeft, ChevronRight, Calendar, Filter, GripVertical, Save, X, ArrowRight, Table } from 'lucide-react'
-import { getDocs, collection, query, where, setDoc, doc, getDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
+import { getDocs, collection, query, where, setDoc, doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
@@ -194,7 +194,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
       ]).then(([eSnap, sSnap, oSnap, sandSnap]) => {
         const shiftMap = {}
         sSnap.docs.forEach(d => { shiftMap[d.id] = d.data() })
-        const orgData = oSnap.exists() ? orgSnap.data() : {}
+        const orgData = oSnap.exists() ? oSnap.data() : {}
         const holidays = orgData.holidays || []
         const sandwichSet = new Set(sandSnap.docs.map(d => `${d.data().employeeId}_${d.data().date}`))
         const allEmployees = eSnap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -362,7 +362,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
 
   const saveDisplayOrder = async () => {
     if (!user?.orgId) return
-    try { await setDoc(doc(db, 'organisations', user.orgId), { employeeOrder: displayOrder }, { merge: true }); alert('Display order saved!'); setShowOrderModal(false); fetchPivotData() } catch (err) { alert('Failed to save order') }
+    try { await setDoc(doc(db, 'organisations', user.orgId), { employeeOrder: displayOrder }, { merge: true }); alert('Display order saved!'); setShowOrderModal(false) } catch (err) { alert('Failed to save order') }
   }
 
   const findEmp = (empIdOrCode) => {

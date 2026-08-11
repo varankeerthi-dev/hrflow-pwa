@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore'
+import { useState, useCallback } from 'react'
+import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp, getDoc, doc, collection } from 'firebase/firestore'
 import { attendanceCol, attendanceDoc } from '../lib/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
