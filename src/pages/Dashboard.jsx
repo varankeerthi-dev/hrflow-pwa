@@ -8,6 +8,7 @@ import { db } from '../lib/firebase'
 import { doc, getDoc, collection, getDocs, onSnapshot } from 'firebase/firestore'
 import {
   Car,
+  Truck,
   Calendar,
   Briefcase,
   Folder,
@@ -325,6 +326,7 @@ export default function Dashboard() {
     { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
+    { id: 'vehicle', label: 'Vehicle', icon: <Truck size={18} strokeWidth={1.75} />, module: 'Settings' },
     { id: 'operations', label: 'Operations', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
     { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
@@ -422,6 +424,7 @@ export default function Dashboard() {
     const mainItems = visibleTabs.filter(t => mainTabs.includes(t.id))
     const hrItems = visibleTabs.filter(t => hrTabs.includes(t.id))
     const featuresItems = visibleTabs.filter(t => featuresTabs.includes(t.id))
+    const vehicleItem = visibleTabs.find(t => t.id === 'vehicle')
     const operationsItem = visibleTabs.find(t => t.id === 'operations')
     const portalItem = visibleTabs.find(t => t.id === 'portal')
     const settingsItem = visibleTabs.find(t => t.id === 'settings')
@@ -489,8 +492,14 @@ export default function Dashboard() {
           </div>
         )}
 
-        {operationsItem && (
+        {vehicleItem && (
           <div className="mt-1">
+            {renderMenuItem(vehicleItem, activeTab === 'vehicle', () => { if (navigateToTab('vehicle')) setIsMobileMenuOpen(false) })}
+          </div>
+        )}
+
+        {operationsItem && (
+          <div className="mt-0.5">
             {renderMenuItem(operationsItem, activeTab === 'operations', () => { if (navigateToTab('operations')) setIsMobileMenuOpen(false) })}
           </div>
         )}
@@ -574,7 +583,8 @@ export default function Dashboard() {
       case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />
       case 'letters': return <HRLettersTab />
-      case 'operations': return <OperationsTab />
+      case 'vehicle': return <OperationsTab initialSubTab="vehicles" />
+      case 'operations': return <OperationsTab initialSubTab="dates" />
       case 'employees': return <EmployeesTab />
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />

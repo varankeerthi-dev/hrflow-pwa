@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Calendar, Car, Clock } from 'lucide-react'
 import ImportantDatesTab from './ImportantDatesTab'
 import VehicleManagementTab from './VehicleManagementTab'
@@ -11,8 +11,12 @@ const subTabs = [
   { id: 'shift-planning', label: 'Shift Planning', icon: <Clock size={15} /> },
 ]
 
-export default function OperationsTab() {
-  const [activeSubTab, setActiveSubTab] = useState('dates')
+export default function OperationsTab({ initialSubTab = 'dates' }) {
+  const [activeSubTab, setActiveSubTab] = useState(initialSubTab)
+
+  useEffect(() => {
+    if (initialSubTab) setActiveSubTab(initialSubTab)
+  }, [initialSubTab])
 
   return (
     <div className="flex flex-col h-full" style={{ fontFamily: 'Figtree, system-ui, sans-serif' }}>
@@ -23,7 +27,7 @@ export default function OperationsTab() {
       />
 
       {activeSubTab === 'dates' && <ImportantDatesTab />}
-      {activeSubTab === 'vehicles' && <VehicleManagementTab />}
+      {activeSubTab === 'vehicles' && <VehicleManagementTab initialSubTab="mileage-tracker" />}
       {activeSubTab === 'shift-planning' && <ShiftPlanningTab />}
     </div>
   )

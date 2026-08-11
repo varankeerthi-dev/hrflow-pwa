@@ -429,8 +429,8 @@ export default function AccountantTab() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Finance Control</span>
-              <h1 className="text-lg font-bold text-zinc-900 tracking-tight font-raleway uppercase">Accountant Desk</h1>
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-400">Finance Control</span>
+              <h1 className="text-lg font-normal text-zinc-800 tracking-tight font-raleway uppercase">Accountant Desk</h1>
             </div>
             <SubTabsNav
               tabs={TABS}
@@ -440,17 +440,17 @@ export default function AccountantTab() {
           </div>
           <div className="text-right flex items-center gap-4">
             <div className="flex flex-col text-right">
-              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Payroll Cycle</span>
+              <span className="text-[9px] font-medium text-zinc-400 uppercase tracking-widest">Payroll Cycle</span>
               <input 
                 type="month"
                 value={superfastMonth}
                 onChange={(e) => setSuperfastMonth(e.target.value)}
-                className="bg-transparent border-0 text-sm font-black text-zinc-900 p-0 focus:ring-0 w-32 cursor-pointer text-right"
+                className="bg-transparent border-0 text-sm font-normal text-zinc-800 p-0 focus:ring-0 w-32 cursor-pointer text-right"
               />
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-lg text-white">
               <Banknote size={16} className="text-zinc-400" />
-              <span className="text-xs font-bold uppercase tracking-widest">Ledger Active</span>
+              <span className="text-xs font-medium uppercase tracking-widest">Ledger Active</span>
             </div>
           </div>
         </div>
@@ -459,19 +459,19 @@ export default function AccountantTab() {
       <div className="flex-1 overflow-hidden p-6">
         {activeSubTab === 'bulk' && (
           <div className="h-full flex flex-col space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex bg-zinc-100 w-12 rounded-lg border border-zinc-200">
-                  <button onClick={() => { setEntryMode('dated'); setBulkRows(bulkRows.map(r => ({ ...r, date: new Date().toISOString().split('T')[0] }))) }} className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition ${entryMode === 'dated' ? 'bg-white text-zinc-900 shadow-sm/50' : 'text-zinc-400 hover:text-zinc-600'}`}>Specific Dates</button>
-                  <button onClick={() => { setEntryMode('monthly'); setBulkRows(bulkRows.map(r => ({ ...r, date: new Date().toISOString().substring(0, 7) }))) }} className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition ${entryMode === 'monthly' ? 'bg-white text-zinc-900 shadow-sm/50' : 'text-zinc-400 hover:text-zinc-600'}`}>Monthly Total</button>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="inline-flex p-1 bg-zinc-100/90 rounded-lg border border-zinc-200 gap-1 shrink-0">
+                  <button onClick={() => { setEntryMode('dated'); setBulkRows(bulkRows.map(r => ({ ...r, date: new Date().toISOString().split('T')[0] }))) }} className={`px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded-md transition ${entryMode === 'dated' ? 'bg-white text-zinc-800 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}>Specific Dates</button>
+                  <button onClick={() => { setEntryMode('monthly'); setBulkRows(bulkRows.map(r => ({ ...r, date: new Date().toISOString().substring(0, 7) }))) }} className={`px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded-md transition ${entryMode === 'monthly' ? 'bg-white text-zinc-800 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}>Monthly Total</button>
                 </div>
-                <div><h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider font-raleway">Bulk Entry Panel</h2><p className="text-xs text-zinc-500">{entryMode === 'monthly' ? 'Wholesale monthly sync' : 'Individual transaction log'}</p></div>
+                <div><h2 className="text-sm font-medium text-zinc-800 uppercase tracking-wider font-raleway">Bulk Entry Panel</h2><p className="text-xs text-zinc-500">{entryMode === 'monthly' ? 'Wholesale monthly sync' : 'Individual transaction log'}</p></div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={clearAllRows} className="px-3 py-2 text-[#525252] hover:text-[#171717] text-xs font-semibold uppercase transition-colors">Clear All</button>
+                <button onClick={clearAllRows} className="px-3 py-2 text-[#525252] hover:text-[#171717] text-xs font-medium uppercase transition-colors">Clear All</button>
                 <button 
                   onClick={() => setIsSuperfastOpen(true)} 
-                  className="flex items-center gap-2 px-5 py-2 bg-[#D97706] text-white rounded-md text-[14px] font-semibold hover:bg-[#B45309] transition shadow-[0_0_15px_rgba(217,119,6,0.4)] hover:shadow-[0_0_20px_rgba(217,119,6,0.6)] active:scale-[0.98]"
+                  className="flex items-center gap-2 px-5 py-2 bg-[#D97706] text-white rounded-md text-[14px] font-medium hover:bg-[#B45309] transition shadow-[0_0_15px_rgba(217,119,6,0.4)] hover:shadow-[0_0_20px_rgba(217,119,6,0.6)] active:scale-[0.98]"
                 >
                   <LayoutGrid size={16} /> Superfast Sync
                 </button>
@@ -479,42 +479,126 @@ export default function AccountantTab() {
               </div>
             </div>
 
-            <div className="flex-1 rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden flex flex-col font-inter">
+            <div className="flex-1 rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm overflow-hidden flex flex-col font-inter">
               <div className="overflow-x-auto flex-1">
-                <table className="w-full text-sm border-collapse">
-                  <thead className="border-b border-zinc-200 bg-zinc-50/80 sticky top-0 z-10">
-                    <tr>
-                      <th className="w-[40px] px-3 py-2 text-center align-middle text-xs font-medium text-zinc-500">#</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 font-raleway font-bold uppercase tracking-wider">Employee</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 font-raleway font-bold uppercase tracking-wider">Type</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 font-raleway font-bold uppercase tracking-wider">{entryMode === 'monthly' ? 'Pay Month' : 'Transaction Date'}</th>
-                      <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 font-raleway font-bold uppercase tracking-wider">Amount (₹)</th>
-                      <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 font-raleway font-bold uppercase tracking-wider">Remarks</th>
-                      <th className="w-[60px] px-3 text-right align-middle text-xs font-medium text-zinc-500">Action</th>
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky top-0 z-10">
+                      <th className="py-3 px-3 w-10 text-center">#</th>
+                      <th className="py-3 px-3 min-w-[200px]">Employee</th>
+                      <th className="py-3 px-3 min-w-[140px]">Type</th>
+                      <th className="py-3 px-3 min-w-[160px]">{entryMode === 'monthly' ? 'Pay Month' : 'Transaction Date'}</th>
+                      <th className="py-3 px-3 min-w-[130px] text-right">Amount (₹)</th>
+                      <th className="py-3 px-3 min-w-[220px]">Remarks</th>
+                      <th className="py-3 px-3 w-20 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200">
+                  <tbody className="divide-y divide-slate-200/60">
                     {bulkRows.map((row, index) => (
-                      <tr key={row.id} className="hover:bg-zinc-50/80 transition-colors group h-12">
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-400 text-center font-mono">{index + 1}</td>
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap"><select value={row.employeeId} onChange={(e) => updateBulkRow(row.id, 'employeeId', e.target.value)} className="w-full h-8 bg-transparent border-0 focus:ring-0 text-[12px] font-semibold text-zinc-900 outline-none p-0"><option value="">Select Staff...</option>{employees.map(e => (<option key={e.id} value={e.id}>{e.name}</option>))}</select></td>
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap"><select value={row.type} onChange={(e) => updateBulkRow(row.id, 'type', e.target.value)} className="w-full h-8 bg-transparent border-0 focus:ring-0 text-[12px] font-bold text-zinc-700 outline-none p-0"><option value="Advance">Advance</option><option value="Expense">Expense</option><option value="Deduction">Deduction</option></select></td>
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap"><input type={entryMode === 'monthly' ? 'month' : 'date'} value={row.date} onChange={(e) => updateBulkRow(row.id, 'date', e.target.value)} className="w-full h-8 bg-transparent border-0 focus:ring-0 text-[12px] font-medium text-zinc-700 outline-none p-0" /></td>
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap"><input type="number" placeholder="0.00" value={row.amount} onChange={(e) => updateBulkRow(row.id, 'amount', e.target.value)} className="w-full h-8 bg-transparent border-0 focus:ring-0 text-right text-[12px] font-black text-orange-600 placeholder:text-zinc-300 outline-none p-0" /></td>
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap"><input type="text" placeholder={entryMode === 'monthly' ? 'Total impact...' : 'Reason...'} value={row.remarks} onChange={(e) => updateBulkRow(row.id, 'remarks', e.target.value)} className="w-full h-8 bg-transparent border-0 focus:ring-0 text-[12px] font-medium text-zinc-500 placeholder:text-zinc-300 outline-none p-0" /></td>
-                        <td className="px-3 py-1.5 align-middle text-right"><button onClick={() => removeBulkRow(row.id)} className="w-12 text-zinc-300 hover:text-rose-500 transition opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button></td>
+                      <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
+                        <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-xs font-mono">{index + 1}</td>
+                        <td className="py-2 px-3">
+                          <select 
+                            value={row.employeeId} 
+                            onChange={(e) => updateBulkRow(row.id, 'employeeId', e.target.value)} 
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-normal text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">Select Staff...</option>
+                            {employees.map(e => (<option key={e.id} value={e.id}>{e.name}</option>))}
+                          </select>
+                        </td>
+                        <td className="py-2 px-3">
+                          <select 
+                            value={row.type} 
+                            onChange={(e) => updateBulkRow(row.id, 'type', e.target.value)} 
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-normal text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="Advance">Advance</option>
+                            <option value="Expense">Expense</option>
+                            <option value="Deduction">Deduction</option>
+                          </select>
+                        </td>
+                        <td className="py-2 px-3">
+                          <input 
+                            type={entryMode === 'monthly' ? 'month' : 'date'} 
+                            value={row.date} 
+                            onChange={(e) => updateBulkRow(row.id, 'date', e.target.value)} 
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-normal text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                          />
+                        </td>
+                        <td className="py-2 px-3">
+                          <input 
+                            type="number" 
+                            placeholder="0.00" 
+                            value={row.amount} 
+                            onChange={(e) => updateBulkRow(row.id, 'amount', e.target.value)} 
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && index === bulkRows.length - 1) {
+                                e.preventDefault()
+                                addBulkRow()
+                              }
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-normal text-right text-orange-600 placeholder:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                          />
+                        </td>
+                        <td className="py-2 px-3">
+                          <input 
+                            type="text" 
+                            placeholder={entryMode === 'monthly' ? 'Total impact...' : 'Reason...'} 
+                            value={row.remarks} 
+                            onChange={(e) => updateBulkRow(row.id, 'remarks', e.target.value)} 
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && index === bulkRows.length - 1) {
+                                e.preventDefault()
+                                addBulkRow()
+                              }
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-normal text-slate-700 placeholder:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <button 
+                            type="button"
+                            onClick={() => removeBulkRow(row.id)} 
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete Row"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
+
+                    {/* Dedicated + Add Row Line under Table Rows */}
+                    <tr className="bg-slate-50/40 hover:bg-slate-100/50 transition-colors border-t border-dashed border-slate-200">
+                      <td colSpan={7} className="py-2 px-3 text-left">
+                        <button
+                          type="button"
+                          onClick={addBulkRow}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1 rounded-lg border border-dashed border-blue-200 transition-colors"
+                        >
+                          <Plus size={14} /> Add Row
+                        </button>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
-              <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex justify-between items-center shrink-0">
+              <div className="p-3.5 bg-slate-50/80 border-t border-slate-200 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-4">
-                  <div className="flex flex-col"><span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Total Rows</span><span className="text-sm font-bold text-zinc-700 mt-1">{bulkRows.length}</span></div>
-                  <div className="h-8 w-px bg-zinc-200"></div>
-                  <div className="flex flex-col"><span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Aggregate Disbursement</span><span className="text-sm font-black text-orange-600 mt-1">{formatINR(bulkRows.reduce((s, r) => s + (Number(r.amount) || 0), 0))}</span></div>
+                  <button
+                    type="button"
+                    onClick={addBulkRow}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:text-blue-600 hover:border-blue-300 rounded-lg text-xs font-semibold shadow-2xs hover:shadow-xs transition-all active:scale-95"
+                  >
+                    <Plus size={14} className="text-blue-600" /> Add Row
+                  </button>
+                  <div className="h-5 w-px bg-slate-200"></div>
+                  <div className="flex flex-col"><span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest leading-none">Total Rows</span><span className="text-xs font-semibold text-slate-700 mt-1">{bulkRows.length}</span></div>
+                  <div className="h-5 w-px bg-slate-200"></div>
+                  <div className="flex flex-col"><span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest leading-none">Aggregate Disbursement</span><span className="text-xs font-bold text-orange-600 mt-1">{formatINR(bulkRows.reduce((s, r) => s + (Number(r.amount) || 0), 0))}</span></div>
                 </div>
-                <button onClick={handleBulkSubmit} disabled={loading} className="px-8 py-2.5 bg-zinc-950 text-white rounded-xl text-xs font-black uppercase tracking-[0.15em] shadow-lg shadow-zinc-900/20 hover:bg-zinc-800 active:scale-[0.98] transition disabled:opacity-50 flex items-center gap-2">{loading ? <Spinner size="sm" /> : <Save size={16} />}Commit Transactions</button>
+                <button onClick={handleBulkSubmit} disabled={loading} className="px-7 py-2 bg-zinc-950 text-white rounded-xl text-xs font-medium uppercase tracking-[0.15em] shadow-md shadow-zinc-900/20 hover:bg-zinc-800 active:scale-[0.98] transition disabled:opacity-50 flex items-center gap-2">{loading ? <Spinner size="sm" /> : <Save size={16} />}Commit Transactions</button>
               </div>
             </div>
           </div>
@@ -543,10 +627,10 @@ export default function AccountantTab() {
                     <tbody className="divide-y divide-zinc-100 bg-white">
                       {pendingItems.map(item => (
                         <tr key={item.id} className="hover:bg-zinc-50/80 transition-colors group h-12">
-                          <td className="px-4 py-1.5 text-[12px] font-bold text-zinc-900 uppercase tracking-tight">{item.employeeName}</td>
-                          <td className="px-4 py-1.5"><span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${item.type === 'Advance' ? 'bg-orange-100 text-orange-700' : 'bg-zinc-100 text-zinc-700'}`}>{item.type}</span></td>
-                          <td className="px-4 py-1.5 text-[12px] font-medium text-zinc-500 font-mono">{item.date}</td>
-                          <td className="px-4 py-1.5 text-right font-black text-zinc-900 text-[12px]">{formatINR(item.amount)}</td>
+                          <td className="px-4 py-1.5 text-[12px] font-normal text-zinc-800 uppercase tracking-tight">{item.employeeName}</td>
+                          <td className="px-4 py-1.5"><span className={`px-2 py-0.5 rounded-md text-[9px] font-medium uppercase tracking-wider ${item.type === 'Advance' ? 'bg-orange-100 text-orange-700' : 'bg-zinc-100 text-zinc-700'}`}>{item.type}</span></td>
+                          <td className="px-4 py-1.5 text-[12px] font-normal text-zinc-500 font-mono">{item.date}</td>
+                          <td className="px-4 py-1.5 text-right font-normal text-zinc-800 text-[12px]">{formatINR(item.amount)}</td>
                           <td className="px-4 py-1.5 text-[11px] font-medium text-zinc-500 italic truncate max-w-[200px]">{item.remarks}</td>
                           <td className="px-4 py-1.5 text-right whitespace-nowrap"><div className="flex justify-end gap-2"><button onClick={() => handleApprove(item.id)} className="h-8 w-8 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition shadow-sm"><CheckCircle2 size={16} /></button><button className="h-8 w-8 flex items-center justify-center bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition shadow-sm"><X size={16} /></button></div></td>
                         </tr>

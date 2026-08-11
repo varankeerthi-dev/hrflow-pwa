@@ -34,16 +34,21 @@ import { SubTabsNav } from '../ui/SubTabsNav'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
+import VehicleMileageTab from './VehicleMileageTab'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
 }
 
-export default function VehicleManagementTab() {
+export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker' }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const queryClient = useQueryClient()
-  const [activeSubTab, setActiveSubTab] = useState('all-vehicles')
+  const [activeSubTab, setActiveSubTab] = useState(initialSubTab)
+
+  React.useEffect(() => {
+    if (initialSubTab) setActiveSubTab(initialSubTab)
+  }, [initialSubTab])
   
   // Modals
   const [showAddVehicle, setShowAddVehicle] = useState(false)
@@ -208,24 +213,32 @@ export default function VehicleManagementTab() {
       </div>
 
       <SubTabsNav
-        tabs={[{ id: 'all-vehicles', label: 'Inventory' }, { id: 'service-complaints', label: 'Maintenance' }]}
+        tabs={[
+          { id: 'mileage-tracker', label: 'Mileage Tracker' },
+          { id: 'all-vehicles', label: 'Inventory' },
+          { id: 'service-complaints', label: 'Maintenance' }
+        ]}
         activeTabId={activeSubTab}
         onTabChange={(tab) => setActiveSubTab(tab.id)}
       />
 
-      <div className="flex items-center gap-3 px-6 py-2 border-b border-gray-200">
-        <div className="flex gap-2">
-          <div className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md">
-            <span className="text-xs text-gray-600">{vehicles.length} Assets</span>
+      {activeSubTab === 'mileage-tracker' ? (
+        <VehicleMileageTab />
+      ) : (
+        <>
+          <div className="flex items-center gap-3 px-6 py-2 border-b border-gray-200">
+            <div className="flex gap-2">
+              <div className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md">
+                <span className="text-xs text-gray-600">{vehicles.length} Assets</span>
+              </div>
+              <div className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-md">
+                <span className="text-xs text-rose-600">{vehicles.filter(v => isExpired(v.insuranceExpiry)).length} Expired</span>
+              </div>
+            </div>
           </div>
-          <div className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-md">
-            <span className="text-xs text-rose-600">{vehicles.filter(v => isExpired(v.insuranceExpiry)).length} Expired</span>
-          </div>
-        </div>
-      </div>
 
-      <div className="flex-1 overflow-auto px-6 py-6">
-        {activeSubTab === 'all-vehicles' && (
+          <div className="flex-1 overflow-auto px-6 py-6">
+            {activeSubTab === 'all-vehicles' && (
           <div className="max-w-screen-2xl mx-auto space-y-6">
             {/* Toolbar */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -1013,6 +1026,8 @@ export default function VehicleManagementTab() {
             </form>
           </div>
         </div>
+      )}
+      </>
       )}
 
       {/* Service & Complaint Modal */}
