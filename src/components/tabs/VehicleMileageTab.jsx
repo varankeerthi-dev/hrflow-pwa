@@ -21,12 +21,15 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react'
+import { useEmployees } from '../../hooks/useEmployees'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import Spinner from '../ui/Spinner'
 
 // Zod Schema for Vehicle Mileage Entry
 export const vehicleMileageSchema = z.object({
   entry_date: z.string().min(1, 'Entry date is required'),
   vehicle_info: z.string().min(2, 'Vehicle number and model are required'),
+  driver_name: z.string().optional(),
   start_kilometer: z.coerce.number({ invalid_type_error: 'Must be a number' }).min(0, 'Start KM must be >= 0'),
   end_kilometer: z.coerce.number({ invalid_type_error: 'Must be a number' }).min(0, 'End KM must be >= 0'),
   purpose: z.string().optional(),
@@ -39,6 +42,7 @@ export const vehicleMileageSchema = z.object({
 const emptyForm = {
   entry_date: format(new Date(), 'yyyy-MM-dd'),
   vehicle_info: '',
+  driver_name: '',
   start_kilometer: '',
   end_kilometer: '',
   purpose: '',
@@ -48,6 +52,9 @@ const emptyForm = {
 export default function VehicleMileageTab() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  
+  // Role-Based Access Control (RBAC)
+  const isAdmin = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager' || user?.role?.toLowerCase() === 'hr' || user?.permissions?.isAdmin === true
   
   // Zustand Store
   const {
@@ -72,6 +79,16 @@ export default function VehicleMileageTab() {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
 
+  const sanitizeVehicleInfo = (val) => {
+    if (!val) return ''
+    const parts = val.split('(')
+    const regCleaned = parts[0].toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (parts.length > 1) {
+      return `${regCleaned} (${parts.slice(1).join('(')}`
+    }
+    return regCleaned
+  }
+
   // Fetch Mileage Entries from Firestore
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['vehicle_mileage', user?.orgId],
@@ -79,7 +96,24 @@ export default function VehicleMileageTab() {
       if (!user?.orgId) return []
       const q = query(collection(db, 'organisations', user.orgId, 'vehicle_mileage'), orderBy('entry_date', 'desc'))
       const snap = await getDocs(q)
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => {
+        const raw = d.data()
+        const rawNo = raw.vehicle_info || raw.vehicle_number || ''
+        const cleanNo = sanitizeVehicleInfo(rawNo)
+
+        // Auto-sanitize existing database records in Firestore if they contain symbols/spaces/lowercase
+        if (rawNo && rawNo !== cleanNo) {
+          updateDoc(doc(db, 'organisations', user.orgId, 'vehicle_mileage', d.id), {
+            vehicle_info: cleanNo
+          }).catch(err => console.error('Auto-sanitize mileage doc error:', err))
+        }
+
+        return {
+          id: d.id,
+          ...raw,
+          vehicle_info: cleanNo
+        }
+      })
     },
     enabled: !!user?.orgId
   })
@@ -91,10 +125,20 @@ export default function VehicleMileageTab() {
       if (!user?.orgId) return []
       const q = query(collection(db, 'organisations', user.orgId, 'vehicles'), orderBy('createdAt', 'desc'))
       const snap = await getDocs(q)
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => {
+        const raw = d.data()
+        return {
+          id: d.id,
+          ...raw,
+          vehicleNo: raw.vehicleNo ? String(raw.vehicleNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : '',
+          rcNo: raw.rcNo ? String(raw.rcNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : ''
+        }
+      })
     },
     enabled: !!user?.orgId
   })
+
+  const { employees = [] } = useEmployees(user?.orgId)
 
   // Populate form when editing
   useEffect(() => {
@@ -103,6 +147,7 @@ export default function VehicleMileageTab() {
       setForm({
         entry_date: editing.entry_date ? format(new Date(editing.entry_date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
         vehicle_info: vInfo,
+        driver_name: editing.driver_name || '',
         start_kilometer: editing.start_kilometer ?? '',
         end_kilometer: editing.end_kilometer ?? '',
         purpose: editing.purpose || '',
@@ -118,11 +163,25 @@ export default function VehicleMileageTab() {
   // Mutations
   const createMutation = useMutation({
     mutationFn: async (data) => {
+      const userName = user?.name || user?.email || 'System'
       const docRef = await addDoc(collection(db, 'organisations', user.orgId, 'vehicle_mileage'), {
         ...data,
         createdAt: serverTimestamp(),
-        createdBy: user?.name || user?.email
+        createdBy: userName,
+        createdById: user?.uid || null
       })
+      
+      try {
+        await addDoc(collection(db, 'organisations', user.orgId, 'audit_logs'), {
+          module: 'Vehicle Mileage',
+          action: 'CREATE',
+          details: `Created mileage entry for ${data.vehicle_info || data.vehicle_number || 'Vehicle'} (${data.total_km} KM on ${data.entry_date})`,
+          performedBy: userName,
+          performedById: user?.uid || null,
+          timestamp: serverTimestamp()
+        })
+      } catch (err) { console.error('Audit log failed:', err) }
+
       return docRef.id
     },
     onSuccess: () => {
@@ -133,10 +192,24 @@ export default function VehicleMileageTab() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
+      const userName = user?.name || user?.email || 'System'
       await updateDoc(doc(db, 'organisations', user.orgId, 'vehicle_mileage', id), {
         ...data,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        updatedBy: userName,
+        updatedById: user?.uid || null
       })
+
+      try {
+        await addDoc(collection(db, 'organisations', user.orgId, 'audit_logs'), {
+          module: 'Vehicle Mileage',
+          action: 'UPDATE',
+          details: `Updated mileage entry for ${data.vehicle_info || data.vehicle_number || 'Vehicle'} (${data.total_km} KM on ${data.entry_date})`,
+          performedBy: userName,
+          performedById: user?.uid || null,
+          timestamp: serverTimestamp()
+        })
+      } catch (err) { console.error('Audit log failed:', err) }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle_mileage', user?.orgId] })
@@ -145,8 +218,23 @@ export default function VehicleMileageTab() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      await deleteDoc(doc(db, 'organisations', user.orgId, 'vehicle_mileage', id))
+    mutationFn: async (target) => {
+      const targetId = typeof target === 'string' ? target : target.id
+      const targetData = typeof target === 'object' ? target : deleteTarget
+      const userName = user?.name || user?.email || 'System'
+
+      try {
+        await addDoc(collection(db, 'organisations', user.orgId, 'audit_logs'), {
+          module: 'Vehicle Mileage',
+          action: 'DELETE',
+          details: `Deleted mileage entry for ${targetData?.vehicle_info || targetData?.vehicle_number || 'Vehicle'} (${targetData?.total_km || 0} KM on ${targetData?.entry_date || ''})`,
+          performedBy: userName,
+          performedById: user?.uid || null,
+          timestamp: serverTimestamp()
+        })
+      } catch (err) { console.error('Audit log failed:', err) }
+
+      await deleteDoc(doc(db, 'organisations', user.orgId, 'vehicle_mileage', targetId))
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle_mileage', user?.orgId] })
@@ -237,6 +325,7 @@ export default function VehicleMileageTab() {
       vehicle_info: form.vehicle_info,
       vehicle_number,
       vehicle_model,
+      driver_name: form.driver_name || '',
       start_kilometer: Number(form.start_kilometer) || 0,
       end_kilometer: Number(form.end_kilometer) || 0,
       total_km: computedKm,
@@ -327,95 +416,92 @@ export default function VehicleMileageTab() {
   const isMutating = createMutation.isPending || updateMutation.isPending
 
   return (
-    <div className="flex-1 overflow-auto p-4 md:p-6 bg-slate-50/50 space-y-6">
+    <div className="flex-1 overflow-auto px-6 md:px-8 pt-1 pb-6 bg-white space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-              <Truck size={22} />
-            </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight font-heading">
             Vehicle Mileage Tracker
           </h1>
-          <p className="text-xs text-slate-500 mt-1">Log and track vehicle kilometers run across operations</p>
+          <p className="text-xs font-normal text-slate-500 mt-1">Log and track vehicle kilometers run</p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <button
             onClick={exportPDF}
             disabled={!filtered.length}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 transition shadow-2xs disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition shadow-2xs disabled:opacity-50 font-heading"
           >
             <FileDown size={16} /> Export PDF
           </button>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shadow-md shadow-blue-500/20 active:scale-98"
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-md shadow-blue-500/20 active:scale-98 font-heading"
           >
-            <Plus size={16} /> Add Mileage Entry
+            <Plus size={16} /> Add Entry
           </button>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <Route size={20} />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">Total Entries</p>
+          <div className="min-w-0">
+            <p className="text-xl font-bold text-slate-900 leading-tight">{stats.total}</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">Total Entries</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <Gauge size={20} />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-900">{stats.totalKm.toLocaleString()} km</p>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">Total KM Run</p>
+          <div className="min-w-0">
+            <p className="text-xl font-bold text-slate-900 leading-tight">{stats.totalKm.toLocaleString()}</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">Total KM Run</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <Truck size={20} />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-900">{stats.vehiclesCount}</p>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">Tracked Vehicles</p>
+          <div className="min-w-0">
+            <p className="text-xl font-bold text-slate-900 leading-tight">{stats.vehiclesCount}</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">Vehicles</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <Calendar size={20} />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-900">{stats.monthKm.toLocaleString()} km</p>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">KM This Month</p>
+          <div className="min-w-0">
+            <p className="text-xl font-bold text-slate-900 leading-tight">{stats.monthKm.toLocaleString()}</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">KM This Month</p>
           </div>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search vehicle model, number or purpose..."
+              placeholder="Search model, number or purpose..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition"
+              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 transition"
             />
           </div>
           <select
             value={vehicleFilter}
             onChange={(e) => setVehicleFilter(e.target.value)}
-            className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white"
+            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
           >
             <option value="all">All Vehicles</option>
             {vehicles.map(([num, label]) => (
@@ -426,7 +512,7 @@ export default function VehicleMileageTab() {
             type="month"
             value={monthFilter}
             onChange={(e) => setMonthFilter(e.target.value)}
-            className="h-9 lg:w-44 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white"
+            className="h-9 lg:w-44 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
           />
           <button
             onClick={clearFilters}
@@ -445,17 +531,19 @@ export default function VehicleMileageTab() {
               <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                 <th className="py-3 px-4">Date</th>
                 <th className="py-3 px-4">Vehicle (No & Model)</th>
+                <th className="py-3 px-4">Rider / Driver</th>
                 <th className="py-3 px-4 text-right">Start KM</th>
                 <th className="py-3 px-4 text-right">End KM</th>
                 <th className="py-3 px-4 text-right">Total KM</th>
                 <th className="py-3 px-4">Purpose</th>
+                <th className="py-3 px-4">Logged By</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/60">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
                     <div className="flex items-center justify-center gap-2">
                       <Spinner size="sm" /> Loading mileage logs...
                     </div>
@@ -463,7 +551,7 @@ export default function VehicleMileageTab() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
                     No vehicle mileage entries found.
                   </td>
                 </tr>
@@ -476,6 +564,15 @@ export default function VehicleMileageTab() {
                     <td className="py-3 px-4 font-semibold text-slate-800">
                       {e.vehicle_info || `${e.vehicle_number || ''} (${e.vehicle_model || ''})`}
                     </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      {e.driver_name ? (
+                        <div className="flex items-center gap-1.5 font-medium text-slate-800">
+                          <span className="text-blue-600">👤</span> {e.driver_name}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic">-</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-right text-slate-600 font-mono">
                       {Number(e.start_kilometer).toLocaleString()}
                     </td>
@@ -485,25 +582,46 @@ export default function VehicleMileageTab() {
                     <td className="py-3 px-4 text-right font-bold text-blue-600 font-mono">
                       {Number(e.total_km).toLocaleString()} km
                     </td>
-                    <td className="py-3 px-4 text-slate-600 max-w-[200px] truncate">
+                    <td className="py-3 px-4 text-slate-600 max-w-[180px] truncate">
                       {e.purpose || '-'}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-mono font-bold flex items-center justify-center text-[10px] shrink-0">
+                          ID
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-mono font-semibold text-slate-800 truncate max-w-[140px]" title={e.createdById || e.createdBy}>
+                            {e.createdById || e.createdBy || 'System'}
+                          </span>
+                          {e.updatedById && (
+                            <span className="text-[10px] font-mono text-slate-400 truncate max-w-[140px]" title={`Last updated by UUID ${e.updatedById}`}>
+                              Edit: {e.updatedById}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEdit(e)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit Entry"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(e)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Delete Entry"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {(isAdmin || e.createdBy === (user?.name || user?.email) || e.createdById === user?.uid) && (
+                          <button
+                            onClick={() => openEdit(e)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit Entry"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        {(isAdmin || e.createdBy === (user?.name || user?.email) || e.createdById === user?.uid) && (
+                          <button
+                            onClick={() => setDeleteTarget(e)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Delete Entry"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -513,13 +631,13 @@ export default function VehicleMileageTab() {
             {filtered.length > 0 && (
               <tfoot className="bg-slate-50 border-t-2 border-slate-200">
                 <tr>
-                  <td colSpan={4} className="py-3.5 px-4 text-right font-bold text-slate-700">
+                  <td colSpan={5} className="py-3.5 px-4 text-right font-bold text-slate-700">
                     Grand Total KM:
                   </td>
                   <td className="py-3.5 px-4 text-right font-extrabold text-blue-700 text-sm font-mono">
                     {stats.totalKm.toLocaleString()} km
                   </td>
-                  <td colSpan={2}></td>
+                  <td colSpan={3}></td>
                 </tr>
               </tfoot>
             )}
@@ -579,10 +697,10 @@ export default function VehicleMileageTab() {
                   {(!registeredVehicles.some(rv => `${rv.vehicleNo || rv.regNo || ''} (${rv.name || rv.model || ''})`.trim() === form.vehicle_info) || form.vehicle_info === 'Custom Vehicle') && (
                     <input
                       type="text"
-                      placeholder="e.g. MH-12-AB-1234 (Toyota Innova)"
+                      placeholder="e.g. MH12AB1234 (Toyota Innova)"
                       value={form.vehicle_info === 'Custom Vehicle' ? '' : form.vehicle_info}
-                      onChange={(e) => setForm({ ...form, vehicle_info: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 transition"
+                      onChange={(e) => setForm({ ...form, vehicle_info: e.target.value.toUpperCase().replace(/[^A-Z0-9\s()]/g, '') })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 transition font-mono uppercase tracking-wider"
                     />
                   )}
                 </div>
@@ -591,6 +709,25 @@ export default function VehicleMileageTab() {
                     <AlertCircle size={12} /> {errors.vehicle_info}
                   </p>
                 )}
+              </div>
+
+              {/* Driver / Rider Dropdown */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Driver / Rider (Employee)
+                </label>
+                <select
+                  value={form.driver_name || ''}
+                  onChange={(e) => setForm({ ...form, driver_name: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition cursor-pointer"
+                >
+                  <option value="">-- Select Driver / Rider --</option>
+                  {employees.filter(emp => isEmployeeActiveStatus(emp.status)).map(emp => (
+                    <option key={emp.id} value={emp.name || emp.displayName}>
+                      👤 {emp.name || emp.displayName} ({emp.empCode || emp.designation || 'Staff'})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -682,7 +819,7 @@ export default function VehicleMileageTab() {
                 <button
                   type="submit"
                   disabled={isMutating}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {isMutating ? <Spinner size="sm" /> : editing ? 'Update Entry' : 'Save Entry'}
                 </button>

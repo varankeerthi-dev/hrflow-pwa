@@ -55,7 +55,37 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
   const [editingVehicle, setEditingVehicle] = useState(null)
   const [showServiceModal, setShowServiceModal] = useState(false)
   const [selectedVehicleForHistory, setSelectedVehicleForHistory] = useState(null)
+  const [rcDocUrl, setRcDocUrl] = useState('')
+  const [insuranceDocUrl, setInsuranceDocUrl] = useState('')
+  const [uploadingRc, setUploadingRc] = useState(false)
+  const [uploadingInsurance, setUploadingInsurance] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  React.useEffect(() => {
+    if (editingVehicle) {
+      setRcDocUrl(editingVehicle.rcDocUrl || '')
+      setInsuranceDocUrl(editingVehicle.insuranceDocUrl || '')
+    } else {
+      setRcDocUrl('')
+      setInsuranceDocUrl('')
+    }
+  }, [editingVehicle, showAddVehicle])
+
+  const handleDocumentUpload = async (file, type, setUrl, setUploadingState) => {
+    if (!file || !user?.orgId) return
+    setUploadingState(true)
+    try {
+      const storageRef = ref(storage, `organisations/${user.orgId}/vehicles/${type}_${Date.now()}_${file.name}`)
+      await uploadBytes(storageRef, file)
+      const url = await getDownloadURL(storageRef)
+      setUrl(url)
+    } catch (err) {
+      console.error('File upload error:', err)
+      alert('File upload failed. Please try again.')
+    } finally {
+      setUploadingState(false)
+    }
+  }
 
   // Search & Filters
   const [searchTerm, setSearchName] = useState('')
@@ -73,7 +103,26 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
       if (!user?.orgId) return []
       const q = query(collection(db, 'organisations', user.orgId, 'vehicles'), orderBy('createdAt', 'desc'))
       const snap = await getDocs(q)
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => {
+        const raw = d.data()
+        const cleanVehicleNo = raw.vehicleNo ? String(raw.vehicleNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : ''
+        const cleanRcNo = raw.rcNo ? String(raw.rcNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : ''
+        
+        // Auto-sanitize existing database records in Firestore if they contain symbols, spaces, or lowercase letters
+        if ((raw.vehicleNo && raw.vehicleNo !== cleanVehicleNo) || (raw.rcNo && raw.rcNo !== cleanRcNo)) {
+          updateDoc(doc(db, 'organisations', user.orgId, 'vehicles', d.id), {
+            vehicleNo: cleanVehicleNo,
+            rcNo: cleanRcNo
+          }).catch(err => console.error('Auto-sanitize vehicle doc error:', err))
+        }
+
+        return {
+          id: d.id,
+          ...raw,
+          vehicleNo: cleanVehicleNo,
+          rcNo: cleanRcNo
+        }
+      })
     },
     enabled: !!user?.orgId
   })
@@ -100,14 +149,67 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
     enabled: !!user?.orgId
   })
 
+  const { data: allMileageLogs = [] } = useQuery({
+    queryKey: ['vehicle_mileage_all', user?.orgId],
+    queryFn: async () => {
+      if (!user?.orgId) return []
+      const q = query(collection(db, 'organisations', user.orgId, 'vehicle_mileage'))
+      const snap = await getDocs(q)
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    },
+    enabled: !!user?.orgId
+  })
+
+  const getMaintenanceStatus = (vehicle, mileageLogs, serviceLogs) => {
+    const vNoClean = vehicle.vehicleNo ? String(vehicle.vehicleNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : ''
+    const vLogs = mileageLogs.filter(m => {
+      const mInfo = m.vehicle_info || m.vehicle_number || ''
+      const mClean = String(mInfo).toUpperCase().replace(/[^A-Z0-9]/g, '')
+      return (m.vehicleId === vehicle.id) || (vNoClean && mClean.includes(vNoClean))
+    })
+
+    let maxEndKm = 0
+    vLogs.forEach(m => {
+      const endKm = Number(m.end_kilometer) || 0
+      if (endKm > maxEndKm) maxEndKm = endKm
+    })
+
+    const vServices = serviceLogs.filter(s => s.vehicleId === vehicle.id)
+    let lastServiceKm = Number(vehicle.initialKm) || 0
+    vServices.forEach(s => {
+      const sKm = Number(s.odometerReading) || Number(s.kilometer) || Number(s.serviceKm) || 0
+      if (sKm > lastServiceKm) lastServiceKm = sKm
+    })
+
+    const kmSinceService = maxEndKm > lastServiceKm ? (maxEndKm - lastServiceKm) : (maxEndKm % 2000)
+    const interval = 2000
+    const isOverdue = kmSinceService >= interval
+    const isWarning = kmSinceService >= (interval - 300)
+    const kmRemaining = Math.max(0, interval - kmSinceService)
+    const kmOverdue = isOverdue ? (kmSinceService - interval) : 0
+
+    return {
+      maxEndKm,
+      lastServiceKm,
+      kmSinceService,
+      isOverdue,
+      isWarning,
+      kmRemaining,
+      kmOverdue
+    }
+  }
+
   // Mutations
   const addVehicleMutation = useMutation({
     mutationFn: async (data) => {
-      await addDoc(collection(db, 'organisations', user.orgId, 'vehicles'), {
+      const cleanData = {
         ...data,
+        vehicleNo: data.vehicleNo ? String(data.vehicleNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : '',
+        rcNo: data.rcNo ? String(data.rcNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : '',
         createdAt: serverTimestamp(),
         createdBy: user.uid
-      })
+      }
+      await addDoc(collection(db, 'organisations', user.orgId, 'vehicles'), cleanData)
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['vehicles'])
@@ -118,6 +220,12 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
   const updateVehicleMutation = useMutation({
     mutationFn: async ({ id, data, historyEntry }) => {
       const vRef = doc(db, 'organisations', user.orgId, 'vehicles', id)
+      const cleanData = {
+        ...data,
+        vehicleNo: data.vehicleNo ? String(data.vehicleNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : '',
+        rcNo: data.rcNo ? String(data.rcNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : '',
+        updatedAt: serverTimestamp()
+      }
       // Log history
       if (historyEntry) {
         await addDoc(collection(db, 'organisations', user.orgId, 'vehicles', id, 'history'), {
@@ -125,7 +233,7 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
           timestamp: serverTimestamp()
         })
       }
-      await updateDoc(vRef, { ...data, updatedAt: serverTimestamp() })
+      await updateDoc(vRef, cleanData)
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['vehicles'])
@@ -205,17 +313,12 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
 
   return (
     <div className="flex flex-col h-full bg-white font-inter selection:bg-indigo-100 selection:text-indigo-900">
-      {/* Header with Tabs at Top */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-6">
-          <h1 className="text-xl font-semibold text-gray-900">Vehicle Management</h1>
-        </div>
-      </div>
+
 
       <SubTabsNav
         tabs={[
           { id: 'mileage-tracker', label: 'Mileage Tracker' },
-          { id: 'all-vehicles', label: 'Inventory' },
+          { id: 'all-vehicles', label: 'Vehicle list' },
           { id: 'service-complaints', label: 'Maintenance' }
         ]}
         activeTabId={activeSubTab}
@@ -233,6 +336,11 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
               </div>
               <div className="px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-md">
                 <span className="text-xs text-rose-600">{vehicles.filter(v => isExpired(v.insuranceExpiry)).length} Expired</span>
+              </div>
+              <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-md">
+                <span className="text-xs font-semibold text-amber-700">
+                  {vehicles.filter(v => getMaintenanceStatus(v, allMileageLogs, services).isOverdue).length} Maintenance Due (2,000 KM)
+                </span>
               </div>
             </div>
           </div>
@@ -270,15 +378,16 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
                       <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Registration</th>
                       <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">RC Number</th>
                       <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Insurance Status</th>
+                      <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Maintenance Due (2,000 KM Rule)</th>
                       <th className="h-11 px-4 text-left align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Lead</th>
                       <th className="h-11 px-4 text-right align-middle text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="[&_tr:last-child]:border-0">
                     {loadingVehicles ? (
-                      <tr><td colSpan={6} className="py-20 text-center"><Spinner size="w-8 h-8" color="text-gray-400" /></td></tr>
+                      <tr><td colSpan={7} className="py-20 text-center"><Spinner size="w-8 h-8" color="text-gray-400" /></td></tr>
                     ) : filteredVehicles.length === 0 ? (
-                      <tr><td colSpan={6} className="py-20 text-center text-gray-400 font-medium">No vehicles found</td></tr>
+                      <tr><td colSpan={7} className="py-20 text-center text-gray-400 font-medium">No vehicles found</td></tr>
                     ) : filteredVehicles.map(v => (
                       <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors">
                         <td className="px-4 py-3 align-middle">
@@ -296,21 +405,94 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
                           <span className="text-sm font-medium text-gray-700">{v.vehicleNo}</span>
                         </td>
                         <td className="px-4 py-3 align-middle">
-                          <span className="text-sm text-gray-600">{v.rcNo || '—'}</span>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-medium text-gray-700">{v.rcNo || '—'}</span>
+                            {v.rcDocUrl && (
+                              <a 
+                                href={v.rcDocUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                📄 RC Doc <ExternalLink size={10} />
+                              </a>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 align-middle">
-                          <div className="flex flex-col">
-                            <span className={`inline-flex w-fit px-2.5 py-1 rounded-md text-xs font-medium ${
-                              isExpired(v.insuranceExpiry) 
-                                ? 'bg-rose-50 text-rose-600' 
-                                : 'bg-emerald-50 text-emerald-600'
-                            }`}>
-                              {isExpired(v.insuranceExpiry) ? 'Expired' : 'Active'}
-                            </span>
-                            <span className="text-[11px] text-gray-400 mt-1">
-                              {v.insuranceExpiry ? new Date(v.insuranceExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                            </span>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex w-fit px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${
+                                isExpired(v.insuranceExpiry) 
+                                  ? 'bg-rose-50 text-rose-600' 
+                                  : 'bg-emerald-50 text-emerald-600'
+                              }`}>
+                                {isExpired(v.insuranceExpiry) ? 'Expired' : 'Active'}
+                              </span>
+                              <span className="text-[11px] text-gray-500 font-medium">
+                                {v.insuranceExpiry ? new Date(v.insuranceExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                              </span>
+                            </div>
+                            {v.insurerName && (
+                              <p className="text-[11px] font-medium text-gray-700 mt-0.5 truncate max-w-[180px]" title={v.insurerName}>
+                                🏦 {v.insurerName}
+                              </p>
+                            )}
+                            {v.insurerContactPerson && (
+                              <p className="text-[10px] text-gray-400 truncate max-w-[180px]" title={v.insurerContactPerson}>
+                                👤 {v.insurerContactPerson}
+                              </p>
+                            )}
+                            {v.insuranceDocUrl && (
+                              <a 
+                                href={v.insuranceDocUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline mt-0.5"
+                              >
+                                🛡️ Policy Doc <ExternalLink size={10} />
+                              </a>
+                            )}
                           </div>
+                        </td>
+                        <td className="px-4 py-3 align-middle whitespace-nowrap">
+                          {(() => {
+                            const status = getMaintenanceStatus(v, allMileageLogs, services)
+                            if (status.isOverdue) {
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="inline-flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-md text-xs font-bold bg-rose-100 text-rose-700 animate-pulse">
+                                    <AlertTriangle size={12} /> Overdue ({status.kmSinceService.toLocaleString()} / 2,000 km)
+                                  </span>
+                                  <span className="text-[10px] font-semibold text-rose-600">
+                                    {status.kmOverdue > 0 ? `+${status.kmOverdue.toLocaleString()} km past 2,000 km limit` : 'Maintenance Required Now'}
+                                  </span>
+                                </div>
+                              )
+                            }
+                            if (status.isWarning) {
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="inline-flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-700">
+                                    <Clock size={12} /> Due Soon ({status.kmSinceService.toLocaleString()} / 2,000 km)
+                                  </span>
+                                  <span className="text-[10px] text-amber-600 font-medium">
+                                    {status.kmRemaining.toLocaleString()} km remaining
+                                  </span>
+                                </div>
+                              )
+                            }
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                  <CheckCircle2 size={12} /> OK ({status.kmSinceService.toLocaleString()} / 2,000 km)
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  Next due in {status.kmRemaining.toLocaleString()} km
+                                </span>
+                              </div>
+                            )
+                          })()}
                         </td>
                         <td className="px-4 py-3 align-middle">
                           <div className="flex items-center gap-2">
@@ -800,22 +982,25 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
         )}
       </div>
 
-      {/* Add/Edit Vehicle Modal */}
+      {/* Add/Edit Vehicle Asset Modal — Refactored to PipePro Design System */}
       {(showAddVehicle || editingVehicle) && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center overflow-auto p-4 sm:p-6 animate-in fade-in-0 duration-200">
+          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+            <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
               <div>
-                <h3 className="text-white font-semibold text-[15px]">{editingVehicle ? 'Edit Vehicle' : 'Add New Vehicle'}</h3>
-                <p className="text-[11px] text-indigo-200 mt-0.5">Fleet Asset Management</p>
+                <h3 className="text-lg font-bold text-slate-900 font-heading tracking-tight">
+                  {editingVehicle ? 'Edit Asset' : 'Add New Asset'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-normal">Fleet Asset Management</p>
               </div>
               <button 
                 type="button"
                 onClick={() => { setShowAddVehicle(false); setEditingVehicle(null); }} 
-                className="text-white/80 hover:text-white transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                title="Close"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             
@@ -823,6 +1008,8 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
               e.preventDefault()
               const formData = new FormData(e.target)
               const data = Object.fromEntries(formData.entries())
+              data.rcDocUrl = rcDocUrl
+              data.insuranceDocUrl = insuranceDocUrl
               if (editingVehicle) {
                 const historyEntry = data.insuranceExpiry !== editingVehicle.insuranceExpiry ? {
                   field: 'Insurance Expiry',
@@ -834,67 +1021,68 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
               } else {
                 addVehicleMutation.mutate(data)
               }
-            }} className="p-6 space-y-6 overflow-y-auto">
+            }} className="p-6 space-y-6 overflow-y-auto bg-white">
               
               {/* Vehicle Information Section Card */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
-                    <Car size={12} className="text-gray-400" />
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+                    <Car size={14} className="text-blue-600" />
                     Vehicle Information
                   </h5>
-                  <span className="text-[10px] font-medium text-gray-400 italic">Required fields</span>
+                  <span className="text-[11px] font-medium text-slate-400 italic">Required fields</span>
                 </div>
                 
-                <div className="p-4 space-y-6">
-                  {/* Two Column Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 space-y-4 bg-white">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Vehicle Name
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Vehicle Name <span className="text-rose-500">*</span>
                       </label>
                       <input 
                         name="name" 
                         defaultValue={editingVehicle?.name} 
                         required 
                         placeholder="e.g. Toyota Corolla"
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800" 
                       />
                     </div>
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Vehicle Number
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Vehicle Number <span className="text-rose-500">*</span>
                       </label>
                       <input 
                         name="vehicleNo" 
                         defaultValue={editingVehicle?.vehicleNo} 
                         required 
-                        placeholder="e.g. KA-01-AB-1234"
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400 uppercase" 
+                        placeholder="e.g. MH12AB1234"
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }}
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 uppercase font-mono tracking-wider text-slate-800" 
                       />
                     </div>
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Purchase Date
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Purchase Date <span className="text-rose-500">*</span>
                       </label>
                       <input 
                         type="date" 
                         name="purchaseDate" 
                         defaultValue={editingVehicle?.purchaseDate} 
                         required 
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer" 
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer text-slate-800" 
                       />
                     </div>
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        RC Number
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        RC Number <span className="text-rose-500">*</span>
                       </label>
                       <input 
                         name="rcNo" 
                         defaultValue={editingVehicle?.rcNo} 
                         required 
-                        placeholder="RCXXXXXX"
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400 uppercase" 
+                        placeholder="RC123456789"
+                        onChange={(e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }}
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 uppercase font-mono tracking-wider text-slate-800" 
                       />
                     </div>
                   </div>
@@ -902,69 +1090,176 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
               </div>
 
               {/* Insurance & Assignment Section Card */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
-                    <CheckCircle2 size={12} className="text-gray-400" />
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-blue-600" />
                     Insurance & Assignment
                   </h5>
-                  <span className="text-[10px] font-medium text-gray-400 italic">Required fields</span>
+                  <span className="text-[11px] font-medium text-slate-400 italic">Required & Optional Details</span>
                 </div>
                 
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                      Insurance Valid Till
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                      Insurance Valid Till <span className="text-rose-500">*</span>
                     </label>
                     <input 
                       type="date" 
                       name="insuranceExpiry" 
                       defaultValue={editingVehicle?.insuranceExpiry} 
                       required 
-                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer" 
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer text-slate-800" 
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                      Assign Incharge
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                      Assign Incharge <span className="text-rose-500">*</span>
                     </label>
                     <select 
                       name="inchargeId" 
                       defaultValue={editingVehicle?.inchargeId} 
                       required 
-                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer text-slate-800"
                     >
                       <option value="">Select Employee</option>
                       {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                      Insurer Name
+                    </label>
+                    <input 
+                      name="insurerName" 
+                      defaultValue={editingVehicle?.insurerName} 
+                      placeholder="e.g. HDFC ERGO General Insurance"
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                      Insurer Contact Person / Phone
+                    </label>
+                    <input 
+                      name="insurerContactPerson" 
+                      defaultValue={editingVehicle?.insurerContactPerson} 
+                      placeholder="e.g. John Doe (9876543210)"
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Document Uploads (RC & Insurance) Section Card */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+                    <FileText size={14} className="text-blue-600" />
+                    Asset Documents (RC & Insurance)
+                  </h5>
+                  <span className="text-[11px] font-medium text-slate-400 italic">PDF or Images</span>
+                </div>
+
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
+                  {/* RC Document */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                      RC Document (Registration)
+                    </label>
+                    {rcDocUrl ? (
+                      <div className="flex items-center justify-between p-2.5 bg-blue-50/50 border border-blue-200 rounded-md">
+                        <a 
+                          href={rcDocUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-xs font-medium text-blue-700 hover:underline flex items-center gap-1.5 truncate"
+                        >
+                          📄 View RC Document <ExternalLink size={12} />
+                        </a>
+                        <button 
+                          type="button" 
+                          onClick={() => setRcDocUrl('')} 
+                          className="text-xs text-rose-600 hover:text-rose-800 font-medium px-2 py-0.5"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="file" 
+                          accept="image/*,.pdf" 
+                          onChange={(e) => handleDocumentUpload(e.target.files[0], 'rc', setRcDocUrl, setUploadingRc)} 
+                          className="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                        />
+                        {uploadingRc && <Spinner size="w-4 h-4" color="text-blue-600" />}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Insurance Document */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                      Insurance Policy Document
+                    </label>
+                    {insuranceDocUrl ? (
+                      <div className="flex items-center justify-between p-2.5 bg-blue-50/50 border border-blue-200 rounded-md">
+                        <a 
+                          href={insuranceDocUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-xs font-medium text-blue-700 hover:underline flex items-center gap-1.5 truncate"
+                        >
+                          🛡️ View Insurance Policy <ExternalLink size={12} />
+                        </a>
+                        <button 
+                          type="button" 
+                          onClick={() => setInsuranceDocUrl('')} 
+                          className="text-xs text-rose-600 hover:text-rose-800 font-medium px-2 py-0.5"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="file" 
+                          accept="image/*,.pdf" 
+                          onChange={(e) => handleDocumentUpload(e.target.files[0], 'insurance', setInsuranceDocUrl, setUploadingInsurance)} 
+                          className="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                        />
+                        {uploadingInsurance && <Spinner size="w-4 h-4" color="text-blue-600" />}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Additional Details Section (Optional) */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
-                    <Settings size={12} className="text-gray-400" />
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+                    <Settings size={14} className="text-blue-600" />
                     Additional Details
                   </h5>
-                  <span className="text-[10px] font-medium text-gray-400 italic">Optional</span>
+                  <span className="text-[11px] font-medium text-slate-400 italic">Optional</span>
                 </div>
                 
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
                       Manufacturer
                     </label>
                     <input 
                       name="manufacturer" 
                       defaultValue={editingVehicle?.manufacturer} 
                       placeholder="e.g. Toyota"
-                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800" 
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
                       Model Year
                     </label>
                     <input 
@@ -972,17 +1267,17 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
                       type="number"
                       defaultValue={editingVehicle?.modelYear} 
                       placeholder="e.g. 2023"
-                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800" 
                     />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
                       Fuel Type
                     </label>
                     <select 
                       name="fuelType" 
                       defaultValue={editingVehicle?.fuelType || 'Petrol'}
-                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer text-slate-800"
                     >
                       <option value="Petrol">Petrol</option>
                       <option value="Diesel">Diesel</option>
@@ -992,7 +1287,7 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
                       Seating Capacity
                     </label>
                     <input 
@@ -1000,27 +1295,27 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
                       type="number"
                       defaultValue={editingVehicle?.seatingCapacity} 
                       placeholder="e.g. 5"
-                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800" 
                     />
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 bg-white">
                 <button 
                   type="button" 
                   onClick={() => { setShowAddVehicle(false); setEditingVehicle(null); }} 
-                  className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                  className="h-9 px-4 border border-slate-200 bg-white text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   disabled={addVehicleMutation.isPending || updateVehicleMutation.isPending} 
-                  className="flex-1 px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-bold transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed font-heading cursor-pointer"
                 >
-                  {addVehicleMutation.isPending || updateVehicleMutation.isPending ? 'Saving...' : (editingVehicle ? 'Update Vehicle' : 'Add Vehicle')}
+                  {addVehicleMutation.isPending || updateVehicleMutation.isPending ? 'Saving...' : (editingVehicle ? 'Update Asset' : 'Add Asset')}
                 </button>
               </div>
             </form>
@@ -1030,22 +1325,26 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
       </>
       )}
 
-      {/* Service & Complaint Modal */}
+      {/* Service & Complaint Modal — PipePro Design System */}
       {showServiceModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center overflow-auto p-4 sm:p-6 animate-in fade-in-0 duration-200">
+          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            
             {/* Modal Header */}
-            <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+            <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
               <div>
-                <h3 className="text-white font-semibold text-[15px]">Log Maintenance</h3>
-                <p className="text-[11px] text-indigo-200 mt-0.5">Service & Fault Reporting</p>
+                <h3 className="text-lg font-bold text-slate-900 font-heading tracking-tight flex items-center gap-2">
+                  <Wrench className="text-blue-600" size={20} /> Log Maintenance & Repair
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-body">Record vehicle service, component failures, breakdowns, or scheduled maintenance</p>
               </div>
               <button 
                 type="button"
                 onClick={() => setShowServiceModal(false)} 
-                className="text-white/80 hover:text-white transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                title="Close Modal"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             
@@ -1055,97 +1354,110 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
               const data = Object.fromEntries(formData.entries())
               const fileInput = e.target.querySelector('input[type="file"]')
               let billURL = null
-              if (fileInput.files[0]) {
-                billURL = await handleFileUpload(fileInput.files[0])
+              if (fileInput?.files[0]) {
+                setUploading(true)
+                try {
+                  billURL = await handleFileUpload(fileInput.files[0])
+                } catch (err) {
+                  console.error('File upload failed:', err)
+                } finally {
+                  setUploading(false)
+                }
               }
               addServiceMutation.mutate({ ...data, billURL })
-            }} className="p-6 space-y-6 overflow-y-auto">
+            }} className="p-6 space-y-6 overflow-y-auto bg-white">
               
               {/* Service Details Section Card */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
-                    <Wrench size={12} className="text-gray-400" />
-                    Service Details
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+                    <Wrench size={14} className="text-blue-600" />
+                    Service & Vehicle Details
                   </h5>
-                  <span className="text-[10px] font-medium text-gray-400 italic">Required fields</span>
+                  <span className="text-[11px] font-medium text-rose-500">* Required</span>
                 </div>
                 
-                <div className="p-4">
-                  {/* Two Column Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="col-span-2">
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Vehicle
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Select Asset / Vehicle <span className="text-rose-500">*</span>
                       </label>
                       <select 
                         name="vehicleId" 
                         required 
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
                       >
-                        <option value="">Select Vehicle</option>
+                        <option value="">-- Choose Fleet Vehicle --</option>
                         {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} ({v.vehicleNo})</option>)}
                       </select>
                     </div>
+
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Entry Type
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Maintenance Type / Issue <span className="text-rose-500">*</span>
                       </label>
                       <select 
                         name="type" 
                         required 
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
                       >
-                        <option value="Regular Service">Regular Service</option>
-                        <option value="Complaint">Complaint / Repair</option>
-                        <option value="Oil Change">Oil Change</option>
-                        <option value="Tire Replacement">Tire Replacement</option>
-                        <option value="Battery Replacement">Battery Replacement</option>
-                        <option value="Breakdown">Breakdown</option>
+                        <option value="Regular Service">Regular Service (2,000 KM)</option>
+                        <option value="Component Failure">Component Failure / Repair</option>
+                        <option value="Complaint">Customer / Rider Complaint</option>
+                        <option value="Oil Change">Oil & Filter Change</option>
+                        <option value="Tire Replacement">Tire Replacement / Alignment</option>
+                        <option value="Battery Replacement">Battery Service / Replacement</option>
+                        <option value="Breakdown">Emergency Breakdown</option>
                       </select>
                     </div>
+
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Service Date
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Service Date <span className="text-rose-500">*</span>
                       </label>
                       <input 
                         type="date" 
                         name="date" 
                         required 
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer" 
+                        defaultValue={new Date().toISOString().split('T')[0]}
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer" 
                       />
                     </div>
+
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Current Mileage (KM)
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Current Odometer Reading (KM) <span className="text-rose-500">*</span>
                       </label>
                       <input 
                         type="number" 
                         name="mileage" 
                         required 
-                        placeholder="0"
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                        placeholder="e.g. 14500"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-mono" 
                       />
                     </div>
+
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Next Service Due
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Next Service Due Date
                       </label>
                       <input 
                         type="date" 
                         name="nextDueDate" 
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer" 
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer" 
                       />
                     </div>
+
                     <div className="col-span-2">
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Service Location
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Service Location / Workshop <span className="text-rose-500">*</span>
                       </label>
                       <input 
                         name="location" 
                         required 
-                        placeholder="e.g. Bosch Service Center, Downtown"
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                        placeholder="e.g. Authorized Bosch Workshop, Central Station"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body" 
                       />
                     </div>
                   </div>
@@ -1153,100 +1465,100 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
               </div>
 
               {/* Service Description & Cost Section Card */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
-                    <FileText size={12} className="text-gray-400" />
-                    Service Description & Cost
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+                    <FileText size={14} className="text-blue-600" />
+                    Work Description & Expenses
                   </h5>
-                  <span className="text-[10px] font-medium text-gray-400 italic">Optional</span>
+                  <span className="text-[11px] font-medium text-slate-400 italic">Optional</span>
                 </div>
                 
-                <div className="p-4 space-y-6">
+                <div className="p-5 space-y-5">
                   <div>
-                    <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                      Work Description
+                    <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                      Work Description & Parts Replaced
                     </label>
                     <textarea 
                       name="description"
-                      placeholder="Describe the work performed or issue resolved..."
+                      placeholder="Describe work performed, failed components replaced, or diagnostic notes..."
                       rows={3}
-                      className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all min-h-[80px] resize-none placeholder:text-gray-400"
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body min-h-[80px] resize-none"
                     />
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
                         Total Cost (₹)
                       </label>
                       <input 
                         type="number" 
                         name="cost"
                         placeholder="0.00"
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-mono" 
                       />
                     </div>
                     <div>
-                      <label className="block text-[12px] font-semibold text-gray-700 mb-2">
-                        Payment Mode
+                      <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                        Payment Method
                       </label>
                       <select 
                         name="paymentMode"
-                        className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
                       >
                         <option value="Cash">Cash</option>
                         <option value="Card">Card</option>
-                        <option value="UPI">UPI</option>
+                        <option value="UPI">UPI / GPay</option>
                         <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Credit">Credit</option>
+                        <option value="Credit">Credit / Account</option>
                       </select>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Bill Upload Section - Shadcn-like Card */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h5 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
-                    <FileText size={12} className="text-gray-400" />
-                    Bill Copy
+              {/* Bill Upload Section Card */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+                    <FileText size={14} className="text-blue-600" />
+                    Bill / Invoice Copy Attachment
                   </h5>
-                  <span className="text-[10px] font-medium text-gray-400 italic">PDF only, Optional</span>
+                  <span className="text-[11px] font-medium text-slate-400">PDF / Image (Optional)</span>
                 </div>
                 
                 <div className="p-4">
                   <div className="relative">
                     <input 
                       type="file" 
-                      accept="application/pdf" 
-                      className="w-full text-[11px] text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-[11px] file:font-medium file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer transition-all" 
+                      accept="application/pdf,image/*" 
+                      className="w-full text-xs text-slate-600 file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border file:border-slate-200 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 cursor-pointer transition-all font-body" 
                     />
                     {uploading && (
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-[11px] font-medium text-indigo-600">
-                        <Spinner size="w-3 h-3" /> Uploading...
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs font-medium text-blue-600">
+                        <Spinner size="w-3.5 h-3.5" color="text-blue-600" /> Uploading invoice...
                       </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-gray-100">
+              {/* Modal Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                 <button 
                   type="button" 
                   onClick={() => setShowServiceModal(false)} 
-                  className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                  className="h-9 px-4 border border-slate-200 bg-white text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   disabled={addServiceMutation.isPending || uploading} 
-                  className="flex-1 px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {addServiceMutation.isPending || uploading ? 'Saving...' : 'Record Maintenance'}
+                  {addServiceMutation.isPending || uploading ? 'Saving Record...' : 'Record Maintenance'}
                 </button>
               </div>
             </form>
@@ -1254,59 +1566,165 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
         </div>
       )}
 
-      {/* History Log Modal */}
+      {/* Vehicle History Side Drawer — PipePro Design System */}
       {selectedVehicleForHistory && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] overflow-hidden flex flex-col">
-            <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+        <div className="fixed top-14 lg:top-16 right-0 bottom-0 left-0 z-40 flex justify-end overflow-hidden">
+          {/* Dark Backdrop Overlay below quick access bar */}
+          <div 
+            className="fixed top-14 lg:top-16 right-0 bottom-0 left-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in-0 duration-200" 
+            onClick={() => setSelectedVehicleForHistory(null)}
+          />
+
+          {/* Side Drawer Container starting under top quick access bar */}
+          <div className="relative z-50 w-full max-w-md md:max-w-lg bg-white h-full border-l border-slate-200 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            
+            {/* Drawer Header */}
+            <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
               <div>
-                <h3 className="text-white font-semibold text-[13px]">Change History</h3>
-                <p className="text-[10px] text-indigo-200 mt-0.5">{selectedVehicleForHistory.name} - {selectedVehicleForHistory.vehicleNo}</p>
+                <h3 className="text-lg font-bold text-slate-900 font-heading tracking-tight flex items-center gap-2">
+                  <History className="text-blue-600" size={20} /> Asset History & Audit Log
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-mono">
+                  {selectedVehicleForHistory.name} — <span className="font-bold text-slate-800">{selectedVehicleForHistory.vehicleNo}</span>
+                </p>
               </div>
-              <button onClick={() => setSelectedVehicleForHistory(null)} className="text-white/80 hover:text-white">
+              <button 
+                onClick={() => setSelectedVehicleForHistory(null)} 
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                title="Close Drawer"
+              >
                 <X size={18} />
               </button>
             </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                <p className="text-[11px] font-semibold text-gray-500 mb-1">Registration Record</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-medium text-gray-700">Initialized in system</span>
-                  <span className="text-[11px] text-gray-400">
-                    {selectedVehicleForHistory.createdAt?.toDate ? selectedVehicleForHistory.createdAt.toDate().toLocaleDateString() : '—'}
-                  </span>
-                </div>
-              </div>
-              
+
+            {/* Drawer Body - Vertical Dotted Connected Timeline */}
+            <div className="flex-1 overflow-y-auto p-6 bg-white">
               {loadingHistory ? (
-                <div className="py-10 text-center"><Spinner /></div>
-              ) : historyLogs.length === 0 ? (
-                <p className="text-[11px] text-gray-400 text-center py-10 italic">No insurance or RC updates recorded yet.</p>
-              ) : (
-                historyLogs.map(log => (
-                  <div key={log.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-1.5">
-                    <div className="flex justify-between items-start">
-                      <span className="text-[11px] font-semibold text-indigo-600">{log.field} Update</span>
-                      <span className="text-[10px] text-gray-400">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleDateString() : 'Just now'}</span>
+                <div className="py-20 text-center"><Spinner size="w-8 h-8" color="text-blue-600" /></div>
+              ) : (() => {
+                const vehicle = selectedVehicleForHistory
+                const vNoClean = vehicle.vehicleNo ? String(vehicle.vehicleNo).toUpperCase().replace(/[^A-Z0-9]/g, '') : ''
+                
+                // Aggregate all timeline events for this vehicle
+                const timeline = []
+
+                // 1. Initial Creation Event
+                timeline.push({
+                  id: `creation_${vehicle.id}`,
+                  type: 'creation',
+                  title: 'Vehicle Asset Added',
+                  description: `User added the vehicle ${vehicle.name} (${vehicle.vehicleNo || 'Asset'})`,
+                  userUuid: vehicle.createdById || vehicle.createdBy || user?.uid || 'System',
+                  date: vehicle.createdAt?.toDate ? vehicle.createdAt.toDate() : (vehicle.purchaseDate ? new Date(vehicle.purchaseDate) : new Date()),
+                  icon: '🚗'
+                })
+
+                // 2. Field Change Audit Logs
+                historyLogs.forEach(log => {
+                  let desc = `User updated ${log.field || 'vehicle details'}`
+                  if (log.oldValue || log.newValue) {
+                    desc = `User updated ${log.field}: ${log.oldValue || '—'} → ${log.newValue || '—'}`
+                  }
+                  timeline.push({
+                    id: `history_${log.id}`,
+                    type: 'update',
+                    title: `${log.field || 'Details'} Updated`,
+                    description: desc,
+                    userUuid: log.updatedById || log.createdById || log.updatedBy || 'System',
+                    date: log.timestamp?.toDate ? log.timestamp.toDate() : new Date(),
+                    icon: '✏️'
+                  })
+                })
+
+                // 3. Maintenance Service Logs
+                const vServices = services.filter(s => s.vehicleId === vehicle.id)
+                vServices.forEach(s => {
+                  timeline.push({
+                    id: `service_${s.id}`,
+                    type: 'maintenance',
+                    title: `Maintenance Service Recorded`,
+                    description: `User recorded maintenance: ${s.type || s.serviceType || 'Service'} (${s.location || 'Service Center'}) ${s.cost ? '— ₹' + Number(s.cost).toLocaleString() : ''}`,
+                    userUuid: s.performedById || s.createdById || s.performedBy || 'System',
+                    date: s.date ? new Date(s.date) : (s.createdAt?.toDate ? s.createdAt.toDate() : new Date()),
+                    icon: '🔧'
+                  })
+                })
+
+                // 4. Mileage Logs
+                const vMileage = allMileageLogs.filter(m => {
+                  const mInfo = m.vehicle_info || m.vehicle_number || ''
+                  const mClean = String(mInfo).toUpperCase().replace(/[^A-Z0-9]/g, '')
+                  return (m.vehicleId === vehicle.id) || (vNoClean && mClean.includes(vNoClean))
+                })
+
+                vMileage.forEach(m => {
+                  timeline.push({
+                    id: `mileage_${m.id}`,
+                    type: 'mileage',
+                    title: `Trip Recorded (${m.total_km || 0} KM)`,
+                    description: `${m.driver_name || 'Rider'} logged ${m.total_km || 0} KM trip (Start: ${Number(m.start_kilometer).toLocaleString()} → End: ${Number(m.end_kilometer).toLocaleString()} KM). Purpose: ${m.purpose || 'General Trip'}`,
+                    userUuid: m.createdById || m.createdBy || 'System',
+                    date: m.entry_date ? new Date(m.entry_date) : (m.createdAt?.toDate ? m.createdAt.toDate() : new Date()),
+                    icon: '📍'
+                  })
+                })
+
+                // Sort in reverse chronological order (newest events at top)
+                timeline.sort((a, b) => b.date - a.date)
+
+                if (timeline.length === 0) {
+                  return (
+                    <div className="py-20 text-center text-slate-400 text-xs italic font-medium">
+                      No historical events recorded for this vehicle yet.
                     </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-400 line-through">{log.oldValue}</span>
-                      <span className="text-gray-300">→</span>
-                      <span className="font-medium text-gray-700">{log.newValue}</span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Updated by: {log.updatedBy}</p>
+                  )
+                }
+
+                return (
+                  <div className="relative pl-2 space-y-6">
+                    {/* Vertical Dotted Connecting Line */}
+                    <div className="absolute left-[18px] top-4 bottom-4 w-0.5 border-l-2 border-dashed border-slate-200 pointer-events-none" />
+
+                    {timeline.map((evt) => (
+                      <div key={evt.id} className="relative flex items-start gap-3.5 group">
+                        {/* Event Node Icon Chip */}
+                        <div className="w-8 h-8 rounded-full bg-slate-50 border-2 border-white shadow-2xs flex items-center justify-center text-xs shrink-0 z-10 group-hover:scale-110 transition-transform">
+                          {evt.icon}
+                        </div>
+
+                        {/* Event Content Card */}
+                        <div className="flex-1 bg-white hover:bg-blue-50/40 border border-slate-200/80 rounded-xl p-3.5 shadow-2xs transition-colors">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-900 font-heading">
+                              {evt.title}
+                            </span>
+                            <span className="text-[11px] font-mono font-semibold text-slate-500 shrink-0">
+                              {evt.date ? format(evt.date, 'dd MMM yyyy, hh:mm a') : '—'}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-slate-700 mt-1 font-body leading-relaxed">
+                            {evt.description}
+                          </p>
+
+                          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                            <span>Logged by: <strong className="text-slate-700 font-mono font-semibold">{evt.userUuid}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))
-              )}
+                )
+              })()}
             </div>
-            
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-slate-200 bg-white flex justify-end shrink-0">
               <button 
                 onClick={() => setSelectedVehicleForHistory(null)} 
-                className="px-6 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                className="h-9 px-6 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold font-heading rounded-md transition-colors cursor-pointer"
               >
-                Close
+                Close Drawer
               </button>
             </div>
           </div>

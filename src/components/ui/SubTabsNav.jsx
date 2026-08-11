@@ -41,8 +41,8 @@ export const SubTabsNav = ({
         WebkitFontSmoothing: 'antialiased',
         width: '100%',
         borderBottom: '1px solid #E5E7EB',
-        marginBottom: '16px',
-        paddingBottom: '4px',
+        marginBottom: '0px',
+        paddingBottom: '2px',
       }}
       className={className}
     >
