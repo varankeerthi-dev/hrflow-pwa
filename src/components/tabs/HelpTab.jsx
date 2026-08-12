@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
-import { BookOpen, Filter, HelpCircle, Search } from 'lucide-react'
+import { BookOpen, FileText, Filter, HelpCircle, Search } from 'lucide-react'
+import attendancePolicyDocument from '../../../PRD-attendance-full-day-late-penalty-grace.md?raw'
 
 const FAQ_ITEMS = [
   {
@@ -91,6 +92,7 @@ const TYPE_FILTERS = [
 ]
 
 export default function HelpTab() {
+  const [helpView, setHelpView] = useState('faq')
   const [searchText, setSearchText] = useState('')
   const [moduleFilter, setModuleFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
@@ -119,10 +121,40 @@ export default function HelpTab() {
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-2 mb-5">
           <p className="text-[11px] font-black uppercase tracking-[0.14em] text-indigo-500">Help Center</p>
-          <h1 className="text-2xl font-black tracking-tight text-gray-900">FAQ - Questions & Instructions</h1>
-          <p className="text-sm text-gray-500">Search module-specific answers and quick usage instructions.</p>
+          <h1 className="text-2xl font-black tracking-tight text-gray-900">Help & Attendance Policy</h1>
+          <p className="text-sm text-gray-500">Use the quick answers or open the complete attendance-policy reference.</p>
         </div>
 
+        <div className="mb-5 flex flex-wrap gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1.5">
+          <button
+            type="button"
+            onClick={() => setHelpView('faq')}
+            className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-[11px] font-black uppercase tracking-widest transition ${helpView === 'faq' ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200' : 'text-gray-500 hover:bg-white'}`}
+          >
+            <HelpCircle size={15} /> Quick Help
+          </button>
+          <button
+            type="button"
+            onClick={() => setHelpView('attendance-policy')}
+            className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-[11px] font-black uppercase tracking-widest transition ${helpView === 'attendance-policy' ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200' : 'text-gray-500 hover:bg-white'}`}
+          >
+            <FileText size={15} /> Attendance Policy
+          </button>
+        </div>
+
+        {helpView === 'attendance-policy' ? (
+          <section className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 sm:p-6" aria-label="Complete attendance policy">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-indigo-500">Complete reference</p>
+                <h2 className="mt-1 text-lg font-black tracking-tight text-gray-900">Full-Day Rules, Grace Periods, and Late Penalties</h2>
+              </div>
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">Read-only policy</span>
+            </div>
+            <pre className="max-h-[calc(100vh-260px)] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-gray-200 bg-white p-4 text-[12px] leading-7 text-gray-700 sm:p-6 sm:text-[13px]">{attendancePolicyDocument}</pre>
+          </section>
+        ) : (
+        <>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-5">
           <div className="lg:col-span-6 relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -199,6 +231,8 @@ export default function HelpTab() {
               </article>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
     </div>
