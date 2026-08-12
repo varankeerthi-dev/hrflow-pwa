@@ -50,6 +50,7 @@ import { SubTabsNav } from '../ui/SubTabsNav'
 
 import { formatDateDDMMYYYY } from '../../lib/utils';
 import { compressImageToBase64 } from '../../lib/imageUtils';
+import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy } from '../../lib/attendancePolicy'
 
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
@@ -303,6 +304,12 @@ const settingsSubTabMeta = {
     kicker: '',
     pill: 'Allowances',
   },
+  policy: {
+    title: 'Attendance Policy',
+    description: 'Define Full Day thresholds, arrival grace, and late-penalty behavior with safe defaults.',
+    kicker: '',
+    pill: 'Attendance rules',
+  },
 }
 
 export default function SettingsTab({ initialSubTab }) {
@@ -357,7 +364,8 @@ export default function SettingsTab({ initialSubTab }) {
     { id: 'holidays', label: 'Holidays', module: 'Settings' },
     { id: 'site_geofence', label: 'Site Geofence', module: 'Settings' },
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' },
-    { id: 'allowance', label: 'Allowance Settings', module: 'Settings' }
+    { id: 'allowance', label: 'Allowance Settings', module: 'Settings' },
+    { id: 'policy', label: 'Policy', module: 'Settings' }
   ]
 
   const visibleSubTabs = useMemo(() => {
@@ -403,7 +411,8 @@ export default function SettingsTab({ initialSubTab }) {
     remarksOptions: [],
     newRemarkOption: '',
     maxAdvanceAmount: '',
-    expenseCategoryLimits: {}
+    expenseCategoryLimits: {},
+    attendancePolicy: normalizeAttendancePolicy(DEFAULT_ATTENDANCE_POLICY)
   })
   const [newBankAccount, setNewBankAccount] = useState({
     bankName: '',
@@ -1000,6 +1009,7 @@ export default function SettingsTab({ initialSubTab }) {
             advanceCategories: data.advanceCategories || prev.advanceCategories,
             holidays: data.holidays || prev.holidays,
             bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : []
+            ,attendancePolicy: normalizeAttendancePolicy(data.attendancePolicy)
           }))
         } else {
           // If no org doc exists, use user.orgName as fallback
@@ -2922,8 +2932,25 @@ export default function SettingsTab({ initialSubTab }) {
     setNewHoliday({ name: '', date: '' })
   }
 
+  const updateAttendancePolicy = (section, field, value) => {
+    setOrgSettings(prev => {
+      const currentPolicy = normalizeAttendancePolicy(prev.attendancePolicy)
+      return {
+        ...prev,
+        attendancePolicy: {
+          ...currentPolicy,
+          [section]: {
+            ...currentPolicy[section],
+            [field]: value,
+          },
+        },
+      }
+    })
+  }
+
   const activeEmployeesCount = employees.filter(emp => isEmployeeActiveStatus(emp.status)).length
   const currentSettingsMeta = settingsSubTabMeta[activeSubTab] || settingsSubTabMeta.organization
+  const attendancePolicy = normalizeAttendancePolicy(orgSettings.attendancePolicy)
 
   return (
     <div className="h-full flex flex-col text-[11px] font-inter text-slate-900">
@@ -2948,6 +2975,51 @@ export default function SettingsTab({ initialSubTab }) {
       )}
 
       <div className="flex-1 overflow-auto pr-1">
+        {activeSubTab === 'policy' && (
+          <div className="max-w-6xl space-y-4 no-print">
+            <div className={`${settingsPanelClassName} p-5 md:p-6`}>
+              <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-600">Attendance rules</p>
+                  <h2 className="mt-1 text-[24px] font-normal tracking-[-0.03em] text-slate-950">Policy</h2>
+                  <p className="mt-2 max-w-2xl text-[13px] leading-6 text-slate-500">Set the rules that explain whether a day is Full Day, Half Day, or Absent. Grace changes the late calculation; it does not change the original punch.</p>
+                </div>
+                <span className={`inline-flex h-8 items-center rounded-full px-3 text-[11px] font-semibold ${attendancePolicy.status === 'published' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {attendancePolicy.status === 'published' ? 'Published policy' : 'Draft / warning-first'}
+                </span>
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3"><span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Full Day threshold</span><strong className="mt-1 block text-lg font-normal text-slate-900">{attendancePolicy.fullDay.minimumWorkMinutes} min</strong><span className="text-[11px] text-slate-500">{attendancePolicy.fullDay.classificationMode === 'minutes' ? 'Fixed net working minutes' : 'Schedule percentage'}</span></div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3"><span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Arrival grace</span><strong className="mt-1 block text-lg font-normal text-slate-900">{attendancePolicy.gracePeriod.arrivalMinutes} min</strong><span className="text-[11px] text-slate-500">{attendancePolicy.gracePeriod.scope === 'per_shift' ? 'Per shift' : 'Per day'}</span></div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3"><span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Late consequence</span><strong className="mt-1 block text-lg font-normal text-slate-900">{attendancePolicy.latePenalty.enabled ? 'Configured' : 'Warnings only'}</strong><span className="text-[11px] text-slate-500">No deduction until enabled</span></div>
+              </div>
+            </div>
+
+            <div className="grid max-w-6xl gap-4 xl:grid-cols-2">
+              <section className={`${settingsPanelClassName} p-5 md:p-6`}>
+                <div className="mb-5 flex items-start justify-between gap-3"><div><h3 className="text-[17px] font-normal text-slate-950">Full Day rules</h3><p className="mt-1 text-[12px] leading-5 text-slate-500">Choose the minimum work needed before the day is treated as complete.</p></div><span className="rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700">1 / 3</span></div>
+                <div className="space-y-4">
+                  <label className="block"><span className={settingsSectionLabelClassName}>Classification method</span><select value={attendancePolicy.fullDay.classificationMode} onChange={e => updateAttendancePolicy('fullDay', 'classificationMode', e.target.value)} className={settingsInputClassName}><option value="minutes">Net working minutes</option><option value="percentage">Percentage of scheduled hours</option><option value="both">Both — use the stricter rule</option></select></label>
+                  <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className={settingsSectionLabelClassName}>Full Day minimum minutes</span><input type="number" min="0" value={attendancePolicy.fullDay.minimumWorkMinutes} onChange={e => updateAttendancePolicy('fullDay', 'minimumWorkMinutes', Math.max(0, Number(e.target.value) || 0))} className={settingsInputClassName} /></label><label className="block"><span className={settingsSectionLabelClassName}>Full Day schedule %</span><input type="number" min="0" max="100" value={attendancePolicy.fullDay.fullDayPercent} onChange={e => updateAttendancePolicy('fullDay', 'fullDayPercent', Math.min(100, Math.max(0, Number(e.target.value) || 0)))} className={settingsInputClassName} /></label></div>
+                  <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className={settingsSectionLabelClassName}>Half Day schedule %</span><input type="number" min="0" max="100" value={attendancePolicy.fullDay.halfDayPercent} onChange={e => updateAttendancePolicy('fullDay', 'halfDayPercent', Math.min(100, Math.max(0, Number(e.target.value) || 0)))} className={settingsInputClassName} /></label><label className="block"><span className={settingsSectionLabelClassName}>Below Half Day becomes</span><select value={attendancePolicy.fullDay.belowHalfDayStatus} onChange={e => updateAttendancePolicy('fullDay', 'belowHalfDayStatus', e.target.value)} className={settingsInputClassName}><option value="absent">Absent</option><option value="pending_review">Pending review</option></select></label></div>
+                  <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3 text-[11px] leading-5 text-indigo-800">Example: with an 8-hour schedule and a 75% Full Day rule, the employee needs at least 6 net working hours. Approved leave, holidays, and site exceptions should be resolved before this rule is applied.</div>
+                </div>
+              </section>
+
+              <section className={`${settingsPanelClassName} p-5 md:p-6`}>
+                <div className="mb-5 flex items-start justify-between gap-3"><div><h3 className="text-[17px] font-normal text-slate-950">Grace period</h3><p className="mt-1 text-[12px] leading-5 text-slate-500">Keep raw lateness visible, then subtract the permitted arrival buffer.</p></div><span className="rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700">2 / 3</span></div>
+                <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className={settingsSectionLabelClassName}>Arrival grace minutes</span><input type="number" min="0" max="180" value={attendancePolicy.gracePeriod.arrivalMinutes} onChange={e => updateAttendancePolicy('gracePeriod', 'arrivalMinutes', Math.min(180, Math.max(0, Number(e.target.value) || 0)))} className={settingsInputClassName} /></label><label className="block"><span className={settingsSectionLabelClassName}>Departure buffer minutes</span><input type="number" min="0" max="180" value={attendancePolicy.gracePeriod.departureMinutes} onChange={e => updateAttendancePolicy('gracePeriod', 'departureMinutes', Math.min(180, Math.max(0, Number(e.target.value) || 0)))} className={settingsInputClassName} /></label></div><label className="block"><span className={settingsSectionLabelClassName}>Grace scope</span><select value={attendancePolicy.gracePeriod.scope} onChange={e => updateAttendancePolicy('gracePeriod', 'scope', e.target.value)} className={settingsInputClassName}><option value="per_shift">Per shift</option><option value="per_day">Once per day</option></select></label><div className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex items-center justify-between text-[11px]"><span className="text-slate-500">08:00 shift · 08:30 arrival</span><span className="font-semibold text-amber-700">30 raw minutes</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-amber-400" style={{ width: `${Math.min(100, (30 / 60) * 100)}%` }} /></div><div className="mt-2 flex items-center justify-between text-[11px]"><span className="text-emerald-700">{Math.min(30, attendancePolicy.gracePeriod.arrivalMinutes)} grace minutes</span><strong className="text-slate-900">{Math.max(0, 30 - attendancePolicy.gracePeriod.arrivalMinutes)} chargeable late</strong></div></div></div>
+              </section>
+            </div>
+
+            <section className={`${settingsPanelClassName} max-w-6xl p-5 md:p-6`}>
+              <div className="mb-5 flex items-start justify-between gap-3"><div><h3 className="text-[17px] font-normal text-slate-950">Late penalties</h3><p className="mt-1 text-[12px] leading-5 text-slate-500">Start with warnings. Enable a financial consequence only after HR and payroll approve the policy.</p></div><span className="rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700">3 / 3</span></div>
+              <div className="grid gap-4 xl:grid-cols-[.8fr_1.2fr]"><div className="space-y-4"><label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3"><input type="checkbox" checked={attendancePolicy.latePenalty.enabled} onChange={e => updateAttendancePolicy('latePenalty', 'enabled', e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600" /><span><strong className="block text-[13px] font-semibold text-slate-900">Enable financial late penalties</strong><small className="mt-1 block text-[11px] leading-5 text-slate-500">Off by default. When off, the system records and escalates lateness without creating a deduction.</small></span></label><label className="block"><span className={settingsSectionLabelClassName}>Consequence method</span><select value={attendancePolicy.latePenalty.mode} onChange={e => updateAttendancePolicy('latePenalty', 'mode', e.target.value)} className={settingsInputClassName}><option value="warning_only">Warning only</option><option value="fixed_per_incident">Fixed amount per incident</option><option value="per_minute">Amount per chargeable minute</option><option value="progressive">Progressive incident steps</option></select></label><label className="block"><span className={settingsSectionLabelClassName}>Penalty trigger</span><select value={attendancePolicy.latePenalty.trigger} onChange={e => updateAttendancePolicy('latePenalty', 'trigger', e.target.value)} className={settingsInputClassName}><option value="after_grace">Only after grace is exceeded</option><option value="after_review">After HR review</option><option value="after_threshold">After incident threshold</option></select></label></div><div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className={settingsSectionLabelClassName}>Fixed amount</span><input type="number" min="0" value={attendancePolicy.latePenalty.fixedAmount} onChange={e => updateAttendancePolicy('latePenalty', 'fixedAmount', Math.max(0, Number(e.target.value) || 0))} className={`${settingsInputClassName} disabled:bg-slate-100`} disabled={attendancePolicy.latePenalty.mode !== 'fixed_per_incident' || !attendancePolicy.latePenalty.enabled} /></label><label className="block"><span className={settingsSectionLabelClassName}>Amount per minute</span><input type="number" min="0" value={attendancePolicy.latePenalty.perMinuteAmount} onChange={e => updateAttendancePolicy('latePenalty', 'perMinuteAmount', Math.max(0, Number(e.target.value) || 0))} className={`${settingsInputClassName} disabled:bg-slate-100`} disabled={attendancePolicy.latePenalty.mode !== 'per_minute' || !attendancePolicy.latePenalty.enabled} /></label><label className="block"><span className={settingsSectionLabelClassName}>Incidents before penalty</span><input type="number" min="0" value={attendancePolicy.latePenalty.incidentsBeforePenalty} onChange={e => updateAttendancePolicy('latePenalty', 'incidentsBeforePenalty', Math.max(0, Number(e.target.value) || 0))} className={`${settingsInputClassName} disabled:bg-slate-100`} disabled={!attendancePolicy.latePenalty.enabled} /></label><label className="block"><span className={settingsSectionLabelClassName}>Review window</span><select value={attendancePolicy.latePenalty.reviewWindow} onChange={e => updateAttendancePolicy('latePenalty', 'reviewWindow', e.target.value)} className={`${settingsInputClassName} disabled:bg-slate-100`} disabled={!attendancePolicy.latePenalty.enabled}><option value="calendar_month">Calendar month</option><option value="payroll_period">Payroll period</option></select></label></div></div>
+              <div className="mt-5 border-t border-slate-100 pt-4 text-[11px] leading-5 text-slate-500"><strong className="font-semibold text-slate-700">Policy safety:</strong> approved leave, holidays, weekly offs, field work, travel, and approved permissions must be evaluated before lateness. A missing punch goes to review; it does not become a penalty by itself.</div>
+              <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5"><button onClick={() => setOrgSettings(prev => ({ ...prev, attendancePolicy: normalizeAttendancePolicy(DEFAULT_ATTENDANCE_POLICY) }))} className="h-10 rounded-lg border border-slate-200 px-4 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50">Reset policy defaults</button><button onClick={() => handleSaveOrg('Attendance policy saved successfully!')} disabled={saving} className="h-10 rounded-lg bg-indigo-600 px-5 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Saving policy...' : 'Save policy'}</button></div>
+            </section>
+          </div>
+        )}
         {activeSubTab === 'organization' && (
           loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
