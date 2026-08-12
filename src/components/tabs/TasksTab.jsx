@@ -1856,7 +1856,7 @@ export default function TasksTab({ defaultSubTab }) {
   if (loading) return <div className="h-64 flex items-center justify-center"><Spinner /></div>
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50 font-inter selection:bg-indigo-100">
+    <div className="module-layout-root flex flex-col h-full bg-slate-50/50 font-inter selection:bg-indigo-100">
       <style>{`
         @keyframes statusPulse {
           0% { transform: scale(1); }
@@ -1868,7 +1868,7 @@ export default function TasksTab({ defaultSubTab }) {
         }
       `}</style>
 
-      <div className="bg-gradient-to-b from-white to-slate-50/80 border-b border-slate-200/90 px-8 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shrink-0">
+      <div className="module-top-surface bg-gradient-to-b from-white to-slate-50/80 border-b border-slate-200/90 px-8 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shrink-0">
         <div>
           <h1
             className="text-2xl md:text-[27px] font-extrabold text-slate-900 tracking-[-0.02em] flex items-center gap-3 leading-none uppercase"

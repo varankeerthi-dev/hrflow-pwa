@@ -5,9 +5,13 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   base: './',
+  server: {
+    allowedHosts: true
+  },
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@capgo/capacitor-updater': fileURLToPath(new URL('./src/lib/capacitor-updater-web.js', import.meta.url))
     }
   },
   optimizeDeps: {

@@ -200,8 +200,8 @@ export default function LeaveTab() {
   ]
 
   return (
-    <div className="space-y-4 md:space-y-6 font-inter text-slate-950 w-full mx-auto pb-20 px-2 md:px-4">
-      <div className="flex flex-col gap-1 py-2">
+    <div className="module-layout-root space-y-4 md:space-y-6 font-inter text-slate-950 w-full mx-auto pb-20">
+      <div className="module-top-surface flex flex-col gap-1 py-2">
         <h2 className="text-xl md:text-2xl font-semibold tracking-tight">Leave Management</h2>
         <p className="text-xs md:text-sm text-slate-500">Configure leave policies and manage employee absence requests.</p>
       </div>
