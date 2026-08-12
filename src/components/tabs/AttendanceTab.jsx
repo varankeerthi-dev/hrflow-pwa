@@ -14,6 +14,7 @@ import RemarksDropdown from '../ui/RemarksDropdown'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getEligibleAllowanceCategories, getAllowanceAmount } from '../../lib/allowanceRules'
 import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode } from '../../hooks/useAllowances'
+import SummaryTab from './SummaryTab'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
@@ -584,12 +585,24 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
   );
 }
 
-export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirtyChange }) {
+export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigAllowance, onDirtyChange }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId, false)
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
 
-  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' ? 'reports' : 'daily') // 'daily' or 'reports'
+  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' || defaultSubTab === 'full-summary' ? defaultSubTab : 'attendance') // 'attendance' | 'full-summary'
+
+  useEffect(() => {
+    if (defaultSubTab && (defaultSubTab === 'reports' || defaultSubTab === 'full-summary' || defaultSubTab === 'attendance')) {
+      setActiveSubTab(defaultSubTab)
+    }
+  }, [defaultSubTab])
+
+  useEffect(() => {
+    if (onSubTabChange) {
+      onSubTabChange(activeSubTab)
+    }
+  }, [activeSubTab, onSubTabChange])
   const [reportsView, setReportsView] = useState('timeline') // 'timeline' or 'excel'
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
   const [remarksOptions, setRemarksOptions] = useState([])
@@ -766,7 +779,7 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
 
   // Initialize with 5 empty placeholder rows
   useEffect(() => {
-    if (activeSubTab === 'daily' && rows.length === 0 && !hasGenerated) {
+    if (activeSubTab === 'attendance' && rows.length === 0 && !hasGenerated) {
       const emptyRows = Array(5).fill(null).map((_, idx) => ({
         employeeId: '',
         name: '',
@@ -1055,6 +1068,23 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
   const isConfiguredHoliday = configuredHolidays.has(selectedDate) && !isSunday
   const dayTypeLabel = isSunday ? 'Sunday' : isConfiguredHoliday ? 'Holiday' : ''
 
+  const isHolidayDate = (date) => {
+    const d = new Date(date)
+    const day = d.getDay()
+    const dateStr = formatDateForInput(d)
+    if (day === 0 && orgData?.sundayType && orgData.sundayType !== 'working') return true
+    if (configuredHolidays.has(dateStr)) return true
+    if (day === 6 && orgData?.saturdayType && orgData.saturdayType !== 'working') return true
+    return false
+  }
+
+  const isFutureDate = (date) => {
+    const selected = new Date(date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return selected > today
+  }
+
   useEffect(() => {
     if (!user?.orgId || !selectedDate) return
     getDoc(doc(db, 'organisations', user.orgId)).then(snap => {
@@ -1142,6 +1172,10 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
   }
 
   const handleGenerate = () => {
+    if (isFutureDate(selectedDate)) {
+      alert('Attendance cannot be generated for future dates.')
+      return
+    }
     if (!activeEmployees.length) return
     
     // Create a map of existing records for easy lookup
@@ -1202,6 +1236,10 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
   }
 
   const handleAddRow = () => {
+    if (isFutureDate(selectedDate)) {
+      alert('Attendance cannot be created for future dates.')
+      return
+    }
     const newRow = {
       employeeId: '',
       name: '',
@@ -1308,6 +1346,10 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
 
   const handleSubmit = async () => {
     if (!rows.length) return
+    if (isFutureDate(selectedDate)) {
+      alert('Attendance cannot be submitted for future dates.')
+      return
+    }
 
     // Validation: At least one time (In or Out) is mandatory for 'Present', 'SunWorked', or 'Worked' status
     const newErrors = {}
@@ -1411,6 +1453,10 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
 
   const handleMarkAllHoliday = async () => {
     if (!rows.length) return
+    if (isFutureDate(selectedDate)) {
+      alert('Attendance cannot be modified for future dates.')
+      return
+    }
     setSaving(true)
     try {
       const status = isSunday ? 'SunHoliday' : 'Holiday'
@@ -1477,6 +1523,11 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
       setShowResetWarning(false)
       return
     }
+    if (isFutureDate(selectedDate)) {
+      alert('Attendance cannot be reset for future dates.')
+      setShowResetWarning(false)
+      return
+    }
     setSaving(true)
     try {
       await deleteByDate(selectedDate)
@@ -1500,18 +1551,12 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
 
   return (
     <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
-      {/* Title Header - Sticky */}
-      <div className="module-top-surface bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-50 gap-[40px]">
-        <div className="flex items-center gap-6">
-          <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
-          
-        </div>
-        
-        {/* Date & Action Bar moved here */}
-        {activeSubTab === 'daily' ? (
-          <div className="flex flex-1 justify-between items-center">
+      {activeSubTab === 'attendance' ? (
+        <>
+          {/* Date & Action Bar */}
+          <div className="flex items-center justify-between gap-4 sticky top-0 z-50 bg-white/95 backdrop-blur-sm">
             <div className="flex items-center gap-4">
-              <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200">
+              <div className="flex items-center bg-gray-50 rounded-lg p-1 pl-4 border border-gray-200">
                 <button 
                   onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} 
                   className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
@@ -1521,12 +1566,20 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
                 
                 <DatePicker
                   selected={parseISO(selectedDate)}
-                  onChange={(date) => setSelectedDate(formatDateForInput(date))}
+                  onChange={(date) => {
+                    if (isFutureDate(date)) {
+                      alert('Attendance cannot be created for future dates.')
+                      return
+                    }
+                    setSelectedDate(formatDateForInput(date))
+                  }}
                   dateFormat="dd MMM yyyy"
-                  popperClassName="z-[9999]"
-                  popperProps={{ strategy: 'fixed' }}
+                  popperClassName="z-[99999]"
+                  popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+                  dayStyle={(date) => isHolidayDate(date) ? { color: '#dc2626' } : {}}
+                  filterDate={(date) => !isFutureDate(date)}
                   customInput={
-                    <div className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none hover:bg-white hover:shadow-sm rounded-md transition-all">
+                    <div className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none hover:bg-white hover:shadow-sm rounded-md transition-all relative z-50">
                       {format(parseISO(selectedDate), 'dd MMM yyyy')}
                     </div>
                   }
@@ -1584,18 +1637,22 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
               <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all" style={{ fontFamily: "'Roboto', sans-serif" }}>Generate Active</button>
             </div>
           </div>
-        ) : (
-          <div className="flex-1" />
-        )}
-      </div>
+        </>
+      ) : (
+        <div className="module-top-surface bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-50 gap-[40px]">
+          <div className="flex items-center gap-6">
+            <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
+          </div>
+        </div>
+      )}
 
-      {activeSubTab === 'daily' ? (
+      {activeSubTab === 'attendance' ? (
         <>
           {/* Main Table Card */}
           <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
             <div className="overflow-x-visible pb-[400px]">
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-[98px] z-50 bg-gray-50">
+                <thead className="sticky top-[100px] z-40 bg-gray-50">
                   <tr className="h-10 border-b border-gray-200">
                     <th className="px-2 text-xs font-semibold uppercase tracking-wider text-left w-[140px] bg-orange-50" style={{ color: '#da7025' }}>Employee Name</th>
                     <th className="px-2 text-xs font-semibold uppercase tracking-wider text-left w-[70px] bg-orange-50" style={{ color: '#da7025' }}>
@@ -2365,6 +2422,12 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {activeSubTab === 'full-summary' && (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
         </div>
       )}
 

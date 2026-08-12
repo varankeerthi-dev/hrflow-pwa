@@ -9,7 +9,6 @@ import { getDocs, collection, query, where, setDoc, doc, getDoc, onSnapshot } fr
 import { db } from '../../lib/firebase'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
-import { useSidebar } from '../../contexts/SidebarContext'
 
 function formatOTHours(otHours) {
   if (!otHours || otHours === '00:00') return '-'
@@ -52,7 +51,6 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   const { fetchMonthlySummary, loading: summaryLoading } = useAttendance(user?.orgId)
-  const { isCollapsed, setIsCollapsed, setIsAutoCollapsed, isAutoCollapsed } = useSidebar()
   
   // Main tabs: 'summary' or 'monthlyView'
   const [activeMainTab, setActiveMainTab] = useState(defaultSubTab || 'summary')

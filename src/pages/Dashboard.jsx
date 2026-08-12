@@ -22,9 +22,9 @@ import {
   LogOut,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Menu,
   X,
-  PanelLeft,
   LayoutDashboard,
   Building2,
   Gift,
@@ -37,7 +37,6 @@ import {
   History,
   MessageSquare,
   Lock,
-  ChevronDown,
   Sparkles,
   LifeBuoy
 } from 'lucide-react'
@@ -64,6 +63,7 @@ import EmployeesTab from '../components/tabs/EmployeesTab'
 import HomeTab from '../components/tabs/HomeTab'
 import HelpTab from '../components/tabs/HelpTab'
 import OperationsTab from '../components/tabs/OperationsTab'
+import { useSidebar } from '../contexts/SidebarContext'
 
 // ─── Simple Error Boundary ───────────────────────────────────────────────────
 class ErrorBoundary extends Component {
@@ -202,9 +202,7 @@ function OrgSetupModal({ user, onJoin, onCreate, onLogout }) {
   )
 }
 
-import { useSidebar } from '../contexts/SidebarContext'
 
-// ... existing imports ...
 
 // ─── Dashboard Component ───────────────────────────────────────────────────────
 export default function Dashboard() {
@@ -241,57 +239,13 @@ export default function Dashboard() {
   const [salaryActiveTab, setSalaryActiveTab] = useState('salary-summary')
   const [tasksSubTab, setTasksSubTab] = useState('checklist')
   const [settingsSubTab, setSettingsSubTab] = useState(null)
+  const [attendanceSubTab, setAttendanceSubTab] = useState('attendance')
   const [attendanceDirty, setAttendanceDirty] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
-  const [hoveredTooltip, setHoveredTooltip] = useState(null)
-  const [tooltipTop, setTooltipTop] = useState(0)
   
-  const handleSidebarHover = (e, label) => {
-    if (!isCollapsed) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltipTop(rect.top + rect.height / 2 - 56);
-    setHoveredTooltip(label);
-  };
-
-  const handleSidebarLeave = () => {
-    setHoveredTooltip(null);
-  };
   const [orgSettings, setOrgSettings] = useState({})
   const [logoError, setLogoError] = useState(false)
-
-  const [isFeaturesExpanded, setIsFeaturesExpanded] = useState(() => {
-    const saved = localStorage.getItem('isFeaturesExpanded')
-    return saved !== null ? JSON.parse(saved) : false
-  })
-  const [isHrExpanded, setIsHrExpanded] = useState(() => {
-    const saved = localStorage.getItem('isHrExpanded')
-    return saved !== null ? JSON.parse(saved) : false
-  })
-  const [isOperationsExpanded, setIsOperationsExpanded] = useState(() => {
-    const saved = localStorage.getItem('isOperationsExpanded')
-    return saved !== null ? JSON.parse(saved) : false
-  })
-  const [isReportsExpanded, setIsReportsExpanded] = useState(() => {
-    const saved = localStorage.getItem('isReportsExpanded')
-    return saved !== null ? JSON.parse(saved) : false
-  })
-
-  useEffect(() => {
-    localStorage.setItem('isFeaturesExpanded', isFeaturesExpanded)
-  }, [isFeaturesExpanded])
-
-  useEffect(() => {
-    localStorage.setItem('isHrExpanded', isHrExpanded)
-  }, [isHrExpanded])
-
-  useEffect(() => {
-    localStorage.setItem('isOperationsExpanded', isOperationsExpanded)
-  }, [isOperationsExpanded])
-
-  useEffect(() => {
-    localStorage.setItem('isReportsExpanded', isReportsExpanded)
-  }, [isReportsExpanded])
 
   const currentEmployee = useMemo(() => {
     if (!employees.length || !user?.uid) return null
@@ -396,6 +350,20 @@ export default function Dashboard() {
   const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction']
   const featuresTabs = ['fines', 'engage', 'chat']
 
+  const [hoveredTooltip, setHoveredTooltip] = useState(null)
+  const [tooltipTop, setTooltipTop] = useState(0)
+
+  const handleSidebarHover = (e, label) => {
+    if (!isCollapsed) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipTop(rect.top + rect.height / 2 - 56);
+    setHoveredTooltip(label);
+  };
+
+  const handleSidebarLeave = () => {
+    setHoveredTooltip(null);
+  };
+
   const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
     <div key={tab.id} className="w-full">
       <button 
@@ -422,6 +390,45 @@ export default function Dashboard() {
     </div>
   )
 
+  const menuGroups = {
+    hr: {
+      id: 'hr',
+      label: 'HR',
+      icon: <Users size={18} strokeWidth={1.75} />,
+      children: ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction']
+    },
+    reports: {
+      id: 'reports',
+      label: 'Reports',
+      icon: <BarChart3 size={18} strokeWidth={1.75} />,
+      children: ['attendance-reports', 'site-reports']
+    },
+    features: {
+      id: 'features',
+      label: 'Features',
+      icon: <Sparkles size={18} strokeWidth={1.75} />,
+      children: ['fines', 'engage', 'chat']
+    }
+  }
+
+  const getActiveGroup = () => {
+    for (const group of Object.values(menuGroups)) {
+      if (group.children.includes(activeTab)) {
+        return group
+      }
+    }
+    return null
+  }
+
+  const handleParentClick = (groupId) => {
+    const group = menuGroups[groupId]
+    if (!group) return
+    const firstVisibleChild = group.children.find(id => visibleTabs.find(t => t.id === id))
+    if (firstVisibleChild) {
+      navigateToTab(firstVisibleChild)
+    }
+  }
+
   const renderMenu = () => {
     const mainItems = visibleTabs.filter(t => mainTabs.includes(t.id))
     const hrItems = visibleTabs.filter(t => hrTabs.includes(t.id))
@@ -431,40 +438,22 @@ export default function Dashboard() {
     const portalItem = visibleTabs.find(t => t.id === 'portal')
     const settingsItem = visibleTabs.find(t => t.id === 'settings')
     const helpItem = visibleTabs.find(t => t.id === 'help')
+    const accountantItem = visibleTabs.find(t => t.id === 'accountant')
+    const salarySlipItem = visibleTabs.find(t => t.id === 'salary-slip')
+    const reportsChildren = visibleTabs.filter(t => ['attendance-reports', 'site-reports'].includes(t.id))
+    const hrParent = hrItems.length > 0 ? menuGroups.hr : null
+    const featuresParent = featuresItems.length > 0 ? menuGroups.features : null
+    const reportsParentGroup = reportsChildren.length > 0 ? menuGroups.reports : null
 
     return (
       <>
         {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }))}
 
-        {hrItems.length > 0 && (
+        {hrParent && (
           <div className="mt-1">
-            <div className="w-full">
-              <button
-                onClick={() => setIsHrExpanded(!isHrExpanded)}
-                onMouseEnter={(e) => handleSidebarHover(e, 'HR')}
-                onMouseLeave={handleSidebarLeave}
-                className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
-              >
-                <span className="shrink-0 text-zinc-400">
-                  <Users size={16} strokeWidth={1.5} />
-                </span>
-                {!isCollapsed && (
-                  <span className="text-[13px] font-semibold truncate flex-1 text-left">HR</span>
-                )}
-                {!isCollapsed && (
-                  <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isHrExpanded ? 'rotate-180' : ''}`} />
-                )}
-              </button>
-            </div>
-
-            {isHrExpanded && (
-              <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
-                {hrItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }, '12px'))}
-              </div>
-            )}
+            {renderMenuItem({ id: hrParent.id, label: hrParent.label, icon: hrParent.icon }, hrItems.some(t => t.id === activeTab), () => { handleParentClick('hr'); setIsMobileMenuOpen(false) })}
           </div>
         )}
-
 
         {operationsItem && (
           <div className="mt-0.5">
@@ -481,68 +470,20 @@ export default function Dashboard() {
         <div className="sidebar-divider mt-auto" />
 
         <div className="pt-1 space-y-0.5">
-          {visibleTabs.find(t => t.id === 'accountant') && renderMenuItem(visibleTabs.find(t => t.id === 'accountant'), activeTab === 'accountant', () => { if (navigateToTab('accountant')) setIsMobileMenuOpen(false) })}
-          {visibleTabs.find(t => t.id === 'salary-slip') && renderMenuItem(visibleTabs.find(t => t.id === 'salary-slip'), activeTab === 'salary-slip', () => { if (navigateToTab('salary-slip')) setIsMobileMenuOpen(false) })}
+          {accountantItem && renderMenuItem(accountantItem, activeTab === 'accountant', () => { if (navigateToTab('accountant')) setIsMobileMenuOpen(false) })}
+          {salarySlipItem && renderMenuItem(salarySlipItem, activeTab === 'salary-slip', () => { if (navigateToTab('salary-slip')) setIsMobileMenuOpen(false) })}
           
-          {/* Reports Collapsible */}
-          {visibleTabs.find(t => t.id === 'reports') && (
+          {reportsParentGroup && (
             <div>
-              <div className="w-full">
-                <button
-                  onClick={() => setIsReportsExpanded(!isReportsExpanded)}
-                  onMouseEnter={(e) => handleSidebarHover(e, 'Reports')}
-                  onMouseLeave={handleSidebarLeave}
-                  className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
-                >
-                  <span className="shrink-0 text-zinc-400">
-                    <BarChart3 size={16} strokeWidth={1.5} />
-                  </span>
-                  {!isCollapsed && (
-                    <span className="text-[13px] font-semibold truncate flex-1 text-left">Reports</span>
-                  )}
-                  {!isCollapsed && (
-                    <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isReportsExpanded ? 'rotate-180' : ''}`} />
-                  )}
-                </button>
-              </div>
-              
-              {isReportsExpanded && (
-                <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
-                  {visibleTabs.find(t => t.id === 'attendance-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'attendance-reports'), activeTab === 'attendance-reports', () => { if (navigateToTab('attendance-reports')) setIsMobileMenuOpen(false) }, '11px')}
-                  {visibleTabs.find(t => t.id === 'site-reports') && renderMenuItem(visibleTabs.find(t => t.id === 'site-reports'), activeTab === 'site-reports', () => { if (navigateToTab('site-reports')) setIsMobileMenuOpen(false) }, '11px')}
-                </div>
-              )}
+              {renderMenuItem({ id: reportsParentGroup.id, label: reportsParentGroup.label, icon: reportsParentGroup.icon }, reportsChildren.some(t => t.id === activeTab), () => { handleParentClick('reports'); setIsMobileMenuOpen(false) })}
             </div>
           )}
           
-        {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { if (navigateToTab('settings')) setIsMobileMenuOpen(false) })}
+          {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { if (navigateToTab('settings')) setIsMobileMenuOpen(false) })}
 
-          {featuresItems.length > 0 && (
+          {featuresParent && (
             <div className="mt-1">
-              <div className="w-full">
-                <button
-                  onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
-                  onMouseEnter={(e) => handleSidebarHover(e, 'Features')}
-                  onMouseLeave={handleSidebarLeave}
-                  className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
-                >
-                  <span className="shrink-0 text-zinc-400">
-                    <Sparkles size={16} strokeWidth={1.5} />
-                  </span>
-                  {!isCollapsed && (
-                    <span className="text-[13px] font-semibold truncate flex-1 text-left">Features</span>
-                  )}
-                  {!isCollapsed && (
-                    <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
-                  )}
-                </button>
-              </div>
-
-              {isFeaturesExpanded && (
-                <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
-                  {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }, '12px'))}
-                </div>
-              )}
+              {renderMenuItem({ id: featuresParent.id, label: featuresParent.label, icon: featuresParent.icon }, featuresItems.some(t => t.id === activeTab), () => { handleParentClick('features'); setIsMobileMenuOpen(false) })}
             </div>
           )}
 
@@ -581,7 +522,7 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'home': return <HomeTab onTabChange={(t) => { navigateToTab(t) }} />
       case 'attendance':
-      case 'attendance-list': return <AttendanceTab onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} />
+      case 'attendance-list': return <AttendanceTab defaultSubTab={attendanceSubTab} onSubTabChange={setAttendanceSubTab} onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} />
       case 'attendance-reports': return <AttendanceTab defaultSubTab="reports" onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} />
       case 'site-reports': return <SiteReportTab />
       case 'correction': return <CorrectionTab />
@@ -654,10 +595,10 @@ export default function Dashboard() {
             const userPerms = user?.permissions || {}
             const isAdmin = user?.role?.toLowerCase() === 'admin'
             const quickActions = [
-              { label: 'Add attendance', tab: 'attendance-list', tooltip: 'New entry?', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
+              { label: 'Add Attendance', tab: 'attendance-list', tooltip: 'New entry?', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
               { label: 'Add Employee', tab: 'employees', tooltip: 'New employee?', icon: <Users size={14} />, module: 'Employees', right: 'create' },
               { label: 'Expense', tab: 'advance', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
-              { label: 'Full Summary', tab: 'salary-slip', salaryActiveTab: 'full-summary', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'SalarySlip', right: 'view' },
+              { label: 'Full Summary', tab: 'attendance', attendanceSubTab: 'full-summary', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'Attendance', right: 'view' },
               { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', tooltip: 'Track daily checklist?', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
             ].filter(action => {
               if (isAdmin) return true
@@ -676,14 +617,15 @@ export default function Dashboard() {
                         if (item.tab === 'salary-slip' && item.salaryActiveTab) setSalaryActiveTab(item.salaryActiveTab); 
                         if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); 
                         if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) 
+                        if (item.tab === 'attendance' && item.attendanceSubTab) setAttendanceSubTab(item.attendanceSubTab)
                       }} 
                       className={`px-3.5 h-8.5 rounded-lg text-[13px] font-semibold whitespace-nowrap hover:scale-105 active:scale-[0.98] transition duration-150 flex items-center gap-1.5 cursor-pointer ${
-                        activeTab === item.tab 
+                        (activeTab === item.tab) || (item.tab === 'attendance' && item.attendanceSubTab && activeTab === 'attendance' && attendanceSubTab === item.attendanceSubTab)
                           ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/50' 
                           : 'bg-white text-zinc-600 hover:bg-zinc-50 border border-zinc-200/60 shadow-sm'
                       }`}
                     >
-                      <span className={activeTab === item.tab ? 'text-indigo-600' : 'text-zinc-400'}>
+                      <span className={(activeTab === item.tab || (item.tab === 'attendance' && item.attendanceSubTab && activeTab === 'attendance' && attendanceSubTab === item.attendanceSubTab)) ? 'text-indigo-600' : 'text-zinc-400'}>
                         {item.icon}
                       </span>
                       {item.label}
@@ -749,7 +691,7 @@ export default function Dashboard() {
           />
         )}
         <aside 
-          className={`bg-[#ffffff] border-r border-slate-200 flex flex-col shrink-0 transition-all duration-300 fixed inset-y-0 left-0 z-50 md:relative md:h-full md:z-30 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-16' : 'md:w-56 w-56'}`}
+          className={`bg-[#ffffff] border-r border-slate-200 flex flex-col shrink-0 fixed inset-y-0 left-0 z-50 md:relative md:h-full md:z-30 transition-all duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'md:w-16' : 'md:w-56'} w-56`}
           style={{ backgroundColor: '#ffffff' }}
         >
           {/* Mobile-only close button header */}
@@ -767,7 +709,7 @@ export default function Dashboard() {
             {renderMenu()}
           </nav>
 
-          {/* Footer Collapse Button */}
+          {/* Collapse sidebar button */}
           <div className="p-2 border-t border-slate-200 shrink-0 hidden md:block">
             <button
               onClick={() => toggleSidebar()}
@@ -784,6 +726,76 @@ export default function Dashboard() {
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <main className="flex-1 overflow-auto bg-white relative flex flex-col">
             <ErrorBoundary>
+                {(() => {
+                  const activeGroup = getActiveGroup()
+                  if (activeGroup) {
+                    return (
+                      <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
+                        <div className="flex items-center gap-1 px-4 overflow-x-auto no-scrollbar">
+                          {activeGroup.children.map(childId => {
+                            const childTab = visibleTabs.find(t => t.id === childId)
+                            if (!childTab) return null
+                            const isActive = activeTab === childId
+                            return (
+                              <button
+                                key={childId}
+                                onClick={() => navigateToTab(childId)}
+                                className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors duration-150 ${
+                                  isActive
+                                    ? 'border-blue-600 text-blue-700'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                              >
+                                {childTab.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  }
+                  const activeTabData = visibleTabs.find(t => t.id === activeTab)
+                  if (activeTabData && activeTab !== 'operations') {
+                    if (activeTab === 'attendance' || activeTab === 'attendance-list') {
+                      return (
+                        <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
+                          <div className="flex items-center gap-1 px-4 overflow-x-auto no-scrollbar">
+                            <button
+                              onClick={() => navigateToTab('attendance')}
+                              className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors duration-150 ${
+                                activeTab === 'attendance' || activeTab === 'attendance-list'
+                                  ? 'border-blue-600 text-blue-700'
+                                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                              }`}
+                            >
+                              Attendance
+                            </button>
+                            <button
+                              onClick={() => { setAttendanceSubTab('full-summary'); navigateToTab('attendance'); }}
+                              className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors duration-150 ${
+                                activeTab === 'salary-slip' && salaryActiveTab === 'full-summary'
+                                  ? 'border-blue-600 text-blue-700'
+                                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                              }`}
+                            >
+                              Full Summary
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    }
+                    return (
+                      <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
+                        <div className="flex items-center px-4">
+                          <span className="px-4 py-2.5 text-sm font-semibold text-gray-700 border-b-2 border-blue-600">
+                            {activeTabData.label}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
                 <div className={`module-content-frame w-full flex-1 p-4 ${activeTab === 'salary-slip' ? 'max-w-none' : 'max-w-[1300px]'}`}>
                   {renderTabContent()}
                 </div>

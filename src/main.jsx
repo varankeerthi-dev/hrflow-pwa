@@ -80,12 +80,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <GlobalErrorBoundary>
-        <AuthProvider>
-          <SidebarProvider>
-            <UpdateChecker />
-            <App />
-          </SidebarProvider>
-        </AuthProvider>
+          <AuthProvider>
+            <SidebarProvider>
+              <UpdateChecker />
+              <App />
+            </SidebarProvider>
+          </AuthProvider>
       </GlobalErrorBoundary>
     </QueryClientProvider>
   </React.StrictMode>

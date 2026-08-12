@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react'
+import React, { createContext, useState, useContext, useCallback, useMemo } from 'react'
 
 const SidebarContext = createContext()
 
@@ -8,7 +8,7 @@ export function SidebarProvider({ children }) {
 
   const toggleSidebar = useCallback(() => {
     setIsCollapsed(prev => !prev)
-    setIsAutoCollapsed(false) // Manual toggle resets auto-collapse
+    setIsAutoCollapsed(false)
   }, [])
 
   const setCollapsed = useCallback((val) => {
@@ -16,8 +16,8 @@ export function SidebarProvider({ children }) {
   }, [])
 
   const value = useMemo(() => ({
-    isCollapsed, 
-    setIsCollapsed: setCollapsed, 
+    isCollapsed,
+    setIsCollapsed: setCollapsed,
     toggleSidebar,
     isAutoCollapsed,
     setIsAutoCollapsed
