@@ -1499,9 +1499,9 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
   }
 
   return (
-    <div className="flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
+    <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {/* Title Header - Sticky */}
-      <div className="bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-50 gap-[40px]">
+      <div className="module-top-surface bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-50 gap-[40px]">
         <div className="flex items-center gap-6">
           <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
           

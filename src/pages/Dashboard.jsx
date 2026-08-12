@@ -784,7 +784,7 @@ export default function Dashboard() {
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <main className="flex-1 overflow-auto bg-white relative flex flex-col">
             <ErrorBoundary>
-                <div className={`w-full flex-1 p-4 ${activeTab === 'salary-slip' ? 'max-w-none' : 'max-w-[1300px]'}`}>
+                <div className={`module-content-frame w-full flex-1 p-4 ${activeTab === 'salary-slip' ? 'max-w-none' : 'max-w-[1300px]'}`}>
                   {renderTabContent()}
                 </div>
               </ErrorBoundary>

@@ -19,7 +19,6 @@ import {
 import Spinner from '../ui/Spinner'
 import AttendanceApprovalQueue from './AttendanceApprovalQueue'
 import AllowanceClaimsView from '../ui/AllowanceClaimsView'
-import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR } from '../../lib/salaryUtils'
 import { logActivity } from '../../hooks/useActivityLog'
 import { 
@@ -890,27 +889,9 @@ export default function ApprovalsTab() {
   }
 
   return (
-    <div className="space-y-6 font-inter text-gray-900">
-      {/* minimalist header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 border-b border-gray-100 mb-2">
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-gray-900">Approvals</h2>
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-            Manage administrative and employee requests
-          </p>
-        </div>
-        
-        <SubTabsNav
-          tabs={[
-            { id: 'advance-expense', label: 'Advance / Expense' },
-            { id: 'leave-permission', label: 'Leave / Permission' },
-            { id: 'allowance', label: 'Allowances' },
-            ...(canManageAttendance ? [{ id: 'attendance-queue', label: 'Attendance Queue' }] : []),
-            ...(isAccountant ? [{ id: 'payment-queue', label: 'Payment Queue' }] : [])
-          ]}
-          activeTabId={activeSubTab}
-          onTabChange={(tab) => setActiveSubTab(tab.id)}
-        />
+    <div className="module-layout-root space-y-6 font-inter text-gray-900">
+      <div className="module-top-surface flex items-center py-2 border-b border-gray-100 mb-2">
+        <h2 className="text-2xl font-black tracking-tight text-gray-900">Approvals</h2>
       </div>
 
       {activeSubTab === 'attendance-queue' ? (

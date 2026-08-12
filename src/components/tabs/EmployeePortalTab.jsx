@@ -633,9 +633,9 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
 
 
   return (
-    <div className="h-full flex flex-col font-inter gap-8 pb-10">
+    <div className="module-layout-root h-full flex flex-col font-inter gap-8 pb-10">
       {/* SaaS Sub-Navigation */}
-      <div className="bg-white p-4 md:p-6 rounded-[12px] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="module-top-surface bg-white p-4 md:p-6 rounded-[12px] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="grid grid-cols-3 md:flex bg-gray-100 p-1 rounded-lg w-full md:w-auto gap-1">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
