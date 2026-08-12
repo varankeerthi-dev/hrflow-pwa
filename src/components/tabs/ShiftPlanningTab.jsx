@@ -6,9 +6,11 @@ import { collection, addDoc, getDocs, query, doc, updateDoc, deleteDoc, serverTi
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
+import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { 
   Calendar, Plus, Search, Edit2, Trash2, Eye, ChevronLeft, ChevronRight,
-  Clock, MapPin, Users, FileText, Save, X, Check, Upload, Building2
+  Clock, MapPin, Users, FileText, Save, X, Check, Upload, Building2,
+  Sun, Moon, GripVertical
 } from 'lucide-react'
 
 function formatDateShort(isoDate) {
@@ -203,38 +205,49 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
   }, [shifts, type])
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center overflow-auto p-4 sm:p-6 animate-in fade-in-0 duration-200">
+      <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        
+        {/* Modal Header */}
+        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
           <div>
-            <h3 className="text-white font-semibold text-[13px]">Create {type}</h3>
-            <p className="text-[10px] text-indigo-200 mt-0.5">Shift Planning Management</p>
+            <h3 className="text-lg font-bold text-slate-900 font-heading tracking-tight flex items-center gap-2">
+              <Calendar className="text-blue-600" size={20} /> Create {type} Announcement
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5 font-body">Configure shift schedule allocations and employee assignments</p>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+            title="Close Modal"
+          >
             <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white font-body">
           {/* Common Fields - Top */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-5">
             <div>
-              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Title <span className="text-rose-500">*</span></label>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">
+                Announcement Title <span className="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Shift planning announcement title"
-                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400"
+                placeholder="e.g. Weekly Shift Schedule — Operations"
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800 font-body"
               />
             </div>
             <div>
-              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Publish Date</label>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Publish Date</label>
               <input
                 type="date"
                 value={form.publishDate}
                 onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))}
-                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 font-body cursor-pointer"
               />
             </div>
           </div>
@@ -545,12 +558,12 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
               <span className="text-[10px] font-medium text-gray-400 italic">Optional</span>
             </div>
             <div className="p-4">
-              <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-all">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <Upload size={16} className="text-gray-400" />
+              <label className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-2 rounded-lg transition-all">
+                <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
+                  <Upload size={15} className="text-slate-400" />
                 </div>
                 <div className="flex-1">
-                  <span className="text-xs text-gray-500">{form.attachmentName || 'Upload file (PDF, images, documents)'}</span>
+                  <span className="text-xs text-slate-500 font-body">{form.attachmentName || 'Upload file (PDF, images, documents)'}</span>
                 </div>
                 <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
               </label>
@@ -558,17 +571,19 @@ function CreatePlanningForm({ type, onClose, onSave, loading, employees, branche
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-white">
+        <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shrink-0">
           <button
+            type="button"
             onClick={onClose}
-            className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            className="h-9 px-4 border border-slate-200 bg-white text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold font-heading rounded-md shadow-sm active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
           >
             {loading ? 'Creating...' : 'Create Planning'}
           </button>
@@ -597,63 +612,70 @@ function ViewPlanningModal({ planning, onClose, onEdit }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
-          <h3 className="text-white font-black text-[13px] uppercase tracking-wide">View {planning.type}</h3>
-          <button onClick={onClose} className="text-white/80 hover:text-white">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center overflow-auto p-4 sm:p-6">
+      <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+
+        {/* Header */}
+        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 font-heading tracking-tight flex items-center gap-2">
+              <Eye className="text-blue-600" size={20} /> {planning.type} Planning — Details
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5 font-body">Read-only view of this shift planning announcement</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
             <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Header Info */}
-          <div className="bg-gray-50 rounded-xl p-4">
-            <h2 className="text-lg font-black text-gray-800">{planning.title}</h2>
-            <div className="flex items-center gap-4 mt-2 text-[10px] text-gray-500">
-              <span className="flex items-center gap-1"><Calendar size={12} /> {periodDisplay()}</span>
-              <span className="flex items-center gap-1"><Users size={12} /> {planning.shifts?.length || 0} assignments</span>
-              <span className="flex items-center gap-1"><Building2 size={12} /> {planning.visibility === 'all' ? 'All Employees' : planning.visibility}</span>
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-white font-body">
+          {/* Planning Info Card */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <h2 className="text-base font-bold text-slate-900 font-heading">{planning.title}</h2>
+            <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-slate-500 font-body">
+              <span className="flex items-center gap-1.5"><Calendar size={13} className="text-blue-500" /> {periodDisplay()}</span>
+              <span className="flex items-center gap-1.5"><Users size={13} className="text-blue-500" /> {planning.shifts?.length || 0} assignments</span>
+              <span className="flex items-center gap-1.5"><Building2 size={13} className="text-blue-500" /> {planning.visibility === 'all' ? 'All Employees' : planning.visibility}</span>
             </div>
           </div>
 
           {planning.message && (
-            <div>
-              <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-2">Message</h4>
-              <p className="text-sm text-gray-700">{planning.message}</p>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+              <h4 className="text-[10px] font-bold text-blue-700 uppercase tracking-wider mb-1.5 font-heading">Announcement Message</h4>
+              <p className="text-sm text-slate-700 font-body">{planning.message}</p>
             </div>
           )}
 
           {/* Shift Table */}
           <div>
-            <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-2">Employee Shift Details</h4>
-            <div className="overflow-x-auto border border-gray-200 rounded-xl">
-              <table className="w-full text-left border-collapse text-[10px]">
+            <h4 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2 font-heading">Employee Shift Details</h4>
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Employee</th>
-                    {planning.type === PLANNING_TYPES.WEEKLY && <th className="px-3 py-2 font-black text-gray-500 uppercase">Day</th>}
-                    {planning.type === PLANNING_TYPES.NEXT_FEW && <th className="px-3 py-2 font-black text-gray-500 uppercase">Date</th>}
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift Time</th>
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Site</th>
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Notes</th>
+                  <tr className="bg-slate-50 border-b border-slate-200 h-9">
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee</th>
+                    {planning.type === PLANNING_TYPES.WEEKLY && <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Day</th>}
+                    {planning.type === PLANNING_TYPES.NEXT_FEW && <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Date</th>}
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Shift Time</th>
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Site</th>
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Notes</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {planning.shifts?.map((shift, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-semibold text-gray-700">{shift.employeeName}</td>
+                    <tr key={idx} className="hover:bg-slate-50 h-10">
+                      <td className="px-3 text-xs font-semibold text-slate-800">{shift.employeeName}</td>
                       {planning.type === PLANNING_TYPES.WEEKLY && (
-                        <td className="px-3 py-2 font-medium text-gray-600">{shift.day}</td>
+                        <td className="px-3 text-xs text-slate-600">{shift.day}</td>
                       )}
                       {planning.type === PLANNING_TYPES.NEXT_FEW && (
-                        <td className="px-3 py-2 font-medium text-gray-600">{formatDateShort(shift.date)}</td>
+                        <td className="px-3 text-xs text-slate-600">{formatDateShort(shift.date)}</td>
                       )}
-                      <td className="px-3 py-2 font-mono text-gray-600">
-                        {shift.inTime && shift.outTime ? `${shift.inTime} - ${shift.outTime}` : '-'}
+                      <td className="px-3 text-xs font-mono text-slate-700">
+                        {shift.inTime && shift.outTime ? `${shift.inTime} – ${shift.outTime}` : '—'}
                       </td>
-                      <td className="px-3 py-2 text-gray-600">{shift.site || '-'}</td>
-                      <td className="px-3 py-2 text-gray-500">{shift.notes || '-'}</td>
+                      <td className="px-3 text-xs text-slate-600">{shift.site || '—'}</td>
+                      <td className="px-3 text-xs text-slate-500">{shift.notes || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -661,24 +683,20 @@ function ViewPlanningModal({ planning, onClose, onEdit }) {
             </div>
           </div>
 
-          {/* Footer Info */}
-          <div className="flex items-center justify-between text-[10px] text-gray-400 pt-4 border-t border-gray-100">
-            <span>Created by: {planning.createdByName || 'HR'}</span>
+          {/* Footer Meta */}
+          <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100 font-mono">
+            <span>Created by: {planning.createdBy || planning.createdByName || 'HR'}</span>
             <span>Created: {planning.createdAt?.toDate ? formatDateFull(planning.createdAt.toDate()) : ''}</span>
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-between shrink-0">
-          <button
-            onClick={onClose}
-            className="h-10 px-5 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase hover:bg-gray-50"
-          >
+        <div className="px-6 py-4 border-t border-slate-200 bg-white flex justify-between items-center shrink-0">
+          <button type="button" onClick={onClose}
+            className="h-9 px-4 border border-slate-200 bg-white text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer">
             Close
           </button>
-          <button
-            onClick={() => { onClose(); onEdit(planning); }}
-            className="h-10 px-5 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-indigo-700"
-          >
+          <button type="button" onClick={() => { onClose(); onEdit(planning); }}
+            className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold font-heading rounded-md shadow-sm active:scale-[0.98] transition-all cursor-pointer">
             Edit Planning
           </button>
         </div>
@@ -738,67 +756,73 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-orange-500 px-6 py-4 flex justify-between items-center shrink-0">
-          <h3 className="text-white font-black text-[13px] uppercase tracking-wide">Edit {planning.type}</h3>
-          <button onClick={onClose} className="text-white/80 hover:text-white">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center overflow-auto p-4 sm:p-6">
+      <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+
+        {/* Header */}
+        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 font-heading tracking-tight flex items-center gap-2">
+              <Edit2 className="text-amber-500" size={20} /> Edit {planning.type} Planning
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5 font-body">Update shift assignments, timings, and announcement details</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
             <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-white font-body">
           {/* Common Fields */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-5">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Title *</label>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Title <span className="text-rose-500">*</span></label>
               <input
                 type="text"
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Publish Date</label>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Publish Date</label>
               <input
                 type="date"
                 value={form.publishDate}
                 onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 cursor-pointer"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Announcement Message</label>
+            <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Announcement Message</label>
             <textarea
               value={form.message}
               onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
               rows={3}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-semibold resize-none"
+              placeholder="Enter shift announcement details..."
+              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 placeholder:text-slate-400 resize-none"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-5">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Branch / Location</label>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Branch / Location</label>
               <select
                 value={form.branch}
                 onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-              >
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 cursor-pointer">
                 <option value="">All Branches</option>
                 {branches.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Visibility</label>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Visibility</label>
               <select
                 value={form.visibility}
                 onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))}
-                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-              >
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 cursor-pointer">
                 <option value="all">All Employees</option>
                 <option value="branch">Specific Branch</option>
                 <option value="department">Specific Department</option>
@@ -807,96 +831,71 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
           </div>
 
           {/* Shift Table - Editable */}
-          <div className="border border-gray-200 rounded-xl p-4">
-            <h4 className="text-xs font-black text-gray-700 uppercase mb-4">Edit Employee Shifts</h4>
-            
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider font-heading flex items-center gap-2">
+                <Users size={13} className="text-slate-400" /> Employee Shifts
+              </h4>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-[10px]">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Employee</th>
-                    {planning.type === PLANNING_TYPES.WEEKLY && <th className="px-3 py-2 font-black text-gray-500 uppercase">Day</th>}
-                    {planning.type === PLANNING_TYPES.NEXT_FEW && <th className="px-3 py-2 font-black text-gray-500 uppercase">Date</th>}
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift Start</th>
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Shift End</th>
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Site</th>
-                    <th className="px-3 py-2 font-black text-gray-500 uppercase">Notes</th>
-                    <th className="px-3 py-2"></th>
+                  <tr className="bg-slate-50 border-b border-slate-200 h-9">
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee</th>
+                    {planning.type === PLANNING_TYPES.WEEKLY && <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Day</th>}
+                    {planning.type === PLANNING_TYPES.NEXT_FEW && <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Date</th>}
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Shift Start</th>
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Shift End</th>
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Site</th>
+                    <th className="px-3 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Notes</th>
+                    <th className="px-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {shiftsList.map((shift, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-semibold text-gray-700">{shift.employeeName}</td>
+                    <tr key={idx} className="hover:bg-slate-50 h-11">
+                      <td className="px-3 text-xs font-semibold text-slate-800">{shift.employeeName}</td>
                       {planning.type === PLANNING_TYPES.WEEKLY && (
-                        <td className="px-3 py-2 font-medium text-gray-600">{shift.day}</td>
+                        <td className="px-3 text-xs text-slate-600">{shift.day}</td>
                       )}
                       {planning.type === PLANNING_TYPES.NEXT_FEW && (
-                        <td className="px-3 py-2 font-medium text-gray-600">{formatDateShort(shift.date)}</td>
+                        <td className="px-3 text-xs text-slate-600">{formatDateShort(shift.date)}</td>
                       )}
-                      <td className="px-3 py-2">
+                      <td className="px-3">
                         <div className="relative">
-                          <button
+                          <button type="button"
                             onClick={() => setShowShiftInTimePicker(showShiftInTimePicker === `edit-${idx}` ? null : `edit-${idx}`)}
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold text-left flex items-center justify-between min-w-[80px]"
-                          >
-                            <span>{shift.inTime ? (() => {
-                              const [h, m] = shift.inTime.split(':').map(Number)
-                              const p = h >= 12 ? 'PM' : 'AM'
-                              const h12 = h % 12 || 12
-                              return `${h12}:${String(m).padStart(2, '0')} ${p}`
-                            })() : '--:--'}</span>
+                            className="h-8 border border-slate-200 rounded-md px-2.5 text-xs font-mono text-slate-700 hover:border-blue-400 transition-colors min-w-[80px] text-left">
+                            {shift.inTime ? (() => { const [h, m] = shift.inTime.split(':').map(Number); const p = h >= 12 ? 'PM' : 'AM'; const h12 = h % 12 || 12; return `${h12}:${String(m).padStart(2, '0')} ${p}` })() : '--:--'}
                           </button>
                           {showShiftInTimePicker === `edit-${idx}` && (
-                            <TimePicker
-                              value={shift.inTime || '09:00'}
-                              onChange={(time) => updateShift(idx, 'inTime', time)}
-                              onClose={() => setShowShiftInTimePicker(null)}
-                            />
+                            <TimePicker value={shift.inTime || '09:00'} onChange={(time) => updateShift(idx, 'inTime', time)} onClose={() => setShowShiftInTimePicker(null)} />
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3">
                         <div className="relative">
-                          <button
+                          <button type="button"
                             onClick={() => setShowShiftOutTimePicker(showShiftOutTimePicker === `edit-${idx}` ? null : `edit-${idx}`)}
-                            className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold text-left flex items-center justify-between min-w-[80px]"
-                          >
-                            <span>{shift.outTime ? (() => {
-                              const [h, m] = shift.outTime.split(':').map(Number)
-                              const p = h >= 12 ? 'PM' : 'AM'
-                              const h12 = h % 12 || 12
-                              return `${h12}:${String(m).padStart(2, '0')} ${p}`
-                            })() : '--:--'}</span>
+                            className="h-8 border border-slate-200 rounded-md px-2.5 text-xs font-mono text-slate-700 hover:border-blue-400 transition-colors min-w-[80px] text-left">
+                            {shift.outTime ? (() => { const [h, m] = shift.outTime.split(':').map(Number); const p = h >= 12 ? 'PM' : 'AM'; const h12 = h % 12 || 12; return `${h12}:${String(m).padStart(2, '0')} ${p}` })() : '--:--'}
                           </button>
                           {showShiftOutTimePicker === `edit-${idx}` && (
-                            <TimePicker
-                              value={shift.outTime || '18:00'}
-                              onChange={(time) => updateShift(idx, 'outTime', time)}
-                              onClose={() => setShowShiftOutTimePicker(null)}
-                            />
+                            <TimePicker value={shift.outTime || '18:00'} onChange={(time) => updateShift(idx, 'outTime', time)} onClose={() => setShowShiftOutTimePicker(null)} />
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={shift.site}
-                          onChange={e => updateShift(idx, 'site', e.target.value)}
-                          className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold w-24"
-                        />
+                      <td className="px-3">
+                        <input type="text" value={shift.site} onChange={e => updateShift(idx, 'site', e.target.value)}
+                          className="h-8 border border-slate-200 rounded-md px-2 text-xs text-slate-700 w-24 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600" />
                       </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={shift.notes}
-                          onChange={e => updateShift(idx, 'notes', e.target.value)}
-                          className="h-7 border border-gray-200 rounded px-2 text-xs font-semibold w-24"
-                        />
+                      <td className="px-3">
+                        <input type="text" value={shift.notes} onChange={e => updateShift(idx, 'notes', e.target.value)}
+                          className="h-8 border border-slate-200 rounded-md px-2 text-xs text-slate-700 w-24 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600" />
                       </td>
-                      <td className="px-3 py-2">
-                        <button onClick={() => removeShift(idx)} className="p-1 text-red-400 hover:text-red-600">
-                          <Trash2 size={12} />
+                      <td className="px-3">
+                        <button type="button" onClick={() => removeShift(idx)} className="p-1.5 text-rose-400 hover:bg-rose-50 rounded-md transition-colors">
+                          <Trash2 size={13} />
                         </button>
                       </td>
                     </tr>
@@ -907,18 +906,13 @@ function EditPlanningForm({ planning, onClose, onSave, loading, employees, branc
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-          <button
-            onClick={onClose}
-            className="h-10 px-5 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase hover:bg-gray-50"
-          >
+        <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shrink-0">
+          <button type="button" onClick={onClose}
+            className="h-9 px-4 border border-slate-200 bg-white text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer">
             Cancel
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="h-10 px-6 bg-orange-500 text-white rounded-lg text-xs font-bold uppercase hover:bg-orange-600 disabled:opacity-50"
-          >
+          <button type="button" onClick={handleSubmit} disabled={loading}
+            className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold font-heading rounded-md shadow-sm active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50">
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
@@ -1037,196 +1031,224 @@ function CreateDayModal({ onClose, onSave, loading, employees, branches, departm
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center overflow-auto py-8">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center overflow-auto p-4 sm:p-6">
+      <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+
+        {/* Header */}
+        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
           <div>
-            <h3 className="text-white font-semibold text-[13px]">Create Day Planning</h3>
-            <p className="text-[10px] text-indigo-200 mt-0.5">Schedule day and night shifts</p>
+            <h3 className="text-lg font-bold text-slate-900 font-heading tracking-tight flex items-center gap-2">
+              <Sun className="text-amber-500" size={20} /> Create Day / Night Shift
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5 font-body">Assign employees to day and night shifts. Drag rows between sections to reassign.</p>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white">
+          <button type="button" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
             <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white font-body">
           {/* Title and Date */}
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-3 gap-5">
             <div className="col-span-2">
-              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Title</label>
-              <input 
-                type="text" 
-                value={form.title} 
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))} 
-                placeholder="Enter planning title" 
-                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-gray-400" 
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Announcement Title <span className="text-rose-500">*</span></label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="e.g. Day/Night Shift — 12 Aug 2026"
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 text-slate-800"
               />
             </div>
             <div>
-              <label className="block text-[12px] font-semibold text-gray-700 mb-2">Publish Date</label>
-              <input 
-                type="date" 
-                value={form.publishDate} 
-                onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))} 
-                className="w-full bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all" 
+              <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Publish Date</label>
+              <input
+                type="date"
+                value={form.publishDate}
+                onChange={e => setForm(f => ({ ...f, publishDate: e.target.value }))}
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 text-slate-800 cursor-pointer"
               />
             </div>
           </div>
 
-          {/* Day Shift Section */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'day')}>
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <h4 className="text-[12px] font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                <Clock size={12} className="text-gray-400" />
-                Day Shift
-              </h4>
-              <input 
-                type="date" 
-                value={form.shiftDate} 
-                onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} 
-                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
-              />
-            </div>
+          {/* Day & Night Shift — Side by Side */}
+          <div className="grid grid-cols-2 gap-4">
 
-            <div className="p-4 space-y-3">
-              {dayShifts.map((s, idx) => (
-                <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'day', idx)} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 hover:border-indigo-300 transition-colors cursor-move">
-                  <div className="font-medium text-sm text-gray-800 flex-1">{s.employeeName}</div>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'inTime' })} className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium hover:border-gray-300 transition-all">{s.inTime || 'Start'}</button>
-                      {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
-                        <TimePicker value={s.inTime || '09:00'} onChange={(t) => updateShift('day', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
-                      )}
+            {/* Day Shift Column */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs flex flex-col" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'day')}>
+              <div className="bg-amber-50 px-3 py-2.5 border-b border-amber-100 flex items-center justify-between shrink-0">
+                <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                  <Sun size={13} className="text-amber-500" /> Day Shift
+                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-mono">{dayShifts.length}</span>
+                </h4>
+                <input
+                  type="date"
+                  value={form.shiftDate}
+                  onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))}
+                  className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex-1 p-3 space-y-1.5 min-h-[160px]">
+                {dayShifts.map((s, idx) => (
+                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'day', idx)}
+                    className="p-2 bg-slate-50 border border-slate-200 rounded-lg group cursor-move hover:border-blue-300 hover:bg-blue-50/30 transition-colors">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <GripVertical size={12} className="text-slate-300 group-hover:text-slate-500 shrink-0" />
+                      <span className="font-medium text-xs text-slate-800 flex-1 truncate font-body">{s.employeeName}</span>
+                      <button type="button" onClick={() => removeFrom('day', idx)} className="p-1 text-rose-400 hover:bg-rose-50 rounded transition-colors shrink-0">
+                        <Trash2 size={11} />
+                      </button>
                     </div>
-                    <div className="relative">
-                      <button onClick={() => setShowTimePicker({ type: 'day', idx, field: 'outTime' })} className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium hover:border-gray-300 transition-all">{s.outTime || 'End'}</button>
-                      {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
-                        <TimePicker value={s.outTime || '18:00'} onChange={(t) => updateShift('day', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
-                      )}
+                    <div className="flex items-center gap-1.5 ml-5">
+                      <div className="relative">
+                        <button type="button" onClick={() => setShowTimePicker({ type: 'day', idx, field: 'inTime' })}
+                          className="h-7 px-2 bg-white border border-slate-200 rounded text-[11px] font-mono text-slate-700 hover:border-blue-400 transition-colors">
+                          {s.inTime || '09:00'}
+                        </button>
+                        {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
+                          <TimePicker value={s.inTime || '09:00'} onChange={(t) => updateShift('day', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                        )}
+                      </div>
+                      <span className="text-slate-300 text-[10px]">→</span>
+                      <div className="relative">
+                        <button type="button" onClick={() => setShowTimePicker({ type: 'day', idx, field: 'outTime' })}
+                          className="h-7 px-2 bg-white border border-slate-200 rounded text-[11px] font-mono text-slate-700 hover:border-blue-400 transition-colors">
+                          {s.outTime || '18:00'}
+                        </button>
+                        {showTimePicker.type === 'day' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
+                          <TimePicker value={s.outTime || '18:00'} onChange={(t) => updateShift('day', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                        )}
+                      </div>
+                      <input
+                        value={s.notes}
+                        onChange={e => updateShift('day', idx, 'notes', e.target.value)}
+                        placeholder="Notes"
+                        className="h-7 flex-1 bg-white border border-slate-200 rounded px-2 text-[11px] text-slate-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-300 min-w-0"
+                      />
                     </div>
-                    <input 
-                      value={s.notes} 
-                      onChange={e => updateShift('day', idx, 'notes', e.target.value)} 
-                      placeholder="Notes" 
-                      className="h-9 bg-white border border-gray-200 rounded-lg px-3 text-xs w-32 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
-                    />
-                    <button onClick={() => removeFrom('day', idx)} className="text-rose-400 p-2 hover:bg-rose-50 rounded-lg transition-colors">
-                      <Trash2 size={14} />
-                    </button>
                   </div>
-                </div>
-              ))}
-              
-              {dayShifts.length === 0 && (
-                <div className="text-center py-8 text-gray-400 text-sm italic">
-                  Drag employees here or use the dropdown below
-                </div>
-              )}
-            </div>
-            
-            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-              <select 
-                onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'day'); e.target.value = '' } }} 
-                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer"
-              >
-                <option value="">+ Add Employee to Day Shift</option>
-                {employees.filter(emp => !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
-                  <option key={emp.id} value={emp.id}>{emp.name}</option>
                 ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Night Shift Section */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'night')}>
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <h4 className="text-[12px] font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                <Clock size={12} className="text-gray-400" />
-                Night Shift
-              </h4>
-              <input 
-                type="date" 
-                value={form.shiftDate} 
-                onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))} 
-                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
-              />
-            </div>
-
-            <div className="p-4 space-y-3">
-              {nightShifts.map((s, idx) => (
-                <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'night', idx)} className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3 hover:border-indigo-300 transition-colors cursor-move">
-                  <div className="font-medium text-sm text-gray-800 flex-1">{s.employeeName}</div>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'inTime' })} className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium hover:border-gray-300 transition-all">{s.inTime || 'Start'}</button>
-                      {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
-                        <TimePicker value={s.inTime || '21:00'} onChange={(t) => updateShift('night', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
-                      )}
-                    </div>
-                    <div className="relative">
-                      <button onClick={() => setShowTimePicker({ type: 'night', idx, field: 'outTime' })} className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium hover:border-gray-300 transition-all">{s.outTime || 'End'}</button>
-                      {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
-                        <TimePicker value={s.outTime || '05:00'} onChange={(t) => updateShift('night', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
-                      )}
-                    </div>
-                    <input 
-                      value={s.notes} 
-                      onChange={e => updateShift('night', idx, 'notes', e.target.value)} 
-                      placeholder="Notes" 
-                      className="h-9 bg-white border border-gray-200 rounded-lg px-3 text-xs w-32 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" 
-                    />
-                    <button onClick={() => removeFrom('night', idx)} className="text-rose-400 p-2 hover:bg-rose-50 rounded-lg transition-colors">
-                      <Trash2 size={14} />
-                    </button>
+                {dayShifts.length === 0 && (
+                  <div className="flex items-center justify-center h-full min-h-[120px] text-slate-400 text-[11px] italic border-2 border-dashed border-slate-200 rounded-lg">
+                    Drop or add employees below
                   </div>
-                </div>
-              ))}
-              
-              {nightShifts.length === 0 && (
-                <div className="text-center py-8 text-gray-400 text-sm italic">
-                  Drag employees here or use the dropdown below
-                </div>
-              )}
+                )}
+              </div>
+
+              <div className="px-3 py-2.5 border-t border-slate-200 bg-slate-50 shrink-0">
+                <select
+                  onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'day'); e.target.value = '' } }}
+                  className="h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer">
+                  <option value="">+ Add to Day Shift</option>
+                  {employees.filter(emp => isEmployeeActiveStatus(emp.status) && !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            
-            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-              <select 
-                onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'night'); e.target.value = '' } }} 
-                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer"
-              >
-                <option value="">+ Add Employee to Night Shift</option>
-                {employees.filter(emp => !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
-                  <option key={emp.id} value={emp.id}>{emp.name}</option>
+
+            {/* Night Shift Column */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs flex flex-col" onDragOver={onDragOver} onDrop={(e) => onDropTo(e, 'night')}>
+              <div className="bg-indigo-50 px-3 py-2.5 border-b border-indigo-100 flex items-center justify-between shrink-0">
+                <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                  <Moon size={13} className="text-indigo-500" /> Night Shift
+                  <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-mono">{nightShifts.length}</span>
+                </h4>
+                <input
+                  type="date"
+                  value={form.shiftDate}
+                  onChange={e => setForm(f => ({ ...f, shiftDate: e.target.value }))}
+                  className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex-1 p-3 space-y-1.5 min-h-[160px]">
+                {nightShifts.map((s, idx) => (
+                  <div key={idx} draggable onDragStart={(e) => onDragStart(e, 'night', idx)}
+                    className="p-2 bg-slate-50 border border-slate-200 rounded-lg group cursor-move hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <GripVertical size={12} className="text-slate-300 group-hover:text-slate-500 shrink-0" />
+                      <span className="font-medium text-xs text-slate-800 flex-1 truncate font-body">{s.employeeName}</span>
+                      <button type="button" onClick={() => removeFrom('night', idx)} className="p-1 text-rose-400 hover:bg-rose-50 rounded transition-colors shrink-0">
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 ml-5">
+                      <div className="relative">
+                        <button type="button" onClick={() => setShowTimePicker({ type: 'night', idx, field: 'inTime' })}
+                          className="h-7 px-2 bg-white border border-slate-200 rounded text-[11px] font-mono text-slate-700 hover:border-indigo-400 transition-colors">
+                          {s.inTime || '21:00'}
+                        </button>
+                        {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'inTime' && (
+                          <TimePicker value={s.inTime || '21:00'} onChange={(t) => updateShift('night', idx, 'inTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                        )}
+                      </div>
+                      <span className="text-slate-300 text-[10px]">→</span>
+                      <div className="relative">
+                        <button type="button" onClick={() => setShowTimePicker({ type: 'night', idx, field: 'outTime' })}
+                          className="h-7 px-2 bg-white border border-slate-200 rounded text-[11px] font-mono text-slate-700 hover:border-indigo-400 transition-colors">
+                          {s.outTime || '05:00'}
+                        </button>
+                        {showTimePicker.type === 'night' && showTimePicker.idx === idx && showTimePicker.field === 'outTime' && (
+                          <TimePicker value={s.outTime || '05:00'} onChange={(t) => updateShift('night', idx, 'outTime', t)} onClose={() => setShowTimePicker({ type: null, idx: null, field: null })} />
+                        )}
+                      </div>
+                      <input
+                        value={s.notes}
+                        onChange={e => updateShift('night', idx, 'notes', e.target.value)}
+                        placeholder="Notes"
+                        className="h-7 flex-1 bg-white border border-slate-200 rounded px-2 text-[11px] text-slate-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-300 min-w-0"
+                      />
+                    </div>
+                  </div>
                 ))}
-              </select>
+                {nightShifts.length === 0 && (
+                  <div className="flex items-center justify-center h-full min-h-[120px] text-slate-400 text-[11px] italic border-2 border-dashed border-slate-200 rounded-lg">
+                    Drop or add employees below
+                  </div>
+                )}
+              </div>
+
+              <div className="px-3 py-2.5 border-t border-slate-200 bg-slate-50 shrink-0">
+                <select
+                  onChange={e => { if (e.target.value) { addEmployeeTo(e.target.value, 'night'); e.target.value = '' } }}
+                  className="h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer">
+                  <option value="">+ Add to Night Shift</option>
+                  {employees.filter(emp => isEmployeeActiveStatus(emp.status) && !dayShifts.find(s => s.employeeId === emp.id) && !nightShifts.find(s => s.employeeId === emp.id)).map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
+
+          </div>{/* end grid */}
 
           {/* Visibility */}
-          <div>
-            <label className="block text-[12px] font-semibold text-gray-700 mb-2">Visibility</label>
-            <select 
-              value={form.visibility} 
-              onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))} 
-              className="w-48 bg-gray-50/50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white outline-none transition-all cursor-pointer"
-            >
-              <option value="all">All employees</option>
+          <div className="max-w-xs">
+            <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Visibility</label>
+            <select
+              value={form.visibility}
+              onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))}
+              className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer">
+              <option value="all">All Employees</option>
             </select>
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+        <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shrink-0">
           <button 
+            type="button"
             onClick={onClose} 
-            className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            className="h-9 px-4 border border-slate-200 bg-white text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button 
+            type="button"
             onClick={handleSubmit} 
             disabled={loading} 
-            className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold font-heading rounded-md shadow-sm active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
           >
             {loading ? 'Creating...' : 'Create Planning'}
           </button>
@@ -1388,114 +1410,118 @@ export default function ShiftPlanningTab() {
   }, [plannings])
 
   return (
-    <div className="h-full flex flex-col font-inter overflow-hidden bg-gray-50/50 p-6">
+    <div className="h-full flex flex-col font-body overflow-hidden bg-white p-6">
       {/* Page Header */}
       <div className="mb-4 shrink-0">
-        <h1 className="text-lg font-black text-gray-800 uppercase tracking-tight">Shift Planning Announcements</h1>
-        <p className="text-xs text-gray-500 mt-0.5">Create and manage shift plans for employees.</p>
+        <h1 className="text-xl font-bold text-slate-900 font-heading tracking-tight">Shift Planning & Roster</h1>
+        <p className="text-xs text-slate-500 font-body mt-0.5">Create, schedule, and publish shift plans and roster announcements for employees.</p>
       </div>
 
-      {/* Action Tabs */}
-      <div className="bg-gray-100 rounded-[12px] p-2 mb-4 flex items-center gap-2">
-        {Object.values(PLANNING_TYPES).map(t => (
-          <button
-            key={t}
-            onClick={() => setCurrentTab(t)}
-            className={`h-[38px] px-4 rounded-lg text-[11px] font-bold uppercase transition-all ${currentTab === t ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-orange-200'}`}
-          >
-            {t}
-          </button>
-        ))}
+      {/* Action & Planning Type Tabs Toolbar */}
+      <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 mb-6 flex flex-col md:flex-row items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
+          {Object.values(PLANNING_TYPES).map(t => (
+            <button
+              key={t}
+              onClick={() => setCurrentTab(t)}
+              className={`h-9 px-4 rounded-md text-xs font-bold font-heading transition-all cursor-pointer ${
+                currentTab === t 
+                  ? 'bg-blue-600 text-white shadow-2xs' 
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
 
-        <div className="flex-1"></div>
-
-        <button
-          onClick={() => { setCreateType(currentTab); setShowCreateModal(true); }}
-          className="h-[38px] px-5 bg-indigo-600 text-white rounded-lg text-[11px] font-bold uppercase hover:bg-indigo-700 transition-all shadow-md"
-        >
-          Create New
-        </button>
-
-        <div className="flex items-center gap-2 ml-2">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+          <div className="relative w-full md:w-56">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search plannings..."
+              placeholder="Search shift plannings..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="h-[38px] pl-9 pr-3 border border-gray-200 rounded-lg text-xs font-semibold w-48"
+              className="h-9 w-full pl-9 pr-3 border border-slate-200 rounded-md bg-white text-xs font-body text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400 shadow-2xs"
             />
           </div>
+
+          <button
+            onClick={() => { setCreateType(currentTab); setShowCreateModal(true); }}
+            className="h-9 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-bold font-heading uppercase tracking-wider transition-all shadow-sm active:scale-[0.98] flex items-center gap-2 cursor-pointer shrink-0"
+          >
+            <Plus size={15} /> Create Planning
+          </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-0">
+      {/* Main Table */}
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col min-h-0">
         <div className="overflow-auto">
           {loading ? (
-            <div className="flex justify-center py-20"><Spinner /></div>
+            <div className="flex justify-center py-20"><Spinner size="w-8 h-8" color="text-blue-600" /></div>
           ) : filteredPlannings.length === 0 ? (
-            <div className="text-center py-20 text-gray-300 italic text-xs">
-              No shift planning announcements yet. Create one to get started.
+            <div className="text-center py-20 text-slate-400 italic text-xs font-medium">
+              No shift planning announcements created yet for {currentTab}.
             </div>
           ) : (
             <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-gray-50/95 backdrop-blur z-10 border-b border-gray-200">
-                <tr className="h-[40px]">
-                  <th className="px-4 text-[9px] font-black text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-4 text-[9px] font-black text-gray-500 uppercase tracking-wider">Planning Period</th>
-                  <th className="px-4 text-[9px] font-black text-gray-500 uppercase tracking-wider">Created By</th>
-                  <th className="px-4 text-[9px] font-black text-gray-500 uppercase tracking-wider">Created Date</th>
-                  <th className="px-4 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">View</th>
-                  <th className="px-4 text-[9px] font-black text-gray-500 uppercase tracking-wider text-center">Edit</th>
+              <thead className="sticky top-0 bg-slate-100/70 border-b border-slate-200 z-10">
+                <tr className="h-10">
+                  <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Type</th>
+                  <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Planning Period</th>
+                  <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Created By</th>
+                  <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Created Date</th>
+                  <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">View</th>
+                  <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {filteredPlannings.map((planning) => (
-                  <tr key={planning.id} className="h-[44px] hover:bg-gray-50/50 transition-colors">
+                  <tr key={planning.id} className="h-12 hover:bg-blue-50/30 transition-colors">
                     <td className="px-4">
-                      <span className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
-                        planning.type === PLANNING_TYPES.DAY ? 'bg-blue-100 text-blue-600' :
-                        planning.type === PLANNING_TYPES.WEEKLY ? 'bg-purple-100 text-purple-600' :
-                        'bg-amber-100 text-amber-600'
+                      <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold font-heading uppercase ${
+                        planning.type === PLANNING_TYPES.DAY ? 'bg-blue-50 text-blue-700 border border-blue-200/60' :
+                        planning.type === PLANNING_TYPES.WEEKLY ? 'bg-purple-50 text-purple-700 border border-purple-200/60' :
+                        'bg-amber-50 text-amber-700 border border-amber-200/60'
                       }`}>
                         {planning.type}
                       </span>
                     </td>
-                    <td className="px-4 text-[11px] font-semibold text-gray-700">
+                    <td className="px-4 text-xs font-semibold text-slate-800 font-mono">
                       {getPeriodDisplay(planning)}
                     </td>
-                    <td className="px-4 text-[11px] font-medium text-gray-600">
-                      {planning.createdByName || 'HR'}
+                    <td className="px-4 text-xs font-medium text-slate-700 font-mono">
+                      {planning.createdBy || planning.createdByName || 'HR'}
                     </td>
-                    <td className="px-4 text-[10px] text-gray-500">
+                    <td className="px-4 text-xs text-slate-500 font-mono">
                       {planning.createdAt?.toDate ? formatDateShort(planning.createdAt.toDate().toISOString()) : '-'}
                     </td>
                     <td className="px-4 text-center">
                       <button
                         onClick={() => setViewPlanning(planning)}
-                        className="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50"
-                        title="View"
+                        className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="View Details"
                       >
-                        <Eye size={14} />
+                        <Eye size={15} />
                       </button>
                     </td>
                     <td className="px-4 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => setEditPlanning(planning)}
-                          className="p-1.5 rounded-md text-orange-600 hover:bg-orange-50"
-                          title="Edit"
+                          className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 transition-colors"
+                          title="Edit Planning"
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={15} />
                         </button>
                         <button
                           onClick={() => handleDelete(planning.id)}
-                          className="p-1.5 rounded-md text-red-400 hover:bg-red-50"
-                          title="Delete"
+                          className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 transition-colors"
+                          title="Delete Planning"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>

@@ -322,7 +322,7 @@ export default function Dashboard() {
     { id: 'salary-slip', label: 'Payroll', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'SalarySlip' },
     { id: 'advance', label: 'Advance/Expense', icon: <Wallet size={18} strokeWidth={1.75} />, module: 'AdvanceExpense' },
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
-    { id: 'correction', label: 'Corrections', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
+    { id: 'correction', label: 'Attendance Correction', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
     { id: 'vehicle', label: 'Vehicle', icon: <Truck size={18} strokeWidth={1.75} />, module: 'Settings' },
@@ -393,8 +393,8 @@ export default function Dashboard() {
 
   const mainTabs = ['home', 'attendance-list', 'advance', 'vehicle', 'approvals']
   
-  const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents']
-  const featuresTabs = ['correction', 'fines', 'engage', 'chat']
+  const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction']
+  const featuresTabs = ['fines', 'engage', 'chat']
 
   const renderMenuItem = (tab, isActive, onClick, fontSize = '14px') => (
     <div key={tab.id} className="w-full">
@@ -465,34 +465,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {featuresItems.length > 0 && (
-          <div className="mt-1">
-            <div className="w-full">
-              <button
-                onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
-                onMouseEnter={(e) => handleSidebarHover(e, 'Features')}
-                onMouseLeave={handleSidebarLeave}
-                className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
-              >
-                <span className="shrink-0 text-zinc-400">
-                  <Sparkles size={16} strokeWidth={1.5} />
-                </span>
-                {!isCollapsed && (
-                  <span className="text-[13px] font-semibold truncate flex-1 text-left">Features</span>
-                )}
-                {!isCollapsed && (
-                  <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
-                )}
-              </button>
-            </div>
-
-            {isFeaturesExpanded && (
-              <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
-                {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }, '12px'))}
-              </div>
-            )}
-          </div>
-        )}
 
         {operationsItem && (
           <div className="mt-0.5">
@@ -543,7 +515,37 @@ export default function Dashboard() {
             </div>
           )}
           
-          {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { if (navigateToTab('settings')) setIsMobileMenuOpen(false) })}
+        {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { if (navigateToTab('settings')) setIsMobileMenuOpen(false) })}
+
+          {featuresItems.length > 0 && (
+            <div className="mt-1">
+              <div className="w-full">
+                <button
+                  onClick={() => setIsFeaturesExpanded(!isFeaturesExpanded)}
+                  onMouseEnter={(e) => handleSidebarHover(e, 'Features')}
+                  onMouseLeave={handleSidebarLeave}
+                  className={`sidebar-inactive ${isCollapsed ? 'justify-center px-0 w-full' : 'w-full'}`}
+                >
+                  <span className="shrink-0 text-zinc-400">
+                    <Sparkles size={16} strokeWidth={1.5} />
+                  </span>
+                  {!isCollapsed && (
+                    <span className="text-[13px] font-semibold truncate flex-1 text-left">Features</span>
+                  )}
+                  {!isCollapsed && (
+                    <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isFeaturesExpanded ? 'rotate-180' : ''}`} />
+                  )}
+                </button>
+              </div>
+
+              {isFeaturesExpanded && (
+                <div className={`${isCollapsed ? 'ml-0 pl-0' : 'ml-3 pl-3 border-l border-gray-100'} space-y-0.5 mt-0.5`}>
+                  {featuresItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }, '12px'))}
+                </div>
+              )}
+            </div>
+          )}
+
           {portalItem && renderMenuItem(portalItem, activeTab === 'portal', () => { if (navigateToTab('portal')) setIsMobileMenuOpen(false) })}
           {helpItem && renderMenuItem(helpItem, activeTab === 'help', () => { if (navigateToTab('help')) setIsMobileMenuOpen(false) })}
         </div>

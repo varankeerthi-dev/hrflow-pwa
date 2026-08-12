@@ -1932,6 +1932,7 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
                   >
                     <Calendar size={14} /> Last 30 Days
                   </button>
+                  {/* 
                   <button
                     onClick={handleFixHistory}
                     disabled={reportLoading || fixingHistory || !reportData.length}
@@ -1948,6 +1949,7 @@ export default function AttendanceTab({ defaultSubTab, onConfigAllowance, onDirt
                     {fixingHistory ? <Spinner size="w-3 h-3" color="text-amber-600" /> : <CalendarX size={14} />}
                     Fix Future Absences
                   </button>
+                  */}
                   <button
                     onClick={handleFilterSubmit}
                     disabled={reportLoading}

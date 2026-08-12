@@ -3631,15 +3631,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         )}
         {activeTab === 'loan' && (
           <div className="flex flex-col h-full overflow-hidden bg-white">
-            <div className="flex border-b border-zinc-100 py-2 overflow-x-auto shrink-0 px-6 bg-white gap-1">
+            {/* Sub-tab nav */}
+            <div className="flex border-b border-slate-200 px-6 py-2 gap-1 overflow-x-auto shrink-0 bg-white">
               {['Configuration', 'Active Schedules', 'History'].map(mod => {
                 const isActive = loanActiveModule === mod
                 return (
                   <button
                     key={mod}
                     onClick={() => setLoanActiveModule(mod)}
-                    className={`whitespace-nowrap px-3.5 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
-                      isActive ? 'text-indigo-600 bg-indigo-50/50' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50'
+                    className={`whitespace-nowrap px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                     }`}
                   >
                     {mod}
@@ -3650,39 +3653,79 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
             <div className="flex-1 overflow-auto p-6">
               {loanActiveModule === 'Configuration' && (
-                <div className="max-w-2xl mx-auto">      
-                  <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">       
-                    <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50 flex justify-between items-center">
+                <div className="max-w-2xl mx-auto">
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    {/* Card Header */}
+                    <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center gap-3">
                       <div>
-                        <h3 className="text-base font-semibold text-zinc-900">Loan Setup</h3>
-                        <p className="text-[11px] text-zinc-600 mt-0.5">Create and manage loan recovery schedules</p>
+                        <h3 className="text-base font-bold text-slate-900 font-heading tracking-tight">
+                          {editingLoanId ? 'Edit Loan Schedule' : 'New Loan Setup'}
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5 font-body">Create and manage loan recovery schedules for employees</p>
                       </div>
                     </div>
-                    <div className="p-5 space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-zinc-600">Target Employee</label>
-                        <select value={loanForm.employeeId} onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 bg-white focus:outline-none focus:border-zinc-900 text-[13px] text-zinc-900">
+                    {/* Form Body */}
+                    <div className="p-6 space-y-5">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Target Employee <span className="text-rose-500">*</span></label>
+                        <select
+                          value={loanForm.employeeId}
+                          onChange={e => setEditLoanForm({...loanForm, employeeId: e.target.value})}
+                          className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer"
+                        >
                           <option value="">Choose Employee...</option>
                           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                       </div>
+
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[11px] font-medium text-zinc-600">Principal Amount (₹)</label>
-                          <input type="number" value={loanForm.totalAmount} onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 bg-white focus:outline-none focus:border-zinc-900 text-[13px] font-medium text-zinc-900" placeholder="0.00" />    
+                        <div>
+                          <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Principal Amount (₹) <span className="text-rose-500">*</span></label>
+                          <input
+                            type="number"
+                            value={loanForm.totalAmount}
+                            onChange={e => setEditLoanForm({...loanForm, totalAmount: e.target.value})}
+                            placeholder="0.00"
+                            className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                          />
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[11px] font-medium text-zinc-600">Monthly EMI (₹)</label>
-                          <input type="number" value={loanForm.emiAmount} onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 bg-white focus:outline-none focus:border-zinc-900 text-[13px] font-medium text-zinc-900" placeholder="0.00" />
+                        <div>
+                          <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Monthly EMI (₹) <span className="text-rose-500">*</span></label>
+                          <input
+                            type="number"
+                            value={loanForm.emiAmount}
+                            onChange={e => setEditLoanForm({...loanForm, emiAmount: e.target.value})}
+                            placeholder="0.00"
+                            className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                          />
                         </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-zinc-600">Recovery Remarks</label>
-                        <input type="text" value={loanForm.remarks} onChange={e => setEditLoanForm({...loanForm, remarks: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 bg-white focus:outline-none focus:border-zinc-900 text-[13px] font-medium text-zinc-900" placeholder="Reason for loan..." />
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-800 mb-1.5 font-body">Recovery Remarks</label>
+                        <input
+                          type="text"
+                          value={loanForm.remarks}
+                          onChange={e => setEditLoanForm({...loanForm, remarks: e.target.value})}
+                          placeholder="Reason for loan..."
+                          className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 placeholder:text-slate-400"
+                        />
                       </div>
-                      <div className="pt-2 flex gap-3">
-                        <button onClick={() => { setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' }); setEditingLoanId(null); setLoanActiveModule('Active Schedules'); }} className="flex-1 h-9 border border-zinc-300 rounded-md bg-white text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 transition-all">Cancel</button>
-                        <button onClick={handleCreateLoan} disabled={loading} className="flex-1 h-9 bg-zinc-900 text-white rounded-md text-[13px] font-medium hover:bg-black transition-all">
+
+                      <div className="flex items-center gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setEditLoanForm({ employeeId: '', totalAmount: '', emiAmount: '', remarks: '' }); setEditingLoanId(null); setLoanActiveModule('Active Schedules'); }}
+                          className="flex-1 h-9 border border-slate-200 bg-white text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCreateLoan}
+                          disabled={loading}
+                          className="flex-1 h-9 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold font-heading rounded-md shadow-sm active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+                        >
                           {editingLoanId ? 'Update Schedule' : 'Activate Loan'}
                         </button>
                       </div>
@@ -3693,65 +3736,78 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
               {loanActiveModule === 'Active Schedules' && (
                 <div className="space-y-4">
-                  <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">    
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-zinc-50 text-[11px] font-medium text-zinc-600 h-10 border-b border-zinc-200">
-                            <th className="px-4 border-r border-zinc-200">Employee</th>
-                            <th className="px-4 border-r border-zinc-200 text-right">Principal (₹)</th>
-                            <th className="px-4 border-r border-zinc-200 text-right">EMI (₹)</th>
-                            <th className="px-4 border-r border-zinc-200 text-center">This Month</th>
-                            <th className="px-4 text-right">Actions</th>
+                          <tr className="bg-slate-50 border-b border-slate-200 h-10">
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Principal (₹)</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Monthly EMI (₹)</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">This Month</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200">
+                        <tbody className="divide-y divide-slate-100">
                           {loans.length === 0 ? (
-                            <tr><td colSpan={5} className="px-4 py-16 text-center text-[12px] text-zinc-600">No active loan schedules</td></tr>
-                          ) : loans.map(l => (
-                            <tr key={l.id} className="hover:bg-zinc-100 transition-colors h-12 group">       
-                              <td className="px-4 border-r border-zinc-200 text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{l.employeeName}</td>
-                              <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-emerald-600 border-b border-zinc-200">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 text-right border-b border-zinc-200">
-                                <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
-                                  <button onClick={() => handleEditLoan(l)} className="p-1.5 text-zinc-600 hover:bg-white rounded border border-transparent hover:border-zinc-300 transition-all" title="Edit"><Edit2 size={14}/></button>
-                                  <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-zinc-600 hover:bg-white rounded border border-transparent hover:border-zinc-300 transition-all" title="Override"><RefreshCw size={14}/></button>
-                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-zinc-600 hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                            <tr><td colSpan={5} className="px-4 py-16 text-center text-sm text-slate-400">No active loan schedules</td></tr>
+                          ) : loans.map(l => {
+                            const thisMonth = new Date().toISOString().slice(0, 7)
+                            const monthOverride = loanOverrides.find(o => o.loanId === l.id && o.month === thisMonth)
+                            return (
+                              <tr key={l.id} className="hover:bg-slate-50 transition-colors h-11 group">
+                                <td className="px-4 text-sm font-semibold text-slate-800">{l.employeeName}</td>
+                                <td className="px-4 text-right text-sm font-mono text-slate-700">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 text-right text-sm font-mono text-emerald-600 font-semibold">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 text-center">
+                                  {monthOverride ? (
+                                    monthOverride.skip
+                                      ? <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">Skipped</span>
+                                      : <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">Custom</span>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-300">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 text-right">
+                                  <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                                    <button onClick={() => handleEditLoan(l)} className="p-1.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-md transition-colors" title="Edit"><Edit2 size={13}/></button>
+                                    <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-slate-500 hover:bg-slate-100 hover:text-amber-600 rounded-md transition-colors" title="Override"><RefreshCw size={13}/></button>
+                                    <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-md transition-colors" title="Delete"><Trash2 size={13}/></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
                   </div>
 
                   {selectedLoan && (
-                    <div className="bg-white rounded-lg border border-amber-300 p-5 shadow-sm max-w-3xl mx-auto">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm max-w-2xl">
                       <div className="flex justify-between items-center mb-4">
                         <div>
-                          <h3 className="text-sm font-semibold text-zinc-900">Manual Override</h3>
-                          <p className="text-[11px] text-amber-600">Adjusting: {selectedLoan.employeeName}</p>
+                          <h3 className="text-sm font-bold text-slate-900 font-heading">Manual EMI Override</h3>
+                          <p className="text-xs text-amber-700 mt-0.5 font-body">Adjusting: <span className="font-semibold">{selectedLoan.employeeName}</span></p>
                         </div>
-                        <button onClick={() => setSelectedLoan(null)} className="p-1 text-zinc-600 hover:bg-zinc-100 rounded"><X size={16}/></button>
+                        <button onClick={() => setSelectedLoan(null)} className="p-1.5 text-slate-500 hover:bg-white rounded-md transition-colors"><X size={15}/></button>
                       </div>
                       <div className="grid grid-cols-3 gap-4 items-end">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-medium text-zinc-600">Target Month</label>
-                          <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 text-[13px] text-zinc-900 focus:outline-none focus:border-zinc-900"/>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Target Month</label>
+                          <input type="month" value={overrideForm.month} onChange={e => setOverrideForm({...overrideForm, month: e.target.value})} className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer"/>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-medium text-zinc-600">Override EMI (₹)</label>
-                          <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="w-full h-9 border border-zinc-300 rounded-md px-3 text-[13px] font-medium text-zinc-900 focus:outline-none focus:border-zinc-900 disabled:opacity-50"/>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1.5 font-body">Override EMI (₹)</label>
+                          <input type="number" disabled={overrideForm.skip} value={overrideForm.amount} onChange={e => setOverrideForm({...overrideForm, amount: e.target.value})} className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-mono text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:bg-slate-50"/>
                         </div>
                         <div className="flex items-center gap-2 h-9">
-                          <input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-4 h-4 rounded border-zinc-300 text-zinc-900"/>
-                          <label htmlFor="skipEMI" className="text-[12px] font-medium text-zinc-600">Skip EMI</label>
+                          <input type="checkbox" id="skipEMI" checked={overrideForm.skip} onChange={e => setOverrideForm({...overrideForm, skip: e.target.checked})} className="w-4 h-4 rounded border-slate-300 text-blue-600"/>
+                          <label htmlFor="skipEMI" className="text-sm font-medium text-slate-700 font-body cursor-pointer">Skip EMI</label>
                         </div>
                       </div>
                       <div className="mt-4 flex justify-end">
-                        <button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-9 px-5 bg-amber-500 text-white rounded-md text-[13px] font-medium hover:bg-amber-600 transition-all">Apply</button>
+                        <button onClick={() => handleUpdateOverride(selectedLoan.id)} className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold font-heading rounded-md shadow-sm active:scale-[0.98] transition-all">Apply Override</button>
                       </div>
                     </div>
                   )}
@@ -3761,56 +3817,29 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
               {loanActiveModule === 'History' && (
                 <div className="space-y-4">
                   {/* Filters */}
-                  <div className="flex gap-4 items-center">
+                  <div className="flex gap-3 items-center">
                     <div className="w-64">
-                      <select 
+                      <select
                         value={loanHistoryFilter.employeeId}
                         onChange={e => setLoanHistoryFilter({...loanHistoryFilter, employeeId: e.target.value})}
-                        className="w-full h-9 border border-zinc-300 rounded-md px-3 text-[13px] text-zinc-900 focus:outline-none focus:border-zinc-900"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer"
                       >
                         <option value="">All Employees</option>
-{loans.map(l => {
-                              const thisMonth = new Date().toISOString().slice(0, 7)
-                              const monthOverride = loanOverrides.find(o => o.loanId === l.id && o.month === thisMonth)
-                              return (
-                            <tr key={l.id} className="hover:bg-zinc-100 transition-colors h-12 group">       
-                              <td className="px-4 border-r border-zinc-200 text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{l.employeeName}</td>
-                              <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{Number(l.totalAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-emerald-600 border-b border-zinc-200">{Number(l.emiAmount || 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 border-r border-zinc-200 text-center border-b border-zinc-200">
-                                {monthOverride ? (
-                                  monthOverride.skip ? (
-                                    <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">Skipped</span>
-                                  ) : (
-                                    <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">Custom</span>
-                                  )
-                                ) : (
-                                  <span className="text-[10px] text-zinc-400">—</span>
-                                )}
-                              </td>
-                              <td className="px-4 text-right border-b border-zinc-200">
-                                <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
-                                  <button onClick={() => handleEditLoan(l)} className="p-1.5 text-zinc-600 hover:bg-white rounded border border-transparent hover:border-zinc-300 transition-all" title="Edit"><Edit2 size={14}/></button>
-                                  <button onClick={() => setSelectedLoan(l)} className="p-1.5 text-zinc-600 hover:bg-white rounded border border-transparent hover:border-zinc-300 transition-all" title="Override"><RefreshCw size={14}/></button>
-                                  <button onClick={() => handleDeleteLoan(l.id, l.employeeName)} className="p-1.5 text-zinc-600 hover:bg-red-50 hover:text-red-600 rounded border border-transparent hover:border-red-200 transition-all" title="Delete"><Trash2 size={14}/></button>
-                                </div>
-                              </td>
-                            </tr>
-                          )})}
+                        {loans.map(l => <option key={l.id} value={l.employeeId}>{l.employeeName}</option>)}
                       </select>
                     </div>
                     <div className="w-40">
-                      <input 
-                        type="month" 
+                      <input
+                        type="month"
                         value={loanHistoryFilter.month}
                         onChange={e => setLoanHistoryFilter({...loanHistoryFilter, month: e.target.value})}
-                        className="w-full h-9 border border-zinc-300 rounded-md px-3 text-[13px] text-zinc-900 focus:outline-none focus:border-zinc-900"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer"
                       />
                     </div>
                     {(loanHistoryFilter.employeeId || loanHistoryFilter.month) && (
-                      <button 
+                      <button
                         onClick={() => setLoanHistoryFilter({ employeeId: '', month: '' })}
-                        className="text-[12px] text-zinc-600 hover:text-zinc-900"
+                        className="text-xs text-slate-500 hover:text-slate-800 underline cursor-pointer"
                       >
                         Clear filters
                       </button>
@@ -3818,22 +3847,22 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   </div>
 
                   {/* History Table */}
-                  <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-zinc-50 text-[11px] font-medium text-zinc-600 h-10 border-b border-zinc-200">
-                            <th className="px-4 border-r border-zinc-200">Employee</th>
-                            <th className="px-4 border-r border-zinc-200">Month</th>
-                            <th className="px-4 border-r border-zinc-200 text-right">Scheduled EMI</th>
-                            <th className="px-4 border-r border-zinc-200 text-right">Paid Amount</th>
-                            <th className="px-4 border-r border-zinc-200 text-center">Status</th>
-                            <th className="px-4 text-right">Remaining</th>
+                          <tr className="bg-slate-50 border-b border-slate-200 h-10">
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Employee</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Month</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Scheduled EMI</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Paid Amount</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-center">Status</th>
+                            <th className="px-4 text-[11px] font-bold text-slate-600 uppercase tracking-wider text-right">Remaining</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200">
+                        <tbody className="divide-y divide-slate-100">
                           {loans.length === 0 ? (
-                            <tr><td colSpan={6} className="px-4 py-12 text-center text-[12px] text-zinc-600">No loans found</td></tr>
+                            <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-400">No loans found</td></tr>
                           ) : (
                             loans
                               .filter(l => !loanHistoryFilter.employeeId || l.employeeId === loanHistoryFilter.employeeId)
@@ -3843,24 +3872,20 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                 const totalPaid = overrides.filter(o => !o.skip).reduce((s, o) => s + (o.amount || monthlyEMI), 0)
                                 const remaining = Number(l.totalAmount || 0) - totalPaid
                                 const skippedCount = overrides.filter(o => o.skip).length
-                                
+
                                 // Generate monthly breakdown
                                 const months = []
                                 const startDate = l.createdAt?.toDate ? l.createdAt.toDate() : new Date()
                                 const currentDate = new Date()
                                 let balance = Number(l.totalAmount || 0)
-                                
+
                                 for (let d = new Date(startDate); d <= currentDate; d.setMonth(d.getMonth() + 1)) {
                                   const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
                                   const override = overrides.find(o => o.month === monthStr)
                                   const isCurrentMonth = monthStr === loanHistoryFilter.month
-                                  
+
                                   if (!loanHistoryFilter.month || monthStr === loanHistoryFilter.month) {
-                                    months.push({
-                                      month: monthStr,
-                                      override,
-                                      isCurrentMonth
-                                    })
+                                    months.push({ month: monthStr, override, isCurrentMonth })
                                   }
                                 }
 
@@ -3868,27 +3893,25 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                                   const paid = m.override ? (m.override.skip ? 0 : m.override.amount) : (idx < months.length - 1 ? monthlyEMI : 0)
                                   balance -= paid
                                   const showRow = !loanHistoryFilter.month || m.month === loanHistoryFilter.month
-                                  
                                   if (!showRow) return null
-                                  
                                   return (
-                                    <tr key={`${l.id}_${m.month}`} className={`h-11 hover:bg-zinc-100 ${m.isCurrentMonth ? 'bg-amber-50' : ''}`}>
-                                      <td className="px-4 border-r border-zinc-200 text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{l.employeeName}</td>
-                                      <td className="px-4 border-r border-zinc-200 text-[12px] text-zinc-600 border-b border-zinc-200">{m.month}</td>
-                                      <td className="px-4 border-r border-zinc-200 text-right text-[13px] text-zinc-600 border-b border-zinc-200">{monthlyEMI.toLocaleString('en-IN')}</td>
-                                      <td className="px-4 border-r border-zinc-200 text-right text-[13px] font-medium text-zinc-900 border-b border-zinc-200">{paid.toLocaleString('en-IN')}</td>
-                                      <td className="px-4 border-r border-zinc-200 text-center border-b border-zinc-200">
+                                    <tr key={`${l.id}_${m.month}`} className={`h-11 hover:bg-slate-50 ${m.isCurrentMonth ? 'bg-amber-50/50' : ''}`}>
+                                      <td className="px-4 text-sm font-semibold text-slate-800">{l.employeeName}</td>
+                                      <td className="px-4 text-xs font-mono text-slate-600">{m.month}</td>
+                                      <td className="px-4 text-right text-xs font-mono text-slate-600">{monthlyEMI.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-sm font-mono font-semibold text-slate-800">{paid.toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-center">
                                         {m.override?.skip ? (
-                                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">Skipped</span>
+                                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">Skipped</span>
                                         ) : m.override?.amount && m.override.amount !== monthlyEMI ? (
-                                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">Custom</span>
+                                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">Custom</span>
                                         ) : paid > 0 ? (
-                                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700">Paid</span>
+                                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">Paid</span>
                                         ) : (
-                                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">Pending</span>
+                                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500">Pending</span>
                                         )}
                                       </td>
-                                      <td className="px-4 text-right text-[13px] font-semibold text-zinc-900 border-b border-zinc-200">{Math.max(0, balance).toLocaleString('en-IN')}</td>
+                                      <td className="px-4 text-right text-sm font-mono font-bold text-slate-900">{Math.max(0, balance).toLocaleString('en-IN')}</td>
                                     </tr>
                                   )
                                 })
@@ -3902,6 +3925,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
               )}
             </div>
           </div>
+
         )}
     </div>
       
