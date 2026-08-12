@@ -11,7 +11,7 @@ import BulkAttendanceModal from './BulkAttendanceModal'
 import { 
   Calendar, Search, FileText, Printer, ChevronLeft, ChevronRight, 
   Clock, Edit2, Save, X, Check, Square, Trash2, FileDown, 
-  History, RefreshCw, ArrowLeft, ArrowRight, Plus, ArrowRight as ArrowRightIcon
+  History, RefreshCw, ArrowLeft, ArrowRight, Plus, ArrowRight as ArrowRightIcon, Info
 } from 'lucide-react'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 
@@ -41,6 +41,64 @@ function formatOTDisplay(ot) {
   if (!ot || ot === '-' || ot === '00:00') return '0.0'
   const hours = parseOT(ot)
   return hours.toFixed(1)
+}
+
+// ── GUIDED ATTENDANCE OUTCOME PICKER ─────────────────────────────────────
+function AttendanceOutcomePicker({ value, onChange, allowNoChange = false }) {
+  const options = [
+    { value: 'Present', label: 'Present', detail: 'Counts as a full worked day', color: 'green' },
+    { value: 'Half-Day', label: 'Half Day', detail: 'Counts as 0.5 day in salary', color: 'amber' },
+    { value: 'Absent', label: 'Absent', detail: 'Counts as a full LOP day', color: 'red' },
+  ]
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="block text-[10px] font-bold text-gray-500 uppercase">How should this day count?</label>
+        {allowNoChange && <span className="text-[10px] font-semibold text-gray-400">Optional for bulk edit</span>}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {options.map(option => {
+          const selected = value === option.value
+          const palette = {
+            green: selected ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:bg-emerald-50/50',
+            amber: selected ? 'border-amber-500 bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'border-gray-200 bg-white text-gray-500 hover:border-amber-300 hover:bg-amber-50/50',
+            red: selected ? 'border-red-500 bg-red-50 text-red-800 ring-1 ring-red-200' : 'border-gray-200 bg-white text-gray-500 hover:border-red-300 hover:bg-red-50/50',
+          }[option.color]
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              aria-pressed={selected}
+              className={`min-h-[68px] rounded-xl border px-2 py-2 text-left transition-all ${palette}`}
+            >
+              <span className="flex items-center justify-between gap-1">
+                <span className="text-[11px] font-black uppercase tracking-tight">{option.label}</span>
+                {selected && <Check size={13} strokeWidth={3} />}
+              </span>
+              <span className="mt-1 block text-[9px] font-semibold leading-tight opacity-75">{option.detail}</span>
+            </button>
+          )
+        })}
+      </div>
+      {allowNoChange && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className={`text-[10px] font-bold ${value ? 'text-gray-400 hover:text-gray-600' : 'text-indigo-600'}`}
+        >
+          {value ? 'Clear outcome — keep each employee’s current status' : 'No outcome change selected'}
+        </button>
+      )}
+      {value === 'Half-Day' && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] leading-relaxed text-amber-800">
+          <Info size={13} className="mt-0.5 shrink-0" />
+          <span><strong>Salary impact:</strong> Half Day records 0.5 LOP and 0.5 worked day. OT is reset to 0:00 for this correction.</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── FILTER BAR COMPONENT ─────────────────────────────────────────────
@@ -102,22 +160,24 @@ function AttendanceSummaryCards({ results }) {
   const stats = useMemo(() => {
     const present = results.filter(r => r.status === 'PRESENT' || r.status === 'SUNDAY' || r.status === 'SUNWORKED').length
     const absent = results.filter(r => r.status === 'ABSENT').length
+    const halfDay = results.filter(r => r.status === 'HALF-DAY').length
     const noData = results.filter(r => r.status === 'NO DATA').length
     const totalOT = results.reduce((sum, r) => sum + parseOT(r.ot), 0)
     const total = results.length
     
-    return { present, absent, noData, totalOT, total }
+    return { present, absent, halfDay, noData, totalOT, total }
   }, [results])
 
   const cards = [
     { label: 'Present', value: stats.present, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' },
+    { label: 'Half Day', value: stats.halfDay, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
     { label: 'Absent', value: stats.absent, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' },
     { label: 'Total OT Hours', value: stats.totalOT.toFixed(1), color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
     { label: 'Total Employees', value: stats.total, color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-100' },
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 mb-4">
       {cards.map((card, idx) => (
         <div key={idx} className={`${card.bg} border ${card.border} rounded-[10px] p-3`}>
           <div className={`text-xl font-black ${card.color}`}>{card.value}</div>
@@ -268,19 +328,11 @@ function BulkCorrectionPanel({ isOpen, onClose, selectedRows, onBulkSave, saving
             />
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Status</label>
-            <select
-              value={bulkForm.status}
-              onChange={e => setBulkForm(f => ({ ...f, status: e.target.value }))}
-              className="w-full h-9 border border-gray-200 rounded-lg px-3 text-xs font-semibold"
-            >
-              <option value="">No Change</option>
-              <option value="Present">Present</option>
-              <option value="Absent">Absent</option>
-              <option value="Half-Day">Half-Day</option>
-            </select>
-          </div>
+          <AttendanceOutcomePicker
+            value={bulkForm.status}
+            onChange={(status) => setBulkForm(f => ({ ...f, status }))}
+            allowNoChange
+          />
         </div>
 
         <div className="px-6 pb-6 flex gap-3">
@@ -340,7 +392,7 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
     
     if (field === 'status') {
       updated.isAbsent = value === 'Absent'
-      if (updated.isAbsent) {
+      if (updated.isAbsent || value === 'Half-Day') {
         updated.inTime = ''
         updated.outTime = ''
         updated.otHours = '00:00'
@@ -361,6 +413,11 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
   }
 
   const handleSave = () => {
+    if (form.status === 'Half-Day' && !form.notes.trim()) {
+      alert('Please add a reason for marking this employee as Half Day.')
+      return
+    }
+
     const oldValues = {
       inDate: row.inDate,
       inTime: row.in,
@@ -501,38 +558,18 @@ function EditDrawer({ isOpen, onClose, row, onSave, onDelete, saving }) {
           </div>
         </div>
 
-        <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Status</label>
-          <div className="flex gap-2">
-            {['Present', 'Absent', 'Half-Day'].map(s => (
-              <button
-                key={s}
-                onClick={() => handleChange('status', s)}
-                className={`flex-1 h-9 rounded-lg text-xs font-bold uppercase transition-all ${
-                  form.status === s
-                    ? s === 'Present'
-                      ? 'bg-green-500 text-white'
-                      : s === 'Absent'
-                        ? 'bg-red-500 text-white'
-                        : 'bg-amber-500 text-white'
-                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
+        <AttendanceOutcomePicker value={form.status} onChange={(status) => handleChange('status', status)} />
 
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Notes (Optional)</label>
+          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{form.status === 'Half-Day' ? 'Reason for Half Day' : 'Notes (Optional)'}</label>
           <textarea
             value={form.notes}
             onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
             rows={3}
-            placeholder="Reason for correction..."
+            placeholder={form.status === 'Half-Day' ? 'Explain why this day should count as Half Day...' : 'Reason for correction...'}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-semibold resize-none"
           />
+          {form.status === 'Half-Day' && <p className="mt-1 text-[10px] font-semibold text-amber-700">Required for audit history and salary review.</p>}
         </div>
       </div>
 
@@ -1164,7 +1201,7 @@ export default function CorrectionTab() {
                         >
                           <option value="Present">Present</option>
                           <option value="Absent">Absent</option>
-                          <option value="Half-Day">Half-Day</option>
+                          <option value="Half-Day">Half Day — 0.5 paid day</option>
                           <option value="SunWorked">SunWorked (1x)</option>
                           <option value="SunHoliday">SunHoliday (1x)</option>
                           <option value="Worked">Worked (2x)</option>
