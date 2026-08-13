@@ -240,6 +240,7 @@ export default function Dashboard() {
   const [tasksSubTab, setTasksSubTab] = useState('checklist')
   const [settingsSubTab, setSettingsSubTab] = useState(null)
   const [attendanceSubTab, setAttendanceSubTab] = useState('attendance')
+  const [advanceSubTab, setAdvanceSubTab] = useState('Add Advance')
   const [attendanceDirty, setAttendanceDirty] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
@@ -537,8 +538,8 @@ export default function Dashboard() {
       case 'documents': return <DocumentsTab />
       case 'accountant': return <AccountantTab />
       case 'salary-slip': return <SalarySlipTab defaultSummarySubTab={salarySubTab} defaultActiveTab={salaryActiveTab} onActiveTabChange={setSalaryActiveTab} />
-      case 'advance': return <AdvanceExpenseTab />
-      case 'expense': return <AdvanceExpenseTab defaultModule="Add Expense" />
+      case 'advance':
+      case 'expense': return <AdvanceExpenseTab activeModule={advanceSubTab} onModuleChange={setAdvanceSubTab} defaultModule={activeTab === 'expense' ? 'Add Expense' : 'Add Advance'} />
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
       case 'chat': return <ChatTab />
@@ -768,7 +769,7 @@ export default function Dashboard() {
                     if (activeTab === 'attendance' || activeTab === 'attendance-list') {
                       return (
                         <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
-                          <div className="flex items-center gap-1 px-4 overflow-x-auto no-scrollbar">
+                          <div className="flex items-center gap-1 px-4 max-w-[1300px] mx-auto overflow-x-auto no-scrollbar">
                             <button
                               onClick={() => setAttendanceSubTab('attendance')}
                               className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors duration-150 ${
@@ -793,9 +794,34 @@ export default function Dashboard() {
                         </div>
                       )
                     }
+                    if (activeTab === 'advance' || activeTab === 'expense') {
+                      const advanceModules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Advance Ledger', 'Reports']
+                      return (
+                        <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
+                          <div className="flex items-center gap-1 px-4 max-w-[1300px] mx-auto overflow-x-auto no-scrollbar">
+                            {advanceModules.map(mod => {
+                              const isActive = advanceSubTab === mod
+                              return (
+                                <button
+                                  key={mod}
+                                  onClick={() => setAdvanceSubTab(mod)}
+                                  className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors duration-150 ${
+                                    isActive
+                                      ? 'border-blue-600 text-blue-700'
+                                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                  }`}
+                                >
+                                  {mod}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    }
                     return (
                       <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
-                        <div className="flex items-center px-4">
+                        <div className="flex items-center px-4 max-w-[1300px] mx-auto">
                           <span className="px-4 py-2.5 text-sm font-semibold text-gray-700 border-b-2 border-blue-600">
                             {activeTabData.label}
                           </span>
@@ -805,7 +831,7 @@ export default function Dashboard() {
                   }
                   return null
                 })()}
-                <div className={`module-content-frame w-full flex-1 p-4 ${activeTab === 'salary-slip' ? 'max-w-none' : 'max-w-[1300px]'}`}>
+                <div className={`module-content-frame w-full flex-1 p-4 ${activeTab === 'salary-slip' ? 'max-w-none' : 'max-w-[1300px] mx-auto'}`}>
                   {renderTabContent()}
                 </div>
               </ErrorBoundary>

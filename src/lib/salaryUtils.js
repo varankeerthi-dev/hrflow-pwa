@@ -19,8 +19,8 @@ export function numberToWords(amount) {
 }
 
 export function formatINR(amount) {
-  if (amount === undefined || amount === null) return 'Rs. 0.00';
-  return 'Rs. ' + new Intl.NumberFormat('en-IN', {
+  if (amount === undefined || amount === null) return '₹0.00';
+  return '₹' + new Intl.NumberFormat('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount);
@@ -38,9 +38,10 @@ export function parse12HourTo24(time12) {
   if (!time12 || typeof time12 !== 'string') return '';
   const match = time12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!match) return time12;
-  let [_, h, m, period] = match;
-  h = Number(h);
-  if (period.toUpperCase() === 'PM' && h !== 12) h += 12;
-  if (period.toUpperCase() === 'AM' && h === 12) h = 0;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  let h = parseInt(match[1], 10);
+  const m = match[2];
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && h < 12) h += 12;
+  if (period === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${m}`;
 }

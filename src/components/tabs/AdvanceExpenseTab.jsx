@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import { format, parseISO } from 'date-fns'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
@@ -142,7 +145,7 @@ function EmployeeLedgerCard({ emp, formatINR }) {
   )
 }
 
-export default function AdvanceExpenseTab({ defaultModule }) {
+export default function AdvanceExpenseTab({ defaultModule, activeModule: activeModuleProp, onModuleChange }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   
@@ -156,7 +159,18 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     })
   }, [employees])
   const queryClient = useQueryClient()
-  const [activeModule, setActiveModule] = useState(defaultModule || 'Reports')
+  const [internalActiveModule, setInternalActiveModule] = useState(defaultModule || 'Add Advance')
+  const activeModule = activeModuleProp !== undefined ? activeModuleProp : internalActiveModule
+  const setActiveModule = (mod) => {
+    setInternalActiveModule(mod)
+    if (onModuleChange) onModuleChange(mod)
+  }
+
+  useEffect(() => {
+    if (defaultModule && activeModuleProp === undefined) {
+      setInternalActiveModule(defaultModule)
+    }
+  }, [defaultModule, activeModuleProp])
   const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
   
   // Reports Filter States
@@ -247,6 +261,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
   
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
+  const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' })
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
@@ -689,6 +704,51 @@ export default function AdvanceExpenseTab({ defaultModule }) {
     } catch (e) { /* quota exceeded, ignore */ }
   }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn])
 
+  // Compute side panel data: Date-grouped recent entries & Current Month total
+  const sidePanelData = useMemo(() => {
+    if (!entries || !Array.isArray(entries)) return { groups: [], monthTotal: 0 }
+    const isAdvance = activeModule === 'Add Advance'
+    
+    // Filter items matching active module (Advance vs Expense)
+    const filtered = entries.filter(item => {
+      const itemType = (item.type || '').toLowerCase()
+      return isAdvance ? itemType.includes('advance') : (itemType.includes('expense') || itemType === 'reimbursement')
+    })
+
+    const grouped = {}
+    let monthTotal = 0
+
+    filtered.forEach(item => {
+      const dStr = item.date || item.createdAt?.slice?.(0, 10) || ''
+      if (!dStr) return
+      const amt = parseFloat(item.amount) || 0
+      monthTotal += amt
+
+      if (!grouped[dStr]) {
+        grouped[dStr] = { dateStr: dStr, items: [], total: 0 }
+      }
+      grouped[dStr].items.push(item)
+      grouped[dStr].total += amt
+    })
+
+    // Sort dates in descending order (most recent first)
+    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
+    const groups = sortedDates.map(dStr => grouped[dStr])
+
+    return { groups, monthTotal }
+  }, [entries, activeModule])
+
+  const formatDateTitle = (dStr) => {
+    if (!dStr) return ''
+    try {
+      const d = parseISO(dStr)
+      if (isNaN(d.getTime())) return dStr
+      return format(d, 'dd-MMM-yyyy')
+    } catch {
+      return dStr
+    }
+  }
+
   const openPaidToPopover = (rowId, targetElem) => {
     if (!rowId) {
       setActivePaidToRowId(null)
@@ -1119,6 +1179,15 @@ export default function AdvanceExpenseTab({ defaultModule }) {
   }
 
   const handleSubmitAll = async () => {
+    // Check for future dates in Expenses
+    const todayStr = new Date().toISOString().split('T')[0]
+    const isExpenseModule = activeModule === 'Add Expense' || activeModule === 'Expense'
+    if (isExpenseModule) {
+      if (sessionDate > todayStr || addRows.some(r => r.date && r.date > todayStr)) {
+        return alert('Expenses cannot be created for future dates.')
+      }
+    }
+
     // Check for required fields
     const rowsWithMissingFields = addRows.filter(r => !r.employeeId || !r.amount || !r.category)
     if (rowsWithMissingFields.length > 0) {
@@ -1253,6 +1322,15 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       // After successful submission
       if (result && result.length > 0) {
         const rowType = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
+        setSuccessModal({
+          open: true,
+          title: `${rowType} Submitted`,
+          message: `${validRows.length} ${rowType.toLowerCase()}(s) recorded successfully.`
+        })
+        setTimeout(() => {
+          setSuccessModal(prev => ({ ...prev, open: false }))
+        }, 3000)
+
         const moduleSetting = approvalSettings.find(s => {
           const mName = String(s.moduleName || '').toLowerCase()
           const tName = String(rowType || '').toLowerCase()
@@ -1263,7 +1341,6 @@ export default function AdvanceExpenseTab({ defaultModule }) {
 
         if (isNoAppr) {
           // If No Approval is configured in Settings, do NOT open the Approval Drawer!
-          alert(`Successfully submitted ${result.length} ${rowType.toLowerCase()}(s)! Auto-approved (No approval required).`)
           setAddRows([{
             id: 'row-1',
             date: new Date().toISOString().slice(0, 10),
@@ -2004,7 +2081,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       const totalExpSum = dataToUseExp.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
       const cashInHand = totalAdvSum - totalExpSum
 
-      const formatCurrency = (num) => 'Rs. ' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
+      const formatCurrency = (num) => '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
 
       const cardW = (contentWidth - 8) / 3 // ~58mm each
       const cardH = 11
@@ -2345,7 +2422,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
               <button onClick={() => setTransferModalRowId(null)} className="text-zinc-300 hover:text-zinc-500"><X size={14}/></button>
             </div>
             <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
-              {employees.map(emp => (
+              {sortedEmployees.map(emp => (
                 <button
                   key={emp.id}
                   onClick={() => {
@@ -2465,7 +2542,11 @@ export default function AdvanceExpenseTab({ defaultModule }) {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Employee</label>
                 <select value={editForm.employeeId} onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none">
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  {sortedEmployees.map(e => (
+                    <option key={e.id} value={e.id}>
+                      {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1">
@@ -2581,7 +2662,7 @@ export default function AdvanceExpenseTab({ defaultModule }) {
       )}
 
       {/* Mobile-Optimized Sticky Navigation */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-200/80 shadow-sm">
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-200/80 shadow-sm md:hidden">
         {/* Desktop Navigation */}
         <div className="hidden md:flex border-b border-gray-200 overflow-x-auto relative">
           {modules.map(mod => {
@@ -2687,45 +2768,41 @@ export default function AdvanceExpenseTab({ defaultModule }) {
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-bold text-slate-800 tracking-tight">{activeModule === 'Add Advance' ? 'Advance' : 'Expense'} type:</span>
 
-                {/* Ultra-Compact Segmented Mode Selector with Uniform Active/Hover Styles */}
-                <div className="flex items-center gap-2 text-[15px]">
+                {/* Ultra-Compact Mode Selector with Increased Spacing & Green Selection */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-[15px]">
                   <button
                     type="button"
                     onClick={() => { setExpenseMode('self'); handleSelfExpense(); }}
-                    className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-2 tracking-wide ${
+                    className={`py-2 transition-all flex items-center gap-2 tracking-wide cursor-pointer ${
                       expenseMode === 'self'
-                        ? 'bg-white text-blue-600 shadow-sm border border-slate-200/80 font-medium'
-                        : 'text-slate-600 hover:text-slate-900 font-normal hover:bg-slate-100/50'
+                        ? 'text-slate-900 font-semibold'
+                        : 'text-slate-600 hover:text-slate-900 font-normal'
                     }`}
                   >
-                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                      expenseMode === 'self' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                      expenseMode === 'self' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
                     }`}>
-                      {expenseMode === 'self' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      {expenseMode === 'self' && <Check size={11} className="text-white stroke-[3]" />}
                     </span>
-                    <Building2 size={13} />
-                    Company {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'} (Self)
+                    Self {activeModule === 'Add Advance' ? 'Advance' : 'Expense'}
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setExpenseMode('employee')}
-                    className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-2 tracking-wide ${
+                    className={`py-2 transition-all flex items-center gap-2 tracking-wide cursor-pointer ${
                       expenseMode === 'employee'
-                        ? 'bg-white text-blue-600 shadow-sm border border-slate-200/80 font-medium'
-                        : 'text-slate-600 hover:text-slate-900 font-normal hover:bg-slate-100/50'
+                        ? 'text-slate-900 font-semibold'
+                        : 'text-slate-600 hover:text-slate-900 font-normal'
                     }`}
                   >
-                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                      expenseMode === 'employee' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 bg-white'
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                      expenseMode === 'employee' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
                     }`}>
-                      {expenseMode === 'employee' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      {expenseMode === 'employee' && <Check size={11} className="text-white stroke-[3]" />}
                     </span>
-                    <User size={13} />
-                    Employee {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}
+                    Employee {activeModule === 'Add Advance' ? 'Advance' : 'Expense'}
                   </button>
-
-
                 </div>
               </div>
 
@@ -2740,507 +2817,601 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                 />
               </div>
             </div>
-            {/* 2. Session Details Ribbon (Clean Row without Outer Container Background) */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
-              <div className="flex flex-wrap items-center gap-3 flex-1">
-                {/* Date */}
-                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Date:</span>
-                  <input
-                    type="date"
-                    value={sessionDate}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSessionDate(val);
-                      setAddRows(addRows.map(r => ({ ...r, date: val })));
-                    }}
-                    className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
-                  />
-                </div>
-
-                {/* Paid From */}
-                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
-                  <select
-                    value={sessionAccount}
-                    onChange={(e) => setSessionAccount(e.target.value)}
-                    className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
-                  >
-                    <option value="Petty Cash - HO">Petty Cash - HO</option>
-                    <option value="Main Bank Account">Main Bank Account</option>
-                    <option value="Cash in Hand">Cash in Hand</option>
-                    <option value="Director Account">Director Account</option>
-                  </select>
-                </div>
-
-                {/* Default Employee */}
-                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
-                  <select
-                    value={sessionDefaultEmp}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSessionDefaultEmp(val);
-                      if (val) {
-                        setAddRows(addRows.map(r => ({ ...r, employeeId: val })));
-                      }
-                    }}
-                    className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer max-w-[200px] truncate h-full"
-                  >
-                    <option value="">Select...</option>
-                    {employees.map(e => {
-                      const isMe = e.id === getMyEmpId() || e.email === user?.email;
-                      return (
-                        <option key={e.id} value={e.id}>
-                          {e.name} {isMe ? '(You)' : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                {/* Default Payout */}
-                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
-                  <select
-                    value={sessionPayout}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSessionPayout(val);
-                      setAddRows(addRows.map(r => ({ ...r, payoutMethod: val })));
-                    }}
-                    className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
-                  >
-                    <option value="Immediate">Immediate</option>
-                    <option value="With Salary">Monthly</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Tip & Reset */}
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="hidden xl:inline-block text-xs text-blue-700 bg-blue-50/80 px-2.5 py-1.5 rounded-lg border border-blue-100 font-medium">
-                  💡 Tip: All rows use default Payout
-                </span>
-                <button
-                  type="button"
-                  onClick={handleClearSession}
-                  className="p-2 text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-colors"
-                  title="Clear Session"
-                >
-                  <RotateCcw size={15} />
-                </button>
-              </div>
-            </div>
-
-            {/* 4. Expenses Table Header & Controls Bar */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
-              <div className="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/40">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-base font-bold text-slate-900">
-                    Expenses <span className="text-slate-500 font-medium text-sm">({addRows.length} rows)</span>
-                  </h2>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                  {/* Show Advance fields Dropdown with Checkboxes & Click Outside Close */}
-                  <div className="relative" ref={advanceFieldsDropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setShowAdvanceFieldsDropdown(!showAdvanceFieldsDropdown)}
-                      className="flex items-center gap-2 text-xs font-semibold text-slate-700 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors"
-                    >
-                      <Layers size={14} className="text-slate-500" />
-                      <span>Show Advance fields</span>
-                      <ChevronDown size={13} className={`text-slate-400 transition-transform ${showAdvanceFieldsDropdown ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {showAdvanceFieldsDropdown && (
-                      <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-3 space-y-2.5 text-xs">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          Optional Columns
+            {/* Split Layout: Main Workspace (75%) + Right Side Panel (25%) */}
+            <div className="flex flex-col lg:flex-row items-start gap-4">
+              {/* Left Column: Ribbon Controls + Spreadsheet Table Grid (~75%) */}
+              <div className="flex-1 w-full lg:w-[75%] min-w-0 space-y-3">
+                {/* 2. Session Details Ribbon */}
+                <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                  {/* Date */}
+                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Date:</span>
+                    <DatePicker
+                      selected={sessionDate ? parseISO(sessionDate) : new Date()}
+                      maxDate={activeModule === 'Add Expense' || activeModule === 'Expense' ? new Date() : undefined}
+                      onChange={(date) => {
+                        if (!date) return
+                        const val = format(date, 'yyyy-MM-dd')
+                        const todayStr = new Date().toISOString().split('T')[0]
+                        if ((activeModule === 'Add Expense' || activeModule === 'Expense') && val > todayStr) {
+                          alert('Expenses cannot be created for future dates.')
+                          return
+                        }
+                        setSessionDate(val)
+                        setAddRows(addRows.map(r => ({ ...r, date: val })))
+                      }}
+                      dateFormat="dd MMM yyyy"
+                      popperClassName="z-[99999]"
+                      popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+                      customInput={
+                        <div className="bg-transparent text-xs font-semibold text-slate-900 outline-none cursor-pointer h-full flex items-center select-none">
+                          {sessionDate ? format(parseISO(sessionDate), 'dd MMM yyyy') : format(new Date(), 'dd MMM yyyy')}
                         </div>
-                        
-                        <label className="flex items-start gap-2.5 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
-                          <input
-                            type="checkbox"
-                            checked={showAdvanceFields}
-                            onChange={(e) => setShowAdvanceFields(e.target.checked)}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5"
-                          />
-                          <div>
-                            <span className="block font-semibold">Paid To & Advance Ref</span>
-                            <span className="text-[10px] text-slate-400 font-normal">Show payment tracking fields</span>
-                          </div>
-                        </label>
+                      }
+                    />
+                  </div>
 
-                        <label className="flex items-start gap-2.5 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none pt-2 border-t border-slate-100">
-                          <input
-                            type="checkbox"
-                            checked={showProjectColumn}
-                            onChange={(e) => setShowProjectColumn(e.target.checked)}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5"
-                          />
-                          <div>
-                            <span className="block font-semibold">Projects</span>
-                            <span className="text-[10px] text-slate-400 font-normal">Show project selector column</span>
+                  {/* Paid From */}
+                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
+                    <select
+                      value={sessionAccount}
+                      onChange={(e) => setSessionAccount(e.target.value)}
+                      className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
+                    >
+                      <option value="Petty Cash - HO">Petty Cash - HO</option>
+                      <option value="Main Bank Account">Main Bank Account</option>
+                      <option value="Cash in Hand">Cash in Hand</option>
+                      <option value="Director Account">Director Account</option>
+                    </select>
+                  </div>
+
+                  {/* Default Employee */}
+                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
+                    <select
+                      value={sessionDefaultEmp}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSessionDefaultEmp(val);
+                        if (val) {
+                          setAddRows(addRows.map(r => ({ ...r, employeeId: val })));
+                        }
+                      }}
+                      className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer max-w-[180px] truncate h-full"
+                    >
+                      <option value="">Select...</option>
+                      {sortedEmployees.map(e => {
+                        const isMe = e.id === getMyEmpId() || e.email === user?.email;
+                        const inactiveTag = !isEmployeeActiveStatus(e.status) ? ' (Inactive)' : '';
+                        return (
+                          <option key={e.id} value={e.id}>
+                            {e.name} {isMe ? '(You)' : ''}{inactiveTag}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* Default Payout */}
+                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
+                    <select
+                      value={sessionPayout}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSessionPayout(val);
+                        setAddRows(addRows.map(r => ({ ...r, payoutMethod: val })));
+                      }}
+                      className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
+                    >
+                      <option value="Immediate">Immediate</option>
+                      <option value="With Salary">Monthly</option>
+                    </select>
+                  </div>
+
+                  {/* Reset / Restore Session Button (Moved Next to Payout) */}
+                  <button
+                    type="button"
+                    onClick={handleClearSession}
+                    className="p-2 text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl border border-slate-200 shadow-sm transition-colors h-10 flex items-center justify-center bg-white px-3 gap-1.5 cursor-pointer"
+                    title="Reset / Clear Session"
+                  >
+                    <RotateCcw size={14} className="text-slate-500" />
+                    <span className="text-xs font-semibold text-slate-700">Reset</span>
+                  </button>
+                </div>
+
+                {/* 4. Expenses Table Header & Controls Bar */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
+                <div className="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/40">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-base font-bold text-slate-900">
+                      {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'} <span className="text-slate-500 font-medium text-sm">({addRows.length} rows)</span>
+                    </h2>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                    {/* Show Advance fields Dropdown with Checkboxes & Click Outside Close */}
+                    <div className="relative" ref={advanceFieldsDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowAdvanceFieldsDropdown(!showAdvanceFieldsDropdown)}
+                        className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          showAdvanceFields || showProjectColumn
+                            ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <SlidersHorizontal size={13} />
+                        Columns / Options
+                        <ChevronDown size={13} className={`transition-transform duration-150 ${showAdvanceFieldsDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {showAdvanceFieldsDropdown && (
+                        <div className="absolute right-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-3 z-30 text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-100">
+                          <div className="font-bold text-slate-800 border-b border-slate-100 pb-1 text-[11px] uppercase tracking-wider">
+                            Toggle Table Columns
                           </div>
-                        </label>
-                      </div>
-                    )}
+                          
+                          <label className="flex items-start gap-2.5 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
+                            <input
+                              type="checkbox"
+                              checked={showAdvanceFields}
+                              onChange={(e) => setShowAdvanceFields(e.target.checked)}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5"
+                            />
+                            <div>
+                              <span className="block font-semibold">Paid To & Advance Ref</span>
+                              <span className="text-[10px] text-slate-400 font-normal">Show payment tracking fields</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-start gap-2.5 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none pt-2 border-t border-slate-100">
+                            <input
+                              type="checkbox"
+                              checked={showProjectColumn}
+                              onChange={(e) => setShowProjectColumn(e.target.checked)}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5"
+                            />
+                            <div>
+                              <span className="block font-semibold">Projects</span>
+                              <span className="text-[10px] text-slate-400 font-normal">Show project selector column</span>
+                            </div>
+                          </label>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 5. High-Density Spreadsheet Table Grid */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                      <th className="py-3 px-3 w-10 text-center">#</th>
-                      <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>
-                      <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
-                      {showAdvanceFields && (
-                        <th className="py-3 px-3 min-w-[160px]">Paid To <span className="text-rose-500">*</span></th>
-                      )}
-                      <th className="py-3 px-3 min-w-[140px]">Payout <span className="text-rose-500">*</span></th>
-                      <th className="py-3 px-3 min-w-[130px] text-right">Amount (₹) <span className="text-rose-500">*</span></th>
-                      <th className="py-3 px-3 min-w-[220px]">Remarks</th>
-                      {showProjectColumn && (
-                        <th className="py-3 px-3 min-w-[160px]">Project (Optional)</th>
-                      )}
-                      <th className="py-3 px-3 w-20 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200/60">
-                    {addRows.map((row, idx) => {
-                      const empInfo = getEmpAvatarInitials(row.employeeId);
-                      const catDetails = getCategoryIconDetails(row.category);
-                      const CategoryIcon = catDetails.icon;
+                {/* 5. High-Density Spreadsheet Table Grid */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                        <th className="py-3 px-3 w-10 text-center">#</th>
+                        <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>
+                        <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
+                        {showAdvanceFields && (
+                          <th className="py-3 px-3 min-w-[160px]">Paid To <span className="text-rose-500">*</span></th>
+                        )}
+                        <th className="py-3 px-2.5 min-w-[100px] w-28 text-right">Amount (₹) <span className="text-rose-500">*</span></th>
+                        <th className="py-3 px-2.5 min-w-[100px] w-28">Payout <span className="text-rose-500">*</span></th>
+                        <th className="py-3 px-3 min-w-[220px]">Remarks</th>
+                        {showProjectColumn && (
+                          <th className="py-3 px-3 min-w-[160px]">Project (Optional)</th>
+                        )}
+                        <th className="py-3 px-3 w-20 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200/60">
+                      {addRows.map((row, idx) => {
+                        const empInfo = getEmpAvatarInitials(row.employeeId);
+                        const catDetails = getCategoryIconDetails(row.category);
+                        const CategoryIcon = catDetails.icon;
 
-                      return (
-                        <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
-                          {/* Row Index */}
-                          <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-xs">
-                            {idx + 1}
-                          </td>
+                        return (
+                          <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
+                            {/* Row Index */}
+                            <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-xs">
+                              {idx + 1}
+                            </td>
 
-                          {/* Employee */}
-                          <td className="py-2 px-3">
-                            <select
-                              value={row.employeeId}
-                              onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
-                              disabled={!canSelectAll}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            >
-                              <option value="">Select Employee...</option>
-                              {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name}</option>
-                              ))}
-                            </select>
-                          </td>
+                            {/* Employee */}
+                            <td className="py-2 px-3">
+                              <select
+                                value={row.employeeId}
+                                onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
+                                disabled={!canSelectAll}
+                                className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="">Select Employee...</option>
+                                {sortedEmployees.map(e => (
+                                  <option key={e.id} value={e.id}>
+                                    {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
 
-                          {/* Category */}
-                          <td id={`category-cell-${row.id}`} className="py-2 px-3 relative">
-                            <div className="w-full">
-                              <Dropdown
-                                value={row.category === 'custom' ? '' : row.category}
-                                onChange={(val, e) => {
-                                  handleRowChange(row.id, 'category', val);
-                                  const lower = (val || '').toLowerCase();
-                                  if (lower.includes('given to others') || lower.includes('salary to others')) {
-                                    openPaidToPopover(row.id, e?.target);
-                                  }
-                                }}
-                                options={categories}
-                                placeholder="Select Category..."
-                                size="xs"
-                                searchable
-                                allowCustom
-                                customActive={row.category === 'custom'}
-                                onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
-                              />
-                              {row.category === 'custom' && (
-                                <input
-                                  type="text"
-                                  value={row.customCategory || ''}
-                                  onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
-                                  className="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-500"
-                                  placeholder="Custom category..."
-                                  autoFocus
-                                />
-                              )}
-
-                              {/* Sub-badge: [1st Column Employee] → [Chosen Recipient] with -2px spacing */}
-                              {(row.category?.toLowerCase().includes('given to others') || row.category?.toLowerCase().includes('salary to others')) && (
-                                <div
-                                  onClick={(e) => openPaidToPopover(activePaidToRowId === row.id ? null : row.id, e.currentTarget)}
-                                  className="mt-[-2px] flex items-center justify-between gap-1.5 text-[10px] font-bold text-blue-900 bg-blue-50/90 hover:bg-blue-100/90 px-2 py-0.5 rounded-md border border-blue-200/80 shadow-2xs cursor-pointer transition-all group/badge"
-                                  title="Click to change recipient"
-                                >
-                                  <div className="flex items-center gap-1.5 overflow-hidden">
-                                    <span className="text-slate-700 font-semibold truncate max-w-[85px]">
-                                      {(() => {
-                                        const mainEmp = employees.find(e => e.id === row.employeeId);
-                                        return mainEmp ? mainEmp.name : (row.employeeId || 'Employee');
-                                      })()}
-                                    </span>
-                                    <span className="text-blue-600 font-extrabold">→</span>
-                                    <span className="text-blue-900 font-bold truncate max-w-[95px]">
-                                      {(() => {
-                                        if (row.paidToType === 'custom' && row.paidToCustomName) return row.paidToCustomName;
-                                        if (row.paidTo) {
-                                          const emp = employees.find(e => e.id === row.paidTo || e.name === row.paidTo);
-                                          return emp ? emp.name : row.paidTo;
-                                        }
-                                        return 'Select recipient...';
-                                      })()}
-                                    </span>
-                                  </div>
-                                  <span className="text-[9px] text-blue-600 opacity-70 group-hover/badge:opacity-100 font-bold underline shrink-0">
-                                    {row.paidTo || row.paidToCustomName ? 'Change' : 'Choose'}
-                                  </span>
-                                </div>
-                              )}
-
-                              {/* 2-Column Searchable Recipient Employee Popup - Excludes 1st Column Employee */}
-                              {activePaidToRowId === row.id && createPortal(
-                                <div
-                                  ref={paidToPopoverRef}
-                                  style={{
-                                    position: 'fixed',
-                                    top: `${paidToPopoverPos.top}px`,
-                                    left: `${paidToPopoverPos.left}px`,
-                                    zIndex: 9999
+                            {/* Category */}
+                            <td id={`category-cell-${row.id}`} className="py-2 px-3 relative">
+                              <div className="w-full">
+                                <Dropdown
+                                  value={row.category === 'custom' ? '' : row.category}
+                                  onChange={(val, e) => {
+                                    handleRowChange(row.id, 'category', val);
+                                    const lower = (val || '').toLowerCase();
+                                    if (lower.includes('given to others') || lower.includes('salary to others')) {
+                                      openPaidToPopover(row.id, e?.target);
+                                    }
                                   }}
-                                  className="w-80 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2 animate-in fade-in zoom-in-95 duration-150"
-                                >
-                                  <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                      Select Recipient Employee
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
-                                      className="text-slate-400 hover:text-slate-600 p-0.5 rounded hover:bg-slate-100"
-                                    >
-                                      <X size={13} />
-                                    </button>
-                                  </div>
+                                  options={categories}
+                                  placeholder="Select Category..."
+                                  size="xs"
+                                  searchable
+                                  allowCustom
+                                  customActive={row.category === 'custom'}
+                                  onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
+                                />
+                                {row.category === 'custom' && (
+                                  <input
+                                    type="text"
+                                    value={row.customCategory || ''}
+                                    onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
+                                    className="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-500"
+                                    placeholder="Custom category..."
+                                    autoFocus
+                                  />
+                                )}
 
-                                  {/* Search by type input */}
-                                  <div className="relative">
-                                    <Search size={12} className="absolute left-2.5 top-2 text-slate-400" />
-                                    <input
-                                      type="text"
-                                      value={paidToSearchTerm}
-                                      onChange={(e) => setPaidToSearchTerm(e.target.value)}
-                                      placeholder="Type to search employee..."
-                                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2.5 py-1 text-xs outline-none focus:border-blue-500 focus:bg-white"
-                                      autoFocus
-                                    />
-                                  </div>
-
-                                  {/* 2-Column Grid Layout of Active Employees (Excludes Column 1 Employee) */}
-                                  <div className="max-h-44 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-0.5">
-                                    {employees
-                                      .filter(e => {
-                                        const isActive = (e.status || 'Active').toLowerCase() === 'active';
-                                        const notCol1Emp = e.id !== row.employeeId && e.name !== row.employeeId;
-                                        const matchesSearch = e.name.toLowerCase().includes((paidToSearchTerm || '').toLowerCase());
-                                        return isActive && notCol1Emp && matchesSearch;
-                                      })
-                                      .map(e => (
-                                        <button
-                                          key={e.id}
-                                          type="button"
-                                          onClick={() => {
-                                            setAddRows(addRows.map(r => r.id === row.id ? { ...r, paidTo: e.id, paidToType: 'employee', paidToCustomName: '' } : r));
-                                            setActivePaidToRowId(null);
-                                            setPaidToSearchTerm('');
-                                          }}
-                                          className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] font-semibold ${
-                                            row.paidTo === e.id
-                                              ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200'
-                                              : 'text-slate-700 hover:bg-slate-100 border border-slate-100'
-                                          }`}
-                                        >
-                                          <span className="truncate">{e.name}</span>
-                                          {row.paidTo === e.id && <Check size={12} className="text-blue-600 shrink-0" />}
-                                        </button>
-                                      ))}
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRowChange(row.id, 'paidToType', 'custom')}
-                                    className="w-full text-left px-2 py-1 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold border-t border-slate-100 pt-1.5"
+                                {/* Sub-badge: [1st Column Employee] → [Chosen Recipient] with -2px spacing */}
+                                {(row.category?.toLowerCase().includes('given to others') || row.category?.toLowerCase().includes('salary to others')) && (
+                                  <div
+                                    onClick={(e) => openPaidToPopover(activePaidToRowId === row.id ? null : row.id, e.currentTarget)}
+                                    className="mt-[-2px] flex items-center justify-between gap-1.5 text-[10px] font-bold text-blue-900 bg-blue-50/90 hover:bg-blue-100/90 px-2 py-0.5 rounded-md border border-blue-200/80 shadow-2xs cursor-pointer transition-all group/badge"
+                                    title="Click to change recipient"
                                   >
-                                    + Add Other Name...
-                                  </button>
+                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                      <span className="text-slate-700 font-semibold truncate max-w-[85px]">
+                                        {(() => {
+                                          const mainEmp = employees.find(e => e.id === row.employeeId);
+                                          return mainEmp ? mainEmp.name : (row.employeeId || 'Employee');
+                                        })()}
+                                      </span>
+                                      <span className="text-blue-600 font-extrabold">→</span>
+                                      <span className="text-blue-900 font-bold truncate max-w-[95px]">
+                                        {(() => {
+                                          if (row.paidToType === 'custom' && row.paidToCustomName) return row.paidToCustomName;
+                                          if (row.paidTo) {
+                                            const emp = employees.find(e => e.id === row.paidTo || e.name === row.paidTo);
+                                            return emp ? emp.name : row.paidTo;
+                                          }
+                                          return 'Select recipient...';
+                                        })()}
+                                      </span>
+                                    </div>
+                                    <span className="text-[9px] text-blue-600 opacity-70 group-hover/badge:opacity-100 font-bold underline shrink-0">
+                                      {row.paidTo || row.paidToCustomName ? 'Change' : 'Choose'}
+                                    </span>
+                                  </div>
+                                )}
 
-                                  {row.paidToType === 'custom' && (
-                                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
-                                      <input
-                                        type="text"
-                                        value={row.paidToCustomName || ''}
-                                        onChange={(e) => handleRowChange(row.id, 'paidToCustomName', e.target.value)}
-                                        placeholder="Enter recipient name..."
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500"
-                                        autoFocus
-                                      />
+                                {/* 2-Column Searchable Recipient Employee Popup - Excludes 1st Column Employee */}
+                                {activePaidToRowId === row.id && createPortal(
+                                  <div
+                                    ref={paidToPopoverRef}
+                                    style={{
+                                      position: 'fixed',
+                                      top: `${paidToPopoverPos.top}px`,
+                                      left: `${paidToPopoverPos.left}px`,
+                                      zIndex: 9999
+                                    }}
+                                    className="w-80 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2 animate-in fade-in zoom-in-95 duration-150"
+                                  >
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
+                                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                        Select Recipient Employee
+                                      </span>
                                       <button
                                         type="button"
                                         onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
-                                        className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px] shrink-0"
+                                        className="text-slate-400 hover:text-slate-600 p-0.5 rounded hover:bg-slate-100"
                                       >
-                                        Save
+                                        <X size={13} />
                                       </button>
                                     </div>
-                                  )}
-                                </div>,
-                                document.body
-                              )}
-                            </div>
-                          </td>
 
-                          {/* Paid To (Conditional) */}
-                          {showAdvanceFields && (
-                            <td className="py-2 px-3">
-                              <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
+                                    {/* Search by type input */}
+                                    <div className="relative">
+                                      <Search size={12} className="absolute left-2.5 top-2 text-slate-400" />
+                                      <input
+                                        type="text"
+                                        value={paidToSearchTerm}
+                                        onChange={(e) => setPaidToSearchTerm(e.target.value)}
+                                        placeholder="Type to search employee..."
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2.5 py-1 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                                        autoFocus
+                                      />
+                                    </div>
+
+                                    {/* 2-Column Grid Layout of Active Employees (Excludes Column 1 Employee) */}
+                                    <div className="max-h-44 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-0.5">
+                                      {employees
+                                        .filter(e => {
+                                          const isActive = (e.status || 'Active').toLowerCase() === 'active';
+                                          const notCol1Emp = e.id !== row.employeeId && e.name !== row.employeeId;
+                                          const matchesSearch = e.name.toLowerCase().includes((paidToSearchTerm || '').toLowerCase());
+                                          return isActive && notCol1Emp && matchesSearch;
+                                        })
+                                        .map(e => (
+                                          <button
+                                            key={e.id}
+                                            type="button"
+                                            onClick={() => {
+                                              setAddRows(addRows.map(r => r.id === row.id ? { ...r, paidTo: e.id, paidToType: 'employee', paidToCustomName: '' } : r));
+                                              setActivePaidToRowId(null);
+                                              setPaidToSearchTerm('');
+                                            }}
+                                            className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] font-semibold ${
+                                              row.paidTo === e.id
+                                                ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200'
+                                                : 'text-slate-700 hover:bg-slate-100 border border-slate-100'
+                                            }`}
+                                          >
+                                            <span className="truncate">{e.name}</span>
+                                            {row.paidTo === e.id && <Check size={12} className="text-blue-600 shrink-0" />}
+                                          </button>
+                                        ))}
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRowChange(row.id, 'paidToType', 'custom')}
+                                      className="w-full text-left px-2 py-1 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors text-xs font-bold border-t border-slate-100 pt-1.5"
+                                    >
+                                      + Add Other Name...
+                                    </button>
+
+                                    {row.paidToType === 'custom' && (
+                                      <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+                                        <input
+                                          type="text"
+                                          value={row.paidToCustomName || ''}
+                                          onChange={(e) => handleRowChange(row.id, 'paidToCustomName', e.target.value)}
+                                          placeholder="Enter recipient name..."
+                                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500"
+                                          autoFocus
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => { setActivePaidToRowId(null); setPaidToSearchTerm(''); }}
+                                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px] shrink-0"
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>,
+                                  document.body
+                                )}
+                              </div>
                             </td>
-                          )}
 
-                          {/* Payout */}
-                          <td className="py-2 px-3">
-                            <select
-                              value={row.payoutMethod}
-                              onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"
-                            >
-                              <option value="Immediate">Immediate</option>
-                              <option value="With Salary">Monthly</option>
-                            </select>
-                          </td>
+                            {/* Paid To (Conditional) */}
+                            {showAdvanceFields && (
+                              <td className="py-2 px-3">
+                                <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
+                              </td>
+                            )}
 
-                          {/* Amount */}
-                          <td className="py-2 px-3">
-                            <input
-                              type="number"
-                              value={row.amount}
-                              onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && idx === addRows.length - 1) {
-                                  e.preventDefault()
-                                  handleAddRow()
-                                }
-                              }}
-                              placeholder="0.00"
-                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-right text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            />
-                          </td>
+                            {/* Amount */}
+                            <td className="py-2 px-2 w-28">
+                              <input
+                                type="number"
+                                value={row.amount}
+                                onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && idx === addRows.length - 1) {
+                                    e.preventDefault()
+                                    handleAddRow()
+                                  }
+                                }}
+                                placeholder="0.00"
+                                className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2 text-xs font-bold text-right text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              />
+                            </td>
 
-                          {/* Remarks */}
-                          <td className="py-2 px-3">
-                            <input
-                              type="text"
-                              value={row.reason}
-                              onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && rowIdx === addRows.length - 1) {
-                                  e.preventDefault()
-                                  handleAddRow()
-                                }
-                              }}
-                              placeholder="Remarks..."
-                              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
-                            />
-                          </td>
-
-                          {/* Project (Optional - Conditional) */}
-                          {showProjectColumn && (
-                            <td className="py-2 px-3">
+                            {/* Payout */}
+                            <td className="py-2 px-2 w-28">
                               <select
-                                value={row.project || ''}
-                                onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+                                value={row.payoutMethod}
+                                onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
+                                className="w-full h-9 bg-white border border-slate-200 rounded-lg px-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"
                               >
-                                <option value="">—</option>
-                                <option value="General">General / Non-Project</option>
-                                <option value="HO Expansion">HO Expansion</option>
-                                <option value="Client Onboarding">Client Onboarding</option>
-                                <option value="P-0001">P-0001</option>
-                                <option value="P-0002">P-0002</option>
-                                <option value="P-0008">P-0008</option>
-                                <option value="P-0012">P-0012</option>
-                                <option value="Site visit - Client Meeting">Site visit - Client Meeting</option>
+                                <option value="Immediate">Immediate</option>
+                                <option value="With Salary">Monthly</option>
                               </select>
                             </td>
-                          )}
 
-                          {/* Action */}
-                          <td className="py-2 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleDuplicateRow(row.id)}
-                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                title="Duplicate Row (Ctrl+D)"
-                              >
-                                <Copy size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))}
-                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                                title="Delete Row"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            {/* Remarks */}
+                            <td className="py-2 px-3">
+                              <input
+                                type="text"
+                                value={row.reason}
+                                onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && rowIdx === addRows.length - 1) {
+                                    e.preventDefault()
+                                    handleAddRow()
+                                  }
+                                }}
+                                placeholder="Remarks..."
+                                className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+                              />
+                            </td>
 
-              {/* Grid Footer Bar — Add Row | Total | Submit Expenses — all in one row */}
-              <div className="p-4 bg-slate-50/60 border-t border-slate-200/80 flex items-center justify-between">
-                {/* Left: + Add Row */}
-                <div className="flex items-center gap-3">
+                            {/* Project (Optional - Conditional) */}
+                            {showProjectColumn && (
+                              <td className="py-2 px-3">
+                                <select
+                                  value={row.project}
+                                  onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
+                                  className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+                                >
+                                  <option value="">Select Project...</option>
+                                  <option value="P-0001">P-0001</option>
+                                  <option value="P-0002">P-0002</option>
+                                  <option value="P-0008">P-0008</option>
+                                  <option value="P-0012">P-0012</option>
+                                  <option value="Site visit - Client Meeting">Site visit - Client Meeting</option>
+                                </select>
+                              </td>
+                            )}
+
+                            {/* Action */}
+                            <td className="py-2 px-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDuplicateRow(row.id)}
+                                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                  title="Duplicate Row (Ctrl+D)"
+                                >
+                                  <Copy size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                  title="Delete Row"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Grid Footer Bar — Add Row | Total | Submit Expenses — all in one row */}
+                <div className="p-4 bg-slate-50/60 border-t border-slate-200/80 flex items-center justify-between">
+                  {/* Left: + Add Row */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleAddRow}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      Add Row
+                    </button>
+                  </div>
+
+                  {/* Center: Total Amount */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total:</span>
+                    <span className="text-sm font-bold text-slate-900">{formatINR(totalExpensesAmount)}</span>
+                  </div>
+
+                  {/* Right: Submit Expenses */}
                   <button
                     type="button"
-                    onClick={handleAddRow}
-                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 bg-white hover:bg-blue-50 transition-colors shadow-sm"
+                    onClick={handleSubmitAll}
+                    disabled={submitting}
+                    className="gemini-glow-border bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-800 px-4 h-8 rounded-lg shadow-sm flex items-center gap-2 group transition-all cursor-pointer disabled:opacity-50"
                   >
-                    <Plus size={14} /> Add Row
+                    {submitting ? <Spinner size="w-3.5 h-3.5" color="text-blue-600" /> : <Send size={14} className="text-blue-600" />}
+                    <span className="text-xs font-medium tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+                      {submitting ? 'Submitting...' : `Submit ${activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}`}
+                    </span>
+                    <span className="hidden sm:inline-block text-[10px] font-medium bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md border border-slate-200/80">
+                      Ctrl+Enter
+                    </span>
                   </button>
-                  <span className="text-xs text-slate-500 font-medium">{addRows.length} rows</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Side Panel (~25% width) */}
+            <div className="w-full lg:w-[25%] lg:max-w-[290px] shrink-0 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 space-y-3.5 self-start">
+                {/* 1. Panel Header: Current Month & Total Spent/Adv */}
+                <div className="border-b border-slate-100 pb-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-extrabold text-slate-900 tracking-tight uppercase font-heading">
+                      {format(new Date(), 'MMMM yyyy')}
+                    </h4>
+                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 font-mono">
+                      {formatINR(sidePanelData.monthTotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500 font-medium font-body">
+                    <span>{activeModule === 'Add Advance' ? 'Total Advance' : 'Total Spent'}</span>
+                    <span className="font-bold text-slate-800 font-mono">{formatINR(sidePanelData.monthTotal)}</span>
+                  </div>
                 </div>
 
-                {/* Center: Total Amount */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total:</span>
-                  <span className="text-sm font-bold text-slate-900">{formatINR(totalExpensesAmount)}</span>
-                </div>
+                {/* 2. Recent Entries Section (Date-wise, Recent to Oldest) */}
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 font-body">
+                    Recent {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}
+                  </div>
 
-                {/* Right: Submit Expenses */}
-                <button
-                  type="button"
-                  onClick={handleSubmitAll}
-                  disabled={submitting}
-                  className="gemini-glow-border bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-800 px-4 h-8 rounded-lg shadow-sm flex items-center gap-2 group transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {submitting ? <Spinner size="w-3.5 h-3.5" color="text-blue-600" /> : <Send size={14} className="text-blue-600" />}
-                  <span className="text-xs font-medium tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                    {submitting ? 'Submitting...' : `Submit ${activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}`}
-                  </span>
-                  <span className="hidden sm:inline-block text-[10px] font-medium bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md border border-slate-200/80">
-                    Ctrl+Enter
-                  </span>
-                </button>
+                  {sidePanelData.groups.length === 0 ? (
+                    <div className="text-[11px] text-slate-400 italic py-4 text-center font-body">
+                      No recent entries recorded.
+                    </div>
+                  ) : (
+                    <div className="max-h-[480px] overflow-y-auto pr-0.5 space-y-3 custom-scrollbar">
+                      {sidePanelData.groups.map(group => (
+                        <div key={group.dateStr} className="space-y-1">
+                          {/* Date Separator Row (dd-MMM-yyyy, 11px font size, right aligned total) */}
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100 font-heading">
+                            <span>{formatDateTitle(group.dateStr)}</span>
+                            <span className="font-mono text-slate-900 text-right ml-auto tabular-nums">{formatINR(group.total)}</span>
+                          </div>
+
+                          {/* Indented Expense Details (3-4pt indent, 9px font size, vertically aligned category column) */}
+                          <div className="ml-3 pl-2 border-l-2 border-slate-200/80 space-y-1 py-0.5">
+                            {group.items.map((item, iIdx) => {
+                              const recipientName = item.paidToName || item.paidToCustomName || item.transferredToName || (item.paidTo ? (employees.find(e => e.id === item.paidTo || e.name === item.paidTo)?.name || item.paidTo) : null);
+                              const catLower = (item.category || '').toLowerCase();
+                              const showRecipient = (catLower.includes('given to others') || catLower.includes('salary to others') || recipientName) && recipientName;
+
+                              return (
+                                <div 
+                                  key={item.id || iIdx}
+                                  className="grid grid-cols-[85px_1fr_auto] items-center gap-1 text-[9px] font-medium text-slate-600 hover:text-slate-900 py-0.5 font-body border-b border-slate-50 last:border-0"
+                                >
+                                  <span className="truncate text-slate-800 font-semibold pr-1" title={item.employeeName || 'Unknown'}>
+                                    {item.employeeName || 'Unknown'}
+                                  </span>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="truncate text-slate-500 font-medium" title={item.category || 'General'}>
+                                      - {item.category || 'General'}
+                                    </span>
+                                    {showRecipient && (
+                                      <span className="text-[6px] font-bold text-blue-600 leading-none truncate mt-0.5 font-body" title={`Recipient: ${recipientName}`}>
+                                        → {recipientName}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="font-bold text-slate-900 font-mono shrink-0 text-right tabular-nums ml-auto">
+                                    {formatINR(item.amount)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -3698,6 +3869,14 @@ export default function AdvanceExpenseTab({ defaultModule }) {
                   Clear
                 </button>
               )}
+
+              {/* Recently Deleted Button */}
+              <button 
+                onClick={() => setShowDeletedModal(true)}
+                className="h-[45px] px-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-rose-100 transition-all flex items-center gap-1.5 ml-auto shrink-0"
+              >
+                <History size={14} /> Recently Deleted
+              </button>
             </div>
           </div>
           
@@ -4452,6 +4631,45 @@ export default function AdvanceExpenseTab({ defaultModule }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Centered Smooth Animated Success Modal Overlay */}
+      {successModal.open && createPortal(
+        <div 
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/30 animate-in fade-in duration-300"
+          onClick={() => setSuccessModal({ open: false, title: '', message: '' })}
+        >
+          <div 
+            className="bg-white text-slate-900 rounded-2xl p-7 shadow-2xl border border-slate-100 flex flex-col items-center justify-center text-center max-w-xs sm:max-w-sm w-full animate-in zoom-in-95 duration-300 transform transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Animated Green Circle with Checkmark Tick */}
+            <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-300 flex items-center justify-center text-emerald-600 mb-4 shadow-sm relative">
+              <span className="absolute inset-0 rounded-full bg-emerald-400/20 animate-ping" />
+              <Check size={36} className="stroke-[3] relative z-10 text-emerald-600" />
+            </div>
+
+            {/* Title: e.g. Expense Submitted */}
+            <h3 className="text-lg font-extrabold text-slate-900 tracking-tight mb-1 font-heading">
+              {successModal.title}
+            </h3>
+
+            {/* Message */}
+            <p className="text-xs font-medium text-slate-500 mb-5 font-body">
+              {successModal.message || 'Your submission has been recorded successfully.'}
+            </p>
+
+            {/* Done Button */}
+            <button
+              type="button"
+              onClick={() => setSuccessModal({ open: false, title: '', message: '' })}
+              className="w-full py-2.5 px-4 bg-emerald-600/75 hover:bg-emerald-600/90 active:scale-[0.98] text-white rounded-xl text-xs font-bold font-heading transition-all shadow-md shadow-emerald-200/50 cursor-pointer"
+            >
+              Done
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )
