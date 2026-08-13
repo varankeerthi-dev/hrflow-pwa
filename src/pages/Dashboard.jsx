@@ -324,13 +324,14 @@ export default function Dashboard() {
   const [tabSearchParams, setTabSearchParams] = useSearchParams()
 
   const navigateToTab = (tabId) => {
-    if (tabId === activeTab) return
-    if (attendanceDirty) {
+    if (attendanceDirty && tabId !== activeTab) {
       const ok = window.confirm('You have unsaved attendance changes. Leaving now will lose your entered data. Continue?')
       if (!ok) return false
     }
-    setActiveTab(tabId)
-    setTabSearchParams({ tab: tabId })
+    if (tabId !== activeTab) {
+      setActiveTab(tabId)
+      setTabSearchParams({ tab: tabId })
+    }
     return true
   }
 
@@ -598,47 +599,55 @@ export default function Dashboard() {
               { label: 'Add Attendance', tab: 'attendance-list', tooltip: 'New entry?', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
               { label: 'Add Employee', tab: 'employees', tooltip: 'New employee?', icon: <Users size={14} />, module: 'Employees', right: 'create' },
               { label: 'Expense', tab: 'advance', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
-              { label: 'Full Summary', tab: 'attendance', attendanceSubTab: 'full-summary', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'Attendance', right: 'view' },
+              { label: 'Full Summary', tab: 'attendance-list', attendanceSubTab: 'grid', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'Attendance', right: 'view' },
               { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', tooltip: 'Track daily checklist?', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
             ].filter(action => {
               if (isAdmin) return true
+              if (visibleTabIds.includes(action.tab)) return true
               if (action.module === 'Employees') return userPerms['Employees']?.create === true || userPerms['Settings']?.create === true
               const modulePerms = userPerms[action.module] || {}
-              return modulePerms[action.right] === true
+              return modulePerms[action.right] === true || modulePerms.view === true || modulePerms.read === true
             })
             if (quickActions.length === 0) return null
             return (
               <div className="hidden lg:flex items-center gap-2.5 ml-8 pl-8 border-l border-gray-200/80">
-                {quickActions.map(item => (
-                  <div key={item.tab} className="relative group">
-                    <button 
-                      onClick={() => { 
-                        if (!navigateToTab(item.tab)) return
-                        if (item.tab === 'salary-slip' && item.salaryActiveTab) setSalaryActiveTab(item.salaryActiveTab); 
-                        if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); 
-                        if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) 
-                        if (item.tab === 'attendance' && item.attendanceSubTab) setAttendanceSubTab(item.attendanceSubTab)
-                      }} 
-                      className={`px-3.5 h-8.5 rounded-lg text-[13px] font-semibold whitespace-nowrap hover:scale-105 active:scale-[0.98] transition duration-150 flex items-center gap-1.5 cursor-pointer ${
-                        (activeTab === item.tab) || (item.tab === 'attendance' && item.attendanceSubTab && activeTab === 'attendance' && attendanceSubTab === item.attendanceSubTab)
-                          ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/50' 
-                          : 'bg-white text-zinc-600 hover:bg-zinc-50 border border-zinc-200/60 shadow-sm'
-                      }`}
-                    >
-                      <span className={(activeTab === item.tab || (item.tab === 'attendance' && item.attendanceSubTab && activeTab === 'attendance' && attendanceSubTab === item.attendanceSubTab)) ? 'text-indigo-600' : 'text-zinc-400'}>
-                        {item.icon}
-                      </span>
-                      {item.label}
-                    </button>
-                    
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 invisible group-hover:visible opacity-0 scale-95 origin-top group-hover:opacity-100 group-hover:scale-100 transition duration-150 bg-zinc-950 text-white text-[11px] font-semibold py-1.5 px-3 rounded-lg shadow-md whitespace-nowrap z-50 pointer-events-none flex flex-col items-center">
-                      <span className="text-zinc-400 text-[9px] uppercase tracking-wider font-bold mb-0.5">{item.label}</span>
-                      <span>{item.tooltip}</span>
-                      {/* Arrow */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-zinc-950" />
+                {quickActions.map(item => {
+                  const isActive = activeTab === item.tab &&
+                    (item.tab !== 'attendance-list' || !item.attendanceSubTab || attendanceSubTab === item.attendanceSubTab) &&
+                    (item.tab !== 'salary-slip' || !item.salaryActiveTab || salaryActiveTab === item.salaryActiveTab) &&
+                    (item.tab !== 'tasks' || !item.tasksSubTab || tasksSubTab === item.tasksSubTab)
+
+                  return (
+                    <div key={item.label} className="relative group">
+                      <button 
+                        onClick={() => { 
+                          if (!navigateToTab(item.tab)) return
+                          if (item.tab === 'attendance-list' && item.attendanceSubTab) setAttendanceSubTab(item.attendanceSubTab);
+                          if (item.tab === 'salary-slip' && item.salaryActiveTab) setSalaryActiveTab(item.salaryActiveTab); 
+                          if (item.tab === 'salary-slip' && item.salarySubTab) setSalarySubTab(item.salarySubTab); 
+                          if (item.tab === 'tasks' && item.tasksSubTab) setTasksSubTab(item.tasksSubTab) 
+                        }} 
+                        className={`px-3.5 h-8.5 rounded-lg text-[13px] font-semibold whitespace-nowrap hover:scale-105 active:scale-[0.98] transition duration-150 flex items-center gap-1.5 cursor-pointer ${
+                          isActive
+                            ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/50' 
+                            : 'bg-white text-zinc-600 hover:bg-zinc-50 border border-zinc-200/60 shadow-sm'
+                        }`}
+                      >
+                        <span className={isActive ? 'text-indigo-600' : 'text-zinc-400'}>
+                          {item.icon}
+                        </span>
+                        {item.label}
+                      </button>
+                      
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 invisible group-hover:visible opacity-0 scale-95 origin-top group-hover:opacity-100 group-hover:scale-100 transition duration-150 bg-zinc-950 text-white text-[11px] font-semibold py-1.5 px-3 rounded-lg shadow-md whitespace-nowrap z-50 pointer-events-none flex flex-col items-center">
+                        <span className="text-zinc-400 text-[9px] uppercase tracking-wider font-bold mb-0.5">{item.label}</span>
+                        <span>{item.tooltip}</span>
+                        {/* Arrow */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-zinc-950" />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )
           })()}
@@ -761,9 +770,9 @@ export default function Dashboard() {
                         <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
                           <div className="flex items-center gap-1 px-4 overflow-x-auto no-scrollbar">
                             <button
-                              onClick={() => navigateToTab('attendance')}
+                              onClick={() => setAttendanceSubTab('attendance')}
                               className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors duration-150 ${
-                                activeTab === 'attendance' || activeTab === 'attendance-list'
+                                attendanceSubTab !== 'grid'
                                   ? 'border-blue-600 text-blue-700'
                                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                               }`}
@@ -771,14 +780,14 @@ export default function Dashboard() {
                               Attendance
                             </button>
                             <button
-                              onClick={() => { setAttendanceSubTab('full-summary'); navigateToTab('attendance'); }}
+                              onClick={() => setAttendanceSubTab('grid')}
                               className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors duration-150 ${
-                                activeTab === 'salary-slip' && salaryActiveTab === 'full-summary'
+                                attendanceSubTab === 'grid'
                                   ? 'border-blue-600 text-blue-700'
                                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                               }`}
                             >
-                              Full Summary
+                              Attendance Register
                             </button>
                           </div>
                         </div>

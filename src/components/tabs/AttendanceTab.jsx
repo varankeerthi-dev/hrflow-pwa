@@ -15,6 +15,7 @@ import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getEligibleAllowanceCategories, getAllowanceAmount } from '../../lib/allowanceRules'
 import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode } from '../../hooks/useAllowances'
 import SummaryTab from './SummaryTab'
+import { SubTabsNav } from '../ui/SubTabsNav'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
@@ -590,10 +591,10 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const { employees, loading: empLoading } = useEmployees(user?.orgId, false)
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
 
-  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' || defaultSubTab === 'full-summary' ? defaultSubTab : 'attendance') // 'attendance' | 'full-summary'
+  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' || defaultSubTab === 'grid' ? defaultSubTab : 'attendance') // 'attendance' | 'grid' | 'reports'
 
   useEffect(() => {
-    if (defaultSubTab && (defaultSubTab === 'reports' || defaultSubTab === 'full-summary' || defaultSubTab === 'attendance')) {
+    if (defaultSubTab && (defaultSubTab === 'reports' || defaultSubTab === 'grid' || defaultSubTab === 'attendance')) {
       setActiveSubTab(defaultSubTab)
     }
   }, [defaultSubTab])
@@ -1079,10 +1080,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   }
 
   const isFutureDate = (date) => {
-    const selected = new Date(date)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return selected > today
+    return false
   }
 
   useEffect(() => {
@@ -1551,7 +1549,11 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
 
   return (
     <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
-      {activeSubTab === 'attendance' ? (
+      {activeSubTab === 'grid' ? (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white rounded-xl border border-gray-100 p-4">
+          <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
+        </div>
+      ) : (
         <>
           {/* Date & Action Bar */}
           <div className="flex items-center justify-between gap-4 sticky top-0 z-50 bg-white/95 backdrop-blur-sm">
@@ -1567,17 +1569,12 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                 <DatePicker
                   selected={parseISO(selectedDate)}
                   onChange={(date) => {
-                    if (isFutureDate(date)) {
-                      alert('Attendance cannot be created for future dates.')
-                      return
-                    }
-                    setSelectedDate(formatDateForInput(date))
+                    if (date) setSelectedDate(formatDateForInput(date))
                   }}
                   dateFormat="dd MMM yyyy"
                   popperClassName="z-[99999]"
                   popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
                   dayStyle={(date) => isHolidayDate(date) ? { color: '#dc2626' } : {}}
-                  filterDate={(date) => !isFutureDate(date)}
                   customInput={
                     <div className="font-semibold text-sm text-gray-700 h-[32px] flex items-center px-3 cursor-pointer select-none hover:bg-white hover:shadow-sm rounded-md transition-all relative z-50">
                       {format(parseISO(selectedDate), 'dd MMM yyyy')}
@@ -1637,17 +1634,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               <button onClick={handleGenerate} className="h-9 px-4 bg-indigo-600 text-white font-medium rounded-lg text-xs shadow-sm hover:bg-indigo-700 transition-all" style={{ fontFamily: "'Roboto', sans-serif" }}>Generate Active</button>
             </div>
           </div>
-        </>
-      ) : (
-        <div className="module-top-surface bg-white px-6 py-5 rounded-xl border border-gray-100 shadow-sm flex items-center sticky top-0 z-50 gap-[40px]">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-normal text-gray-900" style={{ fontFamily: "'Roboto', sans-serif" }}>Attendance</h1>
-          </div>
-        </div>
-      )}
 
-      {activeSubTab === 'attendance' ? (
-        <>
           {/* Main Table Card */}
           <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
             <div className="overflow-x-visible pb-[400px]">
@@ -1963,7 +1950,9 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
             </div>
           </div>
         </>
-      ) : (
+      )}
+
+      {activeSubTab === 'reports' && (
         <div className="flex flex-1 gap-4 overflow-hidden">
           <div className="flex-1 flex flex-col gap-4 overflow-hidden">
             {/* Header */}
@@ -2422,12 +2411,6 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {activeSubTab === 'full-summary' && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
         </div>
       )}
 

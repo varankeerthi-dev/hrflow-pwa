@@ -2302,12 +2302,18 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             { id: 'salary-summary', label: 'Summary' },
             { id: 'salary-slip', label: 'Payslips' },
             { id: 'loan', label: 'Loans' },
+            { id: 'full-summary', label: 'Full Summary' }
           ]}
           activeTabId={activeTab}
           onTabChange={(tab) => setActiveTab(tab.id)}
         />
       </div>
       <div className="flex-1 px-6 pb-6 pt-2 overflow-hidden flex flex-col">
+        {activeTab === 'full-summary' && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
+          </div>
+        )}
         {activeTab === 'salary-slip' && (
           <div className="w-full space-y-4 h-full flex flex-col overflow-hidden">
             <div className="flex gap-4 items-end shrink-0 mb-2 mt-1">
