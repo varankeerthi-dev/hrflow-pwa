@@ -428,7 +428,7 @@ function convertShorthand(val, period) {
   return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder, extra, error }) => {
+const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundColor, rowIdx, field, placeholder, extra, error, scope = 'desktop' }) => {
   const [tempValue, setTempValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -453,7 +453,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
         setTimeout(() => {
           let nextField = field === 'inTime' ? 'outTime' : 'inTime';
           let nextRowIdx = field === 'outTime' ? rowIdx + 1 : rowIdx;
-          const nextInput = document.querySelector(`[data-row="${nextRowIdx}"][data-field="${nextField}"]`);
+          const nextInput = document.querySelector(`[data-row="${scope}-${nextRowIdx}"][data-field="${nextField}"]`);
           if (nextInput) {
             nextInput.focus();
           }
@@ -499,7 +499,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
             }}
             onKeyDown={handleKeyDown}
             disabled={disabled}
-            data-row={rowIdx}
+            data-row={`${scope}-${rowIdx}`}
             data-field={field}
             className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/20 outline-none disabled:text-gray-400 h-7 cursor-text"
             placeholder={placeholder || "--:--"}
@@ -1555,6 +1555,29 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
         </div>
       ) : (
         <>
+          {activeSubTab !== 'reports' && <div className="md:hidden flex flex-col gap-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="h-11 w-11 shrink-0 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 flex items-center justify-center" aria-label="Previous day"><ChevronLeft size={18} /></button>
+                <DatePicker selected={parseISO(selectedDate)} onChange={(date) => { if (date) setSelectedDate(formatDateForInput(date)) }} dateFormat="dd MMM yyyy" popperClassName="z-[99999]" popperProps={{ strategy: 'fixed', placement: 'bottom-start' }} dayStyle={(date) => isHolidayDate(date) ? { color: '#dc2626' } : {}} customInput={<button type="button" className="h-11 flex-1 min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-800 text-left">{format(parseISO(selectedDate), 'dd MMM yyyy')}</button>} />
+                <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() + 1); return formatDateForInput(nd); })} className="h-11 w-11 shrink-0 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 flex items-center justify-center" aria-label="Next day"><ChevronRight size={18} /></button>
+              </div>
+              <div className="flex items-center justify-between gap-3 pt-3"><div><div className="text-base font-bold text-indigo-600">{formatDate(selectedDate).split(' ')[0]}</div>{(isSunday || isConfiguredHoliday) && <div className={`text-[11px] font-semibold uppercase tracking-wide ${isSunday ? 'text-orange-600' : 'text-purple-600'}`}>{isSunday ? 'Sunday' : 'Holiday'}</div>}</div>{(isSunday || isConfiguredHoliday) && <button onClick={handleMarkAllHoliday} disabled={saving || !rows.length} className="min-h-10 px-3 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11px] font-semibold disabled:opacity-50">{saving ? 'Marking…' : 'Mark all holiday'}</button>}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2"><button onClick={handleAddRow} className="min-h-11 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs font-semibold flex items-center justify-center gap-2"><Plus size={15} /> Add row</button><button onClick={handleGenerate} className="min-h-11 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-2">Generate active</button></div>
+            <div className="grid grid-cols-3 gap-2"><div className="rounded-lg bg-green-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-green-700">Present</div><div className="text-lg font-bold text-green-800">{rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-red-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-red-700">Absent</div><div className="text-lg font-bold text-red-800">{rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-gray-100 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-gray-600">Total</div><div className="text-lg font-bold text-gray-800">{rows.filter(r => !r.isPlaceholder).length}</div></div></div>
+            <div className="flex flex-col gap-3">{empLoading ? <div className="bg-white rounded-xl border border-gray-200 py-16 flex justify-center"><Spinner /></div> : rows.length === 0 ? <div className="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-gray-400">Generate active employees to begin.</div> : rows.map((row, idx) => {
+              const mobileStatusOptions = [{ id: 'Present', label: 'Present', color: 'green' }, { id: 'Absent', label: 'Absent', color: 'red' }, ...(isSunday ? [{ id: 'SunWorked', label: 'Worked', color: 'amber' }, { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked', color: 'amber' }, { id: 'Holiday', label: 'Holiday', color: 'indigo' }] : [])]
+              const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
+              const selectedAllowances = allowanceSelections[row.employeeId] || []
+              return <div key={row.id || row.employeeId || `mobile-${idx}`} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${row.isAbsent ? 'border-red-200 bg-red-50/30' : ''}`}>
+                <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1">{row.employeeId ? <div className="truncate text-sm font-semibold text-gray-900">{row.name}</div> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}{row.employeeId && <div className="pt-1 text-[11px] text-gray-500">{row.shiftType === 'Night' ? 'Night shift' : row.shiftType === 'DN' ? 'Double shift' : 'Day shift'}</div>}</div><button onClick={() => handleClearRow(row.id || row.employeeId)} disabled={!row.employeeId && !row.id} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div>
+                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Shift</div><button onClick={() => updateRow(row.employeeId, 'shiftType', row.shiftType === 'Day' ? 'DN' : row.shiftType === 'DN' ? 'Night' : 'Day')} disabled={row.isAbsent || row.status === 'SunHoliday'} className="min-h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-left text-xs font-semibold text-gray-700 disabled:opacity-50">{row.shiftType === 'Night' ? 'Night shift' : row.shiftType === 'DN' ? 'Double shift' : 'Day shift'} · OT {row.otHours && row.otHours !== '00:00' ? row.otHours : '—'}</button></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Remarks</div><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={remarksOptions} disabled={!row.employeeId || row.isAbsent} className="w-full" /></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
+              </div>
+            })}</div>
+            <div className="sticky bottom-2 z-30 rounded-xl border border-gray-200 bg-white/95 backdrop-blur-sm p-3 shadow-lg"><div className="flex items-center justify-between gap-3"><div className="min-w-0 text-[11px] text-gray-500 truncate">{hasGenerated ? 'Records ready to submit' : 'Generate active employees first'}</div>{rows.length > 0 && <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="min-h-11 shrink-0 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white disabled:opacity-50">{saving ? 'Processing…' : 'Submit records'}</button>}</div>{saved && <div className="flex items-center gap-1.5 pt-2 text-xs font-medium text-green-600"><Check size={14} /> Successfully submitted</div>}</div>
+          </div>}
+          <div className="hidden md:flex flex-1 min-h-0 flex-col gap-3">
           {/* Date & Action Bar */}
           <div className="flex items-center justify-between gap-4 sticky top-0 z-50 bg-white/95 backdrop-blur-sm">
             <div className="flex items-center gap-4">
@@ -1948,6 +1971,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                 </div>
               )}
             </div>
+          </div>
           </div>
         </>
       )}
