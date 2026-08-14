@@ -16,7 +16,7 @@ import { getEligibleAllowanceCategories, getAllowanceAmount } from '../../lib/al
 import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode } from '../../hooks/useAllowances'
 import SummaryTab from './SummaryTab'
 import { SubTabsNav } from '../ui/SubTabsNav'
-import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX, LayoutGrid, List } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
 
@@ -524,6 +524,48 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
   );
 };
 
+function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect, handleClearRow, updateRow, showInTimePicker, setShowInTimePicker, showOutTimePicker, setShowOutTimePicker, validationErrors, allowanceCategories, allowanceSelections, toggleAllowance, remarksOptions, handleAddRemarkOption, handleStatusChange, isSunday, isConfiguredHoliday }) {
+  const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
+  const selectedAllowances = allowanceSelections[row.employeeId] || []
+  const statusOptions = [{ id: 'Present', label: 'Present' }, { id: 'Absent', label: 'Absent' }, ...(isSunday ? [{ id: 'SunWorked', label: 'Worked' }, { id: 'SunHoliday', label: 'Holiday' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked' }, { id: 'Holiday', label: 'Holiday' }] : [])]
+  const disabled = row.isAbsent || row.status === 'SunHoliday'
+
+  if (!row.employeeId) {
+    return (
+      <div className="flex items-center gap-2 px-1 py-2">
+        <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-9 min-w-0 flex-1 rounded-md bg-gray-50 px-2 text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">Select employee…</option>
+          {employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+        <button onClick={() => handleClearRow(row.id || row.employeeId)} disabled={!row.employeeId && !row.id} className="h-8 w-8 shrink-0 text-gray-400 disabled:opacity-30" aria-label="Clear attendance row"><X size={15} /></button>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`px-1 py-2 ${row.isAbsent ? 'bg-red-50/40' : ''}`}>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <div className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-900">{row.name}</div>
+        <select aria-label={`${row.name} shift`} value={row.shiftType || 'Day'} onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)} disabled={disabled} className="h-8 w-[94px] shrink-0 rounded-md bg-gray-50 px-1.5 text-[10px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="Day">Day shift</option>
+          <option value="DN">Double shift</option>
+          <option value="Night">Night shift</option>
+        </select>
+        <select aria-label={`${row.name} attendance status`} value={row.status || 'Present'} onChange={(e) => handleStatusChange(row.employeeId, e.target.value)} className={`h-8 w-[72px] shrink-0 rounded-md px-1.5 text-[10px] font-semibold outline-none ${row.status === 'Absent' ? 'bg-red-50 text-red-700' : row.status === 'SunHoliday' || row.status === 'Holiday' ? 'bg-indigo-50 text-indigo-700' : row.status === 'SunWorked' || row.status === 'Worked' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+          {statusOptions.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
+        </select>
+        <button onClick={() => handleClearRow(row.id || row.employeeId)} className="h-8 w-7 shrink-0 text-gray-400 active:text-red-500" aria-label="Clear attendance row"><X size={14} /></button>
+      </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.45fr)] items-start gap-1.5 pt-1.5">
+        <div className="min-w-0"><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={disabled} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="compact-mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div>
+        <div className="min-w-0"><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={disabled} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="compact-mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div>
+        <RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={remarksOptions} disabled={row.isAbsent} className="w-full" />
+      </div>
+      {eligible.length > 0 && <div className="flex items-center gap-1.5 overflow-x-auto pt-1.5 pb-0.5">{eligible.map(cat => <label key={cat.id} className="inline-flex min-h-6 shrink-0 items-center gap-1 bg-emerald-50 px-1.5 text-[10px] text-emerald-800"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-3 w-3 rounded border-gray-300 text-indigo-600" /><span>{cat.name}</span><span className="font-semibold">₹{getAllowanceAmount(cat)}</span></label>)}</div>}
+    </div>
+  )
+}
+
 // ─── Dropdown Copy Picker ───────────────────────────────────────────────────
 function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEmps, setSelectedEmps, onApply, onClose }) {
   const dropdownRef = useRef(null);
@@ -605,6 +647,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     }
   }, [activeSubTab, onSubTabChange])
   const [reportsView, setReportsView] = useState('timeline') // 'timeline' or 'excel'
+  const [compactMode, setCompactMode] = useState(false)
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
   const [remarksOptions, setRemarksOptions] = useState([])
 
@@ -1566,7 +1609,9 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
             </div>
             <div className="grid grid-cols-2 gap-2"><button onClick={handleAddRow} className="min-h-11 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs font-semibold flex items-center justify-center gap-2"><Plus size={15} /> Add row</button><button onClick={handleGenerate} className="min-h-11 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-2">Generate active</button></div>
             <div className="grid grid-cols-3 gap-2"><div className="rounded-lg bg-green-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-green-700">Present</div><div className="text-lg font-bold text-green-800">{rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-red-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-red-700">Absent</div><div className="text-lg font-bold text-red-800">{rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-gray-100 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-gray-600">Total</div><div className="text-lg font-bold text-gray-800">{rows.filter(r => !r.isPlaceholder).length}</div></div></div>
-            <div className="flex flex-col gap-3">{empLoading ? <div className="bg-white rounded-xl border border-gray-200 py-16 flex justify-center"><Spinner /></div> : rows.length === 0 ? <div className="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-gray-400">Generate active employees to begin.</div> : rows.map((row, idx) => {
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-gray-100/80 p-1"><span className="pl-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Roster view</span><div className="flex items-center gap-1"><button type="button" onClick={() => setCompactMode(false)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${!compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={!compactMode}><LayoutGrid size={13} /> Cards</button><button type="button" onClick={() => setCompactMode(true)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={compactMode}><List size={13} /> Compact</button></div></div>
+            <div className={compactMode ? 'divide-y divide-gray-100' : 'flex flex-col gap-3'}>{empLoading ? <div className="bg-white rounded-xl border border-gray-200 py-16 flex justify-center"><Spinner /></div> : rows.length === 0 ? <div className="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-gray-400">Generate active employees to begin.</div> : rows.map((row, idx) => {
+              if (compactMode) return <CompactAttendanceRow key={row.id || row.employeeId || `compact-mobile-${idx}`} row={row} idx={idx} employees={employees} rows={rows} handleEmployeeSelect={handleEmployeeSelect} handleClearRow={handleClearRow} updateRow={updateRow} showInTimePicker={showInTimePicker} setShowInTimePicker={setShowInTimePicker} showOutTimePicker={showOutTimePicker} setShowOutTimePicker={setShowOutTimePicker} validationErrors={validationErrors} allowanceCategories={allowanceCategories} allowanceSelections={allowanceSelections} toggleAllowance={toggleAllowance} remarksOptions={remarksOptions} handleAddRemarkOption={handleAddRemarkOption} handleStatusChange={handleStatusChange} isSunday={isSunday} isConfiguredHoliday={isConfiguredHoliday} />
               const mobileStatusOptions = [{ id: 'Present', label: 'Present', color: 'green' }, { id: 'Absent', label: 'Absent', color: 'red' }, ...(isSunday ? [{ id: 'SunWorked', label: 'Worked', color: 'amber' }, { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked', color: 'amber' }, { id: 'Holiday', label: 'Holiday', color: 'indigo' }] : [])]
               const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
               const selectedAllowances = allowanceSelections[row.employeeId] || []
