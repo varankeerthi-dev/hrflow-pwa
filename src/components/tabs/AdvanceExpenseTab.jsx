@@ -145,6 +145,63 @@ function EmployeeLedgerCard({ emp, formatINR }) {
   )
 }
 
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
+  const categoryRequiresPaidTo = ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex items-center justify-between gap-2 pb-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Row {idx + 1}</span>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={() => handleDuplicateRow(row.id)} className="rounded-md p-1.5 text-slate-400 active:bg-blue-50 active:text-blue-600" aria-label={`Duplicate row ${idx + 1}`}><Copy size={14} /></button>
+          <button type="button" onClick={() => handleDeleteRow(row.id)} className="rounded-md p-1.5 text-slate-400 active:bg-rose-50 active:text-rose-600" aria-label={`Delete row ${idx + 1}`}><Trash2 size={14} /></button>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div>
+          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Employee <span className="text-rose-500">*</span></label>
+          <select value={row.employeeId} onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)} disabled={!canSelectAll} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500">
+            <option value="">Select employee...</option>
+            {sortedEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} {!isEmployeeActiveStatus(employee.status) ? '(Inactive)' : ''}</option>)}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category <span className="text-rose-500">*</span></label>
+            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => handleRowChange(row.id, 'category', value)} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} />
+            {row.category === 'custom' && <input type="text" value={row.customCategory || ''} onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500" placeholder="Custom category..." />}
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount <span className="text-rose-500">*</span></label>
+            <input type="number" value={row.amount} onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-2 text-right text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="0.00" inputMode="decimal" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payout <span className="text-rose-500">*</span></label>
+            <select value={row.payoutMethod} onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"><option value="Immediate">Immediate</option><option value="With Salary">Monthly</option></select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Project</label>
+            {showProjectColumn ? <select value={row.project} onChange={(e) => handleRowChange(row.id, 'project', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"><option value="">Select project...</option><option value="P-0001">P-0001</option><option value="P-0002">P-0002</option><option value="P-0008">P-0008</option><option value="P-0012">P-0012</option><option value="Site visit - Client Meeting">Site visit - Client Meeting</option></select> : <span className="flex h-10 items-center text-[11px] italic text-slate-400">Optional column off</span>}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Remarks</label>
+          <input type="text" value={row.reason} onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500" placeholder="Add a note..." />
+        </div>
+
+        {showAdvanceFields && <div className="rounded-lg bg-slate-50 p-2.5"><label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Paid to / advance reference</label><PaidToDropdown rowId={row.id} row={row} isMobile /></div>}
+        {categoryRequiresPaidTo && !showAdvanceFields && <div className="rounded-lg bg-blue-50/70 p-2.5"><label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-blue-700">Paid to</label><PaidToDropdown rowId={row.id} row={row} isMobile /></div>}
+      </div>
+    </div>
+  )
+}
+
 export default function AdvanceExpenseTab({ defaultModule, activeModule: activeModuleProp, onModuleChange }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -2986,7 +3043,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
 
                 {/* 5. High-Density Spreadsheet Table Grid */}
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
@@ -3298,8 +3355,28 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </table>
                 </div>
 
+                <div className="md:hidden space-y-3 bg-slate-50/40 p-3">
+                  {addRows.map((row, idx) => (
+                    <AdvanceExpenseMobileRow
+                      key={row.id}
+                      row={row}
+                      idx={idx}
+                      activeModule={activeModule}
+                      sortedEmployees={sortedEmployees}
+                      categories={categories}
+                      canSelectAll={canSelectAll}
+                      showAdvanceFields={showAdvanceFields}
+                      showProjectColumn={showProjectColumn}
+                      handleRowChange={handleRowChange}
+                      handleDuplicateRow={handleDuplicateRow}
+                      handleDeleteRow={(rowId) => setAddRows(prev => prev.filter(item => item.id !== rowId))}
+                      PaidToDropdown={PaidToDropdown}
+                    />
+                  ))}
+                </div>
+
                 {/* Grid Footer Bar — Add Row | Total | Submit Expenses — all in one row */}
-                <div className="p-4 bg-slate-50/60 border-t border-slate-200/80 flex items-center justify-between">
+                <div className="p-3 sm:p-4 bg-slate-50/60 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
                   {/* Left: + Add Row */}
                   <div className="flex items-center gap-3">
                     <button
