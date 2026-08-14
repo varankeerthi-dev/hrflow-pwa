@@ -161,16 +161,23 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
       <div className="space-y-2.5">
         <div>
           <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Employee <span className="text-rose-500">*</span></label>
-          <select value={row.employeeId} onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)} disabled={!canSelectAll} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500">
-            <option value="">Select employee...</option>
-            {sortedEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} {!isEmployeeActiveStatus(employee.status) ? '(Inactive)' : ''}</option>)}
-          </select>
+          <Dropdown
+            value={row.employeeId}
+            onChange={(value) => handleRowChange(row.id, 'employeeId', value)}
+            options={sortedEmployees.map((employee) => ({ label: `${employee.name}${!isEmployeeActiveStatus(employee.status) ? ' (Inactive)' : ''}`, value: employee.id }))}
+            placeholder="Select employee..."
+            searchable
+            size="sm"
+            panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+            mobileMenu
+            disabled={!canSelectAll}
+          />
         </div>
 
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category <span className="text-rose-500">*</span></label>
-            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => handleRowChange(row.id, 'category', value)} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} />
+            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => handleRowChange(row.id, 'category', value)} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu />
             {row.category === 'custom' && <input type="text" value={row.customCategory || ''} onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500" placeholder="Custom category..." />}
           </div>
           <div>
@@ -2916,48 +2923,85 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                   {/* Paid From */}
                   {showSessionAccount && (
-                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
-                    <select
-                      value={sessionAccount}
-                      onChange={(e) => setSessionAccount(e.target.value)}
-                      className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
-                    >
-                      <option value="Petty Cash - HO">Petty Cash - HO</option>
-                      <option value="Main Bank Account">Main Bank Account</option>
-                      <option value="Cash in Hand">Cash in Hand</option>
-                      <option value="Director Account">Director Account</option>
-                    </select>
-                  </div>
+                  <>
+                    <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                      <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
+                      <select
+                        value={sessionAccount}
+                        onChange={(e) => setSessionAccount(e.target.value)}
+                        className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
+                      >
+                        <option value="Petty Cash - HO">Petty Cash - HO</option>
+                        <option value="Main Bank Account">Main Bank Account</option>
+                        <option value="Cash in Hand">Cash in Hand</option>
+                        <option value="Director Account">Director Account</option>
+                      </select>
+                    </div>
+                    <div className="md:hidden flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                      <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
+                      <Dropdown
+                        value={sessionAccount}
+                        onChange={setSessionAccount}
+                        options={['Petty Cash - HO', 'Main Bank Account', 'Cash in Hand', 'Director Account']}
+                        size="sm"
+                        className="min-w-0 flex-1"
+                        panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                        mobileMenu
+                      />
+                    </div>
+                  </>
                   )}
 
                   {/* Default Employee */}
                   {showSessionEmployee && (
-                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
-                    <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
-                    <select
-                      value={sessionDefaultEmp}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSessionDefaultEmp(val);
-                        if (val) {
-                          setAddRows(addRows.map(r => ({ ...r, employeeId: val })));
-                        }
-                      }}
-                      className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer max-w-[180px] truncate h-full"
-                    >
-                      <option value="">Select...</option>
-                      {sortedEmployees.map(e => {
-                        const isMe = e.id === getMyEmpId() || e.email === user?.email;
-                        const inactiveTag = !isEmployeeActiveStatus(e.status) ? ' (Inactive)' : '';
-                        return (
-                          <option key={e.id} value={e.id}>
-                            {e.name} {isMe ? '(You)' : ''}{inactiveTag}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
+                  <>
+                    <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                      <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
+                      <select
+                        value={sessionDefaultEmp}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSessionDefaultEmp(val);
+                          if (val) {
+                            setAddRows(addRows.map(r => ({ ...r, employeeId: val })));
+                          }
+                        }}
+                        className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer max-w-[180px] truncate h-full"
+                      >
+                        <option value="">Select...</option>
+                        {sortedEmployees.map(e => {
+                          const isMe = e.id === getMyEmpId() || e.email === user?.email;
+                          const inactiveTag = !isEmployeeActiveStatus(e.status) ? ' (Inactive)' : '';
+                          return (
+                            <option key={e.id} value={e.id}>
+                              {e.name} {isMe ? '(You)' : ''}{inactiveTag}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                    <div className="md:hidden flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                      <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
+                      <Dropdown
+                        value={sessionDefaultEmp}
+                        onChange={(val) => {
+                          setSessionDefaultEmp(val)
+                          if (val) setAddRows(addRows.map(r => ({ ...r, employeeId: val })))
+                        }}
+                        options={sortedEmployees.map(e => {
+                          const isMe = e.id === getMyEmpId() || e.email === user?.email
+                          const inactiveTag = !isEmployeeActiveStatus(e.status) ? ' (Inactive)' : ''
+                          return { label: `${e.name} ${isMe ? '(You)' : ''}${inactiveTag}`, value: e.id }
+                        })}
+                        placeholder="Select employee..."
+                        searchable
+                        size="sm"
+                        className="min-w-0 flex-1"
+                        panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                        mobileMenu
+                      />
+                    </div>
+                  </>
                   )}
 
                   {/* Default Payout */}

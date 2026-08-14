@@ -16,6 +16,7 @@ export default function Dropdown({
   className = '',
   panelWidth = 'w-44',
   emptyText = 'No options',
+  mobileMenu = false,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -101,7 +102,7 @@ export default function Dropdown({
         <>
           <div className="fixed inset-0 z-40" onClick={handleClose} />
           <div
-            className={`fixed z-50 bg-white rounded-xl border border-zinc-200 shadow-2xl ${panelWidth}`}
+            className={`fixed z-50 bg-white rounded-xl border border-zinc-200 shadow-2xl ${panelWidth} ${mobileMenu ? 'animate-in fade-in zoom-in-95 duration-100' : ''}`}
             style={{ top: position.top, left: position.left }}
           >
             {searchable && (
