@@ -537,7 +537,7 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
           <option value="">Select employee…</option>
           {employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
-        <button onClick={() => handleClearRow(row.id || row.employeeId)} disabled={!row.employeeId && !row.id} className="h-8 w-8 shrink-0 text-gray-400 disabled:opacity-30" aria-label="Clear attendance row"><X size={15} /></button>
+        <button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-8 w-8 shrink-0 text-gray-400 disabled:opacity-30" aria-label="Clear attendance row"><X size={15} /></button>
       </div>
     )
   }
@@ -545,7 +545,7 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
   return (
     <div className={`px-1 py-2 ${row.isAbsent ? 'bg-red-50/40' : ''}`}>
       <div className="flex items-center gap-1.5 min-w-0">
-        <div className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-900">{row.name}</div>
+        <div className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{row.name}</div>
         <select aria-label={`${row.name} shift`} value={row.shiftType || 'Day'} onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)} disabled={disabled} className="h-8 w-[94px] shrink-0 rounded-md bg-gray-50 px-1.5 text-[10px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="Day">Day shift</option>
           <option value="DN">Double shift</option>
@@ -554,7 +554,7 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
         <select aria-label={`${row.name} attendance status`} value={row.status || 'Present'} onChange={(e) => handleStatusChange(row.employeeId, e.target.value)} className={`h-8 w-[72px] shrink-0 rounded-md px-1.5 text-[10px] font-semibold outline-none ${row.status === 'Absent' ? 'bg-red-50 text-red-700' : row.status === 'SunHoliday' || row.status === 'Holiday' ? 'bg-indigo-50 text-indigo-700' : row.status === 'SunWorked' || row.status === 'Worked' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
           {statusOptions.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
         </select>
-        <button onClick={() => handleClearRow(row.id || row.employeeId)} className="h-8 w-7 shrink-0 text-gray-400 active:text-red-500" aria-label="Clear attendance row"><X size={14} /></button>
+        <button onClick={() => handleClearRow(row.employeeId)} className="h-8 w-7 shrink-0 text-gray-400 active:text-red-500" aria-label="Clear attendance row"><X size={14} /></button>
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.45fr)] items-start gap-1.5 pt-1.5">
         <div className="min-w-0"><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={disabled} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="compact-mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div>
@@ -850,9 +850,15 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
 
   const [showWarning, setShowWarning] = useState(false)
   const [showResetWarning, setShowResetWarning] = useState(false)
+  const [pendingRemoval, setPendingRemoval] = useState(null)
+  const removalTimerRef = useRef(null)
   const [copyData, setCopyData] = useState(null)
   const [showCopyModal, setShowCopyModal] = useState(false)
   const [activeCopyEmpId, setActiveCopyEmpId] = useState(null);
+
+  useEffect(() => () => {
+    if (removalTimerRef.current) clearTimeout(removalTimerRef.current)
+  }, [])
   const [rowOrder, setRowOrder] = useState([])
   const [remarksLabel, setRemarksLabel] = useState('Remarks')
 
@@ -1303,7 +1309,26 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   }
 
   const handleClearRow = (empId) => {
-    setRows(prev => prev.filter(r => r.employeeId !== empId))
+    const rowIndex = rows.findIndex(row => row.employeeId === empId)
+    const removedRow = rowIndex >= 0 ? rows[rowIndex] : null
+    if (!removedRow) return
+    if (removalTimerRef.current) clearTimeout(removalTimerRef.current)
+    setDirty(true)
+    setRows(prev => prev.filter(row => row.employeeId !== empId))
+    setPendingRemoval({ row: removedRow, index: rowIndex })
+    removalTimerRef.current = setTimeout(() => setPendingRemoval(null), 5000)
+  }
+
+  const handleUndoClearRow = () => {
+    if (!pendingRemoval) return
+    if (removalTimerRef.current) clearTimeout(removalTimerRef.current)
+    setRows(prev => {
+      const restoreIndex = Math.min(pendingRemoval.index, prev.length)
+      const nextRows = [...prev]
+      nextRows.splice(restoreIndex, 0, pendingRemoval.row)
+      return nextRows
+    })
+    setPendingRemoval(null)
   }
 
   const handleEmployeeSelect = (rowIndex, empId) => {
@@ -1410,6 +1435,10 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     if (hasOverlap && !showWarning) {
       setShowWarning(true)
       return
+    }
+    if (pendingRemoval) {
+      if (removalTimerRef.current) clearTimeout(removalTimerRef.current)
+      setPendingRemoval(null)
     }
     setSaving(true)
     try {
@@ -1616,10 +1645,11 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
               const selectedAllowances = allowanceSelections[row.employeeId] || []
               return <div key={row.id || row.employeeId || `mobile-${idx}`} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${row.isAbsent ? 'border-red-200 bg-red-50/30' : ''}`}>
-                <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div></div><select aria-label={`${row.name} shift`} value={row.shiftType || 'Day'} onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)} disabled={row.isAbsent || row.status === 'SunHoliday'} className="h-9 w-[116px] shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500"><option value="Day">Day shift</option><option value="DN">Double shift</option><option value="Night">Night shift</option></select></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><button onClick={() => handleClearRow(row.id || row.employeeId)} disabled={!row.employeeId && !row.id} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div>
+                <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div></div><select aria-label={`${row.name} shift`} value={row.shiftType || 'Day'} onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)} disabled={row.isAbsent || row.status === 'SunHoliday'} className="h-9 w-[116px] shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500"><option value="Day">Day shift</option><option value="DN">Double shift</option><option value="Night">Night shift</option></select></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div>
                 {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Remarks</div><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={remarksOptions} disabled={!row.employeeId || row.isAbsent} className="w-full" /></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
               </div>
             })}</div>
+            {pendingRemoval && <div className="fixed inset-x-3 bottom-[78px] z-[90] flex items-center justify-between gap-3 rounded-lg bg-gray-900 px-3 py-2.5 text-white shadow-xl md:hidden" role="status" aria-live="polite"><span className="min-w-0 truncate text-xs">Removed {pendingRemoval.row.name || 'attendance row'}</span><button type="button" onClick={handleUndoClearRow} className="shrink-0 rounded-md bg-white/15 px-3 py-1.5 text-xs font-semibold text-white active:bg-white/25">Undo</button></div>}
             <div className="sticky bottom-2 z-30 rounded-xl border border-gray-200 bg-white/95 backdrop-blur-sm p-3 shadow-lg"><div className="flex items-center justify-between gap-3"><div className="min-w-0 text-[11px] text-gray-500 truncate">{hasGenerated ? 'Records ready to submit' : 'Generate active employees first'}</div>{rows.length > 0 && <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="min-h-11 shrink-0 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white disabled:opacity-50">{saving ? 'Processing…' : 'Submit records'}</button>}</div>{saved && <div className="flex items-center gap-1.5 pt-2 text-xs font-medium text-green-600"><Check size={14} /> Successfully submitted</div>}</div>
           </div>}
           <div className="hidden md:flex flex-1 min-h-0 flex-col gap-3">
@@ -1915,8 +1945,8 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                         </td>
                         <td className="px-2 text-center">
                           <button
-                            onClick={() => handleClearRow(row.id || row.employeeId)}
-                            disabled={!row.employeeId && !row.id}
+                            onClick={() => handleClearRow(row.employeeId)}
+                            disabled={!row.employeeId}
                             className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-30"
                             title="Clear row"
                           >
