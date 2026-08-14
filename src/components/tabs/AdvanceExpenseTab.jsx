@@ -2892,9 +2892,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               {/* Left Column: Ribbon Controls + Spreadsheet Table Grid (~75%) */}
               <div className="flex-1 w-full lg:w-[75%] min-w-0 space-y-3">
                 {/* 2. Session Details Ribbon */}
-                <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                <div className="grid grid-cols-2 gap-2.5 text-xs md:flex md:flex-wrap md:items-center">
                   {/* Date */}
-                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                  <div className="flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:w-auto md:px-3.5">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Date:</span>
                     <DatePicker
                       selected={sessionDate ? parseISO(sessionDate) : new Date()}
@@ -2914,7 +2914,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       popperClassName="z-[99999]"
                       popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
                       customInput={
-                        <div className="bg-transparent text-xs font-semibold text-slate-900 outline-none cursor-pointer h-full flex items-center select-none">
+                        <div className="w-full min-w-0 bg-transparent text-xs font-semibold text-slate-900 outline-none cursor-pointer h-full flex items-center select-none">
                           {sessionDate ? format(parseISO(sessionDate), 'dd MMM yyyy') : format(new Date(), 'dd MMM yyyy')}
                         </div>
                       }
@@ -2937,7 +2937,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <option value="Director Account">Director Account</option>
                       </select>
                     </div>
-                    <div className="md:hidden flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <div className="md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
                       <Dropdown
                         value={sessionAccount}
@@ -2980,7 +2980,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         })}
                       </select>
                     </div>
-                    <div className="md:hidden flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <div className="md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
                       <Dropdown
                         value={sessionDefaultEmp}
@@ -3006,7 +3006,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                   {/* Default Payout */}
                   {showSessionPayout && (
-                  <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                  <div className="col-span-1 flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:col-span-auto md:w-auto md:px-3.5">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
                     <select
                       value={sessionPayout}
@@ -3015,7 +3015,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         setSessionPayout(val);
                         setAddRows(addRows.map(r => ({ ...r, payoutMethod: val })));
                       }}
-                      className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
+                      className="min-w-0 flex-1 bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
                     >
                       <option value="Immediate">Immediate</option>
                       <option value="With Salary">Monthly</option>
@@ -3027,7 +3027,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   <button
                     type="button"
                     onClick={handleClearSession}
-                    className="p-2 text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl border border-slate-200 shadow-sm transition-colors h-10 flex items-center justify-center bg-white px-3 gap-1.5 cursor-pointer"
+                    className="col-span-2 justify-self-start p-2 text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl border border-slate-200 shadow-sm transition-colors h-10 flex items-center justify-center bg-white px-3 gap-1.5 cursor-pointer md:col-span-1 md:justify-self-auto"
                     title="Reset / Clear Session"
                   >
                     <RotateCcw size={14} className="text-slate-500" />
