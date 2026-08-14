@@ -738,6 +738,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showAdvanceFieldsDropdown, setShowAdvanceFieldsDropdown] = useState(false)
   const [showProjectColumn, setShowProjectColumn] = useState(draft?.showProjectColumn ?? false)
+  const [showSessionEmployee, setShowSessionEmployee] = useState(draft?.showSessionEmployee ?? true)
+  const [showSessionAccount, setShowSessionAccount] = useState(draft?.showSessionAccount ?? true)
+  const [showSessionPayout, setShowSessionPayout] = useState(draft?.showSessionPayout ?? true)
   const [activePaidToRowId, setActivePaidToRowId] = useState(null)
   const [paidToPopoverPos, setPaidToPopoverPos] = useState({ top: 200, left: 200 })
   const [paidToSearchTerm, setPaidToSearchTerm] = useState('')
@@ -755,11 +758,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       sessionPayout,
       showAdvanceFields,
       showProjectColumn,
+      showSessionEmployee,
+      showSessionAccount,
+      showSessionPayout,
     }
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(draftData))
     } catch (e) { /* quota exceeded, ignore */ }
-  }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn])
+  }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn, showSessionEmployee, showSessionAccount, showSessionPayout])
 
   // Compute side panel data: Date-grouped recent entries & Current Month total
   const sidePanelData = useMemo(() => {
@@ -2822,11 +2828,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           <div className="space-y-3">
             {/* 1. Integrated Header, Compact Mode Selector & Main Actions */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200/90 shadow-sm">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col gap-2 w-full">
                 <span className="text-sm font-bold text-slate-800 tracking-tight">{activeModule === 'Add Advance' ? 'Advance' : 'Expense'} type:</span>
 
                 {/* Ultra-Compact Mode Selector with Increased Spacing & Green Selection */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-[15px]">
+                <div className="flex flex-row flex-wrap items-center gap-5 text-xs">
                   <button
                     type="button"
                     onClick={() => { setExpenseMode('self'); handleSelfExpense(); }}
@@ -2836,10 +2842,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         : 'text-slate-600 hover:text-slate-900 font-normal'
                     }`}
                   >
-                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                    <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
                       expenseMode === 'self' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
                     }`}>
-                      {expenseMode === 'self' && <Check size={11} className="text-white stroke-[3]" />}
+                      {expenseMode === 'self' && <Check size={10} className="text-white stroke-[3]" />}
                     </span>
                     Self {activeModule === 'Add Advance' ? 'Advance' : 'Expense'}
                   </button>
@@ -2853,10 +2859,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         : 'text-slate-600 hover:text-slate-900 font-normal'
                     }`}
                   >
-                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                    <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
                       expenseMode === 'employee' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
                     }`}>
-                      {expenseMode === 'employee' && <Check size={11} className="text-white stroke-[3]" />}
+                      {expenseMode === 'employee' && <Check size={10} className="text-white stroke-[3]" />}
                     </span>
                     Employee {activeModule === 'Add Advance' ? 'Advance' : 'Expense'}
                   </button>
@@ -2864,7 +2870,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+              <div className="hidden items-center gap-2 w-full lg:w-auto justify-end">
                 <input
                   type="file"
                   ref={csvFileInputRef}
@@ -2909,6 +2915,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
 
                   {/* Paid From */}
+                  {showSessionAccount && (
                   <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
                     <select
@@ -2922,8 +2929,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       <option value="Director Account">Director Account</option>
                     </select>
                   </div>
+                  )}
 
                   {/* Default Employee */}
+                  {showSessionEmployee && (
                   <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
                     <select
@@ -2949,8 +2958,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       })}
                     </select>
                   </div>
+                  )}
 
                   {/* Default Payout */}
+                  {showSessionPayout && (
                   <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
                     <select
@@ -2966,6 +2977,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       <option value="With Salary">Monthly</option>
                     </select>
                   </div>
+                  )}
 
                   {/* Reset / Restore Session Button (Moved Next to Payout) */}
                   <button
@@ -2995,7 +3007,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         type="button"
                         onClick={() => setShowAdvanceFieldsDropdown(!showAdvanceFieldsDropdown)}
                         className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                          showAdvanceFields || showProjectColumn
+                          showAdvanceFields || showProjectColumn || !showSessionEmployee || !showSessionAccount || !showSessionPayout
                             ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                         }`}
@@ -3008,8 +3020,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       {showAdvanceFieldsDropdown && (
                         <div className="absolute right-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-3 z-30 text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-100">
                           <div className="font-bold text-slate-800 border-b border-slate-100 pb-1 text-[11px] uppercase tracking-wider">
-                            Toggle Table Columns
+                            Toggle visible fields
                           </div>
+
+                          <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
+                            <span className="font-semibold">Employee</span>
+                            <input type="checkbox" checked={showSessionEmployee} onChange={(e) => setShowSessionEmployee(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
+                          </label>
+
+                          <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
+                            <span className="font-semibold">Account</span>
+                            <input type="checkbox" checked={showSessionAccount} onChange={(e) => setShowSessionAccount(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
+                          </label>
+
+                          <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none pb-2 border-b border-slate-100">
+                            <span className="font-semibold">Payout</span>
+                            <input type="checkbox" checked={showSessionPayout} onChange={(e) => setShowSessionPayout(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
+                          </label>
                           
                           <label className="flex items-start gap-2.5 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
                             <input
