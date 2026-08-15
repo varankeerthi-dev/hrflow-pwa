@@ -52,6 +52,11 @@ import { formatDateDDMMYYYY } from '../../lib/utils';
 import { compressImageToBase64 } from '../../lib/imageUtils';
 import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy } from '../../lib/attendancePolicy'
 
+/*
+ * Mobile Settings visual direction: a calm grouped-list surface based on the supplied
+ * reference. Keep this mobile-only; desktop tabs, data flow, and actions stay unchanged.
+ */
+
 function getInitials(name) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'
 }
@@ -312,11 +317,27 @@ const settingsSubTabMeta = {
   },
 }
 
+const mobileSettingsItemMeta = {
+  organization: { group: 'General', title: 'Organization', detail: 'Company profile, branches and bank accounts', icon: Building2 },
+  user_roles: { group: 'General', title: 'Users & Roles', detail: 'People, access and permissions', icon: AtSign },
+  shift: { group: 'General', title: 'Shifts', detail: 'Working hours and shift setup', icon: Calendar },
+  salary: { group: 'General', title: 'Salary Slab', detail: 'Payroll structures and salary rules', icon: Wallet },
+  policy: { group: 'General', title: 'Policy', detail: 'Full Day, grace and late rules', icon: AlertCircle },
+  advance_cat: { group: 'Others', title: 'Advance Categories', detail: 'Advance and expense request types', icon: Wallet },
+  holidays: { group: 'Others', title: 'Holidays', detail: 'Holiday calendar and weekly offs', icon: Calendar },
+  site_geofence: { group: 'Others', title: 'Site Geofence', detail: 'Attendance locations and radius', icon: MapPin },
+  approval_settings: { group: 'Others', title: 'Approval Settings', detail: 'Approval stages and workflows', icon: Check },
+  allowance: { group: 'Others', title: 'Allowance Settings', detail: 'Food, travel and shift allowances', icon: Wallet },
+}
+
+const mobileSettingsGroups = ['General', 'Others']
+
 export default function SettingsTab({ initialSubTab }) {
   const { user } = useAuth()
   const { employees, loading: empLoading, updateEmployee, addEmployee, deleteEmployee } = useEmployees(user?.orgId)
   const { recalculateOTForEmployee } = useAttendance(user?.orgId)
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab || 'organization')
+  const [showMobileSettingsIndex, setShowMobileSettingsIndex] = useState(!initialSubTab)
   const [users, setUsers] = useState([])
   const [roles, setRoles] = useState([])
   const [activeUserRoleSubTab, setActiveUserRoleSubTab] = useState('users')
@@ -386,6 +407,10 @@ export default function SettingsTab({ initialSubTab }) {
       setActiveSubTab(visibleSubTabs[0].id)
     }
   }, [user, initialSubTab, activeSubTab, visibleSubTabs])
+
+  useEffect(() => {
+    setShowMobileSettingsIndex(!initialSubTab)
+  }, [initialSubTab])
 
   const [newShift, setNewShift] = useState({ name: '', type: 'Day', startTime: '09:00', endTime: '18:00', workHours: 9, isFlexible: false })
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
@@ -2952,6 +2977,10 @@ export default function SettingsTab({ initialSubTab }) {
   const activeEmployeesCount = employees.filter(emp => isEmployeeActiveStatus(emp.status)).length
   const currentSettingsMeta = settingsSubTabMeta[activeSubTab] || settingsSubTabMeta.organization
   const attendancePolicy = normalizeAttendancePolicy(orgSettings.attendancePolicy)
+  const openMobileSettingsItem = (tab) => {
+    setActiveSubTab(tab.id)
+    setShowMobileSettingsIndex(false)
+  }
 
   return (
     <div className="h-full flex flex-col text-[11px] font-inter text-slate-900">
@@ -2968,14 +2997,72 @@ export default function SettingsTab({ initialSubTab }) {
       `}</style>
 
       {!initialSubTab && (
-      <SubTabsNav
-        tabs={visibleSubTabs}
-        activeTabId={activeSubTab}
-        onTabChange={(tab) => setActiveSubTab(tab.id)}
-      />
+        <>
+          <div className={`md:hidden px-4 pt-10 pb-24 ${showMobileSettingsIndex ? '' : 'hidden'}`}>
+            <div className="space-y-9">
+              {mobileSettingsGroups.map((group) => {
+                const items = visibleSubTabs
+                  .filter((tab) => mobileSettingsItemMeta[tab.id]?.group === group)
+                  .map((tab) => ({ ...tab, ...mobileSettingsItemMeta[tab.id] }))
+
+                if (!items.length) return null
+
+                return (
+                  <section key={group}>
+                    <h2 className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#24507d]">{group}</h2>
+                    <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white">
+                      {items.map((item, index) => {
+                        const Icon = item.icon
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => openMobileSettingsItem(item)}
+                            className={`group flex min-h-[80px] w-full items-center gap-4 px-5 text-left transition-colors active:bg-slate-50 ${index ? 'border-t border-slate-200' : ''}`}
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center text-slate-600">
+                              <Icon size={24} strokeWidth={1.9} />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[16px] font-semibold tracking-[-0.02em] text-slate-950">{item.title}</span>
+                              <span className="mt-0.5 block truncate text-[12px] leading-5 text-slate-500">{item.detail}</span>
+                            </span>
+                            <ChevronRight size={23} strokeWidth={2.1} className="shrink-0 text-slate-950" aria-hidden="true" />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="hidden md:block">
+            <SubTabsNav
+              tabs={visibleSubTabs}
+              activeTabId={activeSubTab}
+              onTabChange={(tab) => setActiveSubTab(tab.id)}
+            />
+          </div>
+        </>
       )}
 
-      <div className="flex-1 overflow-auto pr-1">
+      {!initialSubTab && !showMobileSettingsIndex && (
+        <div className="md:hidden flex items-center gap-2 px-4 pt-4 pb-3">
+          <button
+            type="button"
+            onClick={() => setShowMobileSettingsIndex(true)}
+            className="-ml-2 flex h-10 items-center gap-1 rounded-full px-2 text-[14px] font-semibold text-slate-900 active:bg-slate-100"
+          >
+            <ChevronLeft size={21} strokeWidth={2.2} />
+            <span>Settings</span>
+          </button>
+          <span className="min-w-0 truncate text-[12px] text-slate-500">{currentSettingsMeta.title}</span>
+        </div>
+      )}
+
+      <div className={`flex-1 overflow-auto pr-1 ${showMobileSettingsIndex ? 'hidden md:block' : ''}`}>
         {activeSubTab === 'policy' && (
           <div className="max-w-6xl space-y-4 no-print">
             <div className={`${settingsPanelClassName} p-5 md:p-6`}>
