@@ -170,6 +170,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
             size="sm"
             panelWidth="w-[min(20rem,calc(100vw-2rem))]"
             mobileMenu
+            autoFocusSearch={false}
             disabled={!canSelectAll}
           />
         </div>
@@ -177,7 +178,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category <span className="text-rose-500">*</span></label>
-            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => handleRowChange(row.id, 'category', value)} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu />
+            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => handleRowChange(row.id, 'category', value)} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} />
             {row.category === 'custom' && <input type="text" value={row.customCategory || ''} onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500" placeholder="Custom category..." />}
           </div>
           <div>
@@ -748,6 +749,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [showSessionEmployee, setShowSessionEmployee] = useState(draft?.showSessionEmployee ?? true)
   const [showSessionAccount, setShowSessionAccount] = useState(draft?.showSessionAccount ?? true)
   const [showSessionPayout, setShowSessionPayout] = useState(draft?.showSessionPayout ?? true)
+  const [isMobileReportExpanded, setIsMobileReportExpanded] = useState(false)
   const [activePaidToRowId, setActivePaidToRowId] = useState(null)
   const [paidToPopoverPos, setPaidToPopoverPos] = useState({ top: 200, left: 200 })
   const [paidToSearchTerm, setPaidToSearchTerm] = useState('')
@@ -2894,7 +2896,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 {/* 2. Session Details Ribbon */}
                 <div className="grid grid-cols-2 gap-2.5 text-xs md:flex md:flex-wrap md:items-center">
                   {/* Date */}
-                  <div className="flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:w-auto md:px-3.5">
+                  <div className="order-1 flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:order-none md:w-auto md:px-3.5">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Date:</span>
                     <DatePicker
                       selected={sessionDate ? parseISO(sessionDate) : new Date()}
@@ -2937,7 +2939,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <option value="Director Account">Director Account</option>
                       </select>
                     </div>
-                    <div className="md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <div className="order-4 md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
                       <Dropdown
                         value={sessionAccount}
@@ -2980,7 +2982,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         })}
                       </select>
                     </div>
-                    <div className="md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
+                    <div className="order-3 col-span-2 md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
                       <Dropdown
                         value={sessionDefaultEmp}
@@ -2999,6 +3001,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         className="min-w-0 flex-1"
                         panelWidth="w-[min(20rem,calc(100vw-2rem))]"
                         mobileMenu
+                        autoFocusSearch={false}
                       />
                     </div>
                   </>
@@ -3006,7 +3009,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                   {/* Default Payout */}
                   {showSessionPayout && (
-                  <div className="col-span-1 flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:col-span-auto md:w-auto md:px-3.5">
+                  <div className="order-2 col-span-1 flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:order-none md:col-span-auto md:w-auto md:px-3.5">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
                     <select
                       value={sessionPayout}
@@ -3027,7 +3030,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   <button
                     type="button"
                     onClick={handleClearSession}
-                    className="col-span-2 justify-self-start p-2 text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl border border-slate-200 shadow-sm transition-colors h-10 flex items-center justify-center bg-white px-3 gap-1.5 cursor-pointer md:col-span-1 md:justify-self-auto"
+                    className="order-5 col-span-1 w-full justify-self-stretch p-2 text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl border border-slate-200 shadow-sm transition-colors h-10 flex items-center justify-center bg-white px-3 gap-1.5 cursor-pointer md:order-none md:col-span-1 md:w-auto md:justify-self-auto"
                     title="Reset / Clear Session"
                   >
                     <RotateCcw size={14} className="text-slate-500" />
@@ -3037,14 +3040,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                 {/* 4. Expenses Table Header & Controls Bar */}
                 <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
-                <div className="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/40">
+                <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 sm:flex-row sm:gap-4 bg-slate-50/40">
                   <div className="flex items-center gap-4">
                     <h2 className="text-base font-bold text-slate-900">
                       {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'} <span className="text-slate-500 font-medium text-sm">({addRows.length} rows)</span>
                     </h2>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-3 w-auto">
                     {/* Show Advance fields Dropdown with Checkboxes & Click Outside Close */}
                     <div className="relative" ref={advanceFieldsDropdownRef}>
                       <button
@@ -3056,9 +3059,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                         }`}
                       >
-                        <SlidersHorizontal size={13} />
-                        Columns / Options
-                        <ChevronDown size={13} className={`transition-transform duration-150 ${showAdvanceFieldsDropdown ? 'rotate-180' : ''}`} />
+                        <SlidersHorizontal size={13} className="hidden md:block" />
+                        <span className="hidden md:inline">Columns / Options</span>
+                        <MoreVertical size={18} className="md:hidden" aria-hidden="true" />
+                        <ChevronDown size={13} className={`hidden md:block transition-transform duration-150 ${showAdvanceFieldsDropdown ? 'rotate-180' : ''}`} />
+                        <span className="sr-only">Columns and options</span>
                       </button>
 
                       {showAdvanceFieldsDropdown && (
@@ -3486,7 +3491,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
 
             {/* Right Column: Side Panel (~25% width) */}
-            <div className="w-full lg:w-[25%] lg:max-w-[290px] shrink-0 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 space-y-3.5 self-start">
+            <div className="w-full lg:w-[25%] lg:max-w-[290px] shrink-0 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 self-start">
+              <button
+                type="button"
+                onClick={() => setIsMobileReportExpanded((expanded) => !expanded)}
+                className="md:hidden flex w-full items-center justify-between gap-3 text-left"
+                aria-expanded={isMobileReportExpanded}
+              >
+                <span>
+                  <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">{format(new Date(), 'MMMM yyyy')}</span>
+                  <span className="mt-1 block text-xs font-semibold text-slate-800">{activeModule === 'Add Advance' ? 'Advance report' : 'Expense report'}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 font-mono">{formatINR(sidePanelData.monthTotal)}</span>
+                  <ChevronDown size={16} className={`text-slate-500 transition-transform ${isMobileReportExpanded ? 'rotate-180' : ''}`} />
+                </span>
+              </button>
+              <div className={`${isMobileReportExpanded ? 'block' : 'hidden'} space-y-3.5 md:block`}>
                 {/* 1. Panel Header: Current Month & Total Spent/Adv */}
                 <div className="border-b border-slate-100 pb-3">
                   <div className="flex items-center justify-between">
@@ -3562,9 +3583,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
               </div>
             </div>
+            </div>
 
             {/* 7. Keyboard Shortcuts Footer Bar */}
-            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+            <div className="hidden md:flex bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
               <div className="flex flex-wrap items-center gap-3 font-medium">
                 <span className="font-bold text-slate-800">Keyboard Shortcuts</span>
                 <span className="text-slate-300">•</span>

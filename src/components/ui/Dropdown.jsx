@@ -17,6 +17,7 @@ export default function Dropdown({
   panelWidth = 'w-44',
   emptyText = 'No options',
   mobileMenu = false,
+  autoFocusSearch = true,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -115,7 +116,7 @@ export default function Dropdown({
                     placeholder="Search..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    autoFocus
+                    autoFocus={autoFocusSearch}
                     className="w-full h-8 pl-8 pr-2 border border-zinc-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
