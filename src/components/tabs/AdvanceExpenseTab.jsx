@@ -6,7 +6,7 @@ import { format, parseISO } from 'date-fns'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
-import { collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
+import { arrayUnion, collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
 import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
@@ -334,6 +334,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' })
+  const [portalEditForm, setPortalEditForm] = useState(null)
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
@@ -559,6 +560,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           hrApproval: initialHrApproval,
           mdApproval: initialMdApproval,
           createdBy: user.name || user.email,
+          submittedByUid: user.uid,
           createdAt: serverTimestamp(),
           approvalSource: 'advance-expense',
           approvalRequired: true,
@@ -627,6 +629,82 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
       setEditingId(null)
     }
+  })
+
+  const portalExpenseUpdateMutation = useMutation({
+    mutationFn: async ({ id, changes }) => {
+      if (!portalMode || !portalEmployeeId) throw new Error('Employee portal context is required.')
+      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', id)
+      const itemSnap = await getDoc(itemRef)
+      const original = itemSnap.data()
+
+      if (!original || original.employeeId !== portalEmployeeId || original.type !== 'Expense' || original.status !== 'Pending') {
+        throw new Error('Only your own pending expenses can be edited.')
+      }
+
+      const nextValues = {
+        date: changes.date,
+        category: changes.category?.trim(),
+        amount: Number(changes.amount),
+        reason: changes.reason?.trim() || '',
+        project: changes.project?.trim() || '',
+      }
+      if (!nextValues.date || !nextValues.category || !nextValues.amount || nextValues.amount <= 0) {
+        throw new Error('Enter a date, category, and amount greater than zero.')
+      }
+
+      await updateDoc(itemRef, {
+        ...nextValues,
+        employeeEditedAt: serverTimestamp(),
+        employeeEditedByUid: user.uid,
+        employeeEditAudit: arrayUnion({
+          at: new Date().toISOString(),
+          byUid: user.uid,
+          action: 'edited_pending_expense',
+          previous: {
+            date: original.date || '',
+            category: original.category || '',
+            amount: Number(original.amount || 0),
+            reason: original.reason || '',
+            project: original.project || '',
+          },
+          next: nextValues,
+        }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      setPortalEditForm(null)
+      setSuccessModal({ open: true, title: 'Expense Updated', message: 'Your pending expense has been updated and remains in the approval queue.' })
+      setTimeout(() => setSuccessModal(prev => ({ ...prev, open: false })), 3000)
+    },
+  })
+
+  const portalExpenseWithdrawMutation = useMutation({
+    mutationFn: async (entry) => {
+      if (!portalMode || !portalEmployeeId) throw new Error('Employee portal context is required.')
+      const itemRef = doc(db, 'organisations', user.orgId, 'advances_expenses', entry.id)
+      const itemSnap = await getDoc(itemRef)
+      const original = itemSnap.data()
+
+      if (!original || original.employeeId !== portalEmployeeId || original.type !== 'Expense' || original.status !== 'Pending') {
+        throw new Error('Only your own pending expenses can be withdrawn.')
+      }
+
+      await updateDoc(itemRef, {
+        status: 'Withdrawn',
+        hrApproval: 'Withdrawn',
+        mdApproval: 'Withdrawn',
+        withdrawnAt: serverTimestamp(),
+        withdrawnByUid: user.uid,
+        employeeEditAudit: arrayUnion({ at: new Date().toISOString(), byUid: user.uid, action: 'withdrew_pending_expense' }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['advances_expenses', user?.orgId])
+      setSuccessModal({ open: true, title: 'Expense Withdrawn', message: 'This pending expense has been withdrawn and will not move forward for approval.' })
+      setTimeout(() => setSuccessModal(prev => ({ ...prev, open: false })), 3000)
+    },
   })
 
   const finalizeMutation = useMutation({
@@ -1778,6 +1856,29 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const advances = entries.filter(e => e.type === 'Advance')
   const expenses = entries.filter(e => e.type === 'Expense')
+  const portalExpenses = portalMode
+    ? expenses.filter((entry) => entry.employeeId === portalEmployeeId).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+    : []
+
+  const openPortalExpenseEdit = (entry) => {
+    setPortalEditForm({
+      id: entry.id,
+      date: entry.date || '',
+      category: entry.category || '',
+      amount: String(entry.amount || ''),
+      reason: entry.reason || '',
+      project: entry.project || '',
+    })
+  }
+
+  const handlePortalExpenseWithdraw = async (entry) => {
+    if (!window.confirm(`Withdraw the pending ${entry.category || 'expense'} request for ${formatINR(entry.amount)}?`)) return
+    try {
+      await portalExpenseWithdrawMutation.mutateAsync(entry)
+    } catch (error) {
+      alert(error.message || 'Unable to withdraw this expense.')
+    }
+  }
 
   const effectiveAmount = (e) => {
     if (e.status === 'Partial' && e.partialAmount != null && e.partialAmount !== '')
@@ -3616,9 +3717,76 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 View All Shortcuts
               </button>
             </div>
+
+            {portalMode && activeModule === 'Add Expense' && (
+              <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                <div className="flex flex-col gap-1 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">My expenses</p>
+                    <h3 className="mt-0.5 text-sm font-semibold text-slate-900">Submitted expense requests</h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Only Pending expenses can be changed or withdrawn.</p>
+                </div>
+
+                {portalExpenses.length === 0 ? (
+                  <p className="px-4 py-7 text-center text-sm text-slate-400">You have not submitted an expense request yet.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {portalExpenses.map((entry) => {
+                      const isPending = entry.status === 'Pending'
+                      return (
+                        <div key={entry.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="text-sm font-semibold text-slate-900">{entry.category || 'Expense'}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isPending ? 'bg-amber-50 text-amber-700' : entry.status === 'Withdrawn' ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>{entry.status || 'Pending'}</span>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500">{entry.date || 'No date'} · {entry.reason || 'No remarks'}</p>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 sm:justify-end">
+                            <span className="text-sm font-bold tabular-nums text-slate-900">{formatINR(entry.amount)}</span>
+                            {isPending && (
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => openPortalExpenseEdit(entry)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
+                                <button type="button" onClick={() => handlePortalExpenseWithdraw(entry)} disabled={portalExpenseWithdrawMutation.isPending} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50">Withdraw</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         );
       })()}
+
+      {portalEditForm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pending expense</p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">Edit expense request</h2>
+              </div>
+              <button type="button" onClick={() => setPortalEditForm(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close edit expense"><X size={18} /></button>
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Date<input type="date" value={portalEditForm.date} onChange={(event) => setPortalEditForm((current) => ({ ...current, date: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Amount<input type="number" min="0" step="0.01" value={portalEditForm.amount} onChange={(event) => setPortalEditForm((current) => ({ ...current, amount: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Category<input list="portal-expense-categories" value={portalEditForm.category} onChange={(event) => setPortalEditForm((current) => ({ ...current, category: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /><datalist id="portal-expense-categories">{categories.map((category) => <option key={category} value={category} />)}</datalist></label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Remarks<input type="text" value={portalEditForm.reason} onChange={(event) => setPortalEditForm((current) => ({ ...current, reason: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Project <span className="font-normal normal-case text-slate-400">optional</span><input type="text" value={portalEditForm.project} onChange={(event) => setPortalEditForm((current) => ({ ...current, project: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={() => setPortalEditForm(null)} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-200">Cancel</button>
+              <button type="button" disabled={portalExpenseUpdateMutation.isPending} onClick={async () => { try { await portalExpenseUpdateMutation.mutateAsync({ id: portalEditForm.id, changes: portalEditForm }) } catch (error) { alert(error.message || 'Unable to update this expense.') } }} className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-emerald-700 disabled:opacity-50">{portalExpenseUpdateMutation.isPending ? 'Saving...' : 'Save changes'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
 
