@@ -57,6 +57,7 @@ import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 import ChatTab from '../components/tabs/ChatTab'
 import VehicleManagementTab from '../components/tabs/VehicleManagementTab'
+import EmployeeVehiclePortal from '../components/tabs/EmployeeVehiclePortal'
 import MobileTasksView from './MobileTasksView'
 import MobileEmployeePortal from './MobileEmployeePortal'
 import Badge from '../components/ui/Badge'
@@ -263,7 +264,8 @@ export default function MobileDashboard() {
 
   const currentEmployee = useMemo(() => {
     if (!employees.length || !user?.email) return null
-    return employees.find(e => e.email === user.email) || employees[0]
+    const normalizedEmail = user.email.toLowerCase().trim()
+    return employees.find(e => e.id === user.employeeId || [e.email, e.personalEmail, e.workEmail].some(email => email?.toLowerCase().trim() === normalizedEmail) || e.id === user.uid) || null
   }, [employees, user])
 
     const allModules = useMemo(() => [
@@ -286,7 +288,7 @@ export default function MobileDashboard() {
       { id: 'fines', label: 'Fines', icon: <Gavel className="h-4 w-4" />, module: 'Fine', color: 'text-red-400' },
       
       // Workforce modules
-      { id: 'vehicles', label: 'Vehicles', icon: <Car className="h-4 w-4" />, module: 'Workforce', color: 'text-blue-400' },
+      { id: 'vehicles', label: 'Vehicles', icon: <Car className="h-4 w-4" />, module: 'Vehicle', color: 'text-blue-400' },
       { id: 'engage', label: 'Engage', icon: <Handshake className="h-4 w-4" />, module: 'Engagement', color: 'text-amber-400' },
       { id: 'chat', label: 'Team Chat', icon: <MessageSquare className="h-4 w-4" />, module: 'Engagement', color: 'text-indigo-400', badge: unreadChatCount > 0 ? unreadChatCount : null },
       { id: 'shift-planning', label: 'Shift Planning', icon: <Calendar className="h-4 w-4" />, module: 'ShiftPlanning', color: 'text-violet-400' },
@@ -303,8 +305,9 @@ export default function MobileDashboard() {
     const isAdmin = user?.role?.toLowerCase() === 'admin'
     
     return allModules.filter(mod => {
-      // Always allow portal and attendance-reports for logged in users
-      if (mod.id === 'portal' || mod.id === 'attendance-reports') return true
+      // The self-service portal is available after sign-in; operational reports
+      // must be explicitly granted through RBAC.
+      if (mod.id === 'portal') return true
       
       // Admin bypass
       if (isAdmin) return true
@@ -515,7 +518,9 @@ export default function MobileDashboard() {
       case 'shift-planning':
         return <ShiftPlanningTab />
       case 'vehicles':
-        return <VehicleManagementTab />
+        return user?.role?.toLowerCase() === 'admin'
+          ? <VehicleManagementTab />
+          : <EmployeeVehiclePortal employeeId={currentEmployee?.id || null} />
       case 'portal':
         return <MobileEmployeePortal />
       case 'settings':

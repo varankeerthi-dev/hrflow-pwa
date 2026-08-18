@@ -47,6 +47,7 @@ import CorrectionTab from '../components/tabs/CorrectionTab'
 import ApprovalsTab from '../components/tabs/ApprovalsTab'
 import SettingsTab from '../components/tabs/SettingsTab'
 import EmployeePortalTab from '../components/tabs/EmployeePortalTab'
+import EmployeeVehiclePortal from '../components/tabs/EmployeeVehiclePortal'
 import SalarySlipTab from '../components/tabs/SalarySlipTab'
 import AdvanceExpenseTab from '../components/tabs/AdvanceExpenseTab'
 import FineTab from '../components/tabs/FineTab'
@@ -253,8 +254,10 @@ export default function Dashboard() {
     const normalizedUserEmail = user.email?.toLowerCase().trim()
     return employees.find(e => {
       const empEmail = (e.email || '').toLowerCase().trim()
-      return (normalizedUserEmail && empEmail === normalizedUserEmail) || e.id === user.uid
-    }) || employees[0]
+      const personalEmail = (e.personalEmail || '').toLowerCase().trim()
+      const workEmail = (e.workEmail || '').toLowerCase().trim()
+      return e.id === user.employeeId || (normalizedUserEmail && [empEmail, personalEmail, workEmail].includes(normalizedUserEmail)) || e.id === user.uid
+    }) || null
   }, [employees, user])
 
   useEffect(() => {
@@ -270,7 +273,7 @@ export default function Dashboard() {
   }, [user?.orgId])
 
   const allTabs = useMemo(() => [
-    { id: 'employees', label: 'Employees', icon: <Users size={18} strokeWidth={1.75} />, module: 'Settings' },
+    { id: 'employees', label: 'Employees', icon: <Users size={18} strokeWidth={1.75} />, module: 'Employees' },
     { id: 'home', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
     { id: 'attendance-list', label: 'Attendance', icon: <Calendar size={18} strokeWidth={1.75} />, module: 'Attendance' },
     { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, module: 'Tasks' },
@@ -280,13 +283,13 @@ export default function Dashboard() {
     { id: 'correction', label: 'Attendance Correction', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
     { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
-    { id: 'vehicle', label: 'Vehicle', icon: <Truck size={18} strokeWidth={1.75} />, module: 'Settings' },
-    { id: 'operations', label: 'Operations', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Settings' },
+    { id: 'vehicle', label: 'Vehicle', icon: <Truck size={18} strokeWidth={1.75} />, module: 'Vehicle' },
+    { id: 'operations', label: 'Operations', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Operations' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },
     { id: 'fines', label: 'Fines', icon: <Gavel size={18} strokeWidth={1.75} />, module: 'Fine' },
     { id: 'engage', label: 'Engage', icon: <Handshake size={18} strokeWidth={1.75} />, module: 'Engagement' },
     { id: 'chat', label: 'Team Chat', icon: <MessageSquare size={18} strokeWidth={1.75} />, module: 'Engagement' },
-    { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={18} strokeWidth={1.75} />, module: 'HRLetters' },
+    { id: 'recruitment', label: 'Recruitment', icon: <Briefcase size={18} strokeWidth={1.75} />, module: 'Recruitment' },
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={18} strokeWidth={1.75} />, module: 'Reports', children: ['attendance-reports', 'site-reports'] },
     { id: 'accountant', label: 'Accountant', icon: <Banknote size={18} strokeWidth={1.75} />, module: 'Finance' },
     { id: 'portal', label: 'My Portal', icon: <User size={18} strokeWidth={1.75} />, module: 'EmployeePortal' },
@@ -304,8 +307,9 @@ export default function Dashboard() {
     if (isAdmin) return allTabs
     
     return allTabs.filter(tab => {
-      // Always show home, portal, reports, and attendance reports
-      if (tab.id === 'home' || tab.id === 'portal' || tab.id === 'reports' || tab.id === 'attendance-reports' || tab.id === 'site-reports') return true
+      // The dashboard and self-service portal are available after sign-in; all
+      // operational reports require their explicit RBAC module permission.
+      if (tab.id === 'home' || tab.id === 'portal') return true
       
       // Check module permissions
       const modulePerms = userPermissions[tab.module]
@@ -531,7 +535,7 @@ export default function Dashboard() {
       case 'leave': return <LeaveTab />
       case 'approvals': return <ApprovalsTab />
       case 'letters': return <HRLettersTab />
-      case 'vehicle': return <OperationsTab initialSubTab="vehicles" />
+      case 'vehicle': return isAdmin ? <OperationsTab initialSubTab="vehicles" /> : <EmployeeVehiclePortal employeeId={currentEmployee?.id || null} />
       case 'operations': return <OperationsTab initialSubTab="dates" />
       case 'employees': return <EmployeesTab />
       case 'recruitment': return <RecruitmentTab />

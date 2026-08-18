@@ -886,6 +886,11 @@ export default function SettingsTab({ initialSubTab }) {
     { id: 'SalarySlip', label: 'Salary Slip', group: 'Payroll' },
     { id: 'AdvanceExpense', label: 'Advance / Expense', group: 'Payroll' },
     { id: 'Fine', label: 'Fine Tab', group: 'Payroll' },
+    // Operations
+    { id: 'Vehicle', label: 'Vehicle', group: 'Operations' },
+    { id: 'Operations', label: 'Operations', group: 'Operations' },
+    { id: 'Reports', label: 'Reports', group: 'Operations' },
+    { id: 'Finance', label: 'Finance', group: 'Operations' },
     // Engage
     { id: 'Engagement', label: 'Engagement', group: 'Engage' },
     { id: 'Birthday', label: 'Birthday', group: 'Engage' },
@@ -960,10 +965,11 @@ export default function SettingsTab({ initialSubTab }) {
           description: 'Standard employee access to self-service portal.',
           permissions: allModulesList.reduce((acc, mod) => {
             const isPortal = mod.id === 'EmployeePortal'
+            const isVehicle = mod.id === 'Vehicle'
             const isDefault = mod.id === 'Tasks'
             acc[mod.id] = { 
-              view: isPortal || isDefault, 
-              create: false, 
+              view: isPortal || isDefault || isVehicle,
+              create: isVehicle,
               edit: false, 
               delete: false, 
               approve: false, 
@@ -1180,6 +1186,23 @@ export default function SettingsTab({ initialSubTab }) {
     const unsubscribe = onSnapshot(rolesQuery, (snapshot) => {
       const fetchedRoles = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) || []
       setRoles(fetchedRoles)
+
+      // Vehicle was introduced after some tenant roles already existed. Add the
+      // missing map entry without changing any permission an administrator has
+      // already configured for the role.
+      fetchedRoles.forEach((role) => {
+        if (role.permissions?.Vehicle) return
+        const roleName = (role.name || '').toLowerCase()
+        const isAdminRole = roleName === 'admin'
+        const isEmployeeRole = roleName === 'employee'
+        const vehiclePermission = isAdminRole
+          ? { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
+          : isEmployeeRole
+            ? { view: true, create: true, edit: false, delete: false, approve: false, export: false, full: false }
+            : { view: false, create: false, edit: false, delete: false, approve: false, export: false, full: false }
+        updateDoc(doc(db, 'organisations', user.orgId, 'roles', role.id), { 'permissions.Vehicle': vehiclePermission })
+          .catch((error) => console.error('Unable to add Vehicle permission to role:', error))
+      })
       
       // Auto-seed default roles if none exist
       if (fetchedRoles.length === 0) {

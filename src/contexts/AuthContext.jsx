@@ -65,7 +65,7 @@ async function readUserDoc(uid, targetOrgId = null) {
         const modules = [
           'Attendance', 'Correction', 'Leave', 'Approvals', 'Summary', 'HRLetters',
           'SalarySlip', 'AdvanceExpense', 'Fine', 'Engagement', 'Birthday',
-          'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts',
+          'EmployeePortal', 'Settings', 'Employees', 'Roles', 'Shifts', 'Vehicle', 'Operations', 'Reports', 'Finance',
           'Recruitment', 'AssetManagement', 'PerformanceReview', 'Training',
           'ExitManagement', 'DocumentManagement', 'Helpdesk', 'Projects', 'TimeTracking', 'Tasks'
         ]
@@ -95,6 +95,16 @@ async function readUserDoc(uid, targetOrgId = null) {
         } else {
           // Minimal fallback for non-admin unknown roles
           userData.permissions = defaultPermissions
+        }
+
+        // Mileage entry is a standard employee operational duty. Legacy user
+        // permission maps predate the Vehicle module, so grant its restricted
+        // self-service capability without exposing fleet edit/approval rights.
+        if (currentRole.toLowerCase() === 'employee' && !userData.permissions?.Vehicle) {
+          userData.permissions = {
+            ...userData.permissions,
+            Vehicle: { view: true, create: true, edit: false, delete: false, approve: false, export: false, full: false }
+          }
         }
 
         // Sync currentOrgId (and orgId) back to Firestore if they changed or weren't set
