@@ -630,7 +630,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
 
 // --- MAIN COMPONENT ---
 
-export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary', onActiveTabChange }) {
+export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary', onActiveTabChange, attendanceMonthlySummaryOnly = false }) {
   const { user } = useAuth(); const { employees: allEmployees } = useEmployees(user?.orgId, false); const { slabs, increments } = useSalarySlab(user?.orgId);
   const queryClient = useQueryClient();
   const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -2304,6 +2304,41 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       </div>
     );
   };
+
+  if (attendanceMonthlySummaryOnly) {
+    return (
+      <div className="flex h-full min-h-0 flex-col bg-white text-gray-900">
+        <div className="flex shrink-0 items-center justify-end border-b border-gray-100 px-4 py-2">
+          <div className="flex items-center rounded-md border border-gray-200 bg-gray-100 p-1">
+            <button type="button" onClick={() => { const [year, month] = summaryMonth.split('-').map(Number); const date = new Date(year, month - 2, 1); setSummaryMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`) }} className="rounded p-1 text-gray-600 transition-all hover:bg-white hover:shadow-sm" aria-label="Previous month"><ChevronLeft size={14} /></button>
+            <input type="month" value={summaryMonth} onChange={e => setSummaryMonth(e.target.value)} className="h-6 w-28 cursor-pointer border-0 bg-transparent text-center text-[10px] font-black uppercase outline-none focus:ring-0" aria-label="Monthly Summary month" />
+            <button type="button" onClick={() => { const [year, month] = summaryMonth.split('-').map(Number); const date = new Date(year, month, 1); setSummaryMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`) }} className="rounded p-1 text-gray-600 transition-all hover:bg-white hover:shadow-sm" aria-label="Next month"><ChevronRight size={14} /></button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto bg-zinc-50/30">
+          <div className="h-full overflow-auto premium-overview-scroll px-4 pb-4 pt-1">
+            {isAttendanceLoading ? (
+              <div className="py-20 text-center"><Spinner /></div>
+            ) : (
+              <ReusableTable
+                data={filteredAttendanceSummaryData}
+                columns={overviewColumns}
+                nestedHeaders={overviewNestedHeaders}
+                page={1}
+                pageSize={filteredAttendanceSummaryData.length || 10}
+                totalRows={filteredAttendanceSummaryData.length}
+                searchable={false}
+                selectable={false}
+                sortable={false}
+                pagination={false}
+                rowClassName={(row, idx) => idx % 2 === 0 ? 'bg-white' : 'bg-[#F8F9FA]'}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full bg-white text-gray-900 overflow-hidden flex-col">

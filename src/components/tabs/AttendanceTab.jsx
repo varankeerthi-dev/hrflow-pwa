@@ -15,6 +15,7 @@ import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getEligibleAllowanceCategories, getAllowanceAmount } from '../../lib/allowanceRules'
 import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode } from '../../hooks/useAllowances'
 import SummaryTab from './SummaryTab'
+import SalarySlipTab from './SalarySlipTab'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX, LayoutGrid, List } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
@@ -1760,8 +1761,8 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   return (
     <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {activeSubTab === 'monthly-summary' ? (
-        <div className="flex-1 rounded-[12px] border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Monthly Summary</h2>
+        <div className="flex-1 min-h-0 overflow-hidden rounded-[12px] border border-gray-100 bg-white shadow-sm">
+          <SalarySlipTab attendanceMonthlySummaryOnly />
         </div>
       ) : activeSubTab === 'grid' ? (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white rounded-xl border border-gray-100 p-4">
