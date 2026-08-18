@@ -1712,20 +1712,21 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     const backlogDays = attendanceFollowUp.incompleteDays
     const oldestIncompleteDay = backlogDays[backlogDays.length - 1]
     const firstEmployeeGap = attendanceFollowUp.employeeGaps[0]
-    const hasBacklog = backlogDays.length >= 2
+    const hasBacklog = backlogDays.length > 0
+    const backlogDayLabel = `${backlogDays.length} recent workday${backlogDays.length === 1 ? '' : 's'}`
     const message = attendanceFollowUp.loading
       ? 'Checking the recent attendance trail…'
       : hasBacklog
-        ? `Attendance is ghosting you. 👻 ${backlogDays.length} recent workdays still need a roster check.`
+        ? `${backlogDayLabel} ${backlogDays.length === 1 ? 'is' : 'are'} not filled in the attendance register.`
         : 'Planning a closure? Add it to the holiday calendar before generating attendance.'
 
     if (compact) {
       return (
         <div className={`flex min-w-0 flex-1 items-center gap-3 rounded-[12px] border px-3 py-2 ${hasBacklog ? 'border-amber-200 bg-amber-50/80' : 'border-slate-200 bg-slate-50/80'}`}>
           <div className="min-w-0 flex-1">
-            <p className={`text-[9px] font-bold uppercase tracking-widest ${hasBacklog ? 'text-amber-700' : 'text-slate-500'}`}>Roster pulse</p>
+            <p className={`text-[9px] font-bold uppercase tracking-widest ${hasBacklog ? 'text-amber-700' : 'text-slate-500'}`}>Reminder</p>
             <p className={`truncate text-[11px] leading-4 ${hasBacklog ? 'font-semibold text-amber-900' : 'text-slate-600'}`}>{message}</p>
-            {firstEmployeeGap && !attendanceFollowUp.loading && <p className="truncate text-[10px] text-slate-500">{firstEmployeeGap.employee.name}: {firstEmployeeGap.missingDates.length} recent workdays missing — review attendance or inactive status.</p>}
+            {firstEmployeeGap && !attendanceFollowUp.loading && <p className="truncate text-[10px] text-slate-500">{firstEmployeeGap.employee.name}: attendance not filled for {firstEmployeeGap.missingDates.length} recent workdays — review attendance or inactive status.</p>}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {hasBacklog && oldestIncompleteDay && <button type="button" onClick={() => setSelectedDate(oldestIncompleteDay.date)} className="h-8 rounded-lg border border-amber-200 bg-white px-2.5 text-[10px] font-semibold text-amber-800 transition hover:bg-amber-100">Open {displayShortDate(oldestIncompleteDay.date)}</button>}
@@ -1740,10 +1741,10 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       <div className={`rounded-[12px] border p-3 shadow-sm ${hasBacklog ? 'border-amber-200 bg-amber-50/70' : 'border-slate-100 bg-slate-50/70'}`}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className={`text-[10px] font-bold uppercase tracking-widest ${hasBacklog ? 'text-amber-700' : 'text-slate-500'}`}>Roster pulse</p>
+            <p className={`text-[10px] font-bold uppercase tracking-widest ${hasBacklog ? 'text-amber-700' : 'text-slate-500'}`}>Reminder</p>
             <p className={`mt-1 text-xs leading-5 ${hasBacklog ? 'font-medium text-amber-900' : 'text-slate-600'}`}>{message}</p>
             {firstEmployeeGap && !attendanceFollowUp.loading && (
-              <p className="mt-1 text-[11px] leading-5 text-slate-600"><span className="font-semibold text-slate-800">{firstEmployeeGap.employee.name}</span> has no attendance on {firstEmployeeGap.missingDates.length} recent workdays. Mark the missing days, or review whether the employee is inactive.</p>
+              <p className="mt-1 text-[11px] leading-5 text-slate-600"><span className="font-semibold text-slate-800">{firstEmployeeGap.employee.name}</span> has attendance not filled for {firstEmployeeGap.missingDates.length} recent workdays. Fill the attendance, or review whether the employee is inactive.</p>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">

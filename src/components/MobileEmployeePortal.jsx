@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, deleteDoc, doc, addDoc, serverTimest
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { attendanceCol } from '../lib/firestore'
 import { formatTimeTo12Hour } from '../lib/salaryUtils'
+import { buildPortalApprovalFields } from '../lib/portalApprovalWorkflow'
 import Modal from './ui/Modal'
 import TimePicker from './ui/TimePicker'
 import SelfieCaptureModal from './ui/SelfieCaptureModal'
@@ -151,12 +152,12 @@ export default function MobileEmployeePortal() {
   const [validationErrors, setValidationErrors] = useState({})
   const [submitSuccess, setSubmitSuccess] = useState('')
   const [fileUploading, setFileUploading] = useState(false)
-  const [approvalSettingsByModule, setApprovalSettingsByModule] = useState({})
+  const [portalApprovalSettingsByModule, setPortalApprovalSettingsByModule] = useState({})
 
   useEffect(() => {
     if (!user?.orgId) return
     const fetchSettings = async () => {
-      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'))
+      const q = query(collection(db, 'organisations', user.orgId, 'portalApprovalSettings'))
       const snap = await getDocs(q)
       const nextSettings = {}
       snap.docs.forEach((docSnap) => {
@@ -165,20 +166,20 @@ export default function MobileEmployeePortal() {
           nextSettings[data.moduleName] = data
         }
       })
-      setApprovalSettingsByModule(nextSettings)
+      setPortalApprovalSettingsByModule(nextSettings)
     }
     fetchSettings()
   }, [user?.orgId])
 
   const getModuleNameForRequestType = (type) => {
-    if (type === 'Permission') return 'Permission'
+    if (type === 'Permission') return 'Leave'
     if (type === 'Advance') return 'Advance'
     return 'Leave'
   }
 
   const getApprovalSettingForType = (type) => {
     const moduleName = getModuleNameForRequestType(type)
-    return approvalSettingsByModule[moduleName] || { type: 'single', approvers: [], stages: [] }
+    return portalApprovalSettingsByModule[moduleName]
   }
 
   useEffect(() => {
@@ -465,9 +466,10 @@ export default function MobileEmployeePortal() {
       }
 
       const approvalSetting = getApprovalSettingForType(requestForm.type)
-      const approvalType = approvalSetting?.type || 'single'
-      const totalStages = approvalType === 'multi' ? (approvalSetting?.stages?.length || 1) : 1
-      const isNoApproval = approvalType === 'none'
+      const portalApprovalFields = buildPortalApprovalFields(getModuleNameForRequestType(requestForm.type), approvalSetting)
+      const approvalType = portalApprovalFields.portalApprovalType
+      const totalStages = portalApprovalFields.totalStages
+      const isNoApproval = false
 
       if (requestForm.type === 'Leave') {
         await applyLeave({
@@ -488,7 +490,8 @@ export default function MobileEmployeePortal() {
           deptHeadApproval: isNoApproval ? 'Approved' : 'Pending',
           mdApproval: isNoApproval ? 'Approved' : 'Pending',
           approvedBy: isNoApproval ? user.uid : null,
-          approvedAt: isNoApproval ? serverTimestamp() : null
+          approvedAt: isNoApproval ? serverTimestamp() : null,
+          ...portalApprovalFields
         })
       } else if (requestForm.type === 'Permission') {
         await addDoc(collection(db, 'organisations', user.orgId, 'requests'), {
@@ -512,6 +515,7 @@ export default function MobileEmployeePortal() {
           approvedAt: isNoApproval ? serverTimestamp() : null,
           createdAt: serverTimestamp(),
           createdBy: user.uid,
+          ...portalApprovalFields
         })
       } else if (requestForm.type === 'Advance') {
         // Save advance to advances_expenses collection so it shows in approvals
@@ -537,6 +541,7 @@ export default function MobileEmployeePortal() {
           payoutMethod: 'Immediate',
           createdAt: serverTimestamp(),
           createdBy: user.uid,
+          ...portalApprovalFields
         })
       }
 

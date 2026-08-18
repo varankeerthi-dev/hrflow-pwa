@@ -12,6 +12,7 @@ import {
   doc, 
   updateDoc, 
   serverTimestamp,
+  arrayUnion,
   deleteDoc,
   addDoc,
   getDoc
@@ -21,6 +22,7 @@ import AttendanceApprovalQueue from './AttendanceApprovalQueue'
 import AllowanceClaimsView from '../ui/AllowanceClaimsView'
 import { formatINR } from '../../lib/salaryUtils'
 import { logActivity } from '../../hooks/useActivityLog'
+import { canActOnPortalApproval, getPortalApprovalStage } from '../../lib/portalApprovalWorkflow'
 import { 
   CheckCircle2, 
   XCircle, 
@@ -152,6 +154,7 @@ export default function ApprovalsTab() {
   const [paymentQueue, setPaymentQueue] = useState([])
   const [recentPayments, setRecentPayments] = useState([])
   const [requests, setRequests] = useState([])
+  const [portalApprovals, setPortalApprovals] = useState([])
   const [leaveApprovalSetting, setLeaveApprovalSetting] = useState(null)
   
   // For the Advance/Expense action toggles
@@ -283,6 +286,7 @@ export default function ApprovalsTab() {
   useEffect(() => {
     if (!user?.orgId) return
     fetchData()
+    fetchPortalApprovals()
   }, [user?.orgId, activeSubTab])
 
   useEffect(() => {
@@ -340,11 +344,12 @@ export default function ApprovalsTab() {
         } else {
           // Filter: Approved, Partially Approved, and Rejected move to Recent Updates
           // Hold and Pending stay in the active list.
-          const active = data.filter(item => {
+          const standardApprovalItems = data.filter((item) => !item.portalApproval)
+          const active = standardApprovalItems.filter(item => {
           const status = item.status || 'Pending'
           return status === 'Pending' || status === 'Hold'
         })
-        const recent = data.filter(item => {
+        const recent = standardApprovalItems.filter(item => {
           const status = item.status || 'Pending'
           return status === 'Approved' || status === 'Partial' || status === 'Rejected'
         })
@@ -381,7 +386,7 @@ export default function ApprovalsTab() {
         )
         const snap = await getDocs(q)
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        setRequests(data)
+        setRequests(data.filter((item) => !item.portalApproval))
 
         // Initialize action states for regular requests too (for remarks)
         const initialActionState = {}
@@ -405,6 +410,27 @@ export default function ApprovalsTab() {
     }
   }
 
+  const fetchPortalApprovals = async () => {
+    if (!user?.orgId) return
+    try {
+      const [advanceSnap, requestSnap] = await Promise.all([
+        getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')),
+        getDocs(collection(db, 'organisations', user.orgId, 'requests')),
+      ])
+      const sortByCreatedAt = (left, right) => {
+        const leftAt = left.createdAt?.toMillis?.() || 0
+        const rightAt = right.createdAt?.toMillis?.() || 0
+        return rightAt - leftAt
+      }
+      setPortalApprovals([
+        ...advanceSnap.docs.map((document) => ({ id: document.id, ...document.data(), source: 'advances_expenses' })),
+        ...requestSnap.docs.map((document) => ({ id: document.id, ...document.data(), source: 'requests' })),
+      ].filter((item) => item.portalApproval && ['Pending', 'Hold'].includes(item.status || 'Pending')).sort(sortByCreatedAt))
+    } catch (error) {
+      console.error('Portal approval queue error:', error)
+    }
+  }
+
   // Helper to show temporary status
   const showFeedback = (id, msg, isError = false) => {
     const target = isError ? setErrorStatus : setSuccessStatus
@@ -416,6 +442,53 @@ export default function ApprovalsTab() {
         return next
       })
     }, 3000)
+  }
+
+  const handlePortalApprovalAction = async (item, action) => {
+    if (!canActOnPortalApproval(item, user)) {
+      return showFeedback(item.id, 'Not your approval stage', true)
+    }
+    const stage = getPortalApprovalStage(item)
+    if (!stage) return showFeedback(item.id, 'Workflow stage unavailable', true)
+    const stageIndex = Math.max(0, Number(item.portalApprovalCurrentStage) || 0)
+    const isFinalStage = stageIndex >= (item.portalApprovalStages?.length || 1) - 1
+    const collectionName = item.source === 'advances_expenses' ? 'advances_expenses' : 'requests'
+    const updateData = {
+      updatedAt: serverTimestamp(),
+      updatedBy: user.uid,
+      portalApprovalLastAction: action,
+      portalApprovalLastActionBy: user.uid,
+      portalApprovalLastActionAt: serverTimestamp(),
+      portalApprovalHistory: arrayUnion({ stageIndex, stageLabel: stage.label || stage.roles?.join(' / ') || 'Approver', action, by: user.uid, at: new Date().toISOString() }),
+    }
+
+    if (action === 'Approved') {
+      if (isFinalStage) {
+        updateData.status = 'Approved'
+        updateData.approvedBy = user.uid
+        updateData.approvedAt = serverTimestamp()
+        updateData.approved_by = user.uid
+        updateData.approved_at = serverTimestamp()
+      } else {
+        updateData.portalApprovalCurrentStage = stageIndex + 1
+        updateData.currentStage = stageIndex + 1
+        updateData.status = 'Pending'
+      }
+    } else if (action === 'Rejected') {
+      updateData.status = 'Rejected'
+    } else if (action === 'Hold') {
+      updateData.status = 'Hold'
+    }
+
+    try {
+      await updateDoc(doc(db, 'organisations', user.orgId, collectionName, item.id), updateData)
+      showFeedback(item.id, action === 'Approved' && !isFinalStage ? 'Moved to next stage' : 'Updated')
+      fetchData()
+      fetchPortalApprovals()
+    } catch (error) {
+      console.error('Portal approval update error:', error)
+      showFeedback(item.id, 'Failed', true)
+    }
   }
 
   const handleHrAdvExpenseSubmit = async (id) => {
@@ -889,10 +962,67 @@ export default function ApprovalsTab() {
   }
 
   return (
-    <div className="module-layout-root space-y-6 font-inter text-gray-900">
+    <div className="approvals-workspace module-layout-root space-y-6 font-inter text-gray-900">
+      <style>{`.approvals-workspace .font-black, .approvals-workspace .font-bold { font-weight: 600 !important; }`}</style>
       <div className="module-top-surface flex items-center py-2 border-b border-gray-100 mb-2">
         <h2 className="text-2xl font-black tracking-tight text-gray-900">Approvals</h2>
       </div>
+
+      {portalApprovals.length > 0 && (
+        <section className="overflow-hidden rounded-[12px] border border-indigo-100 bg-white shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-indigo-100 bg-indigo-50/50 px-5 py-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-500">My Portal Approval</p>
+              <h3 className="mt-1 text-sm font-semibold text-slate-800">Configured portal requests</h3>
+            </div>
+            <span className="rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-indigo-700">{portalApprovals.length} awaiting action</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-[760px] w-full">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400">Request</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400">Employee</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400">Current stage</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400">Workflow</th>
+                  <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-widest text-slate-400">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {portalApprovals.map((item) => {
+                  const stage = getPortalApprovalStage(item)
+                  const stageIndex = Math.max(0, Number(item.portalApprovalCurrentStage) || 0)
+                  const allowed = canActOnPortalApproval(item, user)
+                  const moduleName = item.portalApprovalModule || item.type || 'Request'
+                  return (
+                    <tr key={`${item.source}-${item.id}`} className="hover:bg-indigo-50/30">
+                      <td className="px-4 py-3">
+                        <p className="text-[12px] font-semibold text-slate-800">{moduleName}</p>
+                        <p className="mt-0.5 max-w-[220px] truncate text-[10px] text-slate-500" title={item.reason || item.category || ''}>{item.reason || item.category || 'Portal request'}</p>
+                      </td>
+                      <td className="px-4 py-3 text-[12px] font-semibold text-slate-700">{item.employeeName || 'Employee'}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] font-semibold text-indigo-700">{stage?.label || stage?.roles?.join(' / ') || 'Approver'}</span>
+                        <span className="ml-2 text-[10px] text-slate-400">Stage {stageIndex + 1} of {item.portalApprovalStages?.length || 1}</span>
+                      </td>
+                      <td className="px-4 py-3 text-[11px] text-slate-600">{item.portalApprovalType === 'multi' ? 'Sequential' : 'Single approval'}</td>
+                      <td className="px-4 py-3 text-right">
+                        {allowed ? (
+                          <div className="inline-flex items-center gap-2">
+                            <button type="button" onClick={() => handlePortalApprovalAction(item, 'Rejected')} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-[10px] font-semibold text-rose-600 hover:bg-rose-50">Reject</button>
+                            <button type="button" onClick={() => handlePortalApprovalAction(item, 'Hold')} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-[10px] font-semibold text-amber-700 hover:bg-amber-50">Hold</button>
+                            <button type="button" onClick={() => handlePortalApprovalAction(item, 'Approved')} className="rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-semibold text-white hover:bg-emerald-700">Approve</button>
+                          </div>
+                        ) : <span className="text-[10px] font-semibold text-slate-400">Awaiting {stage?.label || stage?.roles?.join(' / ') || 'approver'}</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {activeSubTab === 'attendance-queue' ? (
         <AttendanceApprovalQueue user={user} canManage={canManageAttendance} />

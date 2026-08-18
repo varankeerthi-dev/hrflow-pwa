@@ -18,6 +18,7 @@ import AdvanceExpenseTab from './AdvanceExpenseTab'
 import EmployeeProfileUpdateForm from './EmployeeProfileUpdateForm'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
+import { buildPortalApprovalFields } from '../../lib/portalApprovalWorkflow'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getAttendancePortalBadge, ATTENDANCE_EVENT_IN, ATTENDANCE_EVENT_OUT, ATTENDANCE_STATUS_REJECTED } from '../../lib/attendanceWorkflow'
 import { compressSelfieBlob, evaluateSiteProximity, getCurrentPositionOnce, getOrgSites, resolveTargetSite, submitPendingAttendanceEvent, uploadTempSelfie } from '../../lib/geoAttendanceService'
@@ -111,7 +112,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const [requests, setRequests] = useState([])
   const [expandedMonths, setExpandedMonths] = useState({}) // Track which months are expanded
   const [showRequestModal, setShowRequestModal] = useState(false)
-  const [approvalSettingsByModule, setApprovalSettingsByModule] = useState({})
+  const [portalApprovalSettingsByModule, setPortalApprovalSettingsByModule] = useState({})
   const [requestForm, setRequestForm] = useState({
     type: 'Leave',
     leaveType: 'Casual',
@@ -127,7 +128,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   useEffect(() => {
     if (!user?.orgId) return
     const fetchSettings = async () => {
-      const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'))
+      const q = query(collection(db, 'organisations', user.orgId, 'portalApprovalSettings'))
       const snap = await getDocs(q)
       const nextSettings = {}
       snap.docs.forEach((docSnap) => {
@@ -136,20 +137,20 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           nextSettings[data.moduleName] = data
         }
       })
-      setApprovalSettingsByModule(nextSettings)
+      setPortalApprovalSettingsByModule(nextSettings)
     }
     fetchSettings()
   }, [user?.orgId])
 
   const getModuleNameForRequestType = (type) => {
-    if (type === 'Permission') return 'Permission'
+    if (type === 'Permission') return 'Leave'
     if (type === 'Advance') return 'Advance'
     return 'Leave'
   }
 
   const getApprovalSettingForType = (type) => {
     const moduleName = getModuleNameForRequestType(type)
-    return approvalSettingsByModule[moduleName] || { type: 'single', approvers: [], stages: [] }
+    return portalApprovalSettingsByModule[moduleName]
   }
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [month, setMonth] = useState(() => {
@@ -359,9 +360,10 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     setLoading(true)
     try {
       const approvalSetting = getApprovalSettingForType(requestForm.type)
-      const approvalType = approvalSetting?.type || 'single'
-      const totalStages = approvalType === 'multi' ? (approvalSetting?.stages?.length || 1) : 1
-      const isNoApproval = approvalType === 'none'
+      const portalApprovalFields = buildPortalApprovalFields(getModuleNameForRequestType(requestForm.type), approvalSetting)
+      const approvalType = portalApprovalFields.portalApprovalType
+      const totalStages = portalApprovalFields.totalStages
+      const isNoApproval = false
 
       if (requestForm.type === 'Leave') {
         const payload = {
@@ -385,7 +387,8 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           deptHeadApproval: isNoApproval ? 'Approved' : 'Pending',
           mdApproval: isNoApproval ? 'Approved' : 'Pending',
           approvedBy: isNoApproval ? user.uid : null,
-          approvedAt: isNoApproval ? serverTimestamp() : null
+          approvedAt: isNoApproval ? serverTimestamp() : null,
+          ...portalApprovalFields
         }
         await applyLeave(payload)
       } else if (requestForm.type === 'Permission') {
@@ -405,7 +408,8 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           approverIds: requestForm.approverIds || [],
           orgId: user.orgId,
           approvedBy: isNoApproval ? user.uid : null,
-          approvedAt: isNoApproval ? serverTimestamp() : null
+          approvedAt: isNoApproval ? serverTimestamp() : null,
+          ...portalApprovalFields
         }
 
         const payload = {
@@ -436,7 +440,8 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           approvedBy: isNoApproval ? user.uid : null,
           approvedAt: isNoApproval ? serverTimestamp() : null,
           createdAt: serverTimestamp(),
-          orgId: user.orgId
+          orgId: user.orgId,
+          ...portalApprovalFields
         }
 
         await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), payload)

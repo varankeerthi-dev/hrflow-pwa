@@ -18,6 +18,7 @@ import html2canvas from 'html2canvas'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
+import { buildPortalApprovalFields } from '../../lib/portalApprovalWorkflow'
 
 function approvalStatusTextClass(status, lane) {
   const s = (status || 'Pending').toLowerCase()
@@ -422,6 +423,16 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     enabled: !!user?.orgId
   })
 
+  const { data: portalApprovalSettings = [] } = useQuery({
+    queryKey: ['portalApprovalSettings', user?.orgId],
+    queryFn: async () => {
+      if (!user?.orgId) return []
+      const snap = await getDocs(collection(db, 'organisations', user.orgId, 'portalApprovalSettings'))
+      return snap.docs.map((document) => ({ id: document.id, ...document.data() }))
+    },
+    enabled: !!user?.orgId && portalMode
+  })
+
   // TanStack Query for fetching deleted items
   const { data: deletedEntries = [], isLoading: loadingDeleted } = useQuery({
     queryKey: ['deleted_advances_expenses', user?.orgId],
@@ -629,6 +640,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         let initialMdApproval = 'Pending'
         let initialApprovedBy = null
         let initialApprovedAt = null
+        const portalApprovalFields = portalMode
+          ? buildPortalApprovalFields(type, portalApprovalSettings.find((setting) => setting.moduleName === type))
+          : {}
 
         const expenseDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
           transactionNo: txnNo,
@@ -650,15 +664,16 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           createdBy: user.name || user.email,
           submittedByUid: user.uid,
           createdAt: serverTimestamp(),
-          approvalSource: 'advance-expense',
+          approvalSource: portalMode ? 'my-portal' : 'advance-expense',
           approvalRequired: true,
-          approvalWorkflow: 'standard',
+          approvalWorkflow: portalMode ? 'portal-config' : 'standard',
           paidTo: row.paidTo || null,
           paidToType: row.paidToType || null,
           paidToName: paidToName,
           paidToCustomName: row.paidToCustomName || null,
           linkedAdvanceId: linkedAdvanceId,
-          isCashAdvance: !!linkedAdvanceId
+          isCashAdvance: !!linkedAdvanceId,
+          ...portalApprovalFields
         })
         
         // Update the linked advance with expense ID

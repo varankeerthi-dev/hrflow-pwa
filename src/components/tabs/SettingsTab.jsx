@@ -47,6 +47,7 @@ import {
 } from '../../lib/employeeStatus'
 import { Table as ReusableTable } from '../table'
 import { SubTabsNav } from '../ui/SubTabsNav'
+import { PORTAL_APPROVAL_MODULES, PORTAL_APPROVAL_ROLES, createPortalApprovalDraft, normalizePortalApprovalSetting } from '../../lib/portalApprovalWorkflow'
 
 import { formatDateDDMMYYYY } from '../../lib/utils';
 import { compressImageToBase64 } from '../../lib/imageUtils';
@@ -416,6 +417,10 @@ export default function SettingsTab({ initialSubTab }) {
       { role: '', amountLimit: '' }
     ]
   })
+  const [portalApprovalSettings, setPortalApprovalSettings] = useState([])
+  const [editingPortalApproval, setEditingPortalApproval] = useState(null)
+  const [portalApprovalDraft, setPortalApprovalDraft] = useState(() => createPortalApprovalDraft('Leave'))
+  const [savingPortalApproval, setSavingPortalApproval] = useState(false)
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const userPermissions = useMemo(() => user?.permissions || {}, [user?.permissions])
@@ -462,6 +467,7 @@ export default function SettingsTab({ initialSubTab }) {
     { id: 'holidays', label: 'Holidays', module: 'Settings' },
     { id: 'site_geofence', label: 'Site Geofence', module: 'Settings' },
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' },
+    { id: 'my_portal_approval', label: 'My Portal Approval', module: 'Settings' },
     { id: 'allowance', label: 'Allowance Settings', module: 'Settings' },
     { id: 'policy', label: 'Policy', module: 'Settings' }
   ]
@@ -2301,6 +2307,14 @@ export default function SettingsTab({ initialSubTab }) {
 
   useEffect(() => {
     if (!user?.orgId) return
+    const portalSettingsRef = collection(db, 'organisations', user.orgId, 'portalApprovalSettings')
+    return onSnapshot(portalSettingsRef, (snapshot) => {
+      setPortalApprovalSettings(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })))
+    })
+  }, [user?.orgId])
+
+  useEffect(() => {
+    if (!user?.orgId) return
     const q = query(collection(db, 'organisations', user.orgId, 'sites'), orderBy('siteName', 'asc'))
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setSites(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
@@ -2364,6 +2378,50 @@ export default function SettingsTab({ initialSubTab }) {
     } catch (err) {
       console.error('Delete approval error:', err)
       alert('Failed to delete.')
+    }
+  }
+
+  const openPortalApprovalEditor = (moduleName) => {
+    const current = portalApprovalSettings.find((setting) => setting.moduleName === moduleName)
+    setPortalApprovalDraft(normalizePortalApprovalSetting(current, moduleName))
+    setEditingPortalApproval(moduleName)
+  }
+
+  const handleSavePortalApproval = async () => {
+    if (!user?.orgId || !editingPortalApproval) return
+    const normalized = normalizePortalApprovalSetting(portalApprovalDraft, editingPortalApproval)
+    if (normalized.type === 'single' && !normalized.approvers.length) {
+      alert('Select at least one role for single approval.')
+      return
+    }
+    if (normalized.type === 'multi' && !normalized.stages.length) {
+      alert('Add at least one approval stage.')
+      return
+    }
+
+    setSavingPortalApproval(true)
+    try {
+      const existing = portalApprovalSettings.find((setting) => setting.moduleName === editingPortalApproval)
+      const payload = {
+        ...normalized,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid,
+      }
+      if (existing) {
+        await updateDoc(doc(db, 'organisations', user.orgId, 'portalApprovalSettings', existing.id), payload)
+      } else {
+        await addDoc(collection(db, 'organisations', user.orgId, 'portalApprovalSettings'), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid,
+        })
+      }
+      setEditingPortalApproval(null)
+    } catch (error) {
+      console.error('Save My Portal approval error:', error)
+      alert('Failed to save My Portal approval settings.')
+    } finally {
+      setSavingPortalApproval(false)
     }
   }
 
@@ -3004,6 +3062,99 @@ export default function SettingsTab({ initialSubTab }) {
               </div>
             </div>
           </Modal>
+        )}
+      </div>
+    )
+  }
+
+  const renderMyPortalApprovalSettings = () => {
+    const editing = editingPortalApproval ? normalizePortalApprovalSetting(portalApprovalDraft, editingPortalApproval) : null
+    return (
+      <div className="space-y-6 no-print">
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+          <div className="mb-8 max-w-3xl">
+            <h2 className="text-lg font-normal uppercase tracking-widest text-gray-800">My Portal Approval</h2>
+            <p className="mt-1 text-xs font-medium text-gray-400">Employee portal requests always enter an approval queue. Set one approving role group, or define the exact role sequence for Leave, Advance, and Expense.</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {PORTAL_APPROVAL_MODULES.map((module) => {
+              const current = portalApprovalSettings.find((setting) => setting.moduleName === module.id)
+              const normalized = normalizePortalApprovalSetting(current, module.id)
+              const summary = normalized.type === 'single'
+                ? normalized.approvers.join(' / ')
+                : normalized.stages.map((stage) => stage.role).join(' → ')
+              return (
+                <div key={module.id} className="rounded-[12px] border border-gray-100 bg-slate-50/60 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">My Portal</p>
+                      <h3 className="mt-1 text-sm font-semibold text-slate-800">{module.label}</h3>
+                    </div>
+                    <span className={`rounded-md px-2 py-1 text-[9px] font-semibold uppercase tracking-wide ${current ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                      {current ? normalized.type === 'single' ? 'Single' : 'Multi-stage' : 'Default'}
+                    </span>
+                  </div>
+                  <p className="mt-4 min-h-10 text-[11px] leading-5 text-slate-500">{summary}</p>
+                  <button type="button" onClick={() => openPortalApprovalEditor(module.id)} className="mt-5 w-full rounded-xl border border-slate-200 bg-white py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
+                    {current ? 'Edit workflow' : 'Configure workflow'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {editing && (
+          <div className="rounded-2xl border border-indigo-100 bg-white p-7 shadow-sm">
+            <div className="flex flex-col justify-between gap-3 border-b border-gray-100 pb-5 md:flex-row md:items-center">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-500">My Portal workflow</p>
+                <h3 className="mt-1 text-base font-semibold text-slate-800">{editingPortalApproval} approval</h3>
+              </div>
+              <div className="inline-flex rounded-xl bg-slate-100 p-1">
+                {['single', 'multi'].map((type) => (
+                  <button key={type} type="button" onClick={() => setPortalApprovalDraft((current) => ({ ...current, type }))} className={`rounded-lg px-4 py-2 text-[10px] font-semibold uppercase tracking-wide transition-colors ${editing.type === type ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    {type === 'single' ? 'Single approval' : 'Multi-stage'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {editing.type === 'single' ? (
+              <div className="mt-6">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Authorized roles</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {PORTAL_APPROVAL_ROLES.map((role) => {
+                    const selected = editing.approvers.includes(role)
+                    return <button key={role} type="button" onClick={() => setPortalApprovalDraft((current) => ({ ...current, approvers: selected ? current.approvers.filter((item) => item !== role) : [...current.approvers, role] }))} className={`rounded-lg border px-3 py-2 text-[11px] font-semibold transition-colors ${selected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 bg-white text-slate-600 hover:border-indigo-200'}`}>{role}</button>
+                  })}
+                </div>
+                <p className="mt-3 text-[11px] text-slate-500">Any selected role can complete this portal request in one decision.</p>
+              </div>
+            ) : (
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Approval order</p>
+                  <button type="button" onClick={() => setPortalApprovalDraft((current) => ({ ...current, stages: [...current.stages, { role: 'HR' }] }))} className="text-[10px] font-semibold uppercase tracking-wide text-indigo-600 hover:text-indigo-700">+ Add stage</button>
+                </div>
+                {editing.stages.map((stage, index) => (
+                  <div key={`${stage.role}-${index}`} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-slate-50 p-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-indigo-600 shadow-sm">{index + 1}</span>
+                    <select value={stage.role} onChange={(event) => setPortalApprovalDraft((current) => ({ ...current, stages: current.stages.map((item, stageIndex) => stageIndex === index ? { ...item, role: event.target.value } : item) }))} className="h-10 flex-1 rounded-lg border border-gray-200 bg-white px-3 text-xs text-slate-700 outline-none focus:border-indigo-500">
+                      {PORTAL_APPROVAL_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
+                    </select>
+                    <button type="button" disabled={editing.stages.length === 1} onClick={() => setPortalApprovalDraft((current) => ({ ...current, stages: current.stages.filter((_, stageIndex) => stageIndex !== index) }))} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"><Trash2 size={15} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-7 flex justify-end gap-3 border-t border-gray-100 pt-5">
+              <button type="button" onClick={() => setEditingPortalApproval(null)} className="rounded-xl px-4 py-2.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+              <button type="button" disabled={savingPortalApproval} onClick={handleSavePortalApproval} className="rounded-xl bg-indigo-600 px-5 py-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-60">{savingPortalApproval ? 'Saving…' : 'Save My Portal workflow'}</button>
+            </div>
+          </div>
         )}
       </div>
     )
@@ -3933,6 +4084,8 @@ export default function SettingsTab({ initialSubTab }) {
         {activeSubTab === 'site_geofence' && renderSiteGeofenceSettings()}
 
         {activeSubTab === 'approval_settings' && renderApprovalSettings()}
+
+        {activeSubTab === 'my_portal_approval' && renderMyPortalApprovalSettings()}
 
         {activeSubTab === 'allowance' && <AllowanceSettings />}
 
