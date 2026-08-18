@@ -3718,7 +3718,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
 
             {/* 7. Keyboard Shortcuts Footer Bar */}
-            <div className="hidden md:flex bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+            {!portalMode && <div className="hidden md:flex bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
               <div className="flex flex-wrap items-center gap-3 font-medium">
                 <span className="font-bold text-slate-800">Keyboard Shortcuts</span>
                 <span className="text-slate-300">•</span>
@@ -3740,7 +3740,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               >
                 View All Shortcuts
               </button>
-            </div>
+            </div>}
 
             {portalMode && activeModule === 'Add Expense' && (
               <section className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">

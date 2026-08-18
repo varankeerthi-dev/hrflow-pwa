@@ -15,6 +15,7 @@ import { useLeaves } from '../../hooks/useLeaves'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import EmployeeTasksView from './EmployeeTasksView'
 import AdvanceExpenseTab from './AdvanceExpenseTab'
+import EmployeeProfileUpdateForm from './EmployeeProfileUpdateForm'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
@@ -72,11 +73,13 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     
     const found = employees.find(e => {
       const empEmail = (e.email || '').toLowerCase().trim()
+      const empPersonalEmail = (e.personalEmail || '').toLowerCase().trim()
+      const empWorkEmail = (e.workEmail || '').toLowerCase().trim()
       const empCode = (e.empCode || '').toLowerCase().trim()
       const empId = e.id?.toLowerCase().trim() || ''
       const empName = e.name || 'Unknown'
       const matchLinkedEmployee = !!linkedEmployeeId && empId === linkedEmployeeId
-      const matchEmail = empEmail === normalizedUserEmail
+      const matchEmail = [empEmail, empPersonalEmail, empWorkEmail].includes(normalizedUserEmail)
       const matchEmpCode = empCode === normalizedUserEmail
       const matchUid = empId === normalizedUserId
       const match = matchLinkedEmployee || matchEmail || matchEmpCode || matchUid
@@ -153,6 +156,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
+  const [attendanceMonthResolved, setAttendanceMonthResolved] = useState(false)
   const [attendanceRows, setAttendanceRows] = useState([])
   const [todayRecord, setTodayRecord] = useState(null)
   const [viewerState, setViewerState] = useState(null) // { docs, index }
@@ -212,6 +216,30 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
 
     loadMonth()
   }, [user?.orgId, employeeId, month])
+
+  useEffect(() => {
+    if (!user?.orgId || empLoading || !employeeId || attendanceMonthResolved) return
+    let cancelled = false
+
+    const loadLatestAttendanceMonth = async () => {
+      try {
+        const attendanceQuery = query(attendanceCol(user.orgId), where('employeeId', '==', employeeId))
+        const snapshot = await getDocs(attendanceQuery)
+        const latestDate = snapshot.docs
+          .map((document) => document.data().date)
+          .filter(Boolean)
+          .sort((left, right) => String(right).localeCompare(String(left)))[0]
+        if (!cancelled && latestDate) setMonth(String(latestDate).slice(0, 7))
+      } catch (error) {
+        console.error('Portal historical attendance lookup failed:', error)
+      } finally {
+        if (!cancelled) setAttendanceMonthResolved(true)
+      }
+    }
+
+    loadLatestAttendanceMonth()
+    return () => { cancelled = true }
+  }, [attendanceMonthResolved, employeeId, empLoading, user?.orgId])
 
   useEffect(() => {
     if (!user?.orgId || empLoading || !employeeId) return
@@ -1006,16 +1034,22 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                     <Landmark size={16} /> Financial & Statutory
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                    <div>
-                      <p className="text-[11px] font-medium text-gray-400 mb-1">Provident Fund (PF) No.</p>
-                      <p className="text-[14px] font-bold text-gray-800 font-mono tracking-tight">{employee?.pfNo || 'NOT REGISTERED'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-medium text-gray-400 mb-1">Bank Account</p>
-                      <p className="text-[14px] font-bold text-gray-800 font-mono tracking-tight">
-                        {employee?.bankAccount ? employee.bankAccount.replace(/\d(?=\d{4})/g, "•") : 'Not Configured'}
-                      </p>
-                    </div>
+                    {[
+                      { label: 'Provident Fund (PF) No.', value: employee?.pfNo || 'Not registered' },
+                      { label: 'ESI No.', value: employee?.esiNo || 'Not registered' },
+                      { label: 'Personal bank', value: employee?.personalBank?.bankName || 'Not configured' },
+                      { label: 'Account holder', value: employee?.personalBank?.holderName || 'Not configured' },
+                      { label: 'Account number', value: employee?.personalBank?.accountNo ? employee.personalBank.accountNo.replace(/\d(?=\d{4})/g, '•') : employee?.bankAccount ? employee.bankAccount.replace(/\d(?=\d{4})/g, '•') : 'Not configured' },
+                      { label: 'IFSC code', value: employee?.personalBank?.ifsc || 'Not configured' },
+                      { label: 'Aadhaar number', value: employee?.aadharNo ? employee.aadharNo.replace(/\d(?=\d{4})/g, '•') : 'Not provided' },
+                      { label: 'PAN number', value: employee?.panNo || 'Not provided' },
+                      { label: 'Driving licence', value: employee?.drivingLicenseNo || 'Not provided' },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <p className="text-[11px] font-medium text-gray-400 mb-1">{item.label}</p>
+                        <p className="text-[14px] font-bold text-gray-800 tracking-tight break-all">{item.value}</p>
+                      </div>
+                    ))}
                   </div>
                 </section>
 
@@ -1045,22 +1079,9 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                   )}
                 </section>
                 
-                <div className="pt-6 border-t border-gray-100">
-                  <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex gap-4">
-                    <div className="shrink-0 text-amber-500"><Info size={20} /></div>
-                    <div>
-                      <h4 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-1">Information Update</h4>
-                      <p className="text-[12px] text-amber-700/80 leading-relaxed mb-4">
-                        Information is managed by HR. If any details require correction, please contact your operations team.
-                      </p>
-                      <button className="text-[11px] font-bold text-indigo-600 uppercase tracking-widest hover:underline">
-                        Request update
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
+            {employee && <EmployeeProfileUpdateForm employee={employee} />}
           </div>
         )}
 

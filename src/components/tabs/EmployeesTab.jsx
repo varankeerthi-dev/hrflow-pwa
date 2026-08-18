@@ -7,8 +7,9 @@ import { useLogs } from '../../hooks/useActivityLog';
 import { db } from '../../lib/firebase';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { useQuery } from '@tanstack/react-query';
-import { Search, ChevronDown, Calendar, Clock, FileText, Wallet, Gavel, Gift, User, Briefcase, Mail, Phone, MapPin, BadgeCheck, Circle, Activity, Users, List, UserCheck, Cake, ChevronRight } from 'lucide-react';
+import { Search, ChevronDown, Calendar, Clock, FileText, Wallet, Gavel, Gift, User, Briefcase, Mail, Phone, MapPin, BadgeCheck, Circle, Activity, Users, List, UserCheck, Cake, ChevronRight, ClipboardCheck } from 'lucide-react';
 import EmployeeDirectoryTab from './EmployeeDirectoryTab';
+import EmployeeProfileUpdatesTab from './EmployeeProfileUpdatesTab';
 import { SubTabsNav } from '../ui/SubTabsNav';
 const formatDate = d => d ? new Date(d).toLocaleDateString('en-IN', {
   day: '2-digit',
@@ -489,6 +490,10 @@ export default function EmployeesTab() {
     id: 'birthday',
     label: 'Birthday',
     icon: <Cake size={15} />
+  }, {
+    id: 'profile_updates',
+    label: 'Data approvals',
+    icon: <ClipboardCheck size={15} />
   }];
   return <div className="flex flex-col h-full" style={{
     fontFamily: 'Figtree, system-ui, sans-serif'
@@ -501,6 +506,7 @@ export default function EmployeesTab() {
       {activeEmployeeTab === 'directory' && <EmployeeDirectoryTab />}
       {activeEmployeeTab === 'details' && <DetailsView />}
       {activeEmployeeTab === 'birthday' && <BirthdayView />}
+      {activeEmployeeTab === 'profile_updates' && <EmployeeProfileUpdatesTab />}
     </div>;
 }
 function DetailsView() {
