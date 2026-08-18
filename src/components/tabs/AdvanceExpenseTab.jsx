@@ -159,21 +159,23 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
       </div>
 
       <div className="space-y-2.5">
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Employee <span className="text-rose-500">*</span></label>
-          <Dropdown
-            value={row.employeeId}
-            onChange={(value) => handleRowChange(row.id, 'employeeId', value)}
-            options={sortedEmployees.map((employee) => ({ label: `${employee.name}${!isEmployeeActiveStatus(employee.status) ? ' (Inactive)' : ''}`, value: employee.id }))}
-            placeholder="Select employee..."
-            searchable
-            size="sm"
-            panelWidth="w-[min(20rem,calc(100vw-2rem))]"
-            mobileMenu
-            autoFocusSearch={false}
-            disabled={!canSelectAll}
-          />
-        </div>
+        {!portalMode && (
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Employee <span className="text-rose-500">*</span></label>
+            <Dropdown
+              value={row.employeeId}
+              onChange={(value) => handleRowChange(row.id, 'employeeId', value)}
+              options={sortedEmployees.map((employee) => ({ label: `${employee.name}${!isEmployeeActiveStatus(employee.status) ? ' (Inactive)' : ''}`, value: employee.id }))}
+              placeholder="Select employee..."
+              searchable
+              size="sm"
+              panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+              mobileMenu
+              autoFocusSearch={false}
+              disabled={!canSelectAll}
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
           <div>
@@ -2953,7 +2955,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   )}
 
                   {/* Default Employee */}
-                  {showSessionEmployee && (
+                  {showSessionEmployee && !portalMode && (
                   <>
                     <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
@@ -3052,7 +3054,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         type="button"
                         onClick={() => setShowAdvanceFieldsDropdown(!showAdvanceFieldsDropdown)}
                         className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                          showAdvanceFields || showProjectColumn || !showSessionEmployee || !showSessionAccount || !showSessionPayout
+                          showAdvanceFields || showProjectColumn || (!portalMode && (!showSessionEmployee || !showSessionAccount || !showSessionPayout))
                             ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                         }`}
@@ -3070,10 +3072,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             Toggle visible fields
                           </div>
 
-                          <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
-                            <span className="font-semibold">Employee</span>
-                            <input type="checkbox" checked={showSessionEmployee} onChange={(e) => setShowSessionEmployee(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
-                          </label>
+                          {!portalMode && (
+                            <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
+                              <span className="font-semibold">Employee</span>
+                              <input type="checkbox" checked={showSessionEmployee} onChange={(e) => setShowSessionEmployee(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
+                            </label>
+                          )}
 
                           {!portalMode && <>
                             <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
@@ -3124,7 +3128,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     <thead>
                       <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                         <th className="py-3 px-3 w-10 text-center">#</th>
-                        <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>
+                        {!portalMode && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
                         <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
                         {showAdvanceFields && (
                           <th className="py-3 px-3 min-w-[160px]">Paid To <span className="text-rose-500">*</span></th>
@@ -3151,22 +3155,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               {idx + 1}
                             </td>
 
-                            {/* Employee */}
-                            <td className="py-2 px-3">
-                              <select
-                                value={row.employeeId}
-                                onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
-                                disabled={!canSelectAll}
-                                className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                              >
-                                <option value="">Select Employee...</option>
-                                {sortedEmployees.map(e => (
-                                  <option key={e.id} value={e.id}>
-                                    {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
+                            {!portalMode && (
+                              <td className="py-2 px-3">
+                                <select
+                                  value={row.employeeId}
+                                  onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
+                                  disabled={!canSelectAll}
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                >
+                                  <option value="">Select Employee...</option>
+                                  {sortedEmployees.map(e => (
+                                    <option key={e.id} value={e.id}>
+                                      {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            )}
 
                             {/* Category */}
                             <td id={`category-cell-${row.id}`} className="py-2 px-3 relative">
