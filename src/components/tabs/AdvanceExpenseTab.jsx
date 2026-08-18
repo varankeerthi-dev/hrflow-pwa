@@ -145,7 +145,7 @@ function EmployeeLedgerCard({ emp, formatINR }) {
   )
 }
 
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, portalMode, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
   const categoryRequiresPaidTo = ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
 
   return (
@@ -188,10 +188,12 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payout <span className="text-rose-500">*</span></label>
-            <select value={row.payoutMethod} onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"><option value="Immediate">Immediate</option><option value="With Salary">Monthly</option></select>
-          </div>
+          {!portalMode && (
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payout <span className="text-rose-500">*</span></label>
+              <select value={row.payoutMethod} onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"><option value="Immediate">Immediate</option><option value="With Salary">Monthly</option></select>
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Project</label>
             {showProjectColumn ? <select value={row.project} onChange={(e) => handleRowChange(row.id, 'project', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"><option value="">Select project...</option><option value="P-0001">P-0001</option><option value="P-0002">P-0002</option><option value="P-0008">P-0008</option><option value="P-0012">P-0012</option><option value="Site visit - Client Meeting">Site visit - Client Meeting</option></select> : <span className="flex h-10 items-center text-[11px] italic text-slate-400">Optional column off</span>}
@@ -210,19 +212,22 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
   )
 }
 
-export default function AdvanceExpenseTab({ defaultModule, activeModule: activeModuleProp, onModuleChange }) {
+export default function AdvanceExpenseTab({ defaultModule, activeModule: activeModuleProp, onModuleChange, portalMode = false, portalEmployeeId = null }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   
   // Sort employees: Active employees at top, Inactive employees at bottom
   const sortedEmployees = useMemo(() => {
-    return [...employees].sort((a, b) => {
+    const visibleEmployees = portalMode && portalEmployeeId
+      ? employees.filter((employee) => employee.id === portalEmployeeId)
+      : employees
+    return [...visibleEmployees].sort((a, b) => {
       const aActive = isEmployeeActiveStatus(a.status) ? 0 : 1
       const bActive = isEmployeeActiveStatus(b.status) ? 0 : 1
       if (aActive !== bActive) return aActive - bActive
       return (a.name || '').localeCompare(b.name || '')
     })
-  }, [employees])
+  }, [employees, portalEmployeeId, portalMode])
   const queryClient = useQueryClient()
   const [internalActiveModule, setInternalActiveModule] = useState(defaultModule || 'Add Advance')
   const activeModule = activeModuleProp !== undefined ? activeModuleProp : internalActiveModule
@@ -332,7 +337,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const isAccountant = user?.role?.toLowerCase() === 'accountant'
   const isHR = user?.role?.toLowerCase() === 'hr' || isAdmin
   const isMD = user?.role?.toLowerCase() === 'md' || isAdmin
-  const canSelectAll = isAdmin || isAccountant
+  const canSelectAll = !portalMode && (isAdmin || isAccountant)
 
   // For editing
   const [editingId, setEditingId] = useState(null)
@@ -345,17 +350,16 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   // TanStack Query for fetching entries
   const { data: entries = [], isLoading: loading, refetch: fetchEntries } = useQuery({
-    queryKey: ['advances_expenses', user?.orgId],
+    queryKey: ['advances_expenses', user?.orgId, portalMode ? portalEmployeeId : 'workspace'],
     queryFn: async () => {
       if (!user?.orgId) return []
-      const q = query(
-        collection(db, 'organisations', user.orgId, 'advances_expenses'),
-        orderBy('date', 'desc')
-      )
+      const q = portalMode && portalEmployeeId
+        ? query(collection(db, 'organisations', user.orgId, 'advances_expenses'), where('employeeId', '==', portalEmployeeId), orderBy('date', 'desc'))
+        : query(collection(db, 'organisations', user.orgId, 'advances_expenses'), orderBy('date', 'desc'))
       const snap = await getDocs(q)
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     },
-    enabled: !!user?.orgId
+    enabled: !!user?.orgId && (!portalMode || !!portalEmployeeId)
   })
 
   // Fetch org settings for advance cap
@@ -529,27 +533,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           linkedAdvanceId = advanceDoc.id
         }
 
-        // Check Approval Settings rule for Advance or Expense module
-        const moduleSetting = approvalSettings.find(s => {
-          const mName = String(s.moduleName || '').toLowerCase()
-          const tName = String(type || '').toLowerCase()
-          return mName === tName || mName.includes(tName) || tName.includes(mName)
-        })
-        const appTypeSetting = moduleSetting?.type || 'multi'
-
         let initialStatus = 'Pending'
         let initialHrApproval = 'Pending'
         let initialMdApproval = 'Pending'
         let initialApprovedBy = null
         let initialApprovedAt = null
-
-        if (appTypeSetting === 'none') {
-          initialStatus = 'Approved'
-          initialHrApproval = 'Approved'
-          initialMdApproval = 'Approved'
-          initialApprovedBy = user.name || user.email
-          initialApprovedAt = serverTimestamp()
-        }
 
         const expenseDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
           transactionNo: txnNo,
@@ -570,6 +558,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           mdApproval: initialMdApproval,
           createdBy: user.name || user.email,
           createdAt: serverTimestamp(),
+          approvalSource: 'advance-expense',
+          approvalRequired: true,
+          approvalWorkflow: 'standard',
           paidTo: row.paidTo || null,
           paidToType: row.paidToType || null,
           paidToName: paidToName,
@@ -657,6 +648,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   })
 
   const getMyEmpId = () => {
+    if (portalMode && portalEmployeeId) return portalEmployeeId
     const me = employees.find(e => e.email === user.email || e.id === user.uid)
     return me ? me.id : ''
   }
@@ -899,7 +891,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const [submitting, setSubmitting] = useState(false)
 
-  const modules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Advance Ledger', 'Reports']
+  const modules = portalMode
+    ? ['Add Advance', 'Add Expense']
+    : ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Advance Ledger', 'Reports']
   const defaultCategories = ['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Others']
 
   const fetchCategories = async () => {
@@ -2838,10 +2832,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             {/* 1. Integrated Header, Compact Mode Selector & Main Actions */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200/90 shadow-sm">
               <div className="flex flex-col gap-2 w-full">
-                <span className="text-sm font-bold text-slate-800 tracking-tight">{activeModule === 'Add Advance' ? 'Advance' : 'Expense'} type:</span>
+                <span className={portalMode ? 'hidden' : 'text-sm font-bold text-slate-800 tracking-tight'}>{activeModule === 'Add Advance' ? 'Advance' : 'Expense'} type:</span>
 
                 {/* Ultra-Compact Mode Selector with Increased Spacing & Green Selection */}
-                <div className="flex flex-row flex-wrap items-center gap-5 text-xs">
+                <div className={portalMode ? 'hidden' : 'flex flex-row flex-wrap items-center gap-5 text-xs'}>
                   <button
                     type="button"
                     onClick={() => { setExpenseMode('self'); handleSelfExpense(); }}
@@ -2924,7 +2918,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
 
                   {/* Paid From */}
-                  {showSessionAccount && (
+                  {showSessionAccount && !portalMode && (
                   <>
                     <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Account:</span>
@@ -3008,7 +3002,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   )}
 
                   {/* Default Payout */}
-                  {showSessionPayout && (
+                  {showSessionPayout && !portalMode && (
                   <div className="order-2 col-span-1 flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10 md:order-none md:col-span-auto md:w-auto md:px-3.5">
                     <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Payout:</span>
                     <select
@@ -3077,15 +3071,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             <input type="checkbox" checked={showSessionEmployee} onChange={(e) => setShowSessionEmployee(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
                           </label>
 
-                          <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
-                            <span className="font-semibold">Account</span>
-                            <input type="checkbox" checked={showSessionAccount} onChange={(e) => setShowSessionAccount(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
-                          </label>
+                          {!portalMode && <>
+                            <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
+                              <span className="font-semibold">Account</span>
+                              <input type="checkbox" checked={showSessionAccount} onChange={(e) => setShowSessionAccount(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
+                            </label>
 
-                          <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none pb-2 border-b border-slate-100">
-                            <span className="font-semibold">Payout</span>
-                            <input type="checkbox" checked={showSessionPayout} onChange={(e) => setShowSessionPayout(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
-                          </label>
+                            <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none pb-2 border-b border-slate-100">
+                              <span className="font-semibold">Payout</span>
+                              <input type="checkbox" checked={showSessionPayout} onChange={(e) => setShowSessionPayout(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
+                            </label>
+                          </>}
                           
                           <label className="flex items-start gap-2.5 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
                             <input
@@ -3130,7 +3126,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           <th className="py-3 px-3 min-w-[160px]">Paid To <span className="text-rose-500">*</span></th>
                         )}
                         <th className="py-3 px-2.5 min-w-[100px] w-28 text-right">Amount (₹) <span className="text-rose-500">*</span></th>
-                        <th className="py-3 px-2.5 min-w-[100px] w-28">Payout <span className="text-rose-500">*</span></th>
+                        {!portalMode && <th className="py-3 px-2.5 min-w-[100px] w-28">Payout <span className="text-rose-500">*</span></th>}
                         <th className="py-3 px-3 min-w-[220px]">Remarks</th>
                         {showProjectColumn && (
                           <th className="py-3 px-3 min-w-[160px]">Project (Optional)</th>
@@ -3356,17 +3352,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               />
                             </td>
 
-                            {/* Payout */}
-                            <td className="py-2 px-2 w-28">
-                              <select
-                                value={row.payoutMethod}
-                                onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
-                                className="w-full h-9 bg-white border border-slate-200 rounded-lg px-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"
-                              >
-                                <option value="Immediate">Immediate</option>
-                                <option value="With Salary">Monthly</option>
-                              </select>
-                            </td>
+                            {!portalMode && (
+                              <td className="py-2 px-2 w-28">
+                                <select
+                                  value={row.payoutMethod}
+                                  onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"
+                                >
+                                  <option value="Immediate">Immediate</option>
+                                  <option value="With Salary">Monthly</option>
+                                </select>
+                              </td>
+                            )}
 
                             {/* Remarks */}
                             <td className="py-2 px-3">
@@ -3443,6 +3440,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       canSelectAll={canSelectAll}
                       showAdvanceFields={showAdvanceFields}
                       showProjectColumn={showProjectColumn}
+                      portalMode={portalMode}
                       handleRowChange={handleRowChange}
                       handleDuplicateRow={handleDuplicateRow}
                       handleDeleteRow={(rowId) => setAddRows(prev => prev.filter(item => item.id !== rowId))}

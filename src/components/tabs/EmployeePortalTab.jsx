@@ -14,6 +14,8 @@ import SelfieCaptureModal from '../ui/SelfieCaptureModal'
 import { useLeaves } from '../../hooks/useLeaves'
 import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import EmployeeTasksView from './EmployeeTasksView'
+import AdvanceExpenseTab from './AdvanceExpenseTab'
+import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getAttendancePortalBadge, ATTENDANCE_EVENT_IN, ATTENDANCE_EVENT_OUT, ATTENDANCE_STATUS_REJECTED } from '../../lib/attendanceWorkflow'
@@ -93,7 +95,10 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     return found
   }, [employees, user?.email, user?.uid])
 
-  const employeeId = employee?.id || user?.uid
+  // Never substitute the authentication UID for an HR employee document ID.
+  // Attendance and portal records are keyed by the employee document ID, and a
+  // fallback could otherwise return an unrelated or silently empty result set.
+  const employeeId = employee?.id || null
 
   const [activePortalTab, setActivePortalTab] = useState(initialSubTab)
   const [loading, setLoading] = useState(false)
@@ -297,6 +302,11 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const handleRequestSubmit = async () => {
     if (!requestForm.reason) {
       alert('Please provide a reason/justification.')
+      return
+    }
+
+    if (!['Leave', 'Permission'].includes(requestForm.type)) {
+      alert('Advance requests must be submitted from the Expenses tab.')
       return
     }
 
@@ -633,27 +643,23 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
 
 
   return (
-    <div className="module-layout-root h-full flex flex-col font-inter gap-8 pb-10">
-      {/* SaaS Sub-Navigation */}
-      <div className="module-top-surface bg-white p-4 md:p-6 rounded-[12px] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="grid grid-cols-3 md:flex bg-gray-100 p-1 rounded-lg w-full md:w-auto gap-1">
-          {[
-            { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-            { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={16} /> },
-            { id: 'attendance', label: 'Attendance', icon: <Calendar size={16} /> },
-            { id: 'requests', label: 'Requests', icon: <FileText size={16} /> },
-            { id: 'salary', label: 'Salary Slip', icon: <Hash size={16} /> },
-            { id: 'profile', label: 'Profile', icon: <User size={16} /> }
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setActivePortalTab(t.id)}
-              className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-2 md:px-5 py-2.5 md:py-2 rounded-md text-[10px] md:text-[13px] font-bold transition-all ${activePortalTab === t.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-            >
-              {t.icon} <span className="truncate w-full text-center md:w-auto">{t.label}</span>
-            </button>
-          ))}
-        </div>
+    <div className="module-layout-root h-full flex flex-col font-inter gap-5 pb-6">
+      {/* Canonical HRFlow sub-navigation */}
+      <div className="module-top-surface bg-white px-4 pt-3 md:px-6 md:pt-4 rounded-[12px] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
+        <SubTabsNav
+          className="min-w-0"
+          activeTabId={activePortalTab}
+          onTabChange={(tab) => setActivePortalTab(tab.id)}
+          tabs={[
+            { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={15} /> },
+            { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={15} /> },
+            { id: 'attendance', label: 'Attendance', icon: <Calendar size={15} /> },
+            { id: 'expenses', label: 'Expenses', icon: <CreditCard size={15} /> },
+            { id: 'requests', label: 'Requests', icon: <FileText size={15} /> },
+            { id: 'salary', label: 'Salary Slip', icon: <Hash size={15} /> },
+            { id: 'profile', label: 'Profile', icon: <User size={15} /> },
+          ]}
+        />
         <div className="hidden md:flex items-center gap-3">
           <div className="flex flex-col items-end mr-3">
             <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest">{user?.orgName}</span>
@@ -800,13 +806,10 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                 Apply Leave
               </button>
               <button
-                onClick={() => {
-                  setRequestForm(f => ({ ...f, type: 'Advance' }))
-                  setShowRequestModal(true)
-                }}
+                onClick={() => setActivePortalTab('expenses')}
                 className="h-[36px] px-4 rounded-lg bg-emerald-600 text-white text-[11px] font-black uppercase tracking-[0.18em]"
               >
-                Request Advance
+                Submit Expense
               </button>
               <button
                 onClick={() => {
@@ -1066,7 +1069,15 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           />
         )}
 
-        {activePortalTab === 'attendance' && (
+        {activePortalTab === 'attendance' && !employee && (
+          <div className="max-w-5xl mx-auto rounded-[12px] border border-gray-100 bg-white p-8 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Attendance unavailable</p>
+            <h3 className="mt-2 text-lg font-semibold text-gray-900">Your employee record has not been linked yet.</h3>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">Contact HR to link this account to your employee profile. Attendance is intentionally not shown until the matching employee record is available.</p>
+          </div>
+        )}
+
+        {activePortalTab === 'attendance' && employee && (
           <div className="max-w-5xl mx-auto space-y-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -1221,6 +1232,20 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {activePortalTab === 'expenses' && (
+          <div className="max-w-6xl mx-auto w-full">
+            {employee ? (
+              <AdvanceExpenseTab portalMode portalEmployeeId={employee.id} defaultModule="Add Expense" />
+            ) : (
+              <div className="rounded-[12px] border border-gray-100 bg-white p-8 shadow-sm">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Expense submission unavailable</p>
+                <h3 className="mt-2 text-lg font-semibold text-gray-900">Your employee record has not been linked yet.</h3>
+                <p className="mt-2 text-sm leading-6 text-gray-500">Contact HR to link this account before submitting an expense.</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1498,7 +1523,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
               Request Type
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {['Leave', 'Permission', 'Advance'].map(t => (
+          {['Leave', 'Permission'].map(t => (
                 <button 
                   key={t} 
                   type="button" 

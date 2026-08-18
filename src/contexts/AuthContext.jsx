@@ -13,7 +13,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth'
 
-import { doc, getDoc, setDoc, collection, query, where, getDocs, collectionGroup } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, query, where, getDocs, collectionGroup, onSnapshot } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
 const AuthContext = createContext()
@@ -146,6 +146,27 @@ export function AuthProvider({ children }) {
     })
     return unsubscribe
   }, [])
+
+  // A manager can change a role while an employee remains signed in. Subscribe
+  // to that employee's account document so new module permissions are applied
+  // to navigation immediately rather than only after a full sign-out/sign-in.
+  useEffect(() => {
+    if (!user?.uid || !user?.orgId) return
+
+    let cancelled = false
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid), async (snapshot) => {
+      if (!snapshot.exists()) return
+      const refreshedUser = await readUserDoc(user.uid, user.orgId)
+      if (!cancelled && refreshedUser) setUser(refreshedUser)
+    }, (error) => {
+      if (!cancelled) console.warn('AuthProvider: Unable to refresh role permissions:', error)
+    })
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [user?.uid, user?.orgId])
 
   const login = async (email, password) => {
     const result = await signInWithEmailAndPassword(auth, email, password)

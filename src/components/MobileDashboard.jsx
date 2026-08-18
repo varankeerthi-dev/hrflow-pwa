@@ -316,7 +316,15 @@ export default function MobileDashboard() {
 
       // Check if user has view permission for this module
       const modulePerms = userPerms[mod.module] || {}
-      return modulePerms.view === true
+      // Match desktop navigation: a role may intentionally grant a task action
+      // (for example, create an Advance/Expense request) without separately
+      // setting the view flag. Any granted module action must expose its entry.
+      return modulePerms.view === true ||
+        modulePerms.create === true ||
+        modulePerms.edit === true ||
+        modulePerms.delete === true ||
+        modulePerms.approve === true ||
+        modulePerms.export === true
     })
   }, [allModules, user?.permissions, user?.role])
 
