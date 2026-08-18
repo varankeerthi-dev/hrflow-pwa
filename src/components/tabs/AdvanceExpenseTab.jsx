@@ -6,7 +6,7 @@ import { format, parseISO } from 'date-fns'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
-import { arrayUnion, collection, addDoc, query, getDocs, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
+import { arrayUnion, collection, addDoc, query, getDocs, onSnapshot, serverTimestamp, orderBy, deleteDoc, doc, getDoc, updateDoc, where, setDoc } from 'firebase/firestore'
 import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
@@ -364,6 +364,30 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     },
     enabled: !!user?.orgId && (!portalMode || !!portalEmployeeId)
   })
+
+  // My Portal must reflect a manager's approval decision without requiring the
+  // employee to leave and reopen the page. The same entries feed both the
+  // submitted history and the right-side recent-expense summary.
+  useEffect(() => {
+    if (!portalMode || !user?.orgId || !portalEmployeeId) return undefined
+
+    const portalEntriesQuery = query(
+      collection(db, 'organisations', user.orgId, 'advances_expenses'),
+      where('employeeId', '==', portalEmployeeId),
+      orderBy('date', 'desc')
+    )
+
+    return onSnapshot(
+      portalEntriesQuery,
+      (snapshot) => {
+        queryClient.setQueryData(
+          ['advances_expenses', user.orgId, portalEmployeeId],
+          snapshot.docs.map((document) => ({ id: document.id, ...document.data() }))
+        )
+      },
+      (error) => console.error('Portal expense sync error:', error)
+    )
+  }, [portalMode, portalEmployeeId, queryClient, user?.orgId])
 
   // Fetch org settings for advance cap
   const { data: orgSettings = {} } = useQuery({
