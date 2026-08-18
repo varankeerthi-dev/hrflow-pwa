@@ -332,6 +332,49 @@ const mobileSettingsItemMeta = {
 
 const mobileSettingsGroups = ['General', 'Others']
 
+function normalizeUserEmail(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
+function belongsToOrganisation(account, orgId) {
+  if (!account || !orgId) return false
+  if (account.orgId === orgId || account.currentOrgId === orgId) return true
+  return Array.isArray(account.memberships) && account.memberships.some((membership) => membership?.orgId === orgId)
+}
+
+function roleForOrganisation(account, orgId) {
+  const membership = Array.isArray(account?.memberships)
+    ? account.memberships.find((item) => item?.orgId === orgId)
+    : null
+  const membershipRole = typeof membership?.role === 'string' ? membership.role.trim() : ''
+  const accountRole = typeof account?.role === 'string' ? account.role.trim() : ''
+  return membershipRole || accountRole
+}
+
+function displayRoleName(role, roles) {
+  const normalizedRole = typeof role === 'string' ? role.trim() : ''
+  const configuredRole = Array.isArray(roles)
+    ? roles.find((item) => item?.name?.toLowerCase() === normalizedRole.toLowerCase())
+    : null
+  if (configuredRole?.name) return configuredRole.name
+  return normalizedRole.toLowerCase() === 'admin' ? 'Admin' : normalizedRole
+}
+
+function withOrganisationMembership(memberships, orgId, role, orgName) {
+  const currentMemberships = Array.isArray(memberships) ? memberships : []
+  const hasOrganisation = currentMemberships.some((membership) => membership?.orgId === orgId)
+
+  if (!hasOrganisation) {
+    return [...currentMemberships, { orgId, role, orgName: orgName || 'My Organisation' }]
+  }
+
+  return currentMemberships.map((membership) => (
+    membership?.orgId === orgId
+      ? { ...membership, role, orgName: membership.orgName || orgName || 'My Organisation' }
+      : membership
+  ))
+}
+
 export default function SettingsTab({ initialSubTab }) {
   const { user } = useAuth()
   const { employees, loading: empLoading, updateEmployee, addEmployee, deleteEmployee } = useEmployees(user?.orgId)
@@ -376,6 +419,40 @@ export default function SettingsTab({ initialSubTab }) {
 
   const isAdmin = user?.role?.toLowerCase() === 'admin'
   const userPermissions = useMemo(() => user?.permissions || {}, [user?.permissions])
+  const userDirectoryRows = useMemo(() => {
+    const tenantAccounts = users
+      .filter((account) => belongsToOrganisation(account, user?.orgId))
+      .filter((account) => {
+        const linkedEmployee = employees.find((employee) => (
+          employee.id === account.employeeId || normalizeUserEmail(employee.email) === normalizeUserEmail(account.email)
+        ))
+        return !linkedEmployee || isEmployeeActiveStatus(linkedEmployee.status)
+      })
+
+    const activeLoginEmployees = employees.filter((employee) => (
+      isEmployeeActiveStatus(employee.status) && employee.loginEnabled
+    ))
+
+    const pendingAccountRows = activeLoginEmployees
+      .filter((employee) => !tenantAccounts.some((account) => (
+        account.employeeId === employee.id || normalizeUserEmail(account.email) === normalizeUserEmail(employee.email)
+      )))
+      .map((employee) => ({
+        id: `pending:${employee.id}`,
+        employeeId: employee.id,
+        email: employee.email || '',
+        name: employee.name || employee.fullName || '',
+        role: employee.role || '',
+        loginEnabled: true,
+        pendingAccountLink: true,
+      }))
+
+    return [...tenantAccounts, ...pendingAccountRows].sort((left, right) => {
+      const leftName = (left.name || left.email || '').toLowerCase()
+      const rightName = (right.name || right.email || '').toLowerCase()
+      return leftName.localeCompare(rightName)
+    })
+  }, [employees, users, user?.orgId])
   const allSubTabs = [
     { id: 'organization', label: 'Organization', module: 'Settings' },
     { id: 'user_roles', label: 'Users & Roles', module: 'Roles' },
@@ -1053,6 +1130,50 @@ export default function SettingsTab({ initialSubTab }) {
     fetchData()
   }, [user?.orgId])
 
+  // The legacy top-level orgId query above cannot find an existing multi-org
+  // account when its active organisation pointer belongs elsewhere. Hydrate the
+  // current tenant directory from active, login-enabled employee identities and
+  // retain only accounts that prove current-tenant membership.
+  useEffect(() => {
+    if (!user?.orgId || empLoading) return
+
+    let cancelled = false
+
+    const activeLoginEmails = [...new Set(
+      employees
+        .filter((employee) => isEmployeeActiveStatus(employee.status) && employee.loginEnabled)
+        .map((employee) => normalizeUserEmail(employee.email))
+        .filter(Boolean)
+    )]
+
+    if (activeLoginEmails.length === 0) return
+
+    const hydrateMembershipAccounts = async () => {
+      try {
+        const fetchedAccounts = []
+        for (let index = 0; index < activeLoginEmails.length; index += 30) {
+          const emailBatch = activeLoginEmails.slice(index, index + 30)
+          const snapshot = await getDocs(query(collection(db, 'users'), where('email', 'in', emailBatch)))
+          snapshot.docs.forEach((accountDoc) => fetchedAccounts.push({ id: accountDoc.id, ...accountDoc.data() }))
+        }
+
+        const tenantAccounts = fetchedAccounts.filter((account) => belongsToOrganisation(account, user.orgId))
+        if (tenantAccounts.length === 0 || cancelled) return
+
+        setUsers((currentUsers) => {
+          const byId = new Map(currentUsers.map((account) => [account.id, account]))
+          tenantAccounts.forEach((account) => byId.set(account.id, account))
+          return [...byId.values()]
+        })
+      } catch (error) {
+        if (!cancelled) console.error('Unable to hydrate tenant membership accounts:', error)
+      }
+    }
+
+    hydrateMembershipAccounts()
+    return () => { cancelled = true }
+  }, [employees, empLoading, user?.orgId])
+
   useEffect(() => {
     if (!user?.orgId) return
     const rolesQuery = collection(db, 'organisations', user.orgId, 'roles')
@@ -1572,7 +1693,8 @@ export default function SettingsTab({ initialSubTab }) {
             loginEnabled: true,
             role: selectedRoleName,
             permissions: selectedRolePerms,
-            memberships,
+            memberships: withOrganisationMembership(memberships, user.orgId, selectedRoleName, user.orgName),
+            employeeId: editingEmp,
             name: employeePayload.name,
             empCode: employeePayload.empCode || '',
             department: employeePayload.department || '',
@@ -1818,11 +1940,11 @@ export default function SettingsTab({ initialSubTab }) {
           // User doc exists, re-link it to the new employee record
           const userDocRef = uSnap.docs[0].ref
           await updateDoc(userDocRef, {
-            orgId: user.orgId,
             employeeId: empId,
             name: employeeDoc.name,
             role: roleName,
             permissions: rolePermissions,
+            memberships: withOrganisationMembership(uSnap.docs[0].data().memberships, user.orgId, roleName, user.orgName),
             empCode,
             department: employeeDoc.department || '',
             reportingManager: employeeDoc.reportingManager || '',
@@ -1838,6 +1960,7 @@ export default function SettingsTab({ initialSubTab }) {
               email: normalizedEmail,
               name: employeeDoc.name,
               orgId: user.orgId,
+              currentOrgId: user.orgId,
               role: roleName,
               permissions: rolePermissions,
               memberships: [{ orgId: user.orgId, role: roleName, orgName: user.orgName || 'My Organisation' }],
@@ -1974,7 +2097,7 @@ export default function SettingsTab({ initialSubTab }) {
       const isCreator = orgData && orgData.creatorId === uid
       
       if (isCreator && newRoleName.toLowerCase() !== 'admin') {
-        const otherAdmins = users.filter(u => u.id !== uid && u.role?.toLowerCase() === 'admin')
+        const otherAdmins = users.filter(u => u.id !== uid && roleForOrganisation(u, user.orgId).toLowerCase() === 'admin')
         if (otherAdmins.length === 0) {
           return alert('As the organization creator, you cannot change your role from Admin unless there is at least one other Admin user in the organization.')
         }
@@ -2003,20 +2126,17 @@ export default function SettingsTab({ initialSubTab }) {
       const userObj = users.find(u => u.id === uid)
       
       // Update memberships if present
-      let updatedMemberships = userObj?.memberships || []
-      if (updatedMemberships.length > 0) {
-        updatedMemberships = updatedMemberships.map(m => {
-          if (m.orgId === user.orgId) {
-            return { ...m, role: newRoleName }
-          }
-          return m
-        })
-      }
+      const updatedMemberships = withOrganisationMembership(
+        userObj?.memberships,
+        user.orgId,
+        newRoleName,
+        user.orgName
+      )
 
       const updatePayload = { 
         role: newRoleName,
         permissions: permissions,
-        ...(updatedMemberships.length > 0 ? { memberships: updatedMemberships } : {})
+        memberships: updatedMemberships,
       }
 
       // Sync name and empCode from employee collection if missing in user doc
@@ -2061,6 +2181,11 @@ export default function SettingsTab({ initialSubTab }) {
     
     try {
       await deleteDoc(doc(db, 'users', uid))
+      const orgRef = doc(db, 'organisations', user.orgId)
+      const orgSnap = await getDoc(orgRef)
+      if (orgSnap.exists() && Array.isArray(orgSnap.data().adminUids) && orgSnap.data().adminUids.includes(uid)) {
+        await updateDoc(orgRef, { adminUids: orgSnap.data().adminUids.filter((adminUid) => adminUid !== uid) })
+      }
       setUsers(prev => prev.filter(u => u.id !== uid))
       alert('User login access removed successfully.')
     } catch (err) {
@@ -2873,27 +2998,43 @@ export default function SettingsTab({ initialSubTab }) {
     
     setSeeding(true)
     try {
-      const usersQuery = query(collection(db, 'users'), where('orgId', '==', user.orgId))
-      const usersSnap = await getDocs(usersQuery)
-      
       const adminPermissions = allModulesList.reduce((acc, mod) => {
         acc[mod.id] = { view: true, create: true, edit: true, delete: true, approve: true, export: true, full: true }
         return acc
       }, {})
 
-      const updates = usersSnap.docs.map(u => 
-        updateDoc(doc(db, 'users', u.id), {
+      const tenantAccounts = userDirectoryRows.filter((account) => !account.pendingAccountLink)
+      const updates = tenantAccounts.map((account) =>
+        updateDoc(doc(db, 'users', account.id), {
           role: 'Admin',
-          permissions: adminPermissions
+          permissions: adminPermissions,
+          memberships: withOrganisationMembership(account.memberships, user.orgId, 'Admin', user.orgName),
         })
       )
       
       await Promise.all(updates)
+
+      const orgRef = doc(db, 'organisations', user.orgId)
+      const orgSnap = await getDoc(orgRef)
+      if (orgSnap.exists()) {
+        const existingAdminUids = Array.isArray(orgSnap.data().adminUids) ? orgSnap.data().adminUids : []
+        const nextAdminUids = [...new Set([...existingAdminUids, ...tenantAccounts.map((account) => account.id)])]
+        await updateDoc(orgRef, { adminUids: nextAdminUids })
+      }
       
       // Update local state
-      setUsers(prev => prev.map(u => ({ ...u, role: 'Admin', permissions: adminPermissions })))
+      setUsers(prev => prev.map((account) => (
+        belongsToOrganisation(account, user.orgId)
+          ? {
+              ...account,
+              role: 'Admin',
+              permissions: adminPermissions,
+              memberships: withOrganisationMembership(account.memberships, user.orgId, 'Admin', user.orgName),
+            }
+          : account
+      )))
       
-      alert(`Successfully updated ${updates.length} users to Admin role!`)
+      alert(`Successfully updated ${updates.length} tenant users to Admin role!`)
     } catch (err) {
       console.error('Batch update error:', err)
       alert('Failed to update users: ' + err.message)
@@ -4437,7 +4578,7 @@ export default function SettingsTab({ initialSubTab }) {
                         Users Directory
                       </Typography>
                       <Chip
-                        label={`${users.length} total`}
+                        label={`${userDirectoryRows.length} active access`}
                         size="small"
                         sx={{ ...interMuiSx, fontWeight: 700, bgcolor: '#eef2ff', color: '#4338ca' }}
                       />
@@ -4488,17 +4629,20 @@ export default function SettingsTab({ initialSubTab }) {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {users.length === 0 ? (
+                        {userDirectoryRows.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={5} sx={{ ...settingsTableBodyCellSx, py: 6, textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
                               No users found in this organization.
                             </TableCell>
                           </TableRow>
-                        ) : users.map(u => {
+                        ) : userDirectoryRows.map(u => {
                           const associatedEmp = employees.find(e => e.email?.toLowerCase() === u.email?.toLowerCase() || e.id === u.employeeId)
                           const emailPrefix = u.email ? u.email.split('@')[0] : 'User'
                           const displayName = u.name || associatedEmp?.fullName || associatedEmp?.name || emailPrefix
-                          const roleDescription = roles.find(r => r.name.toLowerCase() === (u.role || '').toLowerCase())?.description || 'No description available'
+                          const tenantRole = displayRoleName(roleForOrganisation(u, user.orgId), roles)
+                          const roleDescription = u.pendingAccountLink
+                            ? 'Login enabled — account link pending'
+                            : roles.find(r => r.name.toLowerCase() === tenantRole.toLowerCase())?.description || 'No description available'
                           const statusLabel = associatedEmp?.status || 'Active'
                           const statusColor = statusLabel === 'Inactive' ? 'error' : statusLabel === 'Rejoined' ? 'info' : 'success'
 
@@ -4514,6 +4658,13 @@ export default function SettingsTab({ initialSubTab }) {
                                       <Typography noWrap sx={{ ...interMuiSx, fontWeight: 700, color: '#111827', maxWidth: 220 }}>
                                         {displayName}
                                       </Typography>
+                                      {u.pendingAccountLink && (
+                                        <Chip
+                                          label="Link pending"
+                                          size="small"
+                                          sx={{ ...interMuiSx, height: 20, fontSize: '0.68rem', fontWeight: 800, bgcolor: '#fff7ed', color: '#c2410c' }}
+                                        />
+                                      )}
                                       {u.id === user.uid && (
                                         <Chip
                                           label="You"
@@ -4540,8 +4691,9 @@ export default function SettingsTab({ initialSubTab }) {
                               <TableCell sx={settingsTableBodyCellSx}>
                                 <FormControl size="small" sx={{ minWidth: 150 }}>
                                   <MuiSelect
-                                    value={u.role || ''}
+                                    value={tenantRole}
                                     onChange={(e) => handleUpdateUserRole(u.id, e.target.value)}
+                                    disabled={u.pendingAccountLink}
                                     displayEmpty
                                     sx={{
                                       ...interMuiSx,
@@ -4590,13 +4742,15 @@ export default function SettingsTab({ initialSubTab }) {
                                   >
                                     <Edit size={16} />
                                   </IconButton>
-                                  <IconButton
-                                    onClick={() => handleDeleteUser(u.id, u.name || associatedEmp?.name || u.email)}
-                                    size="small"
-                                    sx={{ color: '#dc2626' }}
-                                  >
-                                    <Trash2 size={16} />
-                                  </IconButton>
+                                  {!u.pendingAccountLink && (
+                                    <IconButton
+                                      onClick={() => handleDeleteUser(u.id, u.name || associatedEmp?.name || u.email)}
+                                      size="small"
+                                      sx={{ color: '#dc2626' }}
+                                    >
+                                      <Trash2 size={16} />
+                                    </IconButton>
+                                  )}
                                 </Stack>
                               </TableCell>
                             </TableRow>
