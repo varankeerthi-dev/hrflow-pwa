@@ -799,7 +799,7 @@ export default function Dashboard() {
                       )
                     }
                     if (activeTab === 'advance' || activeTab === 'expense') {
-                      const advanceModules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Advance Ledger', 'Reports']
+                      const advanceModules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Ledger', 'Reports']
                       return (
                         <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
                           <div className="flex items-center gap-1 px-4 max-w-[1300px] mx-auto overflow-x-auto no-scrollbar">
