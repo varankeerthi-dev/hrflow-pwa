@@ -504,12 +504,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     return { employees: employeeArray, totalOutstanding }
   }, [entries, employees])
 
-  const ledgerCategories = useMemo(() => [...new Set(entries.filter((entry) => entry.type === 'Advance').map((entry) => entry.category).filter(Boolean))].sort(), [entries])
+  const formatLedgerDate = (value) => {
+    if (!value) return '—'
+    const parsed = typeof value === 'string' ? parseISO(value) : value?.toDate?.() || new Date(value)
+    return Number.isNaN(parsed?.getTime?.()) ? String(value) : format(parsed, 'dd-MMM-yyyy')
+  }
+
+  const ledgerCategories = useMemo(() => [...new Set(entries.filter((entry) => ['Advance', 'Expense'].includes(entry.type)).map((entry) => entry.category).filter(Boolean))].sort(), [entries])
 
   const allLedgerEntries = useMemo(() => {
     return entries
       .filter((entry) => {
-        if (entry.type !== 'Advance') return false
+        if (!['Advance', 'Expense'].includes(entry.type)) return false
         if (ledgerEmployeeId && entry.employeeId !== ledgerEmployeeId) return false
         if (ledgerFromDate && String(entry.date || '') < ledgerFromDate) return false
         if (ledgerToDate && String(entry.date || '') > ledgerToDate) return false
@@ -4716,8 +4722,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     <button type="button" onClick={() => { setLedgerEmployeeId(''); setLedgerFromDate(''); setLedgerToDate(''); setLedgerCategory('') }} className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-800">Clear filters</button>
                   </div>
                   <div className="rounded-[12px] border border-gray-100 bg-white shadow-sm">
-                    <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3"><div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">All advances</p><p className="mt-0.5 text-sm font-semibold text-slate-900">{allLedgerEntries.length} record{allLedgerEntries.length !== 1 ? 's' : ''}</p></div><p className="text-sm font-bold text-slate-900">{formatINR(allLedgerEntries.reduce((sum, entry) => sum + entry.balance, 0))} outstanding</p></div>
-                    {allLedgerEntries.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-400">No advance entries match these filters.</p> : <div className="overflow-x-auto"><table className="min-w-[900px] w-full text-left"><thead><tr className="border-b border-gray-100 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400"><th className="px-4 py-3">Date</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Transaction</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Balance</th><th className="px-4 py-3">Status</th></tr></thead><tbody className="divide-y divide-gray-100">{allLedgerEntries.map((entry) => <tr key={entry.id} className="text-sm text-slate-700"><td className="px-4 py-3">{entry.date || '—'}</td><td className="px-4 py-3 font-medium text-slate-900">{entry.employeeName}</td><td className="px-4 py-3">{entry.category || '—'}</td><td className="px-4 py-3 font-mono text-xs">{entry.transactionNo || '—'}</td><td className="px-4 py-3 text-right font-medium">{formatINR(entry.amount)}</td><td className="px-4 py-3 text-right text-emerald-700">{formatINR(entry.paidAmount)}</td><td className="px-4 py-3 text-right font-bold">{formatINR(entry.balance)}</td><td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{entry.status || 'Pending'}</span></td></tr>)}</tbody></table></div>}
+                    <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3"><div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">All advances and expenses</p><p className="mt-0.5 text-sm font-semibold text-slate-900">{allLedgerEntries.length} record{allLedgerEntries.length !== 1 ? 's' : ''}</p></div><p className="text-sm font-bold text-slate-900">{formatINR(allLedgerEntries.reduce((sum, entry) => sum + entry.balance, 0))} open balance</p></div>
+                    {allLedgerEntries.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-400">No advance or expense entries match these filters.</p> : <div className="overflow-x-auto"><table className="min-w-[980px] w-full text-left"><thead><tr className="border-b border-gray-100 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400"><th className="px-4 py-3">Date</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Transaction</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Balance</th><th className="px-4 py-3">Status</th></tr></thead><tbody className="divide-y divide-gray-100">{allLedgerEntries.map((entry) => <tr key={entry.id} className="text-sm text-slate-700"><td className="px-4 py-3">{formatLedgerDate(entry.date)}</td><td className="px-4 py-3 font-medium text-slate-900">{entry.employeeName}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.type === 'Expense' ? 'bg-violet-50 text-violet-700' : 'bg-cyan-50 text-cyan-700'}`}>{entry.type}</span></td><td className="px-4 py-3">{entry.category || '—'}</td><td className="px-4 py-3 font-mono text-xs">{entry.transactionNo || '—'}</td><td className="px-4 py-3 text-right font-medium">{formatINR(entry.amount)}</td><td className="px-4 py-3 text-right text-emerald-700">{formatINR(entry.paidAmount)}</td><td className="px-4 py-3 text-right font-bold">{formatINR(entry.balance)}</td><td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{entry.status || 'Pending'}</span></td></tr>)}</tbody></table></div>}
                   </div>
                 </>
               )}
