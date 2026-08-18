@@ -1405,6 +1405,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     { label: 'Summary & Payout', colSpan: 3, className: 'text-slate-700 bg-emerald-50/30 border-r border-slate-200 font-semibold text-[11px]' },
   ], [])
 
+  const attendanceOverviewNestedHeaders = useMemo(
+    () => overviewNestedHeaders.filter((group) => group.label !== 'Summary & Payout'),
+    [overviewNestedHeaders]
+  )
+
   const overviewColumns = useMemo(() => [
     {
       header: '#',
@@ -1619,6 +1624,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       ),
     }
   ], [filteredAttendanceSummaryData, summaryMonth])
+
+  const attendanceOverviewColumns = useMemo(
+    () => overviewColumns.filter((column) => !['netPayout', 'status', 'sync'].includes(column.id)),
+    [overviewColumns]
+  )
 
   const dynamicNameWidth = useMemo(() => {
     if (!filteredAttendanceSummaryData.length) return 140;
@@ -2322,8 +2332,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
             ) : (
               <ReusableTable
                 data={filteredAttendanceSummaryData}
-                columns={overviewColumns}
-                nestedHeaders={overviewNestedHeaders}
+                columns={attendanceOverviewColumns}
+                nestedHeaders={attendanceOverviewNestedHeaders}
                 page={1}
                 pageSize={filteredAttendanceSummaryData.length || 10}
                 totalRows={filteredAttendanceSummaryData.length}
