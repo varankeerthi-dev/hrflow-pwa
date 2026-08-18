@@ -192,6 +192,11 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
 
   const resolveAsAnotherTrip = () => createMileageEntry({ duplicateResolution: 'continued_additional_trip', duplicateOfMileageEntryId: conflictEntry?.id || null })
 
+  const backToChangeNumber = () => {
+    setConflictEntry(null)
+    setMileage((current) => ({ ...current, vehicleId: '' }))
+  }
+
   const resolveAsMistake = () => {
     setConflictNotice({
       enteredBy: conflictEntry?.createdBy || conflictEntry?.driver_name || 'another employee',
@@ -285,7 +290,7 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
               <div className="flex items-start justify-between gap-4"><div className="flex gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><AlertTriangle size={20} /></span><div><p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Possible duplicate vehicle entry</p><h3 className="mt-1 text-lg font-semibold text-slate-900">This vehicle already has an entry</h3></div></div><button type="button" onClick={() => setConflictEntry(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X size={18} /></button></div>
               <p className="mt-4 text-sm leading-6 text-slate-600"><strong>{conflictEntry.createdBy || conflictEntry.driver_name || 'Another employee'}</strong> entered <strong>{conflictEntry.vehicle_info || selectedMileageVehicle?.label}</strong> on {formatConflictDate(conflictEntry.entry_date)}. Choose the correct action.</p>
               <div className="mt-5 grid grid-cols-1 gap-2">
-                <button type="button" onClick={resolveAsMistake} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50">Back to change number</button>
+                <button type="button" onClick={backToChangeNumber} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50">Back to change number</button>
                 <button type="button" onClick={resolveAsAnotherTrip} disabled={savingMileage} className="rounded-xl bg-emerald-600 px-4 py-3 text-left text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">Continue <span className="block text-xs font-normal text-emerald-100">This is a second trip using the same vehicle.</span></button>
                 <button type="button" onClick={resolveAsMistake} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-left text-sm font-semibold text-rose-700 hover:bg-rose-100">They are mistaken <span className="block text-xs font-normal text-rose-600">Show the earlier entry and change the vehicle number.</span></button>
               </div>
