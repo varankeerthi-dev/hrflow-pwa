@@ -3764,13 +3764,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     type="button"
                     onClick={handleSubmitAll}
                     disabled={submitting}
-                    className="gemini-glow-border bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-800 px-4 h-8 rounded-lg shadow-sm flex items-center gap-2 group transition-all cursor-pointer disabled:opacity-50"
+                    className="min-h-10 rounded-xl bg-emerald-600 px-4 sm:px-5 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
                   >
-                    {submitting ? <Spinner size="w-3.5 h-3.5" color="text-blue-600" /> : <Send size={14} className="text-blue-600" />}
-                    <span className="text-xs font-medium tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+                    {submitting ? <Spinner size="w-3.5 h-3.5" color="text-white" /> : <Send size={14} />}
+                    <span>
                       {submitting ? 'Submitting...' : `Submit ${activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}`}
                     </span>
-                    <span className="hidden sm:inline-block text-[10px] font-medium bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md border border-slate-200/80">
+                    <span className="hidden sm:inline-block rounded-md border border-white/20 bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white/90">
                       Ctrl+Enter
                     </span>
                   </button>
