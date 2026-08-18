@@ -630,7 +630,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
 
 // --- MAIN COMPONENT ---
 
-export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary', onActiveTabChange, attendanceMonthlySummaryOnly = false }) {
+export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary', onActiveTabChange }) {
   const { user } = useAuth(); const { employees: allEmployees } = useEmployees(user?.orgId, false); const { slabs, increments } = useSalarySlab(user?.orgId);
   const queryClient = useQueryClient();
   const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -1405,11 +1405,6 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     { label: 'Summary & Payout', colSpan: 3, className: 'text-slate-700 bg-emerald-50/30 border-r border-slate-200 font-semibold text-[11px]' },
   ], [])
 
-  const attendanceOverviewNestedHeaders = useMemo(
-    () => overviewNestedHeaders.filter((group) => group.label !== 'Summary & Payout'),
-    [overviewNestedHeaders]
-  )
-
   const overviewColumns = useMemo(() => [
     {
       header: '#',
@@ -1625,11 +1620,6 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     }
   ], [filteredAttendanceSummaryData, summaryMonth])
 
-  const attendanceOverviewColumns = useMemo(
-    () => overviewColumns.filter((column) => !['netPayout', 'status', 'sync', 'actions'].includes(column.id)),
-    [overviewColumns]
-  )
-  
   const dynamicNameWidth = useMemo(() => {
     if (!filteredAttendanceSummaryData.length) return 140;
     const maxChars = Math.max(...filteredAttendanceSummaryData.map(e => (e.name || '').length), 10);
@@ -2512,7 +2502,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-[80] px-2">
               <div className="flex gap-4 items-center">
-                {!attendanceMonthlySummaryOnly && <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-0.5">
                   <button 
                     onClick={() => {
                       setPayrollSubTab('current');
@@ -2567,9 +2557,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       </div>
                     </>
                   )}
-                </div>}
+                </div>
 
-                {(attendanceMonthlySummaryOnly || payrollSubTab === 'current') && (
+                {payrollSubTab === 'current' && (
                   <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
                     <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
                     <input type="month" value={summaryMonth} onChange={e=>setSummaryMonth(e.target.value)} className="h-6 bg-transparent border-0 text-[10px] font-black uppercase outline-none focus:ring-0 w-24 text-center cursor-pointer"/>
@@ -2577,11 +2567,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   </div>
                 )}
 
-                {!attendanceMonthlySummaryOnly && payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status === 'draft' && (
+                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status === 'draft' && (
                   <button onClick={handleResync} className="h-8 w-8 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all" title="Re-sync Calculations"><RefreshCw size={14} /></button>
                 )}
-                {!attendanceMonthlySummaryOnly && payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
-                  <div className="flex items-center gap-1.5 ml-2">
+                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
+                <div className="flex items-center gap-1.5 ml-2">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Workflow:</span>
                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
                       activeRun.status === 'draft' ? 'bg-zinc-50 text-zinc-500 border-zinc-200' :
@@ -2609,15 +2599,15 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     )}
                   </div>
                 )}
-                {!attendanceMonthlySummaryOnly && payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
+                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
                   <button onClick={() => setIsOtModalOpen(true)} className="h-8 px-3 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all text-[12px] font-semibold whitespace-nowrap">Click to Revise OT hours</button>
                 )}
               </div>
             </div>
             <div className="flex-1 overflow-auto bg-zinc-50/30">
-              {!attendanceMonthlySummaryOnly && payrollSubTab === 'history' && !selectedPastRunId ? (
+              {payrollSubTab === 'history' && !selectedPastRunId ? (
                 renderHistoryTab()
-              ) : !attendanceMonthlySummaryOnly && payrollSubTab === 'current' && !activeRun && !selectedPastRunId ? (
+              ) : payrollSubTab === 'current' && !activeRun && !selectedPastRunId ? (
                 // Banner for initiating run
                 <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl m-4 animate-in fade-in duration-200">
                   <CalendarIcon size={48} className="text-indigo-400 mb-4 opacity-75 animate-bounce" />
@@ -2661,8 +2651,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       ) : (
                         <ReusableTable
                           data={filteredAttendanceSummaryData}
-                          columns={attendanceMonthlySummaryOnly ? attendanceOverviewColumns : overviewColumns}
-                          nestedHeaders={attendanceMonthlySummaryOnly ? attendanceOverviewNestedHeaders : overviewNestedHeaders}
+                          columns={overviewColumns}
+                          nestedHeaders={overviewNestedHeaders}
                           page={1}
                           pageSize={filteredAttendanceSummaryData.length || 10}
                           totalRows={filteredAttendanceSummaryData.length}

@@ -14,7 +14,7 @@ import RemarksDropdown from '../ui/RemarksDropdown'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getEligibleAllowanceCategories, getAllowanceAmount } from '../../lib/allowanceRules'
 import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode } from '../../hooks/useAllowances'
-import SalarySlipTab from './SalarySlipTab'
+import SummaryTab from './SummaryTab'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX, LayoutGrid, List } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
@@ -651,10 +651,10 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const { employees, loading: empLoading } = useEmployees(user?.orgId, false)
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
 
-  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' || defaultSubTab === 'grid' ? defaultSubTab : 'attendance') // 'attendance' | 'grid' | 'reports'
+  const [activeSubTab, setActiveSubTab] = useState(defaultSubTab === 'reports' || defaultSubTab === 'grid' || defaultSubTab === 'monthly-summary' ? defaultSubTab : 'attendance') // 'attendance' | 'grid' | 'monthly-summary' | 'reports'
 
   useEffect(() => {
-    if (defaultSubTab && (defaultSubTab === 'reports' || defaultSubTab === 'grid' || defaultSubTab === 'attendance')) {
+    if (defaultSubTab && (defaultSubTab === 'reports' || defaultSubTab === 'grid' || defaultSubTab === 'monthly-summary' || defaultSubTab === 'attendance')) {
       setActiveSubTab(defaultSubTab)
     }
   }, [defaultSubTab])
@@ -1759,9 +1759,13 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
 
   return (
     <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
-      {activeSubTab === 'grid' ? (
+      {activeSubTab === 'monthly-summary' ? (
+        <div className="flex-1 rounded-[12px] border border-gray-100 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Monthly Summary</h2>
+        </div>
+      ) : activeSubTab === 'grid' ? (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white rounded-xl border border-gray-100 p-4">
-          <SalarySlipTab attendanceMonthlySummaryOnly />
+          <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
         </div>
       ) : (
         <>
