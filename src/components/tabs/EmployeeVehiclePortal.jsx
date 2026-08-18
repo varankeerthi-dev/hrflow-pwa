@@ -4,7 +4,7 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { format, parseISO } from 'date-fns'
 import { z } from 'zod'
 import { AlertTriangle, ArrowLeft, CheckCircle2, Gauge, Wrench, X } from 'lucide-react'
-import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { useQuery } from '@tanstack/react-query'
 import { db } from '../../lib/firebase'
 import { useAuth } from '../../hooks/useAuth'
@@ -50,7 +50,7 @@ function SharedDatePicker({ value, onChange }) {
 export default function EmployeeVehiclePortal({ employeeId = null }) {
   const { user } = useAuth()
   const { activeEntry, conflictEntry, conflictNotice, openEntry, closeEntry, setConflictEntry, setConflictNotice, clearConflict } = useEmployeeVehicleEntryStore()
-  const [mileage, setMileage] = useState({ vehicleId: '', date: today(), start: '', end: '', petrolAmount: '' })
+  const [mileage, setMileage] = useState({ vehicleId: '', date: today(), start: '', end: '', petrolAmount: '', remarks: '' })
   const [maintenance, setMaintenance] = useState({ vehicleId: '', date: today(), odometer: '', type: 'Maintenance request', description: '' })
   const [savingMileage, setSavingMileage] = useState(false)
   const [savingMaintenance, setSavingMaintenance] = useState(false)
@@ -75,6 +75,16 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
       return snapshot.docs.map((document) => ({ id: document.id, ...document.data() }))
     },
     enabled: !!user?.orgId && activeEntry === 'mileage',
+  })
+
+  const { data: remarksOptions = [] } = useQuery({
+    queryKey: ['organisation_remarks_options', user?.orgId],
+    queryFn: async () => {
+      if (!user?.orgId) return []
+      const organisation = await getDoc(doc(db, 'organisations', user.orgId))
+      return organisation.data()?.remarksOptions || []
+    },
+    enabled: !!user?.orgId,
   })
 
   const vehicleOptions = useMemo(() => vehicles.map((vehicle) => ({ id: vehicle.id, label: getVehicleLabel(vehicle), number: String(vehicle.vehicleNo || vehicle.regNo || '').toUpperCase() })), [vehicles])
@@ -112,6 +122,7 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
         end_kilometer: Number(parsed.data.end),
         total_km: totalKm,
         petrolAmount,
+        remarks: mileage.remarks || '',
         driver_name: user.name || user.email || 'Employee',
         employeeId: employeeId || null,
         createdBy: user.name || user.email || 'Employee',
@@ -136,7 +147,7 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
           payoutMethod: 'With Salary',
           amount: petrolAmount,
           date: mileage.date,
-          reason: `Petrol for ${selectedMileageVehicle.label}, linked to mileage entry ${mileageRef.id}.`,
+          reason: `Petrol for ${selectedMileageVehicle.label}, linked to mileage entry ${mileageRef.id}.${mileage.remarks ? ` Remarks: ${mileage.remarks}.` : ''}`,
           project: '',
           status: 'Pending',
           approved_by: null,
@@ -159,7 +170,7 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
       }
 
       await logActivity(user.orgId, user, { module: 'Vehicle', action: petrolAmount > 0 ? 'EMPLOYEE_MILEAGE_AND_PETROL_SUBMITTED' : 'EMPLOYEE_MILEAGE_SUBMITTED', detail: `Mileage entry submitted for ${selectedMileageVehicle.label}: ${totalKm} KM on ${mileage.date}.${petrolAmount > 0 ? ` Petrol claim ₹${petrolAmount} linked to the mileage entry.` : ''}` })
-      setMileage({ vehicleId: '', date: today(), start: '', end: '', petrolAmount: '' })
+      setMileage({ vehicleId: '', date: today(), start: '', end: '', petrolAmount: '', remarks: '' })
       clearConflict()
       setValidationError('')
       setNotice(`Mileage entry submitted successfully.${petrolMessage}`)
@@ -281,6 +292,7 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">End kilometer<input type="number" min="0" value={mileage.end} onChange={(event) => setMileage((current) => ({ ...current, end: event.target.value }))} className={inputClass} /></label>
             <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Distance</p><p className="mt-1 text-sm font-semibold text-slate-900">{totalKm} KM</p></div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:col-span-2">Petrol amount <span className="font-normal normal-case text-slate-400">optional, creates an expense request</span><input type="number" min="0" step="0.01" value={mileage.petrolAmount} onChange={(event) => setMileage((current) => ({ ...current, petrolAmount: event.target.value }))} className={inputClass} placeholder="0.00" /></label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:col-span-2">Remarks<select value={mileage.remarks} onChange={(event) => setMileage((current) => ({ ...current, remarks: event.target.value }))} className={inputClass}><option value="">Select remarks</option>{remarksOptions.map((remark) => <option key={remark} value={remark}>{remark}</option>)}</select></label>
             <button type="submit" disabled={savingMileage || isLoading} className="sm:col-span-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-emerald-700 disabled:opacity-50">{savingMileage ? 'Submitting…' : 'Submit mileage'}</button>
           </form>
         </section>
