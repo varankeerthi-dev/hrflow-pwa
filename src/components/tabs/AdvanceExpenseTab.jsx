@@ -1397,6 +1397,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           setSuccessModal(prev => ({ ...prev, open: false }))
         }, 3000)
 
+        // Employees submit from My Portal. They should remain on the entry form
+        // after the confirmation rather than inheriting admin report or approval-drawer behavior.
+        if (portalMode) return
+
         const moduleSetting = approvalSettings.find(s => {
           const mName = String(s.moduleName || '').toLowerCase()
           const tName = String(rowType || '').toLowerCase()

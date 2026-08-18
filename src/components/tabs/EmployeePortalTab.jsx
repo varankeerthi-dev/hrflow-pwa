@@ -66,17 +66,20 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     }
     const normalizedUserEmail = user.email?.toLowerCase().trim() || ''
     const normalizedUserId = user.uid?.toLowerCase().trim() || ''
-    console.log('[DEBUG] Looking for employee with email:', normalizedUserEmail, 'or uid:', normalizedUserId)
+    const linkedEmployeeId = user.employeeId?.toLowerCase().trim() || ''
+    console.log('[DEBUG] Looking for employee with linked employee ID:', linkedEmployeeId, 'email:', normalizedUserEmail, 'or uid:', normalizedUserId)
     console.log('[DEBUG] Total employees:', employees.length)
     
     const found = employees.find(e => {
       const empEmail = (e.email || '').toLowerCase().trim()
       const empCode = (e.empCode || '').toLowerCase().trim()
+      const empId = e.id?.toLowerCase().trim() || ''
       const empName = e.name || 'Unknown'
+      const matchLinkedEmployee = !!linkedEmployeeId && empId === linkedEmployeeId
       const matchEmail = empEmail === normalizedUserEmail
       const matchEmpCode = empCode === normalizedUserEmail
-      const matchUid = e.id?.toLowerCase().trim() === normalizedUserId
-      const match = matchEmail || matchEmpCode || matchUid
+      const matchUid = empId === normalizedUserId
+      const match = matchLinkedEmployee || matchEmail || matchEmpCode || matchUid
       if (e.email || e.empCode) {
         console.log(`[DEBUG] Comparing: email=${empEmail}, empCode=${empCode} vs ${normalizedUserEmail} => ${match} (Employee: ${empName})`)
       }
@@ -93,7 +96,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     }
     
     return found
-  }, [employees, user?.email, user?.uid])
+  }, [employees, user?.employeeId, user?.email, user?.uid])
 
   // Never substitute the authentication UID for an HR employee document ID.
   // Attendance and portal records are keyed by the employee document ID, and a
