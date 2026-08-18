@@ -391,6 +391,28 @@ function formatTimeDisplay(time24) {
   return `${h12}:${String(m).padStart(2, '0')} ${p}`;
 }
 
+function ShiftToggle({ value, onChange, disabled, employeeName }) {
+  const shift = value === 'Night' || value === 'DN' ? value : 'Day'
+  const options = [
+    { value: 'Day', title: 'Day shift', zone: 'left-0' },
+    { value: 'DN', title: 'Day-night shift', zone: 'left-[28px]' },
+    { value: 'Night', title: 'Night shift', zone: 'left-[56px]' },
+  ]
+  const tone = shift === 'DN' ? 'bg-indigo-600' : shift === 'Night' ? 'bg-slate-700' : 'bg-emerald-500'
+  const knobPosition = shift === 'DN' ? 'left-[29px]' : shift === 'Night' ? 'left-[57px]' : 'left-0.5'
+  const labelPosition = shift === 'DN' || shift === 'Night' ? 'left-2.5' : 'right-2.5'
+
+  return (
+    <div className={`relative h-7 w-[84px] shrink-0 rounded-full p-0.5 shadow-sm transition-colors ${tone} ${disabled ? 'opacity-50' : ''}`} role="radiogroup" aria-label={`${employeeName} shift`}>
+      {options.map((option) => (
+        <button key={option.value} type="button" role="radio" aria-checked={shift === option.value} aria-label={option.title} title={option.title} disabled={disabled} onClick={() => onChange(option.value)} className={`absolute top-0 z-20 h-full w-[28px] cursor-pointer disabled:cursor-not-allowed ${option.zone}`} />
+      ))}
+      <span className={`pointer-events-none absolute top-0.5 z-10 h-6 w-[26px] rounded-full bg-white shadow-sm transition-all duration-200 ${knobPosition}`} />
+      <span className={`pointer-events-none absolute top-[7px] z-10 text-[8px] font-black tracking-tight text-white ${labelPosition}`}>{shift === 'Night' ? 'NIGHT' : shift === 'DN' ? 'D+N' : 'DAY'}</span>
+    </div>
+  )
+}
+
 // Shorthand conversion logic
 function convertShorthand(val, period) {
   const digits = val.replace(/\D/g, '');
@@ -542,16 +564,12 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
     )
   }
 
-  return (
-    <div className={`px-1 py-2 ${row.isAbsent ? 'bg-red-50/40' : ''}`}>
-              <div className="relative flex items-center gap-1.5 min-w-0">
-        <div className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{row.name}</div>
-        <select aria-label={`${row.name} shift`} value={row.shiftType || 'Day'} onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)} disabled={disabled} className="h-8 w-[94px] shrink-0 rounded-md bg-gray-50 px-1.5 text-[10px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500">
-          <option value="Day">Day shift</option>
-          <option value="DN">Double shift</option>
-          <option value="Night">Night shift</option>
-        </select>
-        <select aria-label={`${row.name} attendance status`} value={row.status || 'Present'} onChange={(e) => handleStatusChange(row.employeeId, e.target.value)} className={`h-8 w-[72px] shrink-0 rounded-md px-1.5 text-[10px] font-semibold outline-none ${row.status === 'Absent' ? 'bg-red-50 text-red-700' : row.status === 'SunHoliday' || row.status === 'Holiday' ? 'bg-indigo-50 text-indigo-700' : row.status === 'SunWorked' || row.status === 'Worked' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+	  return (
+	    <div className={`px-1 py-2 ${row.isAbsent ? 'bg-red-50/40' : ''}`}>
+	              <div className="relative flex items-center gap-1.5 min-w-0">
+	        <div className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{row.name}</div>
+	        <ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={disabled} employeeName={row.name} />
+	        <select aria-label={`${row.name} attendance status`} value={row.status || 'Present'} onChange={(e) => handleStatusChange(row.employeeId, e.target.value)} className={`h-8 w-[72px] shrink-0 rounded-md px-1.5 text-[10px] font-semibold outline-none ${row.status === 'Absent' ? 'bg-red-50 text-red-700' : row.status === 'SunHoliday' || row.status === 'Holiday' ? 'bg-indigo-50 text-indigo-700' : row.status === 'SunWorked' || row.status === 'Worked' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
           {statusOptions.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
         </select>
         <button onClick={() => handleClearRow(row.employeeId)} className="h-8 w-7 shrink-0 text-gray-400 active:text-red-500" aria-label="Clear attendance row"><X size={14} /></button>
@@ -628,7 +646,7 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
   );
 }
 
-export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigAllowance, onDirtyChange }) {
+export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigAllowance, onDirtyChange, onOpenHolidaySettings, onReviewEmployees }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId, false)
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
@@ -786,6 +804,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const [saved, setSaved] = useState(false)
   const [orgData, setOrgData] = useState(null)
   const [existingRecords, setExistingRecords] = useState([])
+  const [attendanceFollowUp, setAttendanceFollowUp] = useState({ loading: false, incompleteDays: [], employeeGaps: [] })
 
   // Dirty tracking: warn user when leaving with unsaved attendance edits
   const [dirty, setDirty] = useState(false)
@@ -1127,6 +1146,76 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     if (day === 6 && orgData?.saturdayType && orgData.saturdayType !== 'working') return true
     return false
   }
+
+  const previousWorkdays = useMemo(() => {
+    if (!selectedDate) return []
+    const days = []
+    const cursor = new Date(`${selectedDate}T12:00:00`)
+    cursor.setDate(cursor.getDate() - 1)
+    let safety = 0
+    while (days.length < 10 && safety < 40) {
+      const date = formatDateForInput(cursor)
+      const dayOfWeek = cursor.getDay()
+      const isSundayOff = dayOfWeek === 0 && orgData?.sundayType && orgData.sundayType !== 'working'
+      const isSaturdayOff = dayOfWeek === 6 && orgData?.saturdayType && orgData.saturdayType !== 'working'
+      if (!isSundayOff && !isSaturdayOff && !configuredHolidays.has(date)) days.push(date)
+      cursor.setDate(cursor.getDate() - 1)
+      safety += 1
+    }
+    return days
+  }, [selectedDate, configuredHolidays, orgData?.saturdayType, orgData?.sundayType])
+
+  useEffect(() => {
+    if (!user?.orgId || !previousWorkdays.length || !employees.length) {
+      setAttendanceFollowUp({ loading: false, incompleteDays: [], employeeGaps: [] })
+      return
+    }
+
+    let cancelled = false
+    const isEmployeeExpectedOn = (employee, date) => {
+      if (employee.hideInAttendance) return false
+      const joinedDate = employee.joinedDate || employee.joiningDate || employee.dateOfJoining || ''
+      if (joinedDate && date < joinedDate) return false
+      if (employee.inactiveFrom && date >= employee.inactiveFrom) return false
+      return isEmployeeActiveStatus(employee.status) || (employee.status === 'Inactive' && employee.inactiveFrom > date)
+    }
+
+    const loadFollowUp = async () => {
+      setAttendanceFollowUp((current) => ({ ...current, loading: true }))
+      const records = await fetchRange(previousWorkdays[previousWorkdays.length - 1], previousWorkdays[0])
+      if (cancelled) return
+
+      const recordedEmployeesByDay = records.reduce((map, record) => {
+        if (!record?.date || !record?.employeeId) return map
+        if (!map.has(record.date)) map.set(record.date, new Set())
+        map.get(record.date).add(record.employeeId)
+        return map
+      }, new Map())
+
+      const incompleteDays = previousWorkdays
+        .map((date) => {
+          const expectedEmployees = employees.filter((employee) => isEmployeeExpectedOn(employee, date))
+          const recordedEmployees = recordedEmployeesByDay.get(date) || new Set()
+          const missingCount = expectedEmployees.filter((employee) => !recordedEmployees.has(employee.id)).length
+          return { date, missingCount, expectedCount: expectedEmployees.length, recordedCount: recordedEmployees.size }
+        })
+        .filter((day) => day.expectedCount > 0 && day.recordedCount === 0)
+
+      const employeeGaps = employees
+        .map((employee) => {
+          const missingDates = previousWorkdays.filter((date) => isEmployeeExpectedOn(employee, date) && !(recordedEmployeesByDay.get(date) || new Set()).has(employee.id))
+          return { employee, missingDates }
+        })
+        .filter((entry) => entry.missingDates.length >= 3)
+        .sort((a, b) => b.missingDates.length - a.missingDates.length || (a.employee.name || '').localeCompare(b.employee.name || ''))
+        .slice(0, 3)
+
+      setAttendanceFollowUp({ loading: false, incompleteDays, employeeGaps })
+    }
+
+    loadFollowUp()
+    return () => { cancelled = true }
+  }, [employees, fetchRange, previousWorkdays, user?.orgId])
 
   const isFutureDate = (date) => {
     return false
@@ -1619,6 +1708,38 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     }
   }
 
+  const renderAttendanceFollowUp = () => {
+    const backlogDays = attendanceFollowUp.incompleteDays
+    const oldestIncompleteDay = backlogDays[backlogDays.length - 1]
+    const firstEmployeeGap = attendanceFollowUp.employeeGaps[0]
+    const hasBacklog = backlogDays.length >= 2
+
+    return (
+      <div className={`rounded-[12px] border p-3 shadow-sm ${hasBacklog ? 'border-amber-200 bg-amber-50/70' : 'border-slate-100 bg-slate-50/70'}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className={`text-[10px] font-bold uppercase tracking-widest ${hasBacklog ? 'text-amber-700' : 'text-slate-500'}`}>Roster pulse</p>
+            {attendanceFollowUp.loading ? (
+              <p className="mt-1 text-xs text-slate-500">Checking the recent attendance trail…</p>
+            ) : hasBacklog ? (
+              <p className="mt-1 text-xs font-medium leading-5 text-amber-900">Attendance is ghosting you. <span aria-hidden="true">👻</span> {backlogDays.length} recent workdays still need a roster check.</p>
+            ) : (
+              <p className="mt-1 text-xs leading-5 text-slate-600">Planning a closure? Add it to the holiday calendar before generating attendance.</p>
+            )}
+            {firstEmployeeGap && !attendanceFollowUp.loading && (
+              <p className="mt-1 text-[11px] leading-5 text-slate-600"><span className="font-semibold text-slate-800">{firstEmployeeGap.employee.name}</span> has no attendance on {firstEmployeeGap.missingDates.length} recent workdays. Mark the missing days, or review whether the employee is inactive.</p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasBacklog && oldestIncompleteDay && <button type="button" onClick={() => setSelectedDate(oldestIncompleteDay.date)} className="min-h-9 rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100">Open {displayShortDate(oldestIncompleteDay.date)}</button>}
+            {onOpenHolidaySettings && <button type="button" onClick={onOpenHolidaySettings} className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100">Holiday settings</button>}
+            {firstEmployeeGap && onReviewEmployees && <button type="button" onClick={onReviewEmployees} className="min-h-9 rounded-lg bg-indigo-600 px-3 text-[11px] font-semibold text-white transition hover:bg-indigo-700">Review employee</button>}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {activeSubTab === 'grid' ? (
@@ -1637,6 +1758,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               </div>
               {(isSunday || isConfiguredHoliday) && <div className="flex items-center justify-end gap-3 pt-3"><span className={`text-[11px] font-semibold uppercase tracking-wide ${isSunday ? 'text-orange-600' : 'text-purple-600'}`}>{isSunday ? 'Sunday' : 'Holiday'}</span><button onClick={handleMarkAllHoliday} disabled={saving || !rows.length} className="min-h-10 px-3 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11px] font-semibold disabled:opacity-50">{saving ? 'Marking…' : 'Mark all holiday'}</button></div>}
             </div>
+            {renderAttendanceFollowUp()}
             <div className="grid grid-cols-2 gap-2"><button onClick={handleAddRow} className="min-h-11 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs font-semibold flex items-center justify-center gap-2"><Plus size={15} /> Add row</button><button onClick={handleGenerate} className="min-h-11 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-2">Generate active</button></div>
             <div className="grid grid-cols-3 gap-2"><div className="rounded-lg bg-green-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-green-700">Present</div><div className="text-lg font-bold text-green-800">{rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-red-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-red-700">Absent</div><div className="text-lg font-bold text-red-800">{rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-gray-100 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-gray-600">Total</div><div className="text-lg font-bold text-gray-800">{rows.filter(r => !r.isPlaceholder).length}</div></div></div>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-gray-100/80 p-1"><span className="pl-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Roster view</span><div className="flex items-center gap-1"><button type="button" onClick={() => setCompactMode(false)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${!compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={!compactMode}><LayoutGrid size={13} /> Cards</button><button type="button" onClick={() => setCompactMode(true)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={compactMode}><List size={13} /> Compact</button></div></div>
@@ -1646,7 +1768,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
               const selectedAllowances = allowanceSelections[row.employeeId] || []
               return <div key={row.id || row.employeeId || `mobile-${idx}`} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${row.isAbsent ? 'border-red-200 bg-red-50/30' : ''}`}>
-                <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div></div><select aria-label={`${row.name} shift`} value={row.shiftType || 'Day'} onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)} disabled={row.isAbsent || row.status === 'SunHoliday'} className="h-9 w-[116px] shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500"><option value="Day">Day shift</option><option value="DN">Double shift</option><option value="Night">Night shift</option></select></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div>
+                <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div></div><ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday'} employeeName={row.name} /></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div>
                 {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Remarks</div><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={remarksOptions} disabled={!row.employeeId || row.isAbsent} className="w-full" /></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
               </div>
             })}</div>
@@ -1734,12 +1856,14 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
             </div>
           </div>
 
+          {renderAttendanceFollowUp()}
+
           {/* Main Table Card */}
           <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
-            <div className="overflow-x-visible pb-[400px]">
+            <div className="overflow-x-visible pb-[400px] isolate">
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-[100px] z-40 bg-gray-50">
-                  <tr className="h-10 border-b border-gray-200">
+                <thead className="sticky top-[100px] z-40 isolate bg-orange-50 shadow-[0_2px_0_rgba(229,231,235,1)]">
+                  <tr className="h-10 border-b border-gray-200 bg-orange-50">
                     <th className="px-2 text-xs font-semibold uppercase tracking-wider text-left w-[220px] bg-orange-50" style={{ color: '#da7025' }}>Employee Name</th>
                     <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[95px] bg-orange-50" style={{ color: '#da7025' }}>In Time</th>
                     <th className="px-2 text-xs font-semibold uppercase tracking-wider text-center w-[95px] bg-orange-50" style={{ color: '#da7025' }}>Out Time</th>
@@ -1773,11 +1897,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                           {row.employeeId ? (
                             <div className="flex items-center gap-2">
                               <span className="min-w-0 flex-1 truncate font-medium text-gray-800 text-sm" style={{ fontFamily: "'Inter', sans-serif" }}>{row.name}</span>
-                              <select aria-label={`${row.name} shift`} value={row.shiftType || 'Day'} onChange={(e) => updateRow(row.employeeId, 'shiftType', e.target.value)} disabled={row.isAbsent || row.status === 'SunHoliday'} className="h-7 w-[108px] shrink-0 rounded-md border border-gray-200 bg-gray-50 px-1.5 text-[10px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="Day">Day shift</option>
-                                <option value="DN">Double shift</option>
-                                <option value="Night">Night shift</option>
-                              </select>
+                              <ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday'} employeeName={row.name} />
                             </div>
                           ) : (
                             <select

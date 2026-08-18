@@ -528,8 +528,8 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'home': return <HomeTab onTabChange={(t) => { navigateToTab(t) }} />
       case 'attendance':
-      case 'attendance-list': return <AttendanceTab defaultSubTab={attendanceSubTab} onSubTabChange={setAttendanceSubTab} onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} />
-      case 'attendance-reports': return <AttendanceTab defaultSubTab="reports" onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} />
+      case 'attendance-list': return <AttendanceTab defaultSubTab={attendanceSubTab} onSubTabChange={setAttendanceSubTab} onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} onOpenHolidaySettings={() => { if (navigateToTab('settings')) setSettingsSubTab('holidays') }} onReviewEmployees={() => navigateToTab('employees')} />
+      case 'attendance-reports': return <AttendanceTab defaultSubTab="reports" onDirtyChange={setAttendanceDirty} onConfigAllowance={() => { if (navigateToTab('settings')) setSettingsSubTab('allowance') }} onOpenHolidaySettings={() => { if (navigateToTab('settings')) setSettingsSubTab('holidays') }} onReviewEmployees={() => navigateToTab('employees')} />
       case 'site-reports': return <SiteReportTab />
       case 'correction': return <CorrectionTab />
       case 'leave': return <LeaveTab />

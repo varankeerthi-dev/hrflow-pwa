@@ -222,6 +222,7 @@ export default function MobileDashboard() {
     pendingCorrections: 0
   })
   const [activeTab, setActiveTab] = useState('attendance')
+  const [settingsSubTab, setSettingsSubTab] = useState(null)
   const [showMenu, setShowMenu] = useState(false)
   const [loading, setLoading] = useState(false)
   const [rolePermissions, setRolePermissions] = useState(null)
@@ -486,9 +487,9 @@ export default function MobileDashboard() {
       case 'home':
         return renderHomeDashboard()
       case 'attendance':
-        return <AttendanceTab />
+        return <AttendanceTab onOpenHolidaySettings={() => { setSettingsSubTab('holidays'); setActiveTab('settings') }} onReviewEmployees={() => setActiveTab('employees')} />
       case 'attendance-reports':
-        return <AttendanceTab defaultSubTab="reports" />
+        return <AttendanceTab defaultSubTab="reports" onOpenHolidaySettings={() => { setSettingsSubTab('holidays'); setActiveTab('settings') }} onReviewEmployees={() => setActiveTab('employees')} />
       case 'correction':
         return <CorrectionTab />
       case 'leave':
@@ -524,7 +525,7 @@ export default function MobileDashboard() {
       case 'portal':
         return <MobileEmployeePortal />
       case 'settings':
-        return <SettingsTab />
+        return <SettingsTab initialSubTab={settingsSubTab} />
       case 'help':
         return <HelpTab />
       default:
