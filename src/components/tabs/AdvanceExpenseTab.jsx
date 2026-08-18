@@ -2263,7 +2263,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     autoTable(pdf, {
       startY: 43,
       margin: { left: margin, right: margin, bottom: 9 },
-      head: [['Date', 'Employee', 'Type', 'Category', 'Transaction', 'Amount', 'Paid', 'Balance', 'Status']],
+      head: [['Date', 'Employee', 'Type', 'Category', 'Transaction', 'Amount', 'Paid', 'Status']],
       body: allLedgerEntries.map((entry) => [
         formatLedgerDate(entry.date),
         entry.employeeName,
@@ -2272,14 +2272,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         entry.transactionNo || '—',
         currency(entry.amount),
         currency(entry.paidAmount),
-        currency(entry.balance),
         entry.status || 'Pending',
       ]),
       theme: 'grid',
       styles: { font: 'helvetica', fontSize: 5.8, cellPadding: 1.15, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1, textColor: [51, 65, 85] },
       headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 0: { cellWidth: 16 }, 1: { cellWidth: 26 }, 2: { cellWidth: 14 }, 3: { cellWidth: 25 }, 4: { cellWidth: 26 }, 5: { cellWidth: 18, halign: 'right' }, 6: { cellWidth: 16, halign: 'right' }, 7: { cellWidth: 18, halign: 'right' }, 8: { cellWidth: 15, halign: 'center' } },
+      columnStyles: { 0: { cellWidth: 16 }, 1: { cellWidth: 30 }, 2: { cellWidth: 14 }, 3: { cellWidth: 28 }, 4: { cellWidth: 30 }, 5: { cellWidth: 20, halign: 'right' }, 6: { cellWidth: 18, halign: 'right' }, 7: { cellWidth: 18, halign: 'center' } },
     })
 
     const pages = pdf.internal.getNumberOfPages()
@@ -3764,13 +3763,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     type="button"
                     onClick={handleSubmitAll}
                     disabled={submitting}
-                    className="min-h-10 rounded-xl bg-emerald-600 px-4 sm:px-5 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
+                    className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 sm:px-5 text-xs font-bold uppercase tracking-wide text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
                   >
-                    {submitting ? <Spinner size="w-3.5 h-3.5" color="text-white" /> : <Send size={14} />}
-                    <span>
+                    {submitting ? <Spinner size="w-3.5 h-3.5" color="text-emerald-600" /> : <Send size={14} className="text-emerald-600" />}
+                    <span className="text-slate-800">
                       {submitting ? 'Submitting...' : `Submit ${activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}`}
                     </span>
-                    <span className="hidden sm:inline-block rounded-md border border-white/20 bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white/90">
+                    <span className="hidden sm:inline-block rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
                       Ctrl+Enter
                     </span>
                   </button>
@@ -4473,18 +4472,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           {/* Reports Container for Screenshot */}
           <div ref={reportsContainerRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Advances Panel */}
-            <div className="bg-white border border-gray-300 overflow-hidden shadow-sm" style={{ fontFamily: 'Roboto, sans-serif' }}>
-              <div className="px-3 py-2 bg-white border-b border-gray-300 flex items-center justify-between">
+            <div className="overflow-hidden rounded-[12px] border border-gray-100 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-gray-800 text-[11px]">Advances</h3>
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-800">Advances</h3>
                   {reportApplied && (
-                    <span className="text-[9px] font-medium text-gray-600 bg-white px-1.5 py-0.5 border border-gray-300">
+                    <span className="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
                       Filtered
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
+                  <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
                     {(reportApplied ? advForReport : advances).length} Records
                   </span>
                 </div>
@@ -4492,31 +4491,31 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-white border-b border-gray-300">
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px] tracking-[0.5px]">Date</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left tracking-[0.5px]">Name</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left tracking-[0.5px]">Category Type</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px] tracking-[0.5px]">Remarks</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[60px] tracking-[0.5px]">Amount</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 text-left w-[60px] tracking-[0.5px]">Actions</th>
+                    <tr className="border-b border-gray-100 bg-slate-50">
+                      <th className="w-[55px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
+                      <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
+                      <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
+                      <th className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Remarks</th>
+                      <th className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</th>
+                      <th className="w-[60px] px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? advForReport : advances).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[10.5px] italic tracking-[0.5px]">
+                        <td colSpan={6} className="py-10 text-center text-[11px] font-medium text-slate-400">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? advForReport : advances).map(a => (
-                      <tr key={a.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 tracking-[0.5px]">
+                      <tr key={a.id} className="border-b border-gray-100 text-slate-700 hover:bg-emerald-50/30">
+                        <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-medium text-slate-500">
                           {new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 font-medium tracking-[0.5px]">{a.employeeName}</td>
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 tracking-[0.5px]">
+                        <td className="border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">{a.employeeName}</td>
+                        <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
                           <div className="flex flex-col gap-0.5">
-                            <span className="font-medium">{a.category || a.type || '—'}</span>
+                            <span className="font-semibold text-slate-700">{a.category || a.type || '—'}</span>
                             {a.givenByEmployeeName && (
                               <span className="text-[9.5px] text-blue-700 font-medium leading-tight tracking-[0.5px]">
                                 Given by {a.givenByEmployeeName}
@@ -4527,8 +4526,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 whitespace-normal break-words tracking-[0.5px]">{a.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-900 font-medium border-r border-gray-200 tabular-nums w-[60px] tracking-[0.5px]">
+                        <td className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-[11px] leading-relaxed text-slate-600 whitespace-normal break-words">{a.remarks || '—'}</td>
+                        <td className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[12px] font-bold tabular-nums text-slate-800">
                           <div className="flex flex-col">
                             <span>{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}</span>
                             {a.paidByName && (
@@ -4577,18 +4576,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
 
             {/* Expenses Panel */}
-            <div className="bg-white border border-gray-300 overflow-hidden shadow-sm" style={{ fontFamily: 'Roboto, sans-serif' }}>
-              <div className="px-3 py-2 bg-white border-b border-gray-300 flex items-center justify-between">
+            <div className="overflow-hidden rounded-[12px] border border-gray-100 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-gray-800 text-[11px]">Expenses</h3>
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-800">Expenses</h3>
                   {reportApplied && (
-                    <span className="text-[9px] font-medium text-gray-600 bg-white px-1.5 py-0.5 border border-gray-300">
+                    <span className="rounded-md border border-violet-100 bg-violet-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-700">
                       Filtered
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="bg-white px-2 py-0.5 text-[9px] font-medium text-gray-700 border border-gray-300">
+                  <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
                     {(reportApplied ? expForReport : expenses).length} Records
                   </span>
                 </div>
@@ -4596,31 +4595,31 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-white border-b border-gray-300">
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[55px] tracking-[0.5px]">Date</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left tracking-[0.5px]">Name</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left tracking-[0.5px]">Category Type</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[190px] tracking-[0.5px]">Remarks</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 border-r border-gray-200 text-left w-[60px] tracking-[0.5px]">Amount</th>
-                      <th className="px-2 py-1.5 text-[10.5px] font-medium text-gray-600 text-left w-[50px] tracking-[0.5px]">Actions</th>
+                    <tr className="border-b border-gray-100 bg-slate-50">
+                      <th className="w-[55px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
+                      <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
+                      <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
+                      <th className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Remarks</th>
+                      <th className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</th>
+                      <th className="w-[50px] px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[10.5px] italic tracking-[0.5px]">
+                        <td colSpan={6} className="py-10 text-center text-[11px] font-medium text-slate-400">
                           No records found for this criteria
                         </td>
                       </tr>
                     ) : (reportApplied ? expForReport : expenses).map(e => (
-                      <tr key={e.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 tracking-[0.5px]">
+                      <tr key={e.id} className="border-b border-gray-100 text-slate-700 hover:bg-violet-50/30">
+                        <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-medium text-slate-500">
                           {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 font-medium tracking-[0.5px]">{e.employeeName}</td>
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 tracking-[0.5px]">
+                        <td className="border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">{e.employeeName}</td>
+                        <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
                           <div className="flex flex-col gap-0.5">
-                            <span className="font-medium">{e.category || e.type || '—'}</span>
+                            <span className="font-semibold text-slate-700">{e.category || e.type || '—'}</span>
                             {(e.paidToName || e.paidToCustomName) && ((e.category && e.category.toLowerCase().includes('given to others')) || (e.paidToName || e.paidToCustomName) !== e.employeeName) && (
                               <span className="text-[9.5px] text-blue-700 font-medium leading-tight tracking-[0.5px]">
                                 {e.employeeName} &rarr; {e.paidToName || e.paidToCustomName}
@@ -4631,8 +4630,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-700 border-r border-gray-200 whitespace-normal break-words tracking-[0.5px]">{e.remarks || '—'}</td>
-                        <td className="px-2 py-1.5 text-[10.5px] text-gray-900 font-medium border-r border-gray-200 tabular-nums tracking-[0.5px]">
+                        <td className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-[11px] leading-relaxed text-slate-600 whitespace-normal break-words">{e.remarks || '—'}</td>
+                        <td className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[12px] font-bold tabular-nums text-slate-800">
                           {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(e.amount)}
                         </td>
                         <td className="px-2 py-1.5">
@@ -4842,7 +4841,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
                   <div className="rounded-[12px] border border-gray-100 bg-white shadow-sm">
                     <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">All advances and expenses</p><p className="mt-0.5 text-sm font-semibold text-slate-900">{allLedgerEntries.length} record{allLedgerEntries.length !== 1 ? 's' : ''} · {ledgerShowAll ? 'Showing all filtered rows' : `Page ${ledgerPage} of ${ledgerPageCount}`}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={exportLedgerPDF} disabled={!allLedgerEntries.length} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white hover:bg-slate-900 disabled:opacity-50"><FileDown size={14} /> Export PDF</button><button type="button" onClick={() => { setLedgerShowAll((value) => !value); setLedgerPage(1) }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">{ledgerShowAll ? 'Use pages' : 'Show all'}</button></div></div>
-                    {allLedgerEntries.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-400">No advance or expense entries match these filters.</p> : <><div className="overflow-x-auto"><div className="min-w-[1120px]"><div className="grid border-b border-gray-100 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400" style={{ gridTemplateColumns: '110px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 110px 100px' }}><div className="px-4 py-3">Date</div><div className="px-4 py-3">Employee</div><div className="px-4 py-3">Type</div><div className="px-4 py-3">Category</div><div className="px-4 py-3">Transaction</div><div className="px-4 py-3 text-right">Amount</div><div className="px-4 py-3 text-right">Paid</div><div className="px-4 py-3 text-right">Balance</div><div className="px-4 py-3">Status</div></div><div ref={ledgerTableRef} className="max-h-[560px] overflow-y-auto"><div style={{ height: `${ledgerVirtualizer.getTotalSize()}px`, position: 'relative' }}>{ledgerVirtualizer.getVirtualItems().map((virtualRow) => { const entry = ledgerVisibleEntries[virtualRow.index]; return <div key={entry.id} className="grid items-center border-b border-gray-100 text-sm text-slate-700 hover:bg-slate-50" style={{ gridTemplateColumns: '110px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 110px 100px', position: 'absolute', transform: `translateY(${virtualRow.start}px)`, height: `${virtualRow.size}px`, width: '100%' }}><div className="px-4 py-2">{formatLedgerDate(entry.date)}</div><div className="truncate px-4 py-2 font-medium text-slate-900" title={entry.employeeName}>{entry.employeeName}</div><div className="px-4 py-2"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.type === 'Expense' ? 'bg-violet-50 text-violet-700' : 'bg-cyan-50 text-cyan-700'}`}>{entry.type}</span></div><div className="truncate px-4 py-2" title={entry.category || '—'}>{entry.category || '—'}</div><div className="truncate px-4 py-2 font-mono text-xs" title={entry.transactionNo || '—'}>{entry.transactionNo || '—'}</div><div className="px-4 py-2 text-right font-medium">{formatINR(entry.amount)}</div><div className="px-4 py-2 text-right text-emerald-700">{formatINR(entry.paidAmount)}</div><div className="px-4 py-2 text-right font-bold">{formatINR(entry.balance)}</div><div className="px-4 py-2"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{entry.status || 'Pending'}</span></div></div> })}</div></div></div></div>{!ledgerShowAll && <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3"><p className="text-xs text-slate-500">Showing {ledgerVisibleEntries.length ? (ledgerPage - 1) * ledgerPageSize + 1 : 0}–{Math.min(ledgerPage * ledgerPageSize, allLedgerEntries.length)} of {allLedgerEntries.length}</p><div className="flex gap-2"><button type="button" onClick={() => setLedgerPage((page) => Math.max(1, page - 1))} disabled={ledgerPage === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Previous</button><button type="button" onClick={() => setLedgerPage((page) => Math.min(ledgerPageCount, page + 1))} disabled={ledgerPage === ledgerPageCount} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Next</button></div></div>}</>}
+                    {allLedgerEntries.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-400">No advance or expense entries match these filters.</p> : <><div className="overflow-x-auto"><div className="min-w-[1010px]"><div className="grid border-b border-gray-100 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400" style={{ gridTemplateColumns: '110px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 100px' }}><div className="px-4 py-3">Date</div><div className="px-4 py-3">Employee</div><div className="px-4 py-3">Type</div><div className="px-4 py-3">Category</div><div className="px-4 py-3">Transaction</div><div className="px-4 py-3 text-right">Amount</div><div className="px-4 py-3 text-right">Paid</div><div className="px-4 py-3">Status</div></div><div ref={ledgerTableRef} className="max-h-[560px] overflow-y-auto"><div style={{ height: `${ledgerVirtualizer.getTotalSize()}px`, position: 'relative' }}>{ledgerVirtualizer.getVirtualItems().map((virtualRow) => { const entry = ledgerVisibleEntries[virtualRow.index]; return <div key={entry.id} className="grid items-center border-b border-gray-100 text-sm text-slate-700 hover:bg-slate-50" style={{ gridTemplateColumns: '110px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 100px', position: 'absolute', transform: `translateY(${virtualRow.start}px)`, height: `${virtualRow.size}px`, width: '100%' }}><div className="px-4 py-2">{formatLedgerDate(entry.date)}</div><div className="truncate px-4 py-2 font-medium text-slate-900" title={entry.employeeName}>{entry.employeeName}</div><div className="px-4 py-2"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.type === 'Expense' ? 'bg-violet-50 text-violet-700' : 'bg-cyan-50 text-cyan-700'}`}>{entry.type}</span></div><div className="truncate px-4 py-2" title={entry.category || '—'}>{entry.category || '—'}</div><div className="truncate px-4 py-2 font-mono text-xs" title={entry.transactionNo || '—'}>{entry.transactionNo || '—'}</div><div className="px-4 py-2 text-right font-medium">{formatINR(entry.amount)}</div><div className="px-4 py-2 text-right text-emerald-700">{formatINR(entry.paidAmount)}</div><div className="px-4 py-2"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{entry.status || 'Pending'}</span></div></div> })}</div></div></div></div>{!ledgerShowAll && <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3"><p className="text-xs text-slate-500">Showing {ledgerVisibleEntries.length ? (ledgerPage - 1) * ledgerPageSize + 1 : 0}–{Math.min(ledgerPage * ledgerPageSize, allLedgerEntries.length)} of {allLedgerEntries.length}</p><div className="flex gap-2"><button type="button" onClick={() => setLedgerPage((page) => Math.max(1, page - 1))} disabled={ledgerPage === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Previous</button><button type="button" onClick={() => setLedgerPage((page) => Math.min(ledgerPageCount, page + 1))} disabled={ledgerPage === ledgerPageCount} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Next</button></div></div>}</>}
                   </div>
                 </>
               )}
