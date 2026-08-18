@@ -10,6 +10,7 @@ import { db } from '../../lib/firebase'
 import { useAuth } from '../../hooks/useAuth'
 import { logActivity } from '../../hooks/useActivityLog'
 import { useEmployeeVehicleEntryStore } from '../../store/employeeVehicleEntryStore'
+import Dropdown from '../ui/Dropdown'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -92,6 +93,24 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
   const selectedMaintenanceVehicle = vehicleOptions.find((vehicle) => vehicle.id === maintenance.vehicleId)
   const totalKm = Math.max(0, Number(mileage.end || 0) - Number(mileage.start || 0))
   const inputClass = 'mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100'
+  const lastMileageEndKm = useMemo(() => {
+    if (!selectedMileageVehicle) return null
+    const matchingEntries = mileageEntries.filter((entry) => {
+      const storedVehicleText = String(entry.vehicle_number || entry.vehicle_info || '').toUpperCase()
+      return entry.vehicleId === selectedMileageVehicle.id || storedVehicleText.includes(selectedMileageVehicle.number)
+    })
+    return matchingEntries.reduce((latestEnd, entry) => Math.max(latestEnd, Number(entry.end_kilometer) || 0), 0) || null
+  }, [mileageEntries, selectedMileageVehicle])
+
+  const validateMileage = (value) => mileageSchema.superRefine((parsed, context) => {
+    if (lastMileageEndKm == null) return
+    if (parsed.start < lastMileageEndKm) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['start'], message: `Start kilometer cannot be below the last recorded ending kilometer (${lastMileageEndKm} KM).` })
+    }
+    if (parsed.end <= lastMileageEndKm) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['end'], message: `End kilometer must be greater than the last recorded ending kilometer (${lastMileageEndKm} KM).` })
+    }
+  }).safeParse(value)
 
   const returnToActions = () => {
     closeEntry()
@@ -100,7 +119,7 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
   }
 
   const createMileageEntry = async ({ duplicateResolution = null, duplicateOfMileageEntryId = null } = {}) => {
-    const parsed = mileageSchema.safeParse({ ...mileage, petrolAmount: mileage.petrolAmount === '' ? 0 : mileage.petrolAmount })
+    const parsed = validateMileage({ ...mileage, petrolAmount: mileage.petrolAmount === '' ? 0 : mileage.petrolAmount })
     if (!parsed.success || !selectedMileageVehicle) {
       setValidationError(parsed.success ? 'Select a vehicle.' : parsed.error.issues[0]?.message || 'Check the mileage details.')
       return
@@ -186,7 +205,7 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
   const submitMileage = (event) => {
     event.preventDefault()
     setValidationError('')
-    const parsed = mileageSchema.safeParse({ ...mileage, petrolAmount: mileage.petrolAmount === '' ? 0 : mileage.petrolAmount })
+    const parsed = validateMileage({ ...mileage, petrolAmount: mileage.petrolAmount === '' ? 0 : mileage.petrolAmount })
     if (!parsed.success || !selectedMileageVehicle) {
       setValidationError(parsed.success ? 'Select a vehicle.' : parsed.error.issues[0]?.message || 'Check the mileage details.')
       return
@@ -272,8 +291,8 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
           <p className="mt-1 text-sm text-gray-500">Choose an entry type. Fleet records, service costs, and approvals remain with the vehicle team.</p>
         </header>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <button type="button" onClick={() => openEntry('mileage')} className="rounded-[12px] border border-gray-100 bg-white p-6 text-left shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/30"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Gauge size={22} /></span><h3 className="mt-4 text-base font-semibold text-gray-900">Enter Mileage</h3><p className="mt-1 text-sm leading-6 text-gray-500">Select a vehicle and enter the starting and ending kilometer readings.</p></button>
-          <button type="button" onClick={() => openEntry('maintenance')} className="rounded-[12px] border border-gray-100 bg-white p-6 text-left shadow-sm transition hover:border-amber-200 hover:bg-amber-50/30"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><Wrench size={22} /></span><h3 className="mt-4 text-base font-semibold text-gray-900">Log Maintenance</h3><p className="mt-1 text-sm leading-6 text-gray-500">Select a vehicle, enter its kilometer reading, and describe the maintenance need.</p></button>
+          <div className="rounded-[12px] border border-gray-100 bg-white p-6 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50/30"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Gauge size={22} /></span><h3 className="mt-4 text-base font-semibold text-gray-900">Enter Mileage</h3><p className="mt-1 text-sm leading-6 text-gray-500">Select a vehicle and enter the starting and ending kilometer readings.</p><button type="button" onClick={() => openEntry('mileage')} className="mt-5 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-emerald-700">Enter Mileage</button></div>
+          <div className="rounded-[12px] border border-gray-100 bg-white p-6 shadow-sm transition hover:border-amber-200 hover:bg-amber-50/30"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><Wrench size={22} /></span><h3 className="mt-4 text-base font-semibold text-gray-900">Log Maintenance</h3><p className="mt-1 text-sm leading-6 text-gray-500">Select a vehicle, enter its kilometer reading, and describe the maintenance need.</p><button type="button" onClick={() => openEntry('maintenance')} className="mt-5 inline-flex rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-amber-700 hover:bg-amber-100">Log Maintenance</button></div>
         </div>
       </div>
     )
@@ -289,12 +308,12 @@ export default function EmployeeVehiclePortal({ employeeId = null }) {
         <section className="rounded-[12px] border border-gray-100 bg-white p-5 shadow-sm">
           <form onSubmit={submitMileage} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:col-span-2">Vehicle name - number<select value={mileage.vehicleId} onChange={(event) => { setMileage((current) => ({ ...current, vehicleId: event.target.value })); setConflictNotice(null); setValidationError('') }} className={inputClass} disabled={isLoading}><option value="">Select vehicle</option>{vehicleOptions.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.label}</option>)}</select></label>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Date<SharedDatePicker value={mileage.date} onChange={(date) => setMileage((current) => ({ ...current, date }))} /></label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:col-span-2">Date<SharedDatePicker value={mileage.date} onChange={(date) => setMileage((current) => ({ ...current, date }))} /></label>
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Start kilometer<input type="number" min="0" value={mileage.start} onChange={(event) => setMileage((current) => ({ ...current, start: event.target.value }))} className={inputClass} /></label>
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">End kilometer<input type="number" min="0" value={mileage.end} onChange={(event) => setMileage((current) => ({ ...current, end: event.target.value }))} className={inputClass} /></label>
-            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Distance</p><p className="mt-1 text-sm font-semibold text-slate-900">{totalKm} KM</p></div>
+            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 sm:col-span-2"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Distance</p><p className="mt-1 text-sm font-semibold text-slate-900">{totalKm} KM</p>{lastMileageEndKm != null && <p className="mt-1 text-xs text-slate-500">Last recorded ending kilometer: {lastMileageEndKm} KM</p>}</div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:col-span-2">Petrol amount <span className="font-normal normal-case text-slate-400">optional, creates an expense request</span><input type="number" min="0" step="0.01" value={mileage.petrolAmount} onChange={(event) => setMileage((current) => ({ ...current, petrolAmount: event.target.value }))} className={inputClass} placeholder="0.00" /></label>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:col-span-2">Remarks<select value={mileage.remarks} onChange={(event) => setMileage((current) => ({ ...current, remarks: event.target.value }))} className={inputClass}><option value="">Select remarks</option>{remarksOptions.map((remark) => <option key={remark} value={remark}>{remark}</option>)}</select></label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:col-span-2">Remarks<div className="mt-1"><Dropdown value={mileage.remarks} onChange={(remarks) => setMileage((current) => ({ ...current, remarks }))} options={remarksOptions} placeholder="Select remarks" size="sm" panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} /></div></label>
             <button type="submit" disabled={savingMileage || isLoading} className="sm:col-span-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-emerald-700 disabled:opacity-50">{savingMileage ? 'Submitting…' : 'Submit mileage'}</button>
           </form>
         </section>

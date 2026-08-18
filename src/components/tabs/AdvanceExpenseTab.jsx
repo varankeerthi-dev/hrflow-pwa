@@ -10,6 +10,7 @@ import { arrayUnion, collection, addDoc, query, getDocs, onSnapshot, serverTimes
 import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
+import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR } from '../../lib/salaryUtils'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -261,6 +262,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [reportFilterProject, setReportFilterProject] = useState('')
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
+  const [ledgerView, setLedgerView] = useState('employee')
+  const [ledgerEmployeeId, setLedgerEmployeeId] = useState('')
+  const [ledgerFromDate, setLedgerFromDate] = useState('')
+  const [ledgerToDate, setLedgerToDate] = useState('')
+  const [ledgerCategory, setLedgerCategory] = useState('')
   
   // Filter dropdown states
   const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false)
@@ -498,6 +504,33 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     return { employees: employeeArray, totalOutstanding }
   }, [entries, employees])
 
+  const ledgerCategories = useMemo(() => [...new Set(entries.filter((entry) => entry.type === 'Advance').map((entry) => entry.category).filter(Boolean))].sort(), [entries])
+
+  const allLedgerEntries = useMemo(() => {
+    return entries
+      .filter((entry) => {
+        if (entry.type !== 'Advance') return false
+        if (ledgerEmployeeId && entry.employeeId !== ledgerEmployeeId) return false
+        if (ledgerFromDate && String(entry.date || '') < ledgerFromDate) return false
+        if (ledgerToDate && String(entry.date || '') > ledgerToDate) return false
+        if (ledgerCategory && entry.category !== ledgerCategory) return false
+        return true
+      })
+      .map((entry) => {
+        const amount = Number(entry.amount || 0)
+        const paidAmount = entry.paymentStatus === 'Paid' ? (Number(entry.partialAmount) || amount) : 0
+        const employee = employees.find((item) => item.id === entry.employeeId)
+        return {
+          ...entry,
+          employeeName: entry.employeeName || employee?.name || 'Unknown employee',
+          amount,
+          paidAmount,
+          balance: amount - paidAmount,
+        }
+      })
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+  }, [entries, employees, ledgerCategory, ledgerEmployeeId, ledgerFromDate, ledgerToDate])
+
   // Mutations
   const addMutation = useMutation({
     mutationFn: async (newEntries) => {
@@ -671,6 +704,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         category: changes.category?.trim(),
         amount: Number(changes.amount),
         reason: changes.reason?.trim() || '',
+        remarks: changes.remarks?.trim() || '',
         project: changes.project?.trim() || '',
       }
       if (!nextValues.date || !nextValues.category || !nextValues.amount || nextValues.amount <= 0) {
@@ -690,6 +724,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             category: original.category || '',
             amount: Number(original.amount || 0),
             reason: original.reason || '',
+            remarks: original.remarks || original.mileageRemarks || '',
             project: original.project || '',
           },
           next: nextValues,
@@ -1891,6 +1926,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       category: entry.category || '',
       amount: String(entry.amount || ''),
       reason: entry.reason || '',
+      remarks: entry.remarks || entry.mileageRemarks || '',
       project: entry.project || '',
     })
   }
@@ -3802,7 +3838,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Date<input type="date" value={portalEditForm.date} onChange={(event) => setPortalEditForm((current) => ({ ...current, date: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Amount<input type="number" min="0" step="0.01" value={portalEditForm.amount} onChange={(event) => setPortalEditForm((current) => ({ ...current, amount: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Category<input list="portal-expense-categories" value={portalEditForm.category} onChange={(event) => setPortalEditForm((current) => ({ ...current, category: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /><datalist id="portal-expense-categories">{categories.map((category) => <option key={category} value={category} />)}</datalist></label>
-              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Remarks<input type="text" value={portalEditForm.reason} onChange={(event) => setPortalEditForm((current) => ({ ...current, reason: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Reason<input type="text" value={portalEditForm.reason} onChange={(event) => setPortalEditForm((current) => ({ ...current, reason: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Remarks<div className="mt-1"><Dropdown value={portalEditForm.remarks} onChange={(remarks) => setPortalEditForm((current) => ({ ...current, remarks }))} options={orgSettings.remarksOptions || []} placeholder="Select remarks" size="sm" panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} /></div></label>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Project <span className="font-normal normal-case text-slate-400">optional</span><input type="text" value={portalEditForm.project} onChange={(event) => setPortalEditForm((current) => ({ ...current, project: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
             </div>
             <div className="mt-5 flex gap-3">
@@ -4643,30 +4680,46 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
           ) : (
             <>
-              {/* Total Outstanding Summary */}
-              <div className="bg-gradient-to-br from-cyan-50 to-white rounded-xl border border-cyan-200 p-5 shadow-card">
-                <div className="flex items-center gap-2 text-cyan-700 mb-3">
-                  <Banknote size={20} />
-                  <span className="text-sm font-medium">Total Outstanding Advances</span>
-                </div>
-                <p className="text-3xl font-black text-cyan-900">{formatINR(ledgerData.totalOutstanding)}</p>
-                <p className="text-xs text-cyan-600 font-medium mt-1">
-                  {ledgerData.employees.length} employee{ledgerData.employees.length !== 1 ? 's' : ''} with active advances
-                </p>
+              <div className="rounded-[12px] border border-gray-100 bg-white px-4 pt-3 shadow-sm">
+                <SubTabsNav
+                  activeTabId={ledgerView}
+                  onTabChange={(tab) => setLedgerView(tab.id)}
+                  tabs={[{ id: 'employee', label: 'Employee wise' }, { id: 'all', label: 'All' }]}
+                />
               </div>
 
-              {/* Employee Ledger Cards */}
-              {ledgerData.employees.length === 0 ? (
-                <div className="bg-white rounded-xl border border-zinc-200 shadow-sm p-12 text-center">
-                  <Banknote size={40} className="mx-auto text-zinc-300 mb-3" />
-                  <p className="text-zinc-400 font-bold uppercase italic tracking-widest text-sm">No outstanding advances</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {ledgerData.employees.map(emp => (
-                    <EmployeeLedgerCard key={emp.id} emp={emp} formatINR={formatINR} />
-                  ))}
-                </div>
+              {ledgerView === 'employee' && (
+                <>
+                  <div className="rounded-[12px] border border-cyan-100 bg-cyan-50/60 p-5 shadow-sm">
+                    <div className="mb-3 flex items-center gap-2 text-cyan-700"><Banknote size={20} /><span className="text-sm font-semibold">Total Outstanding Advances</span></div>
+                    <p className="text-3xl font-black text-cyan-900">{formatINR(ledgerData.totalOutstanding)}</p>
+                    <p className="mt-1 text-xs font-medium text-cyan-600">{ledgerData.employees.length} employee{ledgerData.employees.length !== 1 ? 's' : ''} with active advances</p>
+                  </div>
+                  {ledgerData.employees.length === 0 ? (
+                    <div className="rounded-[12px] border border-gray-100 bg-white p-12 text-center shadow-sm"><Banknote size={40} className="mx-auto mb-3 text-zinc-300" /><p className="text-sm font-bold uppercase tracking-widest text-zinc-400">No outstanding advances</p></div>
+                  ) : (
+                    <div className="space-y-4">{ledgerData.employees.map((emp) => <EmployeeLedgerCard key={emp.id} emp={emp} formatINR={formatINR} />)}</div>
+                  )}
+                </>
+              )}
+
+              {ledgerView === 'all' && (
+                <>
+                  <div className="rounded-[12px] border border-gray-100 bg-white p-4 shadow-sm">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Advance filters</p>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee<div className="mt-1"><Dropdown value={ledgerEmployeeId} onChange={setLedgerEmployeeId} options={sortedEmployees.map((employee) => ({ value: employee.id, label: employee.name || employee.empCode || 'Employee' }))} placeholder="All employees" size="sm" searchable panelWidth="w-64" autoFocusSearch={false} /></div></label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">From date<input type="date" value={ledgerFromDate} onChange={(event) => setLedgerFromDate(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500" /></label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">To date<input type="date" value={ledgerToDate} onChange={(event) => setLedgerToDate(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500" /></label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Category<div className="mt-1"><Dropdown value={ledgerCategory} onChange={setLedgerCategory} options={ledgerCategories} placeholder="All categories" size="sm" searchable panelWidth="w-64" autoFocusSearch={false} /></div></label>
+                    </div>
+                    <button type="button" onClick={() => { setLedgerEmployeeId(''); setLedgerFromDate(''); setLedgerToDate(''); setLedgerCategory('') }} className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-800">Clear filters</button>
+                  </div>
+                  <div className="rounded-[12px] border border-gray-100 bg-white shadow-sm">
+                    <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3"><div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">All advances</p><p className="mt-0.5 text-sm font-semibold text-slate-900">{allLedgerEntries.length} record{allLedgerEntries.length !== 1 ? 's' : ''}</p></div><p className="text-sm font-bold text-slate-900">{formatINR(allLedgerEntries.reduce((sum, entry) => sum + entry.balance, 0))} outstanding</p></div>
+                    {allLedgerEntries.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-400">No advance entries match these filters.</p> : <div className="overflow-x-auto"><table className="min-w-[900px] w-full text-left"><thead><tr className="border-b border-gray-100 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400"><th className="px-4 py-3">Date</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Transaction</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Balance</th><th className="px-4 py-3">Status</th></tr></thead><tbody className="divide-y divide-gray-100">{allLedgerEntries.map((entry) => <tr key={entry.id} className="text-sm text-slate-700"><td className="px-4 py-3">{entry.date || '—'}</td><td className="px-4 py-3 font-medium text-slate-900">{entry.employeeName}</td><td className="px-4 py-3">{entry.category || '—'}</td><td className="px-4 py-3 font-mono text-xs">{entry.transactionNo || '—'}</td><td className="px-4 py-3 text-right font-medium">{formatINR(entry.amount)}</td><td className="px-4 py-3 text-right text-emerald-700">{formatINR(entry.paidAmount)}</td><td className="px-4 py-3 text-right font-bold">{formatINR(entry.balance)}</td><td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{entry.status || 'Pending'}</span></td></tr>)}</tbody></table></div>}
+                  </div>
+                </>
               )}
             </>
           )}
