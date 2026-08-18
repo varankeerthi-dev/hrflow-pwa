@@ -3766,6 +3766,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isPending ? 'bg-amber-50 text-amber-700' : entry.status === 'Withdrawn' ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700'}`}>{entry.status || 'Pending'}</span>
                             </div>
                             <p className="mt-1 text-xs text-slate-500">{entry.date || 'No date'} · {entry.reason || 'No remarks'}</p>
+                            {(entry.remarks || entry.mileageRemarks) && <p className="mt-1 text-xs font-medium text-slate-600">Remarks: {entry.remarks || entry.mileageRemarks}</p>}
                           </div>
                           <div className="flex items-center justify-between gap-3 sm:justify-end">
                             <span className="text-sm font-bold tabular-nums text-slate-900">{formatINR(entry.amount)}</span>
