@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  base: './',
+  base: '/',
   server: {
     allowedHosts: true
   },
@@ -39,7 +39,7 @@ export default defineConfig({
     })
   ],
   build: {
-    sourcemap: true,
+    sourcemap: false,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       external: [
