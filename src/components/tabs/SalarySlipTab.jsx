@@ -46,6 +46,15 @@ const formatMonthShort = (monthStr) => {
 
 const formatSummaryCurrency = (value) => `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`
 
+const getHolidayCalendarForMonth = (orgData = {}, month = '') => {
+  const lockedCalendar = orgData?.holidayCalendarSnapshots?.[month]
+  return {
+    holidays: Array.isArray(lockedCalendar?.holidays) ? lockedCalendar.holidays : (Array.isArray(orgData?.holidays) ? orgData.holidays : []),
+    saturdayType: lockedCalendar?.saturdayType || orgData?.saturdayType || 'working',
+    sundayType: lockedCalendar?.sundayType || orgData?.sundayType || 'working',
+  }
+}
+
 const downloadPdfBlob = (blob, fileName) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -621,7 +630,7 @@ const EmployeeSearchableDropdown = ({ employees, selectedId, onSelect }) => {
 
 // --- MAIN COMPONENT ---
 
-export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary', onActiveTabChange }) {
+export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defaultActiveTab = 'salary-summary', onActiveTabChange, attendanceMonthlySummaryOnly = false }) {
   const { user } = useAuth(); const { employees: allEmployees } = useEmployees(user?.orgId, false); const { slabs, increments } = useSalarySlab(user?.orgId);
   const queryClient = useQueryClient();
   const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -1146,9 +1155,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         getDocs(query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', summaryMonth)))
       ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
-      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : []
+      const holidayCalendar = getHolidayCalendarForMonth(orgData, summaryMonth)
+      const holidayList = holidayCalendar.holidays
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean))
-      const saturdayType = orgData.saturdayType || 'working'; // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
+      const saturdayType = holidayCalendar.saturdayType // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
       const isSaturdayHoliday = saturdayType !== 'working';
       
       const appliedSandwiches = sandwichSnap.docs.map(d => d.data());
@@ -1395,6 +1405,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     { label: 'Summary & Payout', colSpan: 3, className: 'text-slate-700 bg-emerald-50/30 border-r border-slate-200 font-semibold text-[11px]' },
   ], [])
 
+  const attendanceOverviewNestedHeaders = useMemo(
+    () => overviewNestedHeaders.filter((group) => group.label !== 'Summary & Payout'),
+    [overviewNestedHeaders]
+  )
+
   const overviewColumns = useMemo(() => [
     {
       header: '#',
@@ -1609,6 +1624,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       ),
     }
   ], [filteredAttendanceSummaryData, summaryMonth])
+
+  const attendanceOverviewColumns = useMemo(
+    () => overviewColumns.filter((column) => !['netPayout', 'status', 'sync', 'actions'].includes(column.id)),
+    [overviewColumns]
+  )
   
   const dynamicNameWidth = useMemo(() => {
     if (!filteredAttendanceSummaryData.length) return 140;
@@ -1833,9 +1853,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       const attByDate = new Map(aData.map(a => [normalizeDate(a.date || a.inDate), a]));
 
       const orgData = orgSnap.exists() ? orgSnap.data() : {};
-      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : [];
+      const holidayCalendar = getHolidayCalendarForMonth(orgData, selectedMonth);
+      const holidayList = holidayCalendar.holidays;
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean));
-      const saturdayType = orgData.saturdayType || 'working';
+      const saturdayType = holidayCalendar.saturdayType;
       const isSaturdayHoliday = saturdayType !== 'working';
 
       // Aggregate variable pay logs in memory (only if not settled separately)
@@ -2491,9 +2512,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-[80] px-2">
               <div className="flex gap-4 items-center">
-                {/* Current / History Toggle */}
-                {/* Notion Inspired Tabs Row */}
-                <div className="flex items-center gap-0.5">
+                {!attendanceMonthlySummaryOnly && <div className="flex items-center gap-0.5">
                   <button 
                     onClick={() => {
                       setPayrollSubTab('current');
@@ -2548,9 +2567,9 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       </div>
                     </>
                   )}
-                </div>
+                </div>}
 
-                {payrollSubTab === 'current' && (
+                {(attendanceMonthlySummaryOnly || payrollSubTab === 'current') && (
                   <div className="flex items-center bg-gray-100 rounded-md p-1 border border-gray-200">
                     <button onClick={() => { const [y, m] = summaryMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); setSummaryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) }} className="p-1 hover:bg-white hover:shadow-sm rounded transition-all text-gray-600"><ChevronLeft size={14} /></button>
                     <input type="month" value={summaryMonth} onChange={e=>setSummaryMonth(e.target.value)} className="h-6 bg-transparent border-0 text-[10px] font-black uppercase outline-none focus:ring-0 w-24 text-center cursor-pointer"/>
@@ -2558,10 +2577,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                   </div>
                 )}
 
-                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status === 'draft' && (
+                {!attendanceMonthlySummaryOnly && payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && activeRun.status === 'draft' && (
                   <button onClick={handleResync} className="h-8 w-8 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all" title="Re-sync Calculations"><RefreshCw size={14} /></button>
                 )}
-                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
+                {!attendanceMonthlySummaryOnly && payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
                   <div className="flex items-center gap-1.5 ml-2">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Workflow:</span>
                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
@@ -2590,15 +2609,15 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     )}
                   </div>
                 )}
-                {payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
+                {!attendanceMonthlySummaryOnly && payrollSubTab === 'current' && isAdmin && !selectedPastRunId && activeRun && (
                   <button onClick={() => setIsOtModalOpen(true)} className="h-8 px-3 flex items-center justify-center bg-indigo-50 text-indigo-700 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white active:scale-95 transition-all text-[12px] font-semibold whitespace-nowrap">Click to Revise OT hours</button>
                 )}
               </div>
             </div>
             <div className="flex-1 overflow-auto bg-zinc-50/30">
-              {payrollSubTab === 'history' && !selectedPastRunId ? (
+              {!attendanceMonthlySummaryOnly && payrollSubTab === 'history' && !selectedPastRunId ? (
                 renderHistoryTab()
-              ) : payrollSubTab === 'current' && !activeRun && !selectedPastRunId ? (
+              ) : !attendanceMonthlySummaryOnly && payrollSubTab === 'current' && !activeRun && !selectedPastRunId ? (
                 // Banner for initiating run
                 <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl m-4 animate-in fade-in duration-200">
                   <CalendarIcon size={48} className="text-indigo-400 mb-4 opacity-75 animate-bounce" />
@@ -2642,8 +2661,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                       ) : (
                         <ReusableTable
                           data={filteredAttendanceSummaryData}
-                          columns={overviewColumns}
-                          nestedHeaders={overviewNestedHeaders}
+                          columns={attendanceMonthlySummaryOnly ? attendanceOverviewColumns : overviewColumns}
+                          nestedHeaders={attendanceMonthlySummaryOnly ? attendanceOverviewNestedHeaders : overviewNestedHeaders}
                           page={1}
                           pageSize={filteredAttendanceSummaryData.length || 10}
                           totalRows={filteredAttendanceSummaryData.length}

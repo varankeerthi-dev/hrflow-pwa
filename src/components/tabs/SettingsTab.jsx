@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
@@ -78,6 +78,30 @@ const bankAccountSchema = z.object({
   accountNo: z.string().trim().min(1, 'Account Number is required').regex(/^\d+$/, 'Account Number must contain only digits'),
   ifsc: z.string().trim().min(1, 'IFSC Code is required').regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC Code format (e.g. HDFC0001234)'),
   branchName: z.string().trim().min(1, 'Branch Name is required')
+})
+
+const holidayEntrySchema = z.object({
+  name: z.string().trim().min(1, 'Holiday name is required').max(80, 'Holiday name must be 80 characters or fewer'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a valid holiday date'),
+})
+
+const holidayListSchema = z.array(holidayEntrySchema).superRefine((holidays, context) => {
+  const dates = new Set()
+  holidays.forEach((holiday, index) => {
+    if (dates.has(holiday.date)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Only one holiday can be configured for each date', path: [index, 'date'] })
+    }
+    dates.add(holiday.date)
+  })
+})
+
+const normalizeHolidayCalendar = (calendar = {}) => ({
+  holidays: (Array.isArray(calendar.holidays) ? calendar.holidays : [])
+    .map((holiday) => ({ name: String(holiday?.name || '').trim(), date: String(holiday?.date || '') }))
+    .filter((holiday) => holiday.name && /^\d{4}-\d{2}-\d{2}$/.test(holiday.date))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name)),
+  saturdayType: calendar.saturdayType || 'working',
+  sundayType: calendar.sundayType || 'working',
 })
 
 const employeeValidationSchema = z.object({
@@ -546,6 +570,10 @@ export default function SettingsTab({ initialSubTab }) {
   const [siteGeoLocating, setSiteGeoLocating] = useState(false)
   const [newAdvanceCategory, setNewAdvanceCategory] = useState('')
   const [newHoliday, setNewHoliday] = useState({ name: '', date: '' })
+  const [editingHolidayIndex, setEditingHolidayIndex] = useState(null)
+  const [holidayError, setHolidayError] = useState('')
+  const [holidaySaveNotice, setHolidaySaveNotice] = useState(null)
+  const holidayBaselineRef = useRef(normalizeHolidayCalendar())
 
   const [isJoinDateConfirmOpen, setIsJoinDateConfirmOpen] = useState(false)
   const [pendingJoinDate, setPendingJoinDate] = useState('')
@@ -1116,6 +1144,7 @@ export default function SettingsTab({ initialSubTab }) {
         const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
         if (orgSnap.exists()) {
           const data = orgSnap.data()
+          holidayBaselineRef.current = normalizeHolidayCalendar(data)
           setOrgSettings(prev => ({
             ...prev,
             ...data,
@@ -3263,14 +3292,97 @@ export default function SettingsTab({ initialSubTab }) {
   }
 
   const handleAddHoliday = () => {
-    const name = newHoliday.name.trim()
-    const date = newHoliday.date
-    if (!name || !date) {
-      alert('Holiday name and date are required.')
+    const parsed = holidayEntrySchema.safeParse(newHoliday)
+    if (!parsed.success) {
+      setHolidayError(parsed.error.issues[0]?.message || 'Enter a valid holiday name and date')
       return
     }
-    setOrgSettings(s => ({ ...s, holidays: [...s.holidays, { name, date }] }))
+
+    const nextHoliday = parsed.data
+    const hasDuplicateDate = (orgSettings.holidays || []).some((holiday, index) => holiday.date === nextHoliday.date && index !== editingHolidayIndex)
+    if (hasDuplicateDate) {
+      setHolidayError('A holiday is already configured for this date')
+      return
+    }
+
+    setHolidayError('')
+    setHolidaySaveNotice(null)
+    setOrgSettings((settings) => {
+      const holidays = Array.isArray(settings.holidays) ? [...settings.holidays] : []
+      if (editingHolidayIndex === null) holidays.push(nextHoliday)
+      else holidays[editingHolidayIndex] = nextHoliday
+      return { ...settings, holidays }
+    })
     setNewHoliday({ name: '', date: '' })
+    setEditingHolidayIndex(null)
+  }
+
+  const handleEditHoliday = (holiday, originalIndex) => {
+    setNewHoliday({ name: holiday.name || '', date: holiday.date || '' })
+    setEditingHolidayIndex(originalIndex)
+    setHolidayError('')
+    setHolidaySaveNotice(null)
+  }
+
+  const handleCancelHolidayEdit = () => {
+    setNewHoliday({ name: '', date: '' })
+    setEditingHolidayIndex(null)
+    setHolidayError('')
+  }
+
+  const handleDeleteHoliday = (originalIndex) => {
+    setOrgSettings((settings) => ({ ...settings, holidays: (settings.holidays || []).filter((_, index) => index !== originalIndex) }))
+    if (editingHolidayIndex === originalIndex) handleCancelHolidayEdit()
+    setHolidaySaveNotice(null)
+  }
+
+  const handleSaveHolidayList = async () => {
+    if (!user?.orgId || loading || saving) return
+    if (!isAdmin && userPermissions['Settings']?.edit !== true) {
+      setHolidaySaveNotice({ type: 'error', message: 'You do not have permission to update the holiday list.' })
+      return
+    }
+
+    const nextCalendar = normalizeHolidayCalendar(orgSettings)
+    const parsed = holidayListSchema.safeParse(nextCalendar.holidays)
+    if (!parsed.success) {
+      setHolidayError(parsed.error.issues[0]?.message || 'Please correct the holiday list before saving')
+      return
+    }
+
+    if (JSON.stringify(nextCalendar) === JSON.stringify(holidayBaselineRef.current)) {
+      setHolidaySaveNotice({ type: 'neutral', message: 'No changes made.' })
+      return
+    }
+
+    setSaving(true)
+    setHolidayError('')
+    setHolidaySaveNotice(null)
+    try {
+      const lockedRuns = await getDocs(query(collection(db, 'organisations', user.orgId, 'payroll_runs'), where('status', '==', 'locked')))
+      const holidayCalendarSnapshots = { ...(orgSettings.holidayCalendarSnapshots || {}) }
+      lockedRuns.docs.forEach((run) => {
+        const month = String(run.data().month || run.id || '').slice(0, 7)
+        if (month && !holidayCalendarSnapshots[month]) {
+          holidayCalendarSnapshots[month] = { ...holidayBaselineRef.current, lockedAt: new Date().toISOString() }
+        }
+      })
+
+      await setDoc(doc(db, 'organisations', user.orgId), {
+        ...nextCalendar,
+        holidayCalendarSnapshots,
+      }, { merge: true })
+
+      holidayBaselineRef.current = nextCalendar
+      setOrgSettings((settings) => ({ ...settings, ...nextCalendar, holidayCalendarSnapshots }))
+      setHolidaySaveNotice({ type: 'success', message: lockedRuns.size ? 'Holiday list updated. Paid and locked months retain their saved holiday calendar.' : 'Holiday list updated successfully.' })
+      setSaved(true)
+    } catch (error) {
+      console.error('Failed to save holiday list:', error)
+      setHolidaySaveNotice({ type: 'error', message: 'Holiday list could not be updated. Please try again.' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const updateAttendancePolicy = (section, field, value) => {
@@ -3961,14 +4073,18 @@ export default function SettingsTab({ initialSubTab }) {
                     className={settingsInputClassName}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAddHoliday}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-normal uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
-                >
-                  <Plus size={14} />
-                  Add Holiday
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddHoliday}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
+                  >
+                    {editingHolidayIndex === null ? <Plus size={14} /> : <Save size={14} />}
+                    {editingHolidayIndex === null ? 'Add Holiday' : 'Save Holiday'}
+                  </button>
+                  {editingHolidayIndex !== null && <button type="button" onClick={handleCancelHolidayEdit} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-600 transition hover:bg-slate-50">Cancel edit</button>}
+                </div>
+                {holidayError && <p className="text-[11px] font-medium text-rose-600">{holidayError}</p>}
               </div>
 
               {/* Saturday Working Status */}
@@ -3990,8 +4106,8 @@ export default function SettingsTab({ initialSubTab }) {
                     <option value="holiday2x">Holiday (2x Pay - Double)</option>
                     <option value="alternative">Alternative Holiday (2x Pay)</option>
                   </select>
-                  <p className="mt-2 text-[10px] text-slate-500">
-                    This setting affects salary calculation. Old records will be recalculated when you save.
+                  <p className="mt-2 text-[10px] font-medium text-slate-500">
+                    This setting applies to future calculations. Locked payroll months retain their saved calendar.
                   </p>
                 </div>
               </div>
@@ -4015,8 +4131,8 @@ export default function SettingsTab({ initialSubTab }) {
                     <option value="holiday2x">Holiday (2x Pay - Double)</option>
                     <option value="alternative">Alternative Holiday (2x Pay)</option>
                   </select>
-                  <p className="mt-2 text-[10px] text-slate-500">
-                    This setting affects salary calculation. Old records will be recalculated when you save.
+                  <p className="mt-2 text-[10px] font-medium text-slate-500">
+                    This setting applies to future calculations. Locked payroll months retain their saved calendar.
                   </p>
                 </div>
               </div>
@@ -4025,10 +4141,10 @@ export default function SettingsTab({ initialSubTab }) {
             <div className={`${settingsPanelClassName} overflow-hidden`}>
               <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
                 <div>
-                  <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-slate-400">Calendar list</p>
-                  <h4 className="mt-2 text-[18px] font-normal tracking-[-0.03em] text-slate-950">{orgSettings.holidays.length} Holidays</h4>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Calendar list</p>
+                  <h4 className="mt-2 text-[18px] font-semibold tracking-[-0.03em] text-slate-950">{orgSettings.holidays.length} Holidays</h4>
                 </div>
-                <div className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-normal uppercase tracking-[0.18em] text-amber-600">
+                <div className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-600">
                   Annual schedule
                 </div>
               </div>
@@ -4037,9 +4153,9 @@ export default function SettingsTab({ initialSubTab }) {
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="bg-slate-50">
-                      <th className="px-6 py-3 text-[10px] font-normal uppercase tracking-[0.18em] text-slate-500">Holiday</th>
-                      <th className="px-6 py-3 text-[10px] font-normal uppercase tracking-[0.18em] text-slate-500">Date</th>
-                      <th className="px-6 py-3 text-right text-[10px] font-normal uppercase tracking-[0.18em] text-slate-500">Action</th>
+                      <th className="px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Holiday</th>
+                      <th className="px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Date</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4048,12 +4164,13 @@ export default function SettingsTab({ initialSubTab }) {
                       .sort((a, b) => (a.holiday.date || '').localeCompare(b.holiday.date || ''))
                       .map(({ holiday, originalIndex }, i) => (
                         <tr key={`${holiday.name}-${holiday.date}-${originalIndex}`} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
-                          <td className="px-6 py-4 text-[13px] font-normal text-slate-900">{holiday.name}</td>
-                          <td className="px-6 py-4 font-mono text-[12px] text-indigo-600">{formatDateDDMMYYYY(holiday.date)}</td>
+                          <td className="px-6 py-4 text-[13px] font-semibold text-slate-800">{holiday.name}</td>
+                          <td className="px-6 py-4 font-mono text-[12px] font-medium text-indigo-600">{formatDateDDMMYYYY(holiday.date)}</td>
                           <td className="px-6 py-4 text-right">
+                            <button type="button" onClick={() => handleEditHoliday(holiday, originalIndex)} className="mr-1 rounded-2xl p-2 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600" title={`Edit ${holiday.name}`}><Edit size={16} /></button>
                             <button
                               type="button"
-                              onClick={() => setOrgSettings(s => ({ ...s, holidays: s.holidays.filter((_, idx) => idx !== originalIndex) }))}
+                              onClick={() => handleDeleteHoliday(originalIndex)}
                               className="rounded-2xl p-2 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500"
                             >
                               <Trash2 size={16} />
@@ -4073,8 +4190,9 @@ export default function SettingsTab({ initialSubTab }) {
               </div>
 
               <div className="border-t border-slate-200 px-6 py-5">
-                <button onClick={() => handleSaveOrg('Holiday list updated successfully!')} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-normal uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
-                  Update Holiday List
+                {holidaySaveNotice && <p className={`mb-3 rounded-xl px-3 py-2 text-[11px] font-medium ${holidaySaveNotice.type === 'success' ? 'bg-emerald-50 text-emerald-700' : holidaySaveNotice.type === 'error' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{holidaySaveNotice.message}</p>}
+                <button onClick={handleSaveHolidayList} disabled={saving} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-semibold uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  {saving ? 'Updating Holiday List…' : 'Update Holiday List'}
                 </button>
               </div>
             </div>
