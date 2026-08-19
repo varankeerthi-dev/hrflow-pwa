@@ -17,7 +17,7 @@ import EmployeeTasksView from './EmployeeTasksView'
 import AdvanceExpenseTab from './AdvanceExpenseTab'
 import EmployeeProfileUpdateForm from './EmployeeProfileUpdateForm'
 import { SubTabsNav } from '../ui/SubTabsNav'
-import { formatTimeTo12Hour } from '../../lib/salaryUtils'
+import { formatINR, formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { buildPortalApprovalFields } from '../../lib/portalApprovalWorkflow'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { getAttendancePortalBadge, ATTENDANCE_EVENT_IN, ATTENDANCE_EVENT_OUT, ATTENDANCE_STATUS_REJECTED } from '../../lib/attendanceWorkflow'
@@ -26,6 +26,7 @@ import {
   User, 
   Calendar, 
   FileText, 
+  Gavel,
   Plus, 
   ArrowRight, 
   ShieldCheck, 
@@ -110,6 +111,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const [activePortalTab, setActivePortalTab] = useState(initialSubTab)
   const [loading, setLoading] = useState(false)
   const [requests, setRequests] = useState([])
+  const [portalFines, setPortalFines] = useState([])
   const [expandedMonths, setExpandedMonths] = useState({}) // Track which months are expanded
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [portalApprovalSettingsByModule, setPortalApprovalSettingsByModule] = useState({})
@@ -182,6 +184,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
     if (employeeId) {
       fetchRequests()
       fetchPortalAttendanceLogs()
+      fetchPortalFines()
     }
   }, [user?.orgId, employeeId, empLoading, user?.email])
 
@@ -297,6 +300,26 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
       setPortalAttendanceLogs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
     } catch (error) {
       console.error('Failed to fetch portal attendance logs:', error)
+    }
+  }
+
+  const fetchPortalFines = async () => {
+    if (!user?.orgId || !employeeId) return
+    try {
+      const fineQuery = query(
+        collection(db, 'organisations', user.orgId, 'fines'),
+        where('employeeId', '==', employeeId)
+      )
+      const snapshot = await getDocs(fineQuery)
+      setPortalFines(
+        snapshot.docs
+          .map((fineDoc) => ({ id: fineDoc.id, ...fineDoc.data() }))
+          .filter((fine) => fine.portalVisible !== false)
+          .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+      )
+    } catch (error) {
+      console.error('Failed to fetch portal fines:', error)
+      setPortalFines([])
     }
   }
 
@@ -692,6 +715,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
             { id: 'attendance', label: 'Attendance', icon: <Calendar size={15} /> },
             { id: 'expenses', label: 'Expenses', icon: <CreditCard size={15} /> },
             { id: 'requests', label: 'Requests', icon: <FileText size={15} /> },
+            { id: 'fines', label: 'Fines', icon: <Gavel size={15} /> },
             { id: 'salary', label: 'Salary Slip', icon: <Hash size={15} /> },
             { id: 'profile', label: 'Profile', icon: <User size={15} /> },
           ]}
@@ -1534,6 +1558,30 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
                 </div>
               )
             })()}
+          </div>
+        )}
+
+        {activePortalTab === 'fines' && (
+          <div className="max-w-5xl mx-auto space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="rounded-[12px] border border-gray-100 bg-white p-6 shadow-sm flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600"><Gavel size={19} /></div>
+                <div><p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">My Fines</p><h3 className="mt-1 text-lg font-bold text-gray-900">Penalty and deduction records</h3><p className="mt-1 text-[12px] text-gray-500">Review the records issued by HR and their planned payroll month.</p></div>
+              </div>
+              <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-right"><p className="text-[10px] font-bold uppercase tracking-widest text-red-500">Scheduled deductions</p><p className="mt-1 text-base font-bold text-red-700">{formatINR(portalFines.filter((fine) => fine.deductFromPayroll !== false && ['issued', 'scheduled', 'unpaid', 'deducted'].includes(String(fine.status || 'Issued').toLowerCase())).reduce((sum, fine) => sum + Number(fine.amount || 0), 0))}</p></div>
+            </div>
+
+            {portalFines.length === 0 ? (
+              <div className="rounded-[12px] border border-gray-100 bg-white py-20 text-center shadow-sm"><Gavel size={30} className="mx-auto text-gray-200" /><p className="mt-4 text-[11px] font-bold uppercase tracking-widest text-gray-400">No fine records have been shared with you</p></div>
+            ) : (
+              <div className="rounded-[12px] border border-gray-100 bg-white shadow-sm overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left"><thead><tr className="border-b border-gray-100 bg-slate-50"><th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Date & reference</th><th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Category & details</th><th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Payroll month</th><th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</th><th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</th></tr></thead><tbody className="divide-y divide-gray-100">{portalFines.map((fine) => {
+                const status = String(fine.status || 'Issued').toLowerCase()
+                const tone = status === 'waived' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : status === 'cancelled' ? 'bg-slate-100 text-slate-600 border-slate-200' : status === 'deducted' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-red-50 text-red-700 border-red-100'
+                const label = status === 'waived' ? 'Waived' : status === 'cancelled' ? 'Cancelled' : status === 'deducted' ? 'Deducted' : status === 'scheduled' ? 'Scheduled' : status === 'unpaid' ? 'Unpaid' : 'Issued'
+                const payrollMonth = fine.deductionMonth || String(fine.date || '').slice(0, 7)
+                return <tr key={fine.id} className="align-top hover:bg-slate-50/70"><td className="px-4 py-4"><p className="text-[12px] font-semibold text-slate-800">{fine.date || '—'}</p><p className="mt-1 font-mono text-[10px] font-bold text-gray-400">{fine.referenceNo || `FINE-${fine.id.slice(-6).toUpperCase()}`}</p></td><td className="px-4 py-4"><span className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">{fine.type || 'Others'}</span><p className="mt-2 max-w-[300px] text-[12px] leading-5 text-gray-600">{fine.reason || 'No incident details were recorded.'}</p>{fine.incidentRef && <p className="mt-1 text-[10px] font-semibold text-gray-400">Reference: {fine.incidentRef}</p>}</td><td className="px-4 py-4 text-[12px] font-semibold text-slate-700">{fine.deductFromPayroll === false ? 'Not deducted' : payrollMonth || '—'}</td><td className="px-4 py-4 text-[13px] font-bold text-red-600">{formatINR(fine.amount)}</td><td className="px-4 py-4"><span className={`inline-flex rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${tone}`}>{label}</span></td></tr>
+              })}</tbody></table></div></div>
+            )}
           </div>
         )}
 

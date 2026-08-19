@@ -1203,11 +1203,19 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         return str;
       };
 
+      const fineIsPayableInMonth = (fine) => {
+        const status = String(fine.status || 'Issued').toLowerCase()
+        const deductionMonth = fine.deductionMonth || String(fine.date || '').slice(0, 7)
+        return fine.deductFromPayroll !== false
+          && ['issued', 'scheduled', 'unpaid', 'deducted'].includes(status)
+          && deductionMonth === summaryMonth
+      }
+
       const allAtt = aSnap.docs.map(d => d.data()).filter(a => {
         const recDate = a.date || a.inDate;
         const nd = normalizeDate(recDate);
         return nd && nd >= sd && nd <= ed;
-      }), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(f => f.date >= sd && f.date <= ed), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
+      }), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(fineIsPayableInMonth), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
       
       return sortedEmployees.map((emp, idx) => {
         const empIdStr = String(emp.id || '').trim();
