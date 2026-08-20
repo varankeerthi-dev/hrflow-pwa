@@ -146,6 +146,14 @@ export const hasLeaveCoverageConflict = (attendanceRecord = {}, coverage = {}) =
   return hasPunch || ['worked', 'present', 'half-day'].includes(status)
 }
 
+export const requiresApprovedLeaveOverride = (coverage = null, attendanceRow = {}) => (
+  coverage?.state === LEAVE_COVERAGE_STATES.ACTIVE && attendanceRow?.leaveOverride?.confirmed !== true
+)
+
+export const approvedLeaveOverrideMessage = (coverage = {}, date = '') => (
+  `Approved ${coverage?.leaveType || ''} leave exists for ${date}. Attendance is protected until HR or Admin confirms an override with a reason.`
+)
+
 export const resolveDailyClassification = ({ attendanceRecord = {}, coverage = null }) => {
   if (!coverage || coverage.state === LEAVE_COVERAGE_STATES.RESCINDED || coverage.state === LEAVE_COVERAGE_STATES.LOCKED_ADJUSTMENT) {
     return { source: 'attendance', classification: String(attendanceRecord.status || '').toLowerCase() || null, leaveUnits: 0, workUnits: 0 }

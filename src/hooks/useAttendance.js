@@ -4,7 +4,7 @@ import { attendanceCol, attendanceDoc, leaveCoverageDoc } from '../lib/firestore
 import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
 import { isPeriodLocked } from '../lib/payrollLock'
-import { LEAVE_COVERAGE_STATES, overrideActiveLeaveCoverage } from '../lib/leaveLifecycle'
+import { LEAVE_COVERAGE_STATES, approvedLeaveOverrideMessage, overrideActiveLeaveCoverage, requiresApprovedLeaveOverride } from '../lib/leaveLifecycle'
 
 export function useAttendance(orgId) {
   const { user } = useAuth()
@@ -44,8 +44,8 @@ export function useAttendance(orgId) {
       const coverageSnap = await getDoc(coverageRef)
       const coverage = coverageSnap.exists() ? coverageSnap.data() : null
       if (coverage?.state === LEAVE_COVERAGE_STATES.ACTIVE) {
-        if (!row.leaveOverride?.confirmed) {
-          throw new Error(`Approved ${coverage.leaveType || ''} leave exists for ${rowDate}. Attendance is protected until HR or Admin confirms an override with a reason.`)
+        if (requiresApprovedLeaveOverride(coverage, row)) {
+          throw new Error(approvedLeaveOverrideMessage(coverage, rowDate))
         }
         await overrideActiveLeaveCoverage({
           orgId,

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test:leave": "rm -rf .test-build && mkdir -p .test-build && esbuild test/leaveLifecycle.test.mjs --bundle --platform=node --format=esm --outfile=.test-build/leaveLifecycle.test.bundle.mjs --external:firebase --external:firebase/* --define:import.meta.env={} && node --test .test-build/leaveLifecycle.test.bundle.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
