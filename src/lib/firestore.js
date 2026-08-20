@@ -38,6 +38,27 @@ export const leaveCoverageDoc = (orgId, empId, date) =>
 export const leaveLedgerCol = (orgId, empId) =>
   collection(db, 'organisations', orgId, 'employees', empId, 'leave_ledger')
 
+export const communicationTemplatesCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'communication_templates')
+
+export const communicationLettersCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'letters')
+
+export const communicationAnnouncementsCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'announcements')
+
+export const communicationPoliciesCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'policy_documents')
+
+export const communicationTrainingCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'training_programmes')
+
+export const communicationDeliveriesCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'communication_deliveries')
+
+export const communicationAuditCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'communication_audit')
+
 export const sitesCol = (orgId) =>
   collection(db, 'organisations', orgId, 'sites')
 

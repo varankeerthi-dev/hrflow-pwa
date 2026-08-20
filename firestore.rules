@@ -44,6 +44,12 @@ service cloud.firestore {
         || (isOrgMember(orgId) && role in ['admin', 'Admin', 'hr', 'HR']);
     }
 
+    function isOwnCommunicationDelivery() {
+      let ud = userData();
+      return isSignedIn() && ud != null
+        && (resource.data.recipientId == request.auth.uid || resource.data.recipientId == ud.employeeId);
+    }
+
     // A user may edit their own profile, but never promote themselves:
     // `role` / `permissions` are only ever changed by org admins.
     function isSelfWriteAllowed() {
@@ -123,12 +129,46 @@ service cloud.firestore {
         allow write: if isHROrAdmin(orgId);
       }
 
+      match /communication_templates/{templateId} {
+        allow read, write: if isHROrAdmin(orgId);
+      }
+
+      match /letters/{letterId} {
+        allow read, write: if isHROrAdmin(orgId);
+      }
+
+      match /announcements/{announcementId} {
+        allow read, write: if isHROrAdmin(orgId);
+      }
+
+      match /policy_documents/{policyId} {
+        allow read, write: if isHROrAdmin(orgId);
+      }
+
+      match /training_programmes/{programmeId} {
+        allow read, write: if isHROrAdmin(orgId);
+      }
+
+      match /communication_audit/{auditId} {
+        allow read, write: if isHROrAdmin(orgId);
+      }
+
+      match /communication_deliveries/{deliveryId} {
+        allow read: if isHROrAdmin(orgId) || isOwnCommunicationDelivery();
+        allow create, delete: if isHROrAdmin(orgId);
+        allow update: if isHROrAdmin(orgId) || (isOwnCommunicationDelivery()
+          && request.resource.data.recipientId == resource.data.recipientId
+          && request.resource.data.sourceId == resource.data.sourceId
+          && request.resource.data.sourceType == resource.data.sourceType
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'seenAt', 'acknowledgedAt', 'updatedAt']));
+      }
+
       // All organisation sub-collections (attendance, employees, payroll, chats,
       // nested logs, etc.): readable by any signed-in user, writable by members/admins.
       match /{c1}/{d1} {
         allow read: if canReadOrg();
         allow write: if canWriteOrg(orgId)
-          && !(c1 in ['leave_attendance_coverage', 'leave_lifecycle_events']);
+          && !(c1 in ['leave_attendance_coverage', 'leave_lifecycle_events', 'communication_templates', 'letters', 'announcements', 'policy_documents', 'training_programmes', 'communication_deliveries', 'communication_audit']);
       }
 
       // Nested sub-collections: employee_portal/.../attendance_logs,

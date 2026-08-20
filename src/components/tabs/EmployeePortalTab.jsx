@@ -16,6 +16,7 @@ import EmployeeSalarySlipTab from './EmployeeSalarySlipTab'
 import EmployeeTasksView from './EmployeeTasksView'
 import AdvanceExpenseTab from './AdvanceExpenseTab'
 import EmployeeProfileUpdateForm from './EmployeeProfileUpdateForm'
+import EmployeeCommunicationsView from './hr-communications/EmployeeCommunicationsView'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR, formatTimeTo12Hour } from '../../lib/salaryUtils'
 import { buildPortalApprovalFields } from '../../lib/portalApprovalWorkflow'
@@ -717,6 +718,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
             { id: 'requests', label: 'Requests', icon: <FileText size={15} /> },
             { id: 'fines', label: 'Fines', icon: <Gavel size={15} /> },
             { id: 'salary', label: 'Salary Slip', icon: <Hash size={15} /> },
+            { id: 'updates', label: 'Documents & Updates', icon: <ShieldCheck size={15} /> },
             { id: 'profile', label: 'Profile', icon: <User size={15} /> },
           ]}
         />
@@ -888,6 +890,10 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
           <div className="max-w-5xl mx-auto">
             <EmployeeTasksView employeeId={employeeId} employee={employee} />
           </div>
+        )}
+
+        {activePortalTab === 'updates' && (
+          <EmployeeCommunicationsView employeeId={employeeId} />
         )}
 
         {activePortalTab === 'profile' && (

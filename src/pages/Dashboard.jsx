@@ -282,7 +282,7 @@ export default function Dashboard() {
     { id: 'approvals', label: 'Approvals', icon: <CheckCircle2 size={18} strokeWidth={1.75} />, badge: '!', module: 'Approvals' },
     { id: 'correction', label: 'Attendance Correction', icon: <PencilLine size={18} strokeWidth={1.75} />, module: 'Correction' },
     { id: 'leave', label: 'Leave', icon: <Mail size={18} strokeWidth={1.75} />, module: 'Leave' },
-    { id: 'letters', label: 'HR Letters', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
+    { id: 'letters', label: 'HR Communications', icon: <FileText size={18} strokeWidth={1.75} />, module: 'HRLetters' },
     { id: 'vehicle', label: 'Vehicle', icon: <Truck size={18} strokeWidth={1.75} />, module: 'Vehicle' },
     { id: 'operations', label: 'Operations', icon: <Settings size={18} strokeWidth={1.75} />, module: 'Operations' },
     { id: 'documents', label: 'Documents', icon: <Folder size={18} strokeWidth={1.75} />, module: 'DocumentManagement' },

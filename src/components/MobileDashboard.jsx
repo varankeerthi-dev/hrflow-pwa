@@ -279,7 +279,7 @@ export default function MobileDashboard() {
       { id: 'correction', label: 'Correction', icon: <PencilLine className="h-4 w-4" />, module: 'Correction', color: 'text-orange-400' },
       { id: 'leave', label: 'Leave', icon: <Mail className="h-4 w-4" />, module: 'Leave', color: 'text-purple-400' },
       { id: 'approvals', label: 'Approvals', icon: <CheckCircle className="h-4 w-4" />, module: 'Approvals', color: 'text-cyan-400', badge: stats.pendingCorrections > 0 ? stats.pendingCorrections : null },
-      { id: 'letters', label: 'HR Letters', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400' },
+      { id: 'letters', label: 'HR Communications', icon: <FileText className="h-4 w-4" />, module: 'HRLetters', color: 'text-indigo-400' },
       { id: 'documents', label: 'Documents', icon: <Folder className="h-4 w-4" />, module: 'DocumentManagement', color: 'text-amber-400' },
       { id: 'summary', label: 'Summary', icon: <BarChart3 className="h-4 w-4" />, module: 'Summary', color: 'text-pink-400' },
       
