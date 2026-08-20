@@ -6,6 +6,7 @@ import { Table } from '../../table/Table'
 import { SubTabsNav } from '../../ui/SubTabsNav'
 import Modal from '../../ui/Modal'
 import Spinner from '../../ui/Spinner'
+import LegacyLetterFormatsWorkspace from './LegacyLetterFormatsWorkspace'
 import { AlertTriangle, Award, BookOpenCheck, CalendarDays, CheckCircle2, Eye, FileText, GraduationCap, Megaphone, Plus, Send, ShieldCheck, X } from 'lucide-react'
 import {
   canApproveCommunications,
@@ -27,6 +28,7 @@ const TABS = [
   { id: 'training', label: 'Training', icon: <GraduationCap size={15} />, kind: COMMUNICATION_KINDS.TRAINING },
   { id: 'templates', label: 'Templates', icon: <Award size={15} />, kind: 'template' },
   { id: 'archive', label: 'Archive', icon: <CalendarDays size={15} />, kind: 'archive' },
+  { id: 'formats', label: 'Formats', icon: <FileText size={15} />, kind: 'formats' },
 ]
 
 const LEGACY_LETTER_SUBTABS = [
@@ -60,6 +62,7 @@ function WorkspaceHero({ tab, count, onCreate, canManage }) {
     training: ['Training administration', 'Plan programmes, publish invitations, follow participation, and retain completion records.'],
     templates: ['Document templates', 'Maintain approved templates and controlled placeholder definitions for HR communications.'],
     archive: ['History and audit', 'Search issued, published, superseded, withdrawn, and historical HR communications.'],
+    formats: ['Legacy generators', 'Generate the original HR letter formats and optionally save the result into the controlled Letters workflow.'],
   }[tab.id]
   return <div className="rounded-[12px] border border-gray-100 bg-white p-5 shadow-sm md:p-6">
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -167,10 +170,10 @@ export default function HRCommunicationsTab() {
   return <div className="module-layout-root flex h-full flex-col gap-4 pb-6 font-inter">
     <div className="module-top-surface rounded-[12px] border border-gray-100 bg-white px-4 pt-3 shadow-sm md:px-6 md:pt-4"><SubTabsNav tabs={TABS} activeTabId={activeTab} onTabChange={(next) => { setActiveTab(next.id); setSearch(''); setStatusFilter('all') }} /></div>
     {activeTab === 'letters' && <div className="rounded-[12px] border border-gray-100 bg-white px-4 pt-3 shadow-sm md:px-6 md:pt-4"><div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between"><SubTabsNav className="min-w-0" tabs={LEGACY_LETTER_SUBTABS} activeTabId={activeLetterCategory === 'all' ? '' : activeLetterCategory} onTabChange={(next) => setActiveLetterCategory(next.id)} /><button type="button" onClick={() => setActiveLetterCategory('all')} className={`mb-2 inline-flex h-8 items-center self-start rounded-lg px-3 text-[10px] font-bold uppercase tracking-wide transition md:self-auto ${activeLetterCategory === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>All letters</button></div></div>}
-    <WorkspaceHero tab={tab} count={records.length} canManage={canManage} onCreate={() => { const legacyType = LEGACY_LETTER_SUBTABS.find((item) => item.id === activeLetterCategory)?.letterType; setForm({ ...emptyForm(), ...(legacyType ? { letterType: legacyType } : {}) }); setShowCreate(true) }} />
+    {activeTab === 'formats' ? <LegacyLetterFormatsWorkspace employees={employees} user={user} api={api} canManage={canManage} /> : <><WorkspaceHero tab={tab} count={records.length} canManage={canManage} onCreate={() => { const legacyType = LEGACY_LETTER_SUBTABS.find((item) => item.id === activeLetterCategory)?.letterType; setForm({ ...emptyForm(), ...(legacyType ? { letterType: legacyType } : {}) }); setShowCreate(true) }} />
     <div className="rounded-[12px] border border-gray-100 bg-white p-4 shadow-sm md:p-5"><div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div className="relative w-full md:max-w-sm"><Eye className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${tab.label.toLowerCase()}…`} className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[12px] text-slate-700 outline-none focus:border-indigo-400" /></div><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-medium text-slate-700"><option value="all">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="issued">Issued</option><option value="withdrawn">Withdrawn</option><option value="completed">Completed</option></select></div><Table data={records} columns={columns} loading={api.loading} page={1} pageSize={25} totalRows={records.length} searchable={false} pagination={false} sortable onView={(item) => setSelectedItem(item)} emptyTitle={`No ${tab.label.toLowerCase()} yet`} emptySubtitle={canManage ? 'Create a controlled draft to begin the workflow.' : 'Published items will appear here when they are available to you.'} emptyActionLabel={canManage && activeTab !== 'archive' ? `Create ${tab.label.slice(0, -1)}` : undefined} onEmptyAction={canManage ? () => setShowCreate(true) : undefined} /></div>
     <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title={`New ${tab.id === 'policies' ? 'SOP / Policy' : tab.label.slice(0, -1)}`}><CommunicationForm tab={tab} form={form} setForm={setForm} employees={employees} onClose={() => setShowCreate(false)} onSave={createDraft} saving={busy} /></Modal>
-    <Modal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title="Communication details"><ItemDetails item={selectedItem} tab={tab} onClose={() => setSelectedItem(null)} onIssue={() => handleAction('issue')} onPublish={() => handleAction('publish')} onWithdraw={() => handleAction('withdraw')} canManage={canManage} canApprove={canApprove} busy={busy} /></Modal>
+    <Modal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title="Communication details"><ItemDetails item={selectedItem} tab={tab} onClose={() => setSelectedItem(null)} onIssue={() => handleAction('issue')} onPublish={() => handleAction('publish')} onWithdraw={() => handleAction('withdraw')} canManage={canManage} canApprove={canApprove} busy={busy} /></Modal></>}
     {api.loading && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/40 backdrop-blur-[1px]"><Spinner /></div>}
   </div>
 }
