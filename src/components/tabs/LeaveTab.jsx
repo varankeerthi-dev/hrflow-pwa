@@ -28,6 +28,13 @@ import {
 import Spinner from '../ui/Spinner'
 import { SubTabsNav } from '../ui/SubTabsNav'
 
+const formatLeaveDate = (value) => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || '—'
+  const [year, month, day] = value.split('-')
+  const monthName = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-IN', { month: 'long' })
+  return `${day}-${monthName}-${year}`
+}
+
 export default function LeaveTab() {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
@@ -200,13 +207,13 @@ export default function LeaveTab() {
   ]
 
   return (
-    <div className="module-layout-root space-y-4 md:space-y-6 font-inter text-slate-950 w-full mx-auto pb-20">
-      <div className="module-top-surface flex flex-col gap-1 py-2">
-        <h2 className="text-xl md:text-2xl font-semibold tracking-tight">Leave Management</h2>
-        <p className="text-xs md:text-sm text-slate-500">Configure leave policies and manage employee absence requests.</p>
+    <div className="module-layout-root space-y-4 md:space-y-5 font-inter text-slate-950 w-full mx-auto pb-20">
+      <div className="module-top-surface bg-white px-4 pt-3 md:px-6 md:pt-4 rounded-[12px] shadow-sm border border-gray-100 flex flex-col gap-1">
+        <h2 className="text-lg md:text-xl font-semibold tracking-tight text-slate-900">Leave Management</h2>
+        <p className="text-[12px] md:text-[13px] text-slate-500">Manage employee absence requests, approvals, and leave activity.</p>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white md:bg-transparent p-2 md:p-0 rounded-xl border border-slate-100 md:border-none shadow-sm md:shadow-none">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-3 md:px-4 md:py-3 rounded-[12px] border border-gray-100 shadow-sm">
         <SubTabsNav
           tabs={subNav}
           activeTabId={activeSub}
@@ -217,7 +224,7 @@ export default function LeaveTab() {
             setActiveSub('dashboard')
             setShowInlineForm(!showInlineForm)
           }}
-          className={`w-full md:w-auto inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors h-10 md:h-9 px-4 py-2 ${showInlineForm ? 'bg-slate-100 text-slate-900 hover:bg-slate-200 border border-slate-200' : 'bg-slate-900 text-slate-50 hover:bg-slate-900/90 shadow'}`}
+          className={`w-full md:w-auto inline-flex items-center justify-center rounded-lg text-[12px] font-semibold transition-colors h-10 px-4 ${showInlineForm ? 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'}`}
         >
           {showInlineForm ? <X size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
           {showInlineForm ? 'Cancel Application' : 'New Application'}
@@ -226,20 +233,20 @@ export default function LeaveTab() {
 
       {activeSub === 'dashboard' && (
         <div className="space-y-6">
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 w-fit shadow-sm">
+          <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-[10px] px-3 py-1.5 w-fit shadow-sm">
             <Calendar size={14} className="text-slate-400" />
             <input 
               type="month" 
               value={selectedMonth}
               onChange={e => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none text-[11px] font-bold uppercase tracking-wider focus:ring-0 cursor-pointer text-slate-600 outline-none"
+              className="bg-transparent border-none text-[11px] font-semibold uppercase tracking-wider focus:ring-0 cursor-pointer text-slate-600 outline-none"
             />
           </div>
 
           {showInlineForm && (
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden animate-in fade-in duration-300">
-              <div className="p-4 md:p-6 border-b border-slate-200">
-                <h3 className="text-md font-semibold leading-none tracking-tight">New Leave Application</h3>
+            <div className="rounded-[12px] border border-gray-100 bg-white shadow-sm overflow-hidden animate-in fade-in duration-300">
+              <div className="p-4 md:p-5 border-b border-gray-100">
+                <h3 className="text-[14px] font-semibold leading-none tracking-tight text-slate-900">New Leave Application</h3>
               </div>
               
               <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-6">
@@ -442,7 +449,7 @@ export default function LeaveTab() {
                       </div>
                       <div>
                         <p className="font-medium text-slate-900 text-xs">{leave.employeeName}</p>
-                        <p className="text-[10px] text-slate-500">{leave.leaveType} • {leave.fromDate}</p>
+                        <p className="text-[10px] text-slate-500">{leave.leaveType} • {formatLeaveDate(leave.fromDate)}</p>
                       </div>
                     </div>
                     <div className={`px-2 py-0.5 rounded-full text-[9px] font-semibold border ${leave.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : leave.status === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
@@ -486,7 +493,7 @@ export default function LeaveTab() {
 
       {(activeSub === 'request' || activeSub === 'approve') && (
         <div className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex flex-col md:flex-row gap-3 rounded-[12px] border border-gray-100 bg-white p-3 shadow-sm">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input 
@@ -494,15 +501,15 @@ export default function LeaveTab() {
                 placeholder="Search requests..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-9 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950"
+                className="flex h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-9 py-2 text-[12px] font-medium text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-100 focus-visible:border-emerald-400"
               />
             </div>
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 h-9 overflow-x-auto no-scrollbar">
+            <div className="flex bg-slate-50 p-0.5 rounded-lg border border-gray-100 h-10 overflow-x-auto no-scrollbar">
               {['All', ...leaveTypes.slice(0, 3)].map(t => (
                 <button
                   key={t}
                   onClick={() => setFilterType(t)}
-                  className={`flex-1 md:flex-none px-3 py-1 rounded-md text-[10px] font-medium transition-all ${filterType === t ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                  className={`flex-1 md:flex-none px-3 py-1 rounded-md text-[10px] font-semibold transition-all ${filterType === t ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
                 >
                   {t}
                 </button>
@@ -510,19 +517,19 @@ export default function LeaveTab() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-[12px] border border-gray-100 bg-white shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs md:text-sm">
                 <thead>
-                  <tr className="bg-slate-50/50 h-10 border-b border-slate-200">
-                    <th className="px-4 md:px-6 font-medium text-slate-500">Applicant</th>
-                    <th className="px-4 md:px-6 font-medium text-slate-500 hidden md:table-cell">Type</th>
-                    <th className="px-4 md:px-6 font-medium text-slate-500 w-[120px] md:w-[150px]">Duration</th>
-                    <th className="px-4 md:px-6 font-medium text-slate-500 text-center w-[100px]">Status</th>
-                    <th className="px-4 md:px-6 font-medium text-slate-500 text-right">Actions</th>
+                  <tr className="bg-[#f9fafb] h-[42px] border-b border-gray-100">
+                    <th className="px-4 md:px-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">Applicant</th>
+                    <th className="px-4 md:px-6 text-[10px] font-bold uppercase tracking-widest text-slate-400 hidden md:table-cell">Type</th>
+                    <th className="px-4 md:px-6 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[120px] md:w-[170px]">Leave dates</th>
+                    <th className="px-4 md:px-6 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center w-[100px]">Status</th>
+                    <th className="px-4 md:px-6 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-gray-100">
                   {leaveLoading ? (
                     <tr><td colSpan={5} className="py-20 text-center"><Spinner /></td></tr>
                   ) : filteredLeaves.length === 0 ? (
@@ -534,20 +541,20 @@ export default function LeaveTab() {
                     
                     return (
                       <React.Fragment key={leave.id}>
-                        <tr className="h-12 hover:bg-slate-50/50 transition-colors">
+                        <tr className="h-[56px] hover:bg-slate-50/70 transition-colors">
                           <td className="px-4 md:px-6">
                             <div className="flex flex-col">
-                              <span className="font-semibold text-slate-900">{leave.employeeName}</span>
-                              <span className="text-[10px] text-slate-500 italic line-clamp-1 max-w-[150px]">{leave.reason}</span>
+                              <span className="text-[12px] font-semibold text-slate-900">{leave.employeeName}</span>
+                              <span className="text-[10px] text-slate-500 line-clamp-1 max-w-[150px]">{leave.reason}</span>
                             </div>
                           </td>
                           <td className="px-4 md:px-6 hidden md:table-cell">
-                            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-900">{leave.leaveType}</span>
+                            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-700">{leave.leaveType}</span>
                           </td>
                           <td className="px-4 md:px-6">
                             <div className="flex flex-col">
-                              <span className="text-[10px] md:text-xs font-medium text-slate-900">{leave.fromDate}</span>
-                              <span className="text-[9px] text-slate-500 mt-0.5">{leave.duration || calculateDuration(leave.fromDate, leave.toDate)} days</span>
+                              <span className="text-[10px] md:text-[11px] font-semibold text-slate-800">{formatLeaveDate(leave.fromDate)}{leave.toDate && leave.toDate !== leave.fromDate ? ` – ${formatLeaveDate(leave.toDate)}` : ''}</span>
+                              <span className="text-[9px] text-slate-500 mt-0.5">{leave.duration || calculateDuration(leave.fromDate, leave.toDate)} day{Number(leave.duration || calculateDuration(leave.fromDate, leave.toDate)) === 1 ? '' : 's'}</span>
                             </div>
                           </td>
                           <td className="px-4 md:px-6 text-center">
@@ -574,7 +581,7 @@ export default function LeaveTab() {
                                   <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50 py-1">
                                     <button 
                                       onClick={() => {
-                                        alert(`View Details:\nEmployee: ${leave.employeeName}\nType: ${leave.leaveType}\nFrom: ${leave.fromDate}\nTo: ${leave.toDate}\nStatus: ${leave.status}\nReason: ${leave.reason || 'N/A'}`)
+                                        alert(`View Details:\nEmployee: ${leave.employeeName}\nType: ${leave.leaveType}\nFrom: ${formatLeaveDate(leave.fromDate)}\nTo: ${formatLeaveDate(leave.toDate)}\nStatus: ${leave.status}\nReason: ${leave.reason || 'N/A'}`)
                                         setOpenMenuId(null)
                                       }}
                                       className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
