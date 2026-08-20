@@ -92,33 +92,33 @@ export default function TimePicker({ value, onChange, onClose, variant = 'defaul
     return (
       <div
         ref={pickerRef}
-        className="absolute top-full left-1/2 z-50 mt-2 w-[192px] -translate-x-1/2 overflow-hidden rounded-[10px] border border-gray-200 bg-white font-inter shadow-[0_12px_30px_rgba(15,23,42,0.14)] animate-in fade-in zoom-in-95 duration-200"
+        className="absolute top-full left-1/2 z-50 mt-2 w-[198px] -translate-x-1/2 overflow-hidden rounded-[10px] border border-slate-200 bg-white font-inter shadow-[0_14px_30px_rgba(15,23,42,0.12)] animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="grid h-[300px] grid-cols-3 divide-x divide-gray-200">
-          <div ref={hourRef} role="listbox" aria-label="Hour" className="overflow-y-auto">
-            <div className="flex flex-col p-2">
+        <div className="grid h-[300px] grid-cols-3 divide-x divide-slate-200">
+          <div ref={hourRef} role="listbox" aria-label="Hour" className="overflow-y-auto [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin]" style={{ scrollbarGutter: 'stable' }}>
+            <div className="flex flex-col py-1">
               {[...hours].reverse().map(h => (
-                <button type="button" key={h} data-val={h} onClick={() => handleAttendanceSelection('hour', h)} aria-pressed={hour === h} className={`mb-1 inline-flex h-9 w-full shrink-0 items-center justify-center rounded-md text-sm font-medium transition last:mb-0 ${hour === h ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-slate-700 hover:bg-slate-100'}`}>
+                <button type="button" key={h} data-val={h} onClick={() => handleAttendanceSelection('hour', h)} aria-pressed={hour === h} className={`inline-flex h-10 w-full shrink-0 items-center justify-center text-[16px] leading-none transition-colors ${hour === h ? 'bg-slate-100 font-semibold text-slate-900' : 'font-normal text-slate-700 hover:bg-slate-50'}`}>
                   {Number(h)}
                 </button>
               ))}
             </div>
           </div>
-          <div ref={minuteRef} role="listbox" aria-label="Minute" className="overflow-y-auto">
-            <div className="flex flex-col p-2">
+          <div ref={minuteRef} role="listbox" aria-label="Minute" className="overflow-y-auto [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin]" style={{ scrollbarGutter: 'stable' }}>
+            <div className="flex flex-col py-1">
               {fiveMinuteIntervals.map(m => (
-                <button type="button" key={m} data-val={m} onClick={() => handleAttendanceSelection('minute', m)} aria-pressed={minute === m} className={`mb-1 inline-flex h-9 w-full shrink-0 items-center justify-center rounded-md text-sm font-medium transition last:mb-0 ${minute === m ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-slate-700 hover:bg-slate-100'}`}>
+                <button type="button" key={m} data-val={m} onClick={() => handleAttendanceSelection('minute', m)} aria-pressed={minute === m} className={`inline-flex h-10 w-full shrink-0 items-center justify-center text-[16px] leading-none transition-colors ${minute === m ? 'bg-slate-100 font-semibold text-slate-900' : 'font-normal text-slate-700 hover:bg-slate-50'}`}>
                   {m}
                 </button>
               ))}
             </div>
           </div>
-          <div role="listbox" aria-label="AM or PM" className="overflow-y-auto">
-            <div className="flex flex-col p-2">
+          <div role="listbox" aria-label="AM or PM" className="overflow-y-auto [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin]" style={{ scrollbarGutter: 'stable' }}>
+            <div className="flex flex-col py-1">
               {['AM', 'PM'].map(p => (
-                <button type="button" key={p} onClick={() => handleAttendanceSelection('period', p)} aria-pressed={period === p} className={`mb-1 inline-flex h-9 w-full shrink-0 items-center justify-center rounded-md text-sm font-medium transition last:mb-0 ${period === p ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-slate-700 hover:bg-slate-100'}`}>
+                <button type="button" key={p} onClick={() => handleAttendanceSelection('period', p)} aria-pressed={period === p} className={`inline-flex h-10 w-full shrink-0 items-center justify-center text-[16px] leading-none transition-colors ${period === p ? 'bg-slate-100 font-semibold text-slate-900' : 'font-normal text-slate-700 hover:bg-slate-50'}`}>
                   {p}
                 </button>
               ))}
