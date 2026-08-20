@@ -19,7 +19,7 @@ export const COMMUNICATION_STATES = Object.freeze({
   CANCELLED: 'cancelled',
 })
 
-export const DEFAULT_LETTER_TYPES = ['Offer', 'Appointment', 'Salary Certificate', 'Employment Certificate', 'Experience', 'Relieving', 'Increment', 'Promotion', 'Transfer', 'Warning', 'NOC', 'Training Nomination', 'Training Certificate']
+export const DEFAULT_LETTER_TYPES = ['Offer', 'Appointment', 'Salary Certificate', 'Employment Certificate', 'Experience', 'Relieving', 'Increment', 'Promotion', 'Bonafide', 'Notice Period', 'Termination', 'Transfer', 'Warning', 'NOC', 'Training Nomination', 'Training Certificate']
 export const DEFAULT_ANNOUNCEMENT_CATEGORIES = ['Holiday', 'Event', 'Site Visit', 'Online Visit', 'Training', 'Safety', 'Canteen & Facilities', 'Operations', 'General']
 export const DEFAULT_POLICY_CATEGORIES = ['Safety', 'Attendance', 'Canteen & Facilities', 'Site Operations', 'HR', 'IT & Systems']
 export const DEFAULT_TRAINING_CATEGORIES = ['Safety Induction', 'Policy Orientation', 'Equipment', 'Site/Customer', 'Leadership', 'Compliance', 'Canteen Hygiene']
