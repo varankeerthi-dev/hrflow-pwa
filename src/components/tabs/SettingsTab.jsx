@@ -104,6 +104,22 @@ const normalizeHolidayCalendar = (calendar = {}) => ({
   sundayType: calendar.sundayType || 'working',
 })
 
+const LEAVE_POLICY_TYPES = ['Casual', 'Sick', 'Privilege', 'Maternity', 'Paternity', 'Unpaid', 'LOP']
+
+const createDefaultLeavePolicy = (leaveType) => ({
+  paid: !['Unpaid', 'LOP'].includes(leaveType),
+  paidBehavior: leaveType === 'LOP' ? 'lop' : (leaveType === 'Unpaid' ? 'unpaid' : 'paid'),
+  expansionMode: 'working_days_only',
+  allowHalfDay: true,
+  monthlyRequestWarningThreshold: 3,
+  conflictMode: 'review_required',
+})
+
+const normalizeLeavePolicies = (policies = {}) => LEAVE_POLICY_TYPES.reduce((result, leaveType) => ({
+  ...result,
+  [leaveType]: { ...createDefaultLeavePolicy(leaveType), ...(policies?.[leaveType] || {}) },
+}), {})
+
 const employeeValidationSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   empCode: z.string().trim().optional(),
@@ -340,6 +356,12 @@ const settingsSubTabMeta = {
     kicker: '',
     pill: 'Attendance rules',
   },
+  leave_policy: {
+    title: 'Leave Policy',
+    description: 'Define paid leave behavior, sandwich rules, half-day support, and review thresholds.',
+    kicker: '',
+    pill: 'Leave rules',
+  },
 }
 
 const mobileSettingsItemMeta = {
@@ -348,6 +370,7 @@ const mobileSettingsItemMeta = {
   shift: { group: 'General', title: 'Shifts', detail: 'Working hours and shift setup', icon: Calendar },
   salary: { group: 'General', title: 'Salary Slab', detail: 'Payroll structures and salary rules', icon: Wallet },
   policy: { group: 'General', title: 'Policy', detail: 'Full Day, grace and late rules', icon: AlertCircle },
+  leave_policy: { group: 'General', title: 'Leave Policy', detail: 'Paid leave, sandwich and threshold rules', icon: Calendar },
   advance_cat: { group: 'Others', title: 'Advance Categories', detail: 'Advance and expense request types', icon: Wallet },
   holidays: { group: 'Others', title: 'Holidays', detail: 'Holiday calendar and weekly offs', icon: Calendar },
   site_geofence: { group: 'Others', title: 'Site Geofence', detail: 'Attendance locations and radius', icon: MapPin },
@@ -493,7 +516,8 @@ export default function SettingsTab({ initialSubTab }) {
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' },
     { id: 'my_portal_approval', label: 'My Portal Approval', module: 'Settings' },
     { id: 'allowance', label: 'Allowance Settings', module: 'Settings' },
-    { id: 'policy', label: 'Policy', module: 'Settings' }
+    { id: 'policy', label: 'Policy', module: 'Settings' },
+    { id: 'leave_policy', label: 'Leave Policy', module: 'Settings' }
   ]
 
   const visibleSubTabs = useMemo(() => {
@@ -545,7 +569,8 @@ export default function SettingsTab({ initialSubTab }) {
     newRemarkOption: '',
     maxAdvanceAmount: '',
     expenseCategoryLimits: {},
-    attendancePolicy: normalizeAttendancePolicy(DEFAULT_ATTENDANCE_POLICY)
+    attendancePolicy: normalizeAttendancePolicy(DEFAULT_ATTENDANCE_POLICY),
+    leavePolicies: normalizeLeavePolicies()
   })
   const [newBankAccount, setNewBankAccount] = useState({
     bankName: '',
@@ -3404,6 +3429,20 @@ export default function SettingsTab({ initialSubTab }) {
   const activeEmployeesCount = employees.filter(emp => isEmployeeActiveStatus(emp.status)).length
   const currentSettingsMeta = settingsSubTabMeta[activeSubTab] || settingsSubTabMeta.organization
   const attendancePolicy = normalizeAttendancePolicy(orgSettings.attendancePolicy)
+  const leavePolicies = normalizeLeavePolicies(orgSettings.leavePolicies)
+  const updateLeavePolicy = (leaveType, field, value) => {
+    setOrgSettings((previous) => ({
+      ...previous,
+      leavePolicies: {
+        ...normalizeLeavePolicies(previous.leavePolicies),
+        [leaveType]: {
+          ...createDefaultLeavePolicy(leaveType),
+          ...(previous.leavePolicies?.[leaveType] || {}),
+          [field]: value,
+        },
+      },
+    }))
+  }
   const openMobileSettingsItem = (tab) => {
     setActiveSubTab(tab.id)
     setShowMobileSettingsIndex(false)
@@ -3535,6 +3574,61 @@ export default function SettingsTab({ initialSubTab }) {
             </section>
           </div>
         )}
+        {activeSubTab === 'leave_policy' && (
+          <div className="max-w-6xl space-y-4 no-print">
+            <div className={`${settingsPanelClassName} p-5 md:p-6`}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-600">Time off rules</p>
+              <h2 className="mt-1 text-[24px] font-normal tracking-[-0.03em] text-slate-950">Leave Policy</h2>
+              <p className="mt-2 max-w-3xl text-[13px] leading-6 text-slate-500">Define how final approved leave is paid, expanded across non-working dates, and sent for repeated-leave review. Approval routing remains in My Portal Approval.</p>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              {LEAVE_POLICY_TYPES.map((leaveType) => {
+                const policy = leavePolicies[leaveType]
+                return (
+                  <section key={leaveType} className={`${settingsPanelClassName} p-5`}>
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-[17px] font-normal text-slate-950">{leaveType} Leave</h3>
+                        <p className="mt-1 text-[11px] leading-5 text-slate-500">Controls the coverage and payroll classification created after final approval.</p>
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${policy.paid ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{policy.paid ? 'Paid' : 'Unpaid / LOP'}</span>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3 sm:col-span-2">
+                        <input type="checkbox" checked={policy.paid} onChange={(event) => { const paid = event.target.checked; updateLeavePolicy(leaveType, 'paid', paid); updateLeavePolicy(leaveType, 'paidBehavior', paid ? 'paid' : (leaveType === 'LOP' ? 'lop' : 'unpaid')) }} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600" />
+                        <span><strong className="block text-[12px] font-semibold text-slate-900">Treat approved leave as paid</strong><small className="mt-1 block text-[11px] leading-5 text-slate-500">A paid coverage day is excluded from LOP unless HR or Admin performs an audited attendance override.</small></span>
+                      </label>
+                      <label className="block">
+                        <span className={settingsSectionLabelClassName}>Non-working date rule</span>
+                        <select value={policy.expansionMode} onChange={(event) => updateLeavePolicy(leaveType, 'expansionMode', event.target.value)} className={settingsInputClassName}>
+                          <option value="working_days_only">Working days only</option>
+                          <option value="calendar_days">All calendar days</option>
+                          <option value="sandwich_when_bridged">Sandwich when bridged</option>
+                          <option value="no_sandwich">Never sandwich</option>
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className={settingsSectionLabelClassName}>Monthly warning threshold</span>
+                        <input type="number" min="0" value={policy.monthlyRequestWarningThreshold} onChange={(event) => updateLeavePolicy(leaveType, 'monthlyRequestWarningThreshold', Math.max(0, Number(event.target.value) || 0))} className={settingsInputClassName} />
+                      </label>
+                      <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 sm:col-span-2">
+                        <input type="checkbox" checked={policy.allowHalfDay} onChange={(event) => updateLeavePolicy(leaveType, 'allowHalfDay', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600" />
+                        <span className="text-[12px] font-semibold text-slate-700">Allow half-day coverage and 0.5-unit ledger entries</span>
+                      </label>
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+
+            <div className={`${settingsPanelClassName} flex flex-wrap justify-between gap-3 p-5`}>
+              <p className="max-w-3xl text-[11px] leading-5 text-slate-500"><strong className="text-slate-700">Policy safety:</strong> Existing locked payroll periods preserve historical treatment. Future approved leave stores its policy snapshot and does not rewrite past payroll when settings later change.</p>
+              <button onClick={() => handleSaveOrg('Leave policy saved successfully!')} disabled={saving} className="h-10 rounded-lg bg-indigo-600 px-5 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Saving policy...' : 'Save leave policy'}</button>
+            </div>
+          </div>
+        )}
+
         {activeSubTab === 'organization' && (
           loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">

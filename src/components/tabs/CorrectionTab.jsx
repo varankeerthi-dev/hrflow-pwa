@@ -624,6 +624,30 @@ export default function CorrectionTab() {
   const [showBulkAddModal, setShowBulkAddModal] = useState(false)
   const [showEditDrawer, setShowEditDrawer] = useState(false)
   const [drawerRow, setDrawerRow] = useState(null)
+  const [leaveOverrideAttempt, setLeaveOverrideAttempt] = useState(null)
+  const [leaveOverrideReason, setLeaveOverrideReason] = useState('')
+  const canOverrideApprovedLeave = ['admin', 'hr'].includes(String(user?.role || '').toLowerCase())
+
+  const isApprovedLeaveConflict = (error) => String(error?.message || '').includes('Approved') && String(error?.message || '').includes('leave exists')
+  const requestLeaveOverride = (rows, summary, onSuccess) => {
+    setLeaveOverrideReason('')
+    setLeaveOverrideAttempt({ rows, summary, onSuccess })
+  }
+
+  const confirmLeaveOverride = async () => {
+    if (!canOverrideApprovedLeave || !leaveOverrideAttempt || !leaveOverrideReason.trim()) return
+    setSaving(true)
+    try {
+      await upsertAttendance(leaveOverrideAttempt.rows.map((row) => ({ ...row, leaveOverride: { confirmed: true, reason: leaveOverrideReason.trim() } })))
+      await leaveOverrideAttempt.onSuccess()
+      setLeaveOverrideAttempt(null)
+      setLeaveOverrideReason('')
+    } catch (error) {
+      alert(error?.message || 'Unable to override approved leave.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // Handle refresh - stable reference
   const handleRefresh = useCallback(async () => {
@@ -782,8 +806,6 @@ export default function CorrectionTab() {
         holidayWorked: isWorked,
       }]
       
-      await upsertAttendance(rows)
-      
       const newVals = {
         inDate: inlineForm.inDate,
         inTime: (isAbsent || isSunHoliday || isNotWorkedHoliday) ? '' : inlineForm.inTime,
@@ -793,12 +815,19 @@ export default function CorrectionTab() {
         site: inlineForm.site,
         status: inlineForm.status,
       }
-      
-      await logCorrection(row.id, row.name, row.date, oldVals, newVals, 'Inline Edit', '')
-      
-      await handleRefresh()
-      setInlineEditRow(null)
-      setInlineForm({})
+      const onSuccess = async () => {
+        await logCorrection(row.id, row.name, row.date, oldVals, newVals, 'Inline Edit', '')
+        await handleRefresh()
+        setInlineEditRow(null)
+        setInlineForm({})
+      }
+      try {
+        await upsertAttendance(rows)
+        await onSuccess()
+      } catch (error) {
+        if (isApprovedLeaveConflict(error)) requestLeaveOverride(rows, `${row.name} · ${formatDateShort(row.date)}`, onSuccess)
+        else alert(error?.message || 'Unable to save attendance correction.')
+      }
     } finally {
       setSaving(false)
     }
@@ -810,6 +839,8 @@ export default function CorrectionTab() {
     try {
       const rowsToUpdate = results.filter(r => selectedRows.includes(r.id))
       
+      const preparedRows = []
+      const correctionLogs = []
       for (const row of rowsToUpdate) {
         const oldVals = {
           inDate: row.inDate,
@@ -845,8 +876,7 @@ export default function CorrectionTab() {
           sundayWorked: false,
           sundayHoliday: false,
         }]
-        
-        await upsertAttendance(rows)
+        preparedRows.push(...rows)
         
         const newVals = {
           inDate,
@@ -858,12 +888,21 @@ export default function CorrectionTab() {
           status: updates.status || (isAbsent ? 'ABSENT' : 'PRESENT'),
         }
         
-        await logCorrection(row.id, row.name, row.date, oldVals, newVals, 'Bulk Edit', '')
+        correctionLogs.push({ row, oldVals, newVals })
       }
-      
-      await handleRefresh()
-      setSelectedRows([])
-      setShowBulkPanel(false)
+      const onSuccess = async () => {
+        for (const entry of correctionLogs) await logCorrection(entry.row.id, entry.row.name, entry.row.date, entry.oldVals, entry.newVals, 'Bulk Edit', '')
+        await handleRefresh()
+        setSelectedRows([])
+        setShowBulkPanel(false)
+      }
+      try {
+        await upsertAttendance(preparedRows)
+        await onSuccess()
+      } catch (error) {
+        if (isApprovedLeaveConflict(error)) requestLeaveOverride(preparedRows, `${preparedRows.length} selected attendance record(s)`, onSuccess)
+        else alert(error?.message || 'Unable to save bulk correction.')
+      }
     } finally {
       setSaving(false)
     }
@@ -892,12 +931,19 @@ export default function CorrectionTab() {
         sundayHoliday: false,
       }]
       
-      await upsertAttendance(rows)
-      await logCorrection(row.id, row.name, row.date, oldVals, newVals, 'Drawer Edit', notes)
-      
-      await handleRefresh()
-      setShowEditDrawer(false)
-      setDrawerRow(null)
+      const onSuccess = async () => {
+        await logCorrection(row.id, row.name, row.date, oldVals, newVals, 'Drawer Edit', notes)
+        await handleRefresh()
+        setShowEditDrawer(false)
+        setDrawerRow(null)
+      }
+      try {
+        await upsertAttendance(rows)
+        await onSuccess()
+      } catch (error) {
+        if (isApprovedLeaveConflict(error)) requestLeaveOverride(rows, `${row.name} · ${formatDateShort(row.date)}`, onSuccess)
+        else alert(error?.message || 'Unable to save attendance correction.')
+      }
     } finally {
       setSaving(false)
     }
@@ -1302,6 +1348,23 @@ export default function CorrectionTab() {
         employees={employees}
         orgId={user?.orgId}
       />
+
+      <Modal isOpen={!!leaveOverrideAttempt} onClose={() => { setLeaveOverrideAttempt(null); setLeaveOverrideReason('') }} title="Approved Leave — Override Required">
+        <div className="p-6">
+          <div className="rounded-[12px] border border-indigo-100 bg-indigo-50/70 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Protected attendance</p>
+            <p className="mt-1 text-[14px] font-semibold text-slate-900">{leaveOverrideAttempt?.summary || 'Selected attendance'}</p>
+            <p className="mt-1 text-[12px] leading-5 text-slate-600">Final approved leave protects this attendance record. Continuing will create an audited coverage override before the correction is saved.</p>
+          </div>
+          {canOverrideApprovedLeave ? <>
+            <label className="mt-4 block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Override reason <span className="text-red-500">*</span></span><textarea value={leaveOverrideReason} onChange={(event) => setLeaveOverrideReason(event.target.value)} rows={3} placeholder="Why should this attendance correction replace approved leave?" className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" /></label>
+            <div className="mt-5 flex gap-3"><button type="button" onClick={() => { setLeaveOverrideAttempt(null); setLeaveOverrideReason('') }} className="flex-1 h-10 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button><button type="button" onClick={confirmLeaveOverride} disabled={saving || !leaveOverrideReason.trim()} className="flex-1 h-10 rounded-lg bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">{saving ? 'Saving…' : 'Confirm override'}</button></div>
+          </> : <>
+            <p className="mt-4 text-[12px] leading-5 text-slate-600">Only an HR or Admin user can override final approved leave. Ask an authorised user to make and document this correction.</p>
+            <button type="button" onClick={() => setLeaveOverrideAttempt(null)} className="mt-5 h-10 w-full rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+          </>}
+        </div>
+      </Modal>
     </div>
   )
 }

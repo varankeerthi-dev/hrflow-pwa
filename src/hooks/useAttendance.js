@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react'
 import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp, getDoc, doc, collection } from 'firebase/firestore'
-import { attendanceCol, attendanceDoc } from '../lib/firestore'
+import { attendanceCol, attendanceDoc, leaveCoverageDoc } from '../lib/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
 import { isPeriodLocked } from '../lib/payrollLock'
+import { LEAVE_COVERAGE_STATES, overrideActiveLeaveCoverage } from '../lib/leaveLifecycle'
 
 export function useAttendance(orgId) {
   const { user } = useAuth()
@@ -37,6 +38,26 @@ export function useAttendance(orgId) {
       }
     }
     
+    for (const row of rows) {
+      const rowDate = row.date || row.inDate
+      const coverageRef = leaveCoverageDoc(orgId, row.employeeId, rowDate)
+      const coverageSnap = await getDoc(coverageRef)
+      const coverage = coverageSnap.exists() ? coverageSnap.data() : null
+      if (coverage?.state === LEAVE_COVERAGE_STATES.ACTIVE) {
+        if (!row.leaveOverride?.confirmed) {
+          throw new Error(`Approved ${coverage.leaveType || ''} leave exists for ${rowDate}. Attendance is protected until HR or Admin confirms an override with a reason.`)
+        }
+        await overrideActiveLeaveCoverage({
+          orgId,
+          employeeId: row.employeeId,
+          date: rowDate,
+          actor: user,
+          replacementClassification: String(row.status || (row.isAbsent ? 'absent' : 'worked')).toLowerCase(),
+          reason: row.leaveOverride.reason,
+        })
+      }
+    }
+
     const batch = rows.map(row => {
       const rowDate = row.date || row.inDate
       const payload = {
@@ -49,6 +70,8 @@ export function useAttendance(orgId) {
         updatedBy: user?.uid || 'system',
         updatedByName: user?.name || 'System'
       }
+
+      delete payload.leaveOverride
       
       // Remove any undefined fields to prevent Firebase errors
       Object.keys(payload).forEach(key => {

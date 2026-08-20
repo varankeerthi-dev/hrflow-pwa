@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance, calcOT } from '../../hooks/useAttendance'
 import { db } from '../../lib/firebase'
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore'
+import { doc, getDoc, getDocs, query, updateDoc, arrayUnion, where } from 'firebase/firestore'
 import Spinner from '../ui/Spinner'
 import Modal from '../ui/Modal'
 import TimePicker from '../ui/TimePicker'
@@ -19,6 +19,7 @@ import SalarySlipTab from './SalarySlipTab'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX, LayoutGrid, List } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
+import { leaveCoverageCol } from '../../lib/firestore'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
 
 // PDF Styles
@@ -870,6 +871,8 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
 
   const [showWarning, setShowWarning] = useState(false)
   const [showResetWarning, setShowResetWarning] = useState(false)
+  const [leaveOverrideTarget, setLeaveOverrideTarget] = useState(null)
+  const [leaveOverrideReason, setLeaveOverrideReason] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState(null)
   const removalTimerRef = useRef(null)
   const [copyData, setCopyData] = useState(null)
@@ -889,6 +892,9 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const inTimeCellRef = useRef(null)
   const outTimeCellRef = useRef(null)
   const [validationErrors, setValidationErrors] = useState({})
+
+  const isLeaveProtected = (row) => row?.leaveCoverage?.state === 'active'
+  const canOverrideApprovedLeave = ['admin', 'hr'].includes(String(user?.role || '').toLowerCase())
 
   const [fixingHistory, setFixingHistory] = useState(false)
 
@@ -1240,19 +1246,52 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
 
   useEffect(() => {
     if (!user?.orgId || !selectedDate) return
-    fetchByDate(selectedDate).then(records => {
+    Promise.all([
+      fetchByDate(selectedDate),
+      getDocs(query(leaveCoverageCol(user.orgId), where('date', '==', selectedDate))),
+    ]).then(([records, coverageSnapshot]) => {
+      const coverageByEmployee = coverageSnapshot.docs.reduce((result, coverageDoc) => {
+        const coverage = coverageDoc.data()
+        if (coverage?.state === 'active' && coverage.employeeId) result[coverage.employeeId] = { id: coverageDoc.id, ...coverage }
+        return result
+      }, {})
       setExistingRecords(records)
-      if (records.length > 0) {
+      if (records.length > 0 || Object.keys(coverageByEmployee).length > 0) {
         // Enrich existing records with current employee data (e.g., minDailyHours)
         const enrichedRecords = records.map(record => {
           const emp = employees.find(e => e.id === record.employeeId)
           return {
             ...record,
-            minDailyHours: record.minDailyHours || emp?.minDailyHours || 8
+            minDailyHours: record.minDailyHours || emp?.minDailyHours || 8,
+            leaveCoverage: coverageByEmployee[record.employeeId] || null,
           }
         })
 
-        const sortedRecords = [...(enrichedRecords || [])].sort((a, b) => {
+        const leaveOnlyRows = Object.values(coverageByEmployee)
+          .filter((coverage) => !records.some((record) => record.employeeId === coverage.employeeId))
+          .map((coverage) => {
+            const employee = employees.find((item) => item.id === coverage.employeeId)
+            return {
+              employeeId: coverage.employeeId,
+              name: employee?.name || coverage.employeeName || 'Employee',
+              date: selectedDate,
+              inDate: selectedDate,
+              outDate: selectedDate,
+              inTime: '',
+              outTime: '',
+              otHours: '00:00',
+              remarks: '',
+              isAbsent: false,
+              sundayWorked: false,
+              sundayHoliday: false,
+              shiftType: employee?.shiftType || 'Day',
+              status: coverage.classification === 'paid_leave' ? 'Paid Leave' : 'Unpaid Leave',
+              minDailyHours: employee?.minDailyHours || 8,
+              leaveCoverage: coverage,
+            }
+          })
+
+        const sortedRecords = [...enrichedRecords, ...leaveOnlyRows].sort((a, b) => {
           if (!a || !b) return 0
           if (!Array.isArray(rowOrder) || !rowOrder.length) return String(a.name || '').localeCompare(String(b.name || ''))
           const idxA = rowOrder.indexOf(a.employeeId)
@@ -1402,6 +1441,11 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     const rowIndex = rows.findIndex(row => row.employeeId === empId)
     const removedRow = rowIndex >= 0 ? rows[rowIndex] : null
     if (!removedRow) return
+    if (isLeaveProtected(removedRow) && !removedRow.leaveOverride?.confirmed) {
+      setLeaveOverrideTarget(removedRow)
+      setLeaveOverrideReason('')
+      return
+    }
     if (removalTimerRef.current) clearTimeout(removalTimerRef.current)
     setDirty(true)
     setRows(prev => prev.filter(row => row.employeeId !== empId))
@@ -1450,6 +1494,12 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   }
 
   const updateRow = (empId, field, value) => {
+    const currentRow = rows.find((row) => row.employeeId === empId)
+    if (isLeaveProtected(currentRow) && !currentRow.leaveOverride?.confirmed) {
+      setLeaveOverrideTarget(currentRow)
+      setLeaveOverrideReason('')
+      return
+    }
     setDirty(true)
     setRows(prev => prev.map(r => {
       if (r.employeeId !== empId) return r
@@ -1480,6 +1530,12 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   }
 
   const handleStatusChange = (empId, newStatus) => {
+    const currentRow = rows.find((row) => row.employeeId === empId)
+    if (isLeaveProtected(currentRow) && !currentRow.leaveOverride?.confirmed) {
+      setLeaveOverrideTarget(currentRow)
+      setLeaveOverrideReason('')
+      return
+    }
     setDirty(true)
     setRows(prev => prev.map(r => {
       if (r.employeeId !== empId) return r
@@ -1498,6 +1554,20 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       }
       return updated
     }))
+  }
+
+  const confirmLeaveOverride = () => {
+    if (!canOverrideApprovedLeave) return
+    const reason = leaveOverrideReason.trim()
+    if (!reason || !leaveOverrideTarget?.employeeId) return
+    setRows((currentRows) => currentRows.map((row) => (
+      row.employeeId === leaveOverrideTarget.employeeId
+        ? { ...row, leaveOverride: { confirmed: true, reason } }
+        : row
+    )))
+    setDirty(true)
+    setLeaveOverrideTarget(null)
+    setLeaveOverrideReason('')
   }
 
   const handleSubmit = async () => {
@@ -1913,12 +1983,14 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                     <tr><td colSpan={8} className="text-center py-20 text-gray-300 font-medium text-lg">Ready to generate attendance</td></tr>
                   ) : (
                     rows.map((row, idx) => (
-                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[56px]' : 'h-[40px]'}`}>
+                      <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${isLeaveProtected(row) ? 'bg-indigo-50/40' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[56px]' : 'h-[40px]'}`}>
                         <td className="px-4 min-w-[220px]">
                           {row.employeeId ? (
                             <div className="flex items-center gap-2">
                               <span className="min-w-0 flex-1 truncate font-medium text-gray-800 text-sm" style={{ fontFamily: "'Inter', sans-serif" }}>{row.name}</span>
-                              <ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday'} employeeName={row.name} />
+                              {isLeaveProtected(row) && !row.leaveOverride?.confirmed && <button type="button" onClick={() => { setLeaveOverrideTarget(row); setLeaveOverrideReason('') }} className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2 py-1 text-[9px] font-semibold text-indigo-700" title="Approved leave is protected"><span aria-hidden="true">🔒</span>{row.leaveCoverage.leaveType || 'Leave'}</button>}
+                              {row.leaveOverride?.confirmed && <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-700">Override ready</span>}
+                              <ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday' || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)} employeeName={row.name} />
                             </div>
                           ) : (
                             <select
@@ -1940,7 +2012,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                               value={row.inTime}
                               onChange={(time) => updateRow(row.employeeId, 'inTime', time)}
                               onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)}
-                              disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId}
+                              disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
                               backgroundColor="#e8f4f8"
                               rowIdx={idx}
                               field="inTime"
@@ -1962,7 +2034,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                               value={row.outTime}
                               onChange={(time) => updateRow(row.employeeId, 'outTime', time)}
                               onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)}
-                              disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId}
+                              disabled={row.isAbsent || row.status === 'SunHoliday' || !row.employeeId || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
                               backgroundColor="#fff4e8"
                               rowIdx={idx}
                               field="outTime"
@@ -2010,12 +2082,12 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             onChange={val => updateRow(row.employeeId, 'remarks', val)}
                             onAddOption={handleAddRemarkOption}
                             options={remarksOptions}
-                            disabled={!row.employeeId || row.isAbsent}
+                            disabled={!row.employeeId || row.isAbsent || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
                           />
                         </td>
                         <td className="px-2 align-top">
                           {(() => {
-                            if (!row.employeeId || row.isAbsent) return null
+                            if (!row.employeeId || row.isAbsent || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)) return null
                             const eligible = getEligibleAllowanceCategories(allowanceCategories, {
                               employeeId: row.employeeId,
                               outTime: row.outTime,
@@ -2651,6 +2723,23 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
             <button onClick={() => setShowWarning(false)} className="flex-1 h-10 border border-gray-200 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50">Abort</button>
             <button onClick={() => { setShowWarning(false); handleSubmit(); }} className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-sm font-medium shadow-md hover:bg-indigo-700">Overwrite</button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!leaveOverrideTarget} onClose={() => { setLeaveOverrideTarget(null); setLeaveOverrideReason('') }} title="Approved Leave — Override Required">
+        <div className="p-6">
+          <div className="rounded-[12px] border border-indigo-100 bg-indigo-50/70 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Protected attendance</p>
+            <p className="mt-1 text-[14px] font-semibold text-slate-900">{leaveOverrideTarget?.name || 'Employee'} · {leaveOverrideTarget?.leaveCoverage?.leaveType || 'Approved'} leave</p>
+            <p className="mt-1 text-[12px] leading-5 text-slate-600">{displayShortDate(selectedDate)} is currently covered by final approved leave. Any attendance change will be recorded as an audited override and the leave coverage will be preserved in its revision history.</p>
+          </div>
+          {canOverrideApprovedLeave ? <>
+            <label className="mt-4 block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Override reason <span className="text-red-500">*</span></span><textarea value={leaveOverrideReason} onChange={(event) => setLeaveOverrideReason(event.target.value)} rows={3} placeholder="Why should attendance replace approved leave?" className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" /></label>
+            <div className="mt-5 flex gap-3"><button type="button" onClick={() => { setLeaveOverrideTarget(null); setLeaveOverrideReason('') }} className="flex-1 h-10 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button><button type="button" onClick={confirmLeaveOverride} disabled={!leaveOverrideReason.trim()} className="flex-1 h-10 rounded-lg bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Enable override</button></div>
+          </> : <>
+            <p className="mt-4 text-[12px] leading-5 text-slate-600">Only an HR or Admin user can override final approved leave. Ask an authorised user to make and document this change.</p>
+            <button type="button" onClick={() => setLeaveOverrideTarget(null)} className="mt-5 h-10 w-full rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+          </>}
         </div>
       </Modal>
     </div>

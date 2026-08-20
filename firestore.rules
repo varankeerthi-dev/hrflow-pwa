@@ -38,6 +38,12 @@ service cloud.firestore {
       return isOrgMember(orgId) || isOrgAdmin(orgId);
     }
 
+    function isHROrAdmin(orgId) {
+      let role = isSignedIn() && userData() != null ? userData().role : '';
+      return isOrgAdmin(orgId)
+        || (isOrgMember(orgId) && role in ['admin', 'Admin', 'hr', 'HR']);
+    }
+
     // A user may edit their own profile, but never promote themselves:
     // `role` / `permissions` are only ever changed by org admins.
     function isSelfWriteAllowed() {
@@ -102,18 +108,34 @@ service cloud.firestore {
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['adminUids', 'code']))
       );
 
+      match /leave_attendance_coverage/{coverageId} {
+        allow read: if isOrgMember(orgId) || isOrgAdmin(orgId);
+        allow write: if isHROrAdmin(orgId);
+      }
+
+      match /leave_lifecycle_events/{eventId} {
+        allow read: if isOrgMember(orgId) || isOrgAdmin(orgId);
+        allow write: if isHROrAdmin(orgId);
+      }
+
+      match /employees/{empId}/leave_ledger/{entryId} {
+        allow read: if isOrgMember(orgId) || isOrgAdmin(orgId);
+        allow write: if isHROrAdmin(orgId);
+      }
+
       // All organisation sub-collections (attendance, employees, payroll, chats,
       // nested logs, etc.): readable by any signed-in user, writable by members/admins.
       match /{c1}/{d1} {
         allow read: if canReadOrg();
-        allow write: if canWriteOrg(orgId);
+        allow write: if canWriteOrg(orgId)
+          && !(c1 in ['leave_attendance_coverage', 'leave_lifecycle_events']);
       }
 
       // Nested sub-collections: employee_portal/.../attendance_logs,
       // chats/.../messages, vehicles/.../history, payroll_runs/.../slips.
       match /{c1}/{d1}/{c2}/{d2} {
         allow read: if canReadOrg();
-        allow write: if canWriteOrg(orgId);
+        allow write: if canWriteOrg(orgId) && !(c1 == 'employees' && c2 == 'leave_ledger');
       }
     }
 

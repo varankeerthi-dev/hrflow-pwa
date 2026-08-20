@@ -27,6 +27,17 @@ export const attendanceDoc = (orgId, date, empId) =>
 export const attendanceFinalDoc = (orgId, date, empId) =>
   doc(db, 'organisations', orgId, 'attendance_final', `${date}_${empId}`)
 
+export const leaveCoverageDocId = (empId, date) => `${empId}_${String(date).replaceAll('-', '')}`
+
+export const leaveCoverageCol = (orgId) =>
+  collection(db, 'organisations', orgId, 'leave_attendance_coverage')
+
+export const leaveCoverageDoc = (orgId, empId, date) =>
+  doc(db, 'organisations', orgId, 'leave_attendance_coverage', leaveCoverageDocId(empId, date))
+
+export const leaveLedgerCol = (orgId, empId) =>
+  collection(db, 'organisations', orgId, 'employees', empId, 'leave_ledger')
+
 export const sitesCol = (orgId) =>
   collection(db, 'organisations', orgId, 'sites')
 

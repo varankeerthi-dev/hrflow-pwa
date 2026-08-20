@@ -18,6 +18,8 @@ import { isPeriodLocked } from '../../lib/payrollLock'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { Table as ReusableTable } from '../table/Table'
+import { leaveCoverageCol } from '../../lib/firestore'
+import { resolveDailyClassification } from '../../lib/leaveLifecycle'
 
 // --- HELPERS ---
 const dashIfZero = (val) => (!val || val === 0 || val === '0') ? '-' : Math.round(Number(val)).toLocaleString('en-IN');
@@ -80,7 +82,9 @@ const DETAILED_SUMMARY_COLUMNS = [
   { id: 'holidayWorked', label: 'Holiday worked', width: 45 },
   { id: 'otH', label: 'OT hours', width: 45 },
   { id: 'hd', label: 'Half days', width: 45 },
-  { id: 'lop', label: 'Leave', width: 45 },
+  { id: 'paidLeave', label: 'Paid leave', width: 48 },
+  { id: 'unpaidLeave', label: 'Unpaid leave', width: 52 },
+  { id: 'lop', label: 'LOP', width: 45 },
   { id: 'paidDays', label: 'Paid days', width: 45 },
   { id: 'basicPaid', label: 'Basic (Paid)', width: 60 },
   { id: 'hraPaid', label: 'HRA (Paid)', width: 60 },
@@ -1144,7 +1148,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     queryKey: ['attendanceSummary', user?.orgId, summaryMonth, increments],
     queryFn: async () => {
       if (!user?.orgId || !sortedEmployees.length) return []; const [y, m] = summaryMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${end}`
-      const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap, sandwichSnap, varSnap] = await Promise.all([
+      const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap, sandwichSnap, varSnap, coverageSnap] = await Promise.all([
         getDocs(collection(db, 'organisations', user.orgId, 'attendance')), 
         getDocs(query(collection(db, 'organisations', user.orgId, 'loans'), where('status', '==', 'Active'))), 
         getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses')), 
@@ -1152,7 +1156,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         getDocs(query(collection(db, 'organisations', user.orgId, 'otAdjustments'), where('month', '==', summaryMonth))),
         getDoc(doc(db, 'organisations', user.orgId)),
         getDocs(query(collection(db, 'organisations', user.orgId, 'sandwichDeductions'), where('month', '==', summaryMonth))),
-        getDocs(query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', summaryMonth)))
+        getDocs(query(collection(db, 'organisations', user.orgId, 'variablePayLogs'), where('month', '==', summaryMonth))),
+        getDocs(query(leaveCoverageCol(user.orgId), where('date', '>=', sd), where('date', '<=', ed)))
       ])
       const orgData = orgSnap.exists() ? orgSnap.data() : {}
       const holidayCalendar = getHolidayCalendarForMonth(orgData, summaryMonth)
@@ -1216,6 +1221,11 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const nd = normalizeDate(recDate);
         return nd && nd >= sd && nd <= ed;
       }), allLoans = loanSnap.docs.map(d => d.data()), allAE = aeSnap.docs.map(d => d.data()).filter(a => a.date >= sd && a.date <= ed), allFines = fineSnap.docs.map(d => d.data()).filter(fineIsPayableInMonth), otAdjs = otAdjSnap.docs.reduce((acc, d) => { acc[d.data().employeeId] = d.data().adjustment; return acc; }, {})
+      const coverageByEmployeeDate = coverageSnap.docs.reduce((result, coverageDoc) => {
+        const coverage = coverageDoc.data()
+        if (coverage?.employeeId && coverage?.date) result.set(`${coverage.employeeId}:${coverage.date}`, coverage)
+        return result
+      }, new Map())
       
       return sortedEmployees.map((emp, idx) => {
         const empIdStr = String(emp.id || '').trim();
@@ -1226,7 +1236,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         });
         const attByDate = new Map(empAtt.map(a => [normalizeDate(a.date || a.inDate), a]));
         
-        let worked = 0, sunW = 0, holW = 0, leave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
+        let worked = 0, sunW = 0, holW = 0, leave = 0, paidLeave = 0, unpaidLeave = 0, lop = 0, hd = 0, otH = 0, sunCount = 0, holCount = 0
         const holDatesList = []
         const lopDatesList = []
         const sunWDatesList = []
@@ -1254,6 +1264,32 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           
           if (isS) sunCount++
           if (isH) { holCount++; holDatesList.push(i); }
+
+          const coverage = coverageByEmployeeDate.get(`${empIdStr}:${dateStr}`) || null
+          const dailyClassification = resolveDailyClassification({ attendanceRecord: r, coverage })
+          if (dailyClassification.source === 'leave_coverage') {
+            const leaveUnits = Number(dailyClassification.leaveUnits || 0)
+            if (dailyClassification.classification === 'paid_leave' || dailyClassification.classification === 'half_paid_leave') {
+              paidLeave += leaveUnits
+              leave += leaveUnits
+              if (dailyClassification.classification === 'half_paid_leave') {
+                hd += 1
+                worked += Number(dailyClassification.workUnits || 0)
+              }
+              continue
+            }
+            if (dailyClassification.classification === 'unpaid_leave') {
+              unpaidLeave += leaveUnits
+              lop += leaveUnits
+              lopDatesList.push(i)
+              continue
+            }
+            if (dailyClassification.classification === 'lop_leave') {
+              lop += leaveUnits
+              lopDatesList.push(i)
+              continue
+            }
+          }
 
           // Sandwich Rule
           if (!emp.hideInAttendance && (isS || isH || (isSat && isSaturdayHoliday))) {
@@ -1319,7 +1355,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
         const netAdvanceExpense = adv - reimb // Net: Advance - Expense (positive = deduction, negative = addition)
         const totalEarnings = basic + hra + sunPay + holPay + otPay + foodP + convP + bonusP, totalDeductions = pf + esi + loanE + fine + adv
         const finalNet = totalEarnings - totalDeductions + reimb // Net: Gross - Deductions + Expense
-        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP, attendanceRecords: empAtt }
+        return { sno: idx + 1, id: emp.id, name: emp.name, empId: emp.empCode || emp.id.slice(0, 5), designation: emp.designation || '-', totalDays: end, worked, sundays: sunCount, holidays: holCount, holidayDates: holDatesList, lopDates: lopDatesList, sunWDates: sunWDatesList, holWDates: holWDatesList, otDates: otDatesList, sunW, holW, leave, paidLeave, unpaidLeave, hd, lop, paidDays, fullBasic, fullHra, basic, hra, sunPay, holPay, otPay, ot: otH, otAdjustment: otAdjs[emp.id] || 0, totalEarnings, pf, esi, loanE, fine, advanceAmount: adv, expenseAmount: reimb, totalDeductions, netAdvanceExpense, salary: { net: finalNet }, appliedSandwichDays: appliedForThisEmp, food: foodP, convenience: convP, bonus: bonusP, attendanceRecords: empAtt }
       })
     }, enabled: !!user?.orgId && sortedEmployees.length > 0 && activeTab === 'salary-summary'
   })
@@ -1407,7 +1443,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   const overviewNestedHeaders = useMemo(() => [
     { label: 'Staff Profile', colSpan: 2, className: 'text-slate-700 bg-[#f0f7ff] sticky left-0 z-50 border-r border-slate-200 font-semibold text-[11px]' },
     { label: 'Period Status', colSpan: 3, className: 'text-slate-700 bg-orange-50/25 border-r border-slate-200 font-semibold text-[11px]' },
-    { label: 'Performance', colSpan: 5, className: 'text-slate-700 bg-slate-50/40 border-r border-slate-200 font-semibold text-[11px]' },
+    { label: 'Performance', colSpan: 7, className: 'text-slate-700 bg-slate-50/40 border-r border-slate-200 font-semibold text-[11px]' },
     { label: 'Overtime', colSpan: 1, className: 'text-slate-700 bg-violet-50/25 border-r border-slate-200 font-semibold text-[11px]' },
     { label: 'Sunday/Holiday', colSpan: 2, className: 'text-slate-700 bg-teal-50/25 border-r border-slate-200 font-semibold text-[11px]' },
     { label: 'Summary & Payout', colSpan: 3, className: 'text-slate-700 bg-emerald-50/30 border-r border-slate-200 font-semibold text-[11px]' },
@@ -1498,6 +1534,26 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '48px', minWidth: '48px' },
       headerClassName: 'border-r border-slate-200/60 text-[10px] font-medium text-slate-500',
       cellClassName: 'border-r border-slate-100/40 text-slate-700 text-[12px] border-b border-slate-200/60',
+    },
+    {
+      header: 'Paid leave',
+      id: 'paidLeave',
+      accessorKey: 'paidLeave',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '64px', minWidth: '64px' },
+      headerClassName: 'border-r border-slate-200/60 text-[10px] font-medium text-emerald-700',
+      cellClassName: 'border-r border-slate-100/40 bg-emerald-50/20 font-semibold text-emerald-700 text-[12px] border-b border-slate-200/60',
+    },
+    {
+      header: 'Unpaid leave',
+      id: 'unpaidLeave',
+      accessorKey: 'unpaidLeave',
+      align: 'center',
+      headerStyle: { paddingLeft: '8px', paddingRight: '8px', width: '72px', minWidth: '72px' },
+      cellStyle: { paddingLeft: '8px', paddingRight: '8px', width: '72px', minWidth: '72px' },
+      headerClassName: 'border-r border-slate-200/60 text-[10px] font-medium text-amber-700',
+      cellClassName: 'border-r border-slate-100/40 bg-amber-50/20 font-semibold text-amber-700 text-[12px] border-b border-slate-200/60',
     },
     {
       header: 'LOP',
@@ -1667,7 +1723,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     const groups = [
       { id: 'basic', label: 'Basic Info', color: 'blue', columns: ['sno', 'empNo', 'name', 'designation'] },
       { id: 'structure', label: 'CTC', color: 'purple', columns: ['salaryCtc'] },
-      { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'lop', 'paidDays'] },
+      { id: 'attendance', label: 'Attendance', color: 'amber', columns: ['days', 'worked', 'sundays', 'sunWorked', 'holidayWorked', 'otH', 'hd', 'paidLeave', 'unpaidLeave', 'lop', 'paidDays'] },
       { id: 'earnings', label: 'Earnings (PAID)', color: 'emerald', columns: ['basicPaid', 'hraPaid', 'salaryPaid', 'sundayPay', 'holidayPay', 'otPay', 'earnings'] },
       { id: 'genDeductions', label: 'Deductions & Vouchers', color: 'red', columns: ['pf', 'esi', 'loan', 'ded', 'advance', 'reimb', 'netAdj'] },
       { id: 'summary', label: 'Payout Summary', color: 'green', columns: ['totalDed', 'net'] }
@@ -1691,6 +1747,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       case 'holidayWorked': return emp.holW;
       case 'otH': return (emp.ot + emp.otAdjustment).toFixed(2);
       case 'hd': return emp.hd;
+      case 'paidLeave': return emp.paidLeave || 0;
+      case 'unpaidLeave': return emp.unpaidLeave || 0;
       case 'lop': return emp.lop;
       case 'paidDays': return emp.paidDays;
       case 'basicPaid': return dashIfZero(emp.basic);
