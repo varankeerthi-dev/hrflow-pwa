@@ -11,7 +11,7 @@ import {
   communicationTrainingCol,
   employeesCol,
 } from '../lib/firestore'
-import { COMMUNICATION_KINDS, COMMUNICATION_STATES, deliveryDocId, referenceNumber, resolveAudience } from '../lib/communications'
+import { buildLetterAuditSnapshot, COMMUNICATION_KINDS, COMMUNICATION_STATES, deliveryDocId, referenceNumber, resolveAudience } from '../lib/communications'
 
 const CONFIG = {
   [COMMUNICATION_KINDS.LETTER]: { collection: communicationLettersCol, state: COMMUNICATION_STATES.DRAFT },
@@ -69,7 +69,7 @@ export function useCommunications(orgId, user) {
     })
   }, [orgId, user])
 
-  const createRecord = useCallback(async (kind, payload) => {
+  const createRecord = useCallback(async (kind, payload, auditEventType = null) => {
     const config = CONFIG[kind]
     if (!config || !orgId) throw new Error('Communication type and organisation are required.')
     const record = await addDoc(config.collection(orgId), {
@@ -77,7 +77,8 @@ export function useCommunications(orgId, user) {
       createdBy: user?.uid || 'system', createdByName: user?.name || 'System',
       updatedBy: user?.uid || 'system', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     })
-    await audit(`${kind}_draft_created`, kind, record.id, { title: payload.title || payload.letterType || '' })
+    const draft = { ...payload, id: record.id, kind, state: payload.state || config.state }
+    await audit(auditEventType || `${kind}_draft_created`, kind, record.id, kind === COMMUNICATION_KINDS.LETTER ? { letter: buildLetterAuditSnapshot(draft) } : { title: payload.title || payload.letterType || '' })
     return record.id
   }, [audit, orgId, user])
 
@@ -114,7 +115,7 @@ export function useCommunications(orgId, user) {
     const reference = letter.issueReference || referenceNumber('letter', letter.id)
     await updateDoc(doc(communicationLettersCol(orgId), letter.id), { state: COMMUNICATION_STATES.ISSUED, issueReference: reference, issuedAt: serverTimestamp(), issuedBy: user?.uid || 'system', updatedAt: serverTimestamp() })
     await commitInBatches([{ ref: doc(communicationDeliveriesCol(orgId), deliveryDocId(COMMUNICATION_KINDS.LETTER, letter.id, letter.employeeId)), data: { sourceType: COMMUNICATION_KINDS.LETTER, sourceId: letter.id, sourceVersion: Number(letter.version || 1), recipientId: letter.employeeId, recipientName: letter.employeeName || '', titleSnapshot: letter.title || letter.letterType || 'HR Letter', bodySnapshot: letter.body || '', acknowledgementMode: letter.acknowledgementMode || 'seen', sourceState: COMMUNICATION_STATES.ISSUED, status: 'delivered', deliveredAt: serverTimestamp(), updatedAt: serverTimestamp() } }])
-    await audit('letter_issued', COMMUNICATION_KINDS.LETTER, letter.id, { reference })
+    await audit('letter_issued', COMMUNICATION_KINDS.LETTER, letter.id, { reference, letter: buildLetterAuditSnapshot({ ...letter, state: COMMUNICATION_STATES.ISSUED, issueReference: reference, issuedBy: user?.uid || 'system' }) })
   }, [audit, orgId, user])
 
   const publishAnnouncement = useCallback((record) => publishToAudience({ kind: COMMUNICATION_KINDS.ANNOUNCEMENT, sourceId: record.id, payload: record, state: COMMUNICATION_STATES.PUBLISHED }), [publishToAudience])
@@ -125,7 +126,7 @@ export function useCommunications(orgId, user) {
     const config = CONFIG[kind]
     if (!config || !orgId) return
     await updateDoc(doc(config.collection(orgId), recordId), { ...changes, updatedBy: user?.uid || 'system', updatedAt: serverTimestamp() })
-    await audit(`${kind}_${eventType}`, kind, recordId, changes)
+    await audit(`${kind}_${eventType}`, kind, recordId, kind === COMMUNICATION_KINDS.LETTER ? { letter: buildLetterAuditSnapshot({ ...changes, id: recordId, kind }) } : changes)
   }, [audit, orgId, user])
 
   const acknowledgeDelivery = useCallback(async (deliveryId, response = 'acknowledged') => {

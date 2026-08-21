@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   canApproveCommunications,
   canManageCommunications,
+  buildLetterAuditSnapshot,
   deliveryDocId,
   isActiveCommunication,
   referenceNumber,
@@ -42,4 +43,14 @@ test('recognises HR communication management and approval permissions without gr
   assert.equal(canApproveCommunications({ role: 'employee', permissions: { HRLetters: { approve: false } } }), false)
   assert.equal(canManageCommunications({ role: 'employee' }), false)
   assert.match(statusTone('published'), /emerald/)
+})
+
+test('captures fixed Promotion fields in the auditable letter snapshot', () => {
+  assert.deepEqual(buildLetterAuditSnapshot({
+    letterType: 'Promotion', employeeId: 'emp_1', employeeName: 'Asha', formatId: 'promotion', source: 'legacy_format_generator',
+    documentDate: '2026-08-21', effectiveDate: '2026-09-01', previousDesignation: 'Project Engineer', promotedDesignation: 'Senior Project Engineer', body: 'Fixed wording',
+  }), {
+    letterType: 'Promotion', title: 'Promotion', state: 'draft', employeeId: 'emp_1', employeeName: 'Asha', formatId: 'promotion', source: 'legacy_format_generator',
+    documentDate: '2026-08-21', effectiveDate: '2026-09-01', previousDesignation: 'Project Engineer', promotedDesignation: 'Senior Project Engineer', issueReference: '', bodySnapshot: 'Fixed wording',
+  })
 })

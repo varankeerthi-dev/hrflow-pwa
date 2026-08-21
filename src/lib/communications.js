@@ -39,6 +39,22 @@ export const canApproveCommunications = (user) => {
 export const deliveryDocId = (sourceType, sourceId, recipientId) => `${sourceType}_${sourceId}_${recipientId}`.replace(/[^a-zA-Z0-9_-]/g, '_')
 export const referenceNumber = (kind, id = '') => `HRF/${String(kind || 'DOC').slice(0, 3).toUpperCase()}/${String(id).slice(-6).toUpperCase()}`
 
+export const buildLetterAuditSnapshot = (letter = {}) => ({
+  letterType: letter.letterType || 'Letter',
+  title: letter.title || letter.letterType || 'Letter',
+  state: letter.state || COMMUNICATION_STATES.DRAFT,
+  employeeId: letter.employeeId || '',
+  employeeName: letter.employeeName || '',
+  formatId: letter.formatId || '',
+  source: letter.source || 'communications',
+  documentDate: letter.documentDate || '',
+  effectiveDate: letter.effectiveDate || '',
+  previousDesignation: letter.previousDesignation || '',
+  promotedDesignation: letter.promotedDesignation || '',
+  issueReference: letter.issueReference || '',
+  bodySnapshot: letter.body || '',
+})
+
 export const isActiveCommunication = (record, now = new Date()) => {
   if (!record || !['published', 'issued', 'approved', 'completed'].includes(record.state)) return false
   if (!record.expiresAt) return true
