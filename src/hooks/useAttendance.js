@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp, getDoc, doc, collection } from 'firebase/firestore'
+import { getDocs, query, where, setDoc, deleteDoc, serverTimestamp, getDoc, doc, collection, writeBatch } from 'firebase/firestore'
 import { attendanceCol, attendanceDoc, leaveCoverageDoc } from '../lib/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
@@ -29,60 +29,65 @@ export function useAttendance(orgId) {
 
   const upsertAttendance = useCallback(async (rows) => {
     if (!orgId || !rows.length) return
-    
-    // Check locking periods
-    for (const row of rows) {
+    const startedAt = performance.now()
+    const submitRows = rows.filter((row) => row?.employeeId && (row.date || row.inDate))
+    const months = [...new Set(submitRows.map((row) => String(row.date || row.inDate).slice(0, 7)).filter(Boolean))]
+    const lockedMonths = await Promise.all(months.map(async (month) => ({ month, locked: await isPeriodLocked(orgId, month) })))
+    const locked = lockedMonths.find((entry) => entry.locked)
+    if (locked) throw new Error(`Cannot save attendance: The period for ${locked.month} is locked under a finalized Payroll run.`)
+
+    const coverageStartedAt = performance.now()
+    const coverageChecks = await Promise.all(submitRows.map(async (row) => {
       const rowDate = row.date || row.inDate
-      if (rowDate && await isPeriodLocked(orgId, rowDate)) {
-        throw new Error(`Cannot save attendance: The period for ${rowDate.substring(0, 7)} is locked under a finalized Payroll run.`);
-      }
-    }
-    
-    for (const row of rows) {
-      const rowDate = row.date || row.inDate
-      const coverageRef = leaveCoverageDoc(orgId, row.employeeId, rowDate)
-      const coverageSnap = await getDoc(coverageRef)
-      const coverage = coverageSnap.exists() ? coverageSnap.data() : null
-      if (coverage?.state === LEAVE_COVERAGE_STATES.ACTIVE) {
-        if (requiresApprovedLeaveOverride(coverage, row)) {
-          throw new Error(approvedLeaveOverrideMessage(coverage, rowDate))
-        }
-        await overrideActiveLeaveCoverage({
-          orgId,
-          employeeId: row.employeeId,
+      const coverageSnap = await getDoc(leaveCoverageDoc(orgId, row.employeeId, rowDate))
+      return { row, rowDate, coverage: coverageSnap.exists() ? coverageSnap.data() : null }
+    }))
+
+    const blockedOverride = coverageChecks.find(({ coverage, row, rowDate }) => coverage?.state === LEAVE_COVERAGE_STATES.ACTIVE && requiresApprovedLeaveOverride(coverage, row) && approvedLeaveOverrideMessage(coverage, rowDate))
+    if (blockedOverride) throw new Error(approvedLeaveOverrideMessage(blockedOverride.coverage, blockedOverride.rowDate))
+
+    const overrides = coverageChecks.filter(({ coverage, row }) => coverage?.state === LEAVE_COVERAGE_STATES.ACTIVE && !requiresApprovedLeaveOverride(coverage, row))
+    await Promise.all(overrides.map(({ row, rowDate }) => overrideActiveLeaveCoverage({
+      orgId,
+      employeeId: row.employeeId,
+      date: rowDate,
+      actor: user,
+      replacementClassification: String(row.status || (row.isAbsent ? 'absent' : 'worked')).toLowerCase(),
+      reason: row.leaveOverride.reason,
+    })))
+
+    const writeStartedAt = performance.now()
+    for (let start = 0; start < submitRows.length; start += 450) {
+      const batch = writeBatch(db)
+      submitRows.slice(start, start + 450).forEach((row) => {
+        const rowDate = row.date || row.inDate
+        const payload = {
+          ...row,
           date: rowDate,
-          actor: user,
-          replacementClassification: String(row.status || (row.isAbsent ? 'absent' : 'worked')).toLowerCase(),
-          reason: row.leaveOverride.reason,
+          isAbsent: !!row.isAbsent,
+          sundayWorked: !!row.sundayWorked,
+          sundayHoliday: !!row.sundayHoliday,
+          updatedAt: serverTimestamp(),
+          updatedBy: user?.uid || 'system',
+          updatedByName: user?.name || 'System'
+        }
+
+        delete payload.leaveOverride
+        Object.keys(payload).forEach((key) => {
+          if (payload[key] === undefined) delete payload[key]
         })
-      }
+        batch.set(attendanceDoc(orgId, rowDate, row.employeeId), payload, { merge: true })
+      })
+      await batch.commit()
     }
 
-    const batch = rows.map(row => {
-      const rowDate = row.date || row.inDate
-      const payload = {
-        ...row,
-        date: rowDate,
-        isAbsent: !!row.isAbsent,
-        sundayWorked: !!row.sundayWorked,
-        sundayHoliday: !!row.sundayHoliday,
-        updatedAt: serverTimestamp(),
-        updatedBy: user?.uid || 'system',
-        updatedByName: user?.name || 'System'
-      }
+    return {
+      rows: submitRows.length,
+      totalMs: Math.round(performance.now() - startedAt),
+      coverageMs: Math.round(writeStartedAt - coverageStartedAt),
+      writeMs: Math.round(performance.now() - writeStartedAt),
+    }
 
-      delete payload.leaveOverride
-      
-      // Remove any undefined fields to prevent Firebase errors
-      Object.keys(payload).forEach(key => {
-        if (payload[key] === undefined) {
-          delete payload[key]
-        }
-      })
-
-      return setDoc(attendanceDoc(orgId, rowDate, row.employeeId), payload, { merge: true })
-    })
-    await Promise.all(batch)
   }, [orgId, user])
 
   const fetchMonthlySummary = useCallback(async (yearMonth) => {

@@ -826,7 +826,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
 
   // Allowance support: rule-based allowance claims raised from the attendance sheet
   const { categories: allowanceCategories } = useAllowanceCategories(user?.orgId)
-  const { claims: allowanceClaims, upsertClaimsForAttendance } = useAllowanceClaims(user?.orgId)
+  const { claims: allowanceClaims, upsertClaimsForAttendance, fetchClaims: fetchAllowanceClaims } = useAllowanceClaims(user?.orgId)
   // Per-employee map of selected category ids for the current date: { [employeeId]: [categoryId, ...] }
   const [allowanceSelections, setAllowanceSelections] = useState({})
 
@@ -1531,31 +1531,43 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     }
     setSaving(true)
     try {
-      await upsertAttendance(rows)
-      await logActivity(user?.orgId, user, {
+      const attendanceTiming = await upsertAttendance(rows)
+      const activityPromise = logActivity(user?.orgId, user, {
         module: 'Attendance',
         action: `Attendance submitted for ${rows.length} employee(s) on ${selectedDate}`,
         detail: rows.map(r => r.name).join(', ')
       })
 
       // Raise allowance claims for any checked allowance categories
-      const approvalMode = await fetchAllowanceApprovalMode(user?.orgId)
+      const allowanceRows = []
       for (const row of rows) {
         if (!row.employeeId || row.isAbsent) continue
         const selected = allowanceSelections[row.employeeId] || []
         if (selected.length === 0) continue
         const emp = employees.find(e => e.id === row.employeeId)
         if (!emp) continue
-        await upsertClaimsForAttendance({
-          employee: emp,
-          date: row.date || row.inDate || selectedDate,
-          outTime: row.outTime,
-          selectedCategoryIds: selected,
-          user,
-          autoApproved: !approvalMode,
-          existingClaims: allowanceClaims,
-        })
+        allowanceRows.push({ row, employee: emp, selectedCategoryIds: selected })
       }
+
+      const approvalMode = allowanceRows.length ? await fetchAllowanceApprovalMode(user?.orgId) : false
+      const allowanceResults = await Promise.all(allowanceRows.map(({ row, employee, selectedCategoryIds }) => upsertClaimsForAttendance({
+        employee,
+        date: row.date || row.inDate || selectedDate,
+        outTime: row.outTime,
+        selectedCategoryIds,
+        user,
+        autoApproved: !approvalMode,
+        existingClaims: allowanceClaims,
+        refreshClaims: false,
+      })))
+      await Promise.all([activityPromise, allowanceResults.some((claims) => claims.length > 0) ? fetchAllowanceClaims() : Promise.resolve()])
+      console.info('[Attendance Submit]', {
+        rows: attendanceTiming?.rows || rows.length,
+        totalMs: attendanceTiming?.totalMs,
+        coverageMs: attendanceTiming?.coverageMs,
+        writeMs: attendanceTiming?.writeMs,
+        allowanceClaims: allowanceResults.reduce((count, claims) => count + claims.length, 0),
+      })
       
       // Refresh existing records after save
       const updatedRecords = await fetchByDate(selectedDate)

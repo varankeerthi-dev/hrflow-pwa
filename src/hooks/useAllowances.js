@@ -100,7 +100,7 @@ export function useAllowanceClaims(orgId) {
    * AND that the user has explicitly selected AND that don't already have a claim
    * for the same date/category (avoids duplicates on re-save).
    */
-  const upsertClaimsForAttendance = useCallback(async ({ employee, date, outTime, selectedCategoryIds, user, autoApproved, existingClaims = [] }) => {
+  const upsertClaimsForAttendance = useCallback(async ({ employee, date, outTime, selectedCategoryIds, user, autoApproved, existingClaims = [], refreshClaims = true }) => {
     if (!orgId) return []
     if (!employee?.id || !date) return []
 
@@ -116,8 +116,7 @@ export function useAllowanceClaims(orgId) {
       !existing.some(c => c.categoryId === cat.id)
     )
 
-    const created = []
-    for (const cat of toCreate) {
+    const created = await Promise.all(toCreate.map(async (cat) => {
       const amount = getAllowanceAmount(cat)
       const payload = {
         employeeId: employee.id,
@@ -139,9 +138,9 @@ export function useAllowanceClaims(orgId) {
         updatedAt: serverTimestamp(),
       }
       const docRef = await addDoc(collection(db, 'organisations', orgId, 'allowances'), payload)
-      created.push({ id: docRef.id, ...payload })
-    }
-    if (created.length > 0) await fetchClaims()
+      return { id: docRef.id, ...payload }
+    }))
+    if (created.length > 0 && refreshClaims) await fetchClaims()
     return created
   }, [orgId, fetchClaims])
 
@@ -201,8 +200,9 @@ let _categoryCache = null
 async function fetchCategoriesOnce(orgId) {
   if (_categoryCache) return _categoryCache
   const q = query(collection(db, 'organisations', orgId, 'allowanceCategories'))
-  const snap = await getDocs(q)
-  _categoryCache = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  _categoryCache = getDocs(q)
+    .then((snap) => snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    .catch((error) => { _categoryCache = null; throw error })
   setTimeout(() => { _categoryCache = null }, 5000)
   return _categoryCache
 }
