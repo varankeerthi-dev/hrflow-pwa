@@ -51,6 +51,7 @@ export const buildLetterAuditSnapshot = (letter = {}) => ({
   effectiveDate: letter.effectiveDate || '',
   previousDesignation: letter.previousDesignation || '',
   promotedDesignation: letter.promotedDesignation || '',
+  formatVariables: letter.formatVariables || {},
   issueReference: letter.issueReference || '',
   bodySnapshot: letter.body || '',
 })

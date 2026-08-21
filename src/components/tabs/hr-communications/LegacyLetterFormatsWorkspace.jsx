@@ -1,6 +1,6 @@
 // HRFlow visual system: white rounded-[12px] panels, gray-100 borders, indigo controls, emerald draft action, and readable Inter table/form typography.
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Award, BadgeInfo, CalendarDays, Download, FileText, Printer, Search, UserMinus } from 'lucide-react'
+import { AlertTriangle, Award, BadgeInfo, CalendarDays, CheckCircle2, Download, FileText, Printer, Search, ShieldAlert, UserMinus } from 'lucide-react'
 import { COMMUNICATION_KINDS } from '../../../lib/communications'
 
 const FORMATS = [
@@ -8,6 +8,8 @@ const FORMATS = [
   { id: 'bonafide', label: 'Bonafide', icon: BadgeInfo },
   { id: 'notice', label: 'Notice Period', icon: AlertTriangle },
   { id: 'termination', label: 'Termination', icon: UserMinus },
+  { id: 'confirmation', label: 'Confirmation', icon: CheckCircle2 },
+  { id: 'warning', label: 'Warning', icon: ShieldAlert },
 ]
 
 const isoToday = () => new Date().toISOString().slice(0, 10)
@@ -40,6 +42,14 @@ function letterContent(format, employee, orgName, variables) {
       subject: 'Termination Directive',
       body: 'We regret to inform you that your employment agreement with the organization is being terminated effective immediately. This decision has been reached following a comprehensive review of performance/conduct parameters. You are requested to return all company assets and complete the clearance process by the end of the business day.',
     },
+    confirmation: {
+      subject: 'Employment Confirmation Letter',
+      body: `We are pleased to confirm your employment with ${orgName} as ${variables.currentDesignation?.trim() || currentDesignation(employee)}, effective from ${formatDate(variables.confirmationEffectiveFrom)}. This confirmation follows the satisfactory completion of your probationary period ending on ${formatDate(variables.probationEndDate)}. Your employment will continue to be governed by the applicable terms, policies, and standards of the organization.`,
+    },
+    warning: {
+      subject: `${variables.warningLevel || 'Written Warning'} Letter`,
+      body: `This letter serves as a formal ${variables.warningLevel || 'Written Warning'} regarding ${variables.warningReason?.trim() || 'the recorded concern'}. The matter was recorded on ${formatDate(variables.incidentDate)}. You are expected to maintain the conduct, attendance, safety, and performance standards required by ${orgName}. Any recurrence or failure to improve may lead to further disciplinary action in accordance with company policy.`,
+    },
   }
   return templates[format] || templates.promotion
 }
@@ -59,9 +69,13 @@ function LetterPreview({ format, employee, orgName, variables }) {
 
 function DocumentControls({ format, employee, variables, onChange }) {
   const isPromotion = format === 'promotion'
+  const isConfirmation = format === 'confirmation'
+  const isWarning = format === 'warning'
   return <aside className="rounded-[12px] border border-gray-100 bg-white p-4 shadow-sm lg:sticky lg:top-4 lg:self-start"><div className="flex items-start gap-3"><div className="rounded-lg bg-indigo-50 p-2 text-indigo-600"><CalendarDays size={16} /></div><div><p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Document controls</p><h3 className="mt-1 text-[15px] font-semibold text-slate-900">Letter details</h3><p className="mt-1 text-[11px] leading-4 text-slate-500">These approved fields update the preview live. The letter wording remains fixed.</p></div></div>
     <div className="mt-5 space-y-4"><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Document date / issue date</span><input type="date" value={variables.documentDate} onChange={(event) => onChange('documentDate', event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400" /></label>
       {isPromotion && <><div className="border-t border-slate-100 pt-4"><p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Promotion details</p><p className="mt-1 text-[11px] text-slate-500">Current designation is prefilled from the employee record where available; both designation fields are controlled inputs, not editable letter wording.</p></div><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Effective from</span><input type="date" value={variables.effectiveFrom} onChange={(event) => onChange('effectiveFrom', event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400" /></label><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Current designation</span><input value={variables.currentDesignation} onChange={(event) => onChange('currentDesignation', event.target.value)} placeholder="e.g. Project Engineer" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400" /></label><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Promoted designation</span><input value={variables.promotedDesignation} onChange={(event) => onChange('promotedDesignation', event.target.value)} placeholder="e.g. Senior Project Engineer" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400" /></label></>}
+      {isConfirmation && <><div className="border-t border-slate-100 pt-4"><p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Confirmation details</p><p className="mt-1 text-[11px] text-slate-500">These employment dates are inserted into the fixed confirmation wording.</p></div><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Confirmed designation</span><input value={variables.currentDesignation} onChange={(event) => onChange('currentDesignation', event.target.value)} placeholder="e.g. Project Engineer" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400" /></label><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Probation end date</span><input type="date" value={variables.probationEndDate} onChange={(event) => onChange('probationEndDate', event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400" /></label><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Confirmation effective from</span><input type="date" value={variables.confirmationEffectiveFrom} onChange={(event) => onChange('confirmationEffectiveFrom', event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400" /></label></>}
+      {isWarning && <><div className="border-t border-slate-100 pt-4"><p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Warning details</p><p className="mt-1 text-[11px] text-slate-500">Only the structured warning details can be entered; the disciplinary wording remains fixed.</p></div><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Warning level</span><select value={variables.warningLevel} onChange={(event) => onChange('warningLevel', event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400"><option value="Written Warning">Written Warning</option><option value="First Written Warning">First Written Warning</option><option value="Final Written Warning">Final Written Warning</option></select></label><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Incident date</span><input type="date" value={variables.incidentDate} onChange={(event) => onChange('incidentDate', event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none focus:border-indigo-400" /></label><label className="block"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Warning reason / concern</span><textarea rows={4} value={variables.warningReason} onChange={(event) => onChange('warningReason', event.target.value)} placeholder="e.g. repeated late attendance on scheduled workdays" className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-[13px] leading-5 text-slate-800 outline-none focus:border-indigo-400" /></label></>}
     </div></aside>
 }
 
@@ -71,7 +85,7 @@ export default function LegacyLetterFormatsWorkspace({ employees, user, api, can
   const [showPreview, setShowPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formatDraftId, setFormatDraftId] = useState(null)
-  const [variables, setVariables] = useState({ documentDate: isoToday(), effectiveFrom: isoToday(), currentDesignation: '', promotedDesignation: '' })
+  const [variables, setVariables] = useState({ documentDate: isoToday(), effectiveFrom: isoToday(), currentDesignation: '', promotedDesignation: '', probationEndDate: '', confirmationEffectiveFrom: isoToday(), warningLevel: 'Written Warning', incidentDate: '', warningReason: '' })
   const selectedEmployee = useMemo(() => employees.find((employee) => employee.id === selectedEmployeeId), [employees, selectedEmployeeId])
   const active = FORMATS.find((format) => format.id === activeFormat) || FORMATS[0]
   const orgName = user?.orgName || 'HRFlow Organisation'
@@ -85,12 +99,13 @@ export default function LegacyLetterFormatsWorkspace({ employees, user, api, can
     employeeName: selectedEmployee.name,
     body: `${content.subject}\n\n${content.body}`,
     documentDate: variables.documentDate,
-    effectiveDate: variables.effectiveFrom || variables.documentDate,
+    effectiveDate: activeFormat === 'confirmation' ? (variables.confirmationEffectiveFrom || variables.documentDate) : (variables.effectiveFrom || variables.documentDate),
     previousDesignation: activeFormat === 'promotion' ? (variables.currentDesignation.trim() || currentDesignation(selectedEmployee)) : null,
     promotedDesignation: activeFormat === 'promotion' ? variables.promotedDesignation.trim() : null,
     version: 1,
     source: 'legacy_format_generator',
     formatId: active.id,
+    formatVariables: { ...variables },
   })
 
   const persistFormatDraft = async (eventType) => {
@@ -107,6 +122,8 @@ export default function LegacyLetterFormatsWorkspace({ employees, user, api, can
   const generate = async () => {
     if (!selectedEmployee) return
     if (activeFormat === 'promotion' && (!variables.currentDesignation.trim() || !variables.promotedDesignation.trim())) { alert('Enter both the current designation and promoted designation before generating the Promotion letter.'); return }
+    if (activeFormat === 'confirmation' && (!variables.currentDesignation.trim() || !variables.probationEndDate || !variables.confirmationEffectiveFrom)) { alert('Enter the confirmed designation, probation end date, and confirmation effective date.'); return }
+    if (activeFormat === 'warning' && (!variables.incidentDate || !variables.warningReason.trim())) { alert('Enter the incident date and warning reason before generating the Warning letter.'); return }
     setSaving(true)
     try {
       await persistFormatDraft('letter_format_generated')
