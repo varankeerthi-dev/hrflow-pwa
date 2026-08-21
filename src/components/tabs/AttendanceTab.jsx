@@ -648,7 +648,7 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
   );
 }
 
-export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigAllowance, onDirtyChange, onOpenHolidaySettings, onReviewEmployees }) {
+export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigAllowance, onDirtyChange }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId, false)
   const { fetchByDate, upsertAttendance, deleteByDate, loading: attLoading, fetchRange, deleteIndividualAttendance } = useAttendance(user?.orgId)
@@ -806,7 +806,6 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const [saved, setSaved] = useState(false)
   const [orgData, setOrgData] = useState(null)
   const [existingRecords, setExistingRecords] = useState([])
-  const [attendanceFollowUp, setAttendanceFollowUp] = useState({ loading: false, incompleteDays: [], employeeGaps: [] })
 
   // Dirty tracking: warn user when leaving with unsaved attendance edits
   const [dirty, setDirty] = useState(false)
@@ -1153,76 +1152,6 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     if (day === 6 && orgData?.saturdayType && orgData.saturdayType !== 'working') return true
     return false
   }
-
-  const previousWorkdays = useMemo(() => {
-    if (!selectedDate) return []
-    const days = []
-    const cursor = new Date(`${selectedDate}T12:00:00`)
-    cursor.setDate(cursor.getDate() - 1)
-    let safety = 0
-    while (days.length < 10 && safety < 40) {
-      const date = formatDateForInput(cursor)
-      const dayOfWeek = cursor.getDay()
-      const isSundayOff = dayOfWeek === 0 && orgData?.sundayType && orgData.sundayType !== 'working'
-      const isSaturdayOff = dayOfWeek === 6 && orgData?.saturdayType && orgData.saturdayType !== 'working'
-      if (!isSundayOff && !isSaturdayOff && !configuredHolidays.has(date)) days.push(date)
-      cursor.setDate(cursor.getDate() - 1)
-      safety += 1
-    }
-    return days
-  }, [selectedDate, configuredHolidays, orgData?.saturdayType, orgData?.sundayType])
-
-  useEffect(() => {
-    if (!user?.orgId || !previousWorkdays.length || !employees.length) {
-      setAttendanceFollowUp({ loading: false, incompleteDays: [], employeeGaps: [] })
-      return
-    }
-
-    let cancelled = false
-    const isEmployeeExpectedOn = (employee, date) => {
-      if (employee.hideInAttendance) return false
-      const joinedDate = employee.joinedDate || employee.joiningDate || employee.dateOfJoining || ''
-      if (joinedDate && date < joinedDate) return false
-      if (employee.inactiveFrom && date >= employee.inactiveFrom) return false
-      return isEmployeeActiveStatus(employee.status) || (employee.status === 'Inactive' && employee.inactiveFrom > date)
-    }
-
-    const loadFollowUp = async () => {
-      setAttendanceFollowUp((current) => ({ ...current, loading: true }))
-      const records = await fetchRange(previousWorkdays[previousWorkdays.length - 1], previousWorkdays[0])
-      if (cancelled) return
-
-      const recordedEmployeesByDay = records.reduce((map, record) => {
-        if (!record?.date || !record?.employeeId) return map
-        if (!map.has(record.date)) map.set(record.date, new Set())
-        map.get(record.date).add(record.employeeId)
-        return map
-      }, new Map())
-
-      const incompleteDays = previousWorkdays
-        .map((date) => {
-          const expectedEmployees = employees.filter((employee) => isEmployeeExpectedOn(employee, date))
-          const recordedEmployees = recordedEmployeesByDay.get(date) || new Set()
-          const missingCount = expectedEmployees.filter((employee) => !recordedEmployees.has(employee.id)).length
-          return { date, missingCount, expectedCount: expectedEmployees.length, recordedCount: recordedEmployees.size }
-        })
-        .filter((day) => day.expectedCount > 0 && day.recordedCount === 0)
-
-      const employeeGaps = employees
-        .map((employee) => {
-          const missingDates = previousWorkdays.filter((date) => isEmployeeExpectedOn(employee, date) && !(recordedEmployeesByDay.get(date) || new Set()).has(employee.id))
-          return { employee, missingDates }
-        })
-        .filter((entry) => entry.missingDates.length >= 3)
-        .sort((a, b) => b.missingDates.length - a.missingDates.length || (a.employee.name || '').localeCompare(b.employee.name || ''))
-        .slice(0, 3)
-
-      setAttendanceFollowUp({ loading: false, incompleteDays, employeeGaps })
-    }
-
-    loadFollowUp()
-    return () => { cancelled = true }
-  }, [employees, fetchRange, previousWorkdays, user?.orgId])
 
   const isFutureDate = (date) => {
     return false
@@ -1779,55 +1708,6 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     }
   }
 
-  const renderAttendanceFollowUp = ({ compact = false } = {}) => {
-    const backlogDays = attendanceFollowUp.incompleteDays
-    const oldestIncompleteDay = backlogDays[backlogDays.length - 1]
-    const firstEmployeeGap = attendanceFollowUp.employeeGaps[0]
-    const hasBacklog = backlogDays.length > 0
-    const backlogDayLabel = `${backlogDays.length} recent workday${backlogDays.length === 1 ? '' : 's'}`
-    const message = attendanceFollowUp.loading
-      ? 'Checking the recent attendance trail…'
-      : hasBacklog
-        ? `${backlogDayLabel} ${backlogDays.length === 1 ? 'is' : 'are'} not filled in the attendance register.`
-        : 'Planning a closure? Add it to the holiday calendar before generating attendance.'
-
-    if (compact) {
-      return (
-        <div className={`flex min-w-0 flex-1 items-center gap-3 rounded-[12px] border px-3 py-2 ${hasBacklog ? 'border-amber-200 bg-amber-50/80' : 'border-slate-200 bg-slate-50/80'}`}>
-          <div className="min-w-0 flex-1">
-            <p className={`text-[9px] font-bold uppercase tracking-widest ${hasBacklog ? 'text-amber-700' : 'text-slate-500'}`}>Reminder</p>
-            <p className={`truncate text-[11px] leading-4 ${hasBacklog ? 'font-semibold text-amber-900' : 'text-slate-600'}`}>{message}</p>
-            {firstEmployeeGap && !attendanceFollowUp.loading && <p className="truncate text-[10px] text-slate-500">{firstEmployeeGap.employee.name}: attendance not filled for {firstEmployeeGap.missingDates.length} recent workdays — review attendance or inactive status.</p>}
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {hasBacklog && oldestIncompleteDay && <button type="button" onClick={() => setSelectedDate(oldestIncompleteDay.date)} className="h-8 rounded-lg border border-amber-200 bg-white px-2.5 text-[10px] font-semibold text-amber-800 transition hover:bg-amber-100">Open {displayShortDate(oldestIncompleteDay.date)}</button>}
-            {onOpenHolidaySettings && <button type="button" onClick={onOpenHolidaySettings} className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-100">Holiday settings</button>}
-            {firstEmployeeGap && onReviewEmployees && <button type="button" onClick={onReviewEmployees} className="h-8 rounded-lg bg-indigo-600 px-2.5 text-[10px] font-semibold text-white transition hover:bg-indigo-700">Review employee</button>}
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div className={`rounded-[12px] border p-3 shadow-sm ${hasBacklog ? 'border-amber-200 bg-amber-50/70' : 'border-slate-100 bg-slate-50/70'}`}>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <p className={`text-[10px] font-bold uppercase tracking-widest ${hasBacklog ? 'text-amber-700' : 'text-slate-500'}`}>Reminder</p>
-            <p className={`mt-1 text-xs leading-5 ${hasBacklog ? 'font-medium text-amber-900' : 'text-slate-600'}`}>{message}</p>
-            {firstEmployeeGap && !attendanceFollowUp.loading && (
-              <p className="mt-1 text-[11px] leading-5 text-slate-600"><span className="font-semibold text-slate-800">{firstEmployeeGap.employee.name}</span> has attendance not filled for {firstEmployeeGap.missingDates.length} recent workdays. Fill the attendance, or review whether the employee is inactive.</p>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {hasBacklog && oldestIncompleteDay && <button type="button" onClick={() => setSelectedDate(oldestIncompleteDay.date)} className="min-h-9 rounded-lg border border-amber-200 bg-white px-3 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100">Open {displayShortDate(oldestIncompleteDay.date)}</button>}
-            {onOpenHolidaySettings && <button type="button" onClick={onOpenHolidaySettings} className="min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100">Holiday settings</button>}
-            {firstEmployeeGap && onReviewEmployees && <button type="button" onClick={onReviewEmployees} className="min-h-9 rounded-lg bg-indigo-600 px-3 text-[11px] font-semibold text-white transition hover:bg-indigo-700">Review employee</button>}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="module-layout-root flex flex-col h-full gap-3 pb-20" style={{ fontFamily: "'Roboto', sans-serif" }}>
       {activeSubTab === 'monthly-summary' ? (
@@ -1850,7 +1730,6 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               </div>
               {(isSunday || isConfiguredHoliday) && <div className="flex items-center justify-end gap-3 pt-3"><span className={`text-[11px] font-semibold uppercase tracking-wide ${isSunday ? 'text-orange-600' : 'text-purple-600'}`}>{isSunday ? 'Sunday' : 'Holiday'}</span><button onClick={handleMarkAllHoliday} disabled={saving || !rows.length} className="min-h-10 px-3 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11px] font-semibold disabled:opacity-50">{saving ? 'Marking…' : 'Mark all holiday'}</button></div>}
             </div>
-            {renderAttendanceFollowUp()}
             <div className="grid grid-cols-2 gap-2"><button onClick={handleAddRow} className="min-h-11 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs font-semibold flex items-center justify-center gap-2"><Plus size={15} /> Add row</button><button onClick={handleGenerate} className="min-h-11 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-2">Generate active</button></div>
             <div className="grid grid-cols-3 gap-2"><div className="rounded-lg bg-green-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-green-700">Present</div><div className="text-lg font-bold text-green-800">{rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-red-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-red-700">Absent</div><div className="text-lg font-bold text-red-800">{rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-gray-100 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-gray-600">Total</div><div className="text-lg font-bold text-gray-800">{rows.filter(r => !r.isPlaceholder).length}</div></div></div>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-gray-100/80 p-1"><span className="pl-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Roster view</span><div className="flex items-center gap-1"><button type="button" onClick={() => setCompactMode(false)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${!compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={!compactMode}><LayoutGrid size={13} /> Cards</button><button type="button" onClick={() => setCompactMode(true)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={compactMode}><List size={13} /> Compact</button></div></div>
@@ -1923,7 +1802,6 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                 )}
               </div>
             </div>
-            {renderAttendanceFollowUp({ compact: true })}
             
             <div className="flex shrink-0 items-center gap-2">
               {/* Card for Reset and Add Row */}
