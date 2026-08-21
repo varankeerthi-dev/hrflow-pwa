@@ -1803,7 +1803,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
               </div>
             </div>
             
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               {/* Card for Reset and Add Row */}
               <div className="flex items-center gap-2 bg-[#361f1b] p-1 rounded-lg shadow-sm border border-[#4a2b26]">
                 <button 
