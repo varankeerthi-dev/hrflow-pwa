@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useSalarySlab } from '../../hooks/useSalarySlab'
 import { db } from '../../lib/firebase'
-import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp, setDoc, doc, getDoc, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore'
 import { formatINR, numberToWords } from '../../lib/salaryUtils'
 import Spinner from '../ui/Spinner'
 import { Wallet, Search, Download, Plus, Minus, History, Settings, AlertCircle, Info, X, CheckCircle2, Edit2, Trash2, Banknote, Clock, ChevronLeft, ChevronRight, FileText, Calendar as CalendarIcon, ChevronDown, ChevronUp, RefreshCw, ArrowUpRight, ArrowRight, Save, Table, RotateCcw, Mail } from 'lucide-react'
@@ -657,6 +657,14 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   const [summaryMonth, setSummaryMonth] = useState(selectedMonth)
+  const [holidayCalendarRevision, setHolidayCalendarRevision] = useState(0)
+
+  useEffect(() => {
+    if (!user?.orgId) return undefined
+    return onSnapshot(doc(db, 'organisations', user.orgId), () => {
+      setHolidayCalendarRevision(Date.now())
+    })
+  }, [user?.orgId])
 
   const employees = useMemo(() => {
     if (!allEmployees) return [];
@@ -1145,7 +1153,7 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
   }, [employees, employeeRowOrder])
 
   const { data: attendanceSummaryData = [], isLoading: isAttendanceLoading, refetch: refetchSummary } = useQuery({
-    queryKey: ['attendanceSummary', user?.orgId, summaryMonth, increments],
+    queryKey: ['attendanceSummary', user?.orgId, summaryMonth, increments, holidayCalendarRevision],
     queryFn: async () => {
       if (!user?.orgId || !sortedEmployees.length) return []; const [y, m] = summaryMonth.split('-').map(Number), end = new Date(y, m, 0).getDate(), sd = `${summaryMonth}-01`, ed = `${summaryMonth}-${end}`
       const [aSnap, loanSnap, aeSnap, fineSnap, otAdjSnap, orgSnap, sandwichSnap, varSnap, coverageSnap] = await Promise.all([
@@ -2195,9 +2203,10 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const orgDoc = await getDoc(doc(db, 'organisations', user.orgId));
       const orgData = orgDoc.exists() ? orgDoc.data() : {};
-      const holidayList = Array.isArray(orgData.holidays) ? orgData.holidays : [];
+      const holidayCalendar = getHolidayCalendarForMonth(orgData, summaryMonth);
+      const holidayList = holidayCalendar.holidays;
       const holidayDates = new Set(holidayList.map(h => h.date).filter(Boolean));
-      const saturdayType = orgData.saturdayType || 'working';
+      const saturdayType = holidayCalendar.saturdayType;
       const isSaturdayHoliday = saturdayType !== 'working';
 
       const attSnap = await getDocs(collection(db, 'organisations', user.orgId, 'attendance'));
