@@ -18,9 +18,9 @@ export const auth = getAuth(app)
 setPersistence(auth, browserLocalPersistence).catch(err => {
   console.warn('Auth persistence warning:', err)
 })
-// Initialize Firestore with long polling to prevent ERR_BLOCKED_BY_CLIENT errors from ad-blockers
+// Prefer Firestore's automatic transport detection. It falls back to long polling only when the network requires it.
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
+  experimentalAutoDetectLongPolling: true,
 })
 export const storage = getStorage(app)
 
