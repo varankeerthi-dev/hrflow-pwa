@@ -264,6 +264,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [reportFilterProject, setReportFilterProject] = useState('')
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
+  const [reportSelectedEntryIds, setReportSelectedEntryIds] = useState([])
+  const [bulkDeletingReports, setBulkDeletingReports] = useState(false)
   const [ledgerView, setLedgerView] = useState('employee')
   const [ledgerEmployeeId, setLedgerEmployeeId] = useState('')
   const [ledgerFromDate, setLedgerFromDate] = useState('')
@@ -1949,6 +1951,39 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (item) confirmDelete(item)
   }
 
+  const toggleReportEntrySelection = (id) => {
+    setReportSelectedEntryIds((current) => current.includes(id) ? current.filter((entryId) => entryId !== id) : [...current, id])
+  }
+
+  const toggleReportSectionSelection = (items) => {
+    const itemIds = items.map((item) => item.id)
+    setReportSelectedEntryIds((current) => {
+      const allSelected = itemIds.length > 0 && itemIds.every((id) => current.includes(id))
+      return allSelected ? current.filter((id) => !itemIds.includes(id)) : [...new Set([...current, ...itemIds])]
+    })
+  }
+
+  const handleBulkReportDelete = async (items) => {
+    const selectedItems = items.filter((item) => !item.isTransferredAdvance && reportSelectedEntryIds.includes(item.id))
+    if (!selectedItems.length || bulkDeletingReports) return
+    const hasPaidItems = selectedItems.some((item) => item.paymentStatus === 'Paid')
+    const paidNotice = hasPaidItems ? ' Paid entries will also revoke their linked advance records; delete those individually if you need to keep a linked advance.' : ''
+    if (!window.confirm(`Move ${selectedItems.length} selected transaction${selectedItems.length === 1 ? '' : 's'} to Recently Deleted?${paidNotice}`)) return
+
+    setBulkDeletingReports(true)
+    try {
+      const outcomes = await Promise.allSettled(selectedItems.map((item) => deleteMutation.mutateAsync({ id: item.id, keepAdvanceRecord: false })))
+      const deletedIds = selectedItems.filter((_, index) => outcomes[index].status === 'fulfilled').map((item) => item.id)
+      setReportSelectedEntryIds((current) => current.filter((id) => !deletedIds.includes(id)))
+      const failed = outcomes.length - deletedIds.length
+      alert(failed ? `${deletedIds.length} moved to Recently Deleted; ${failed} could not be deleted.` : `${deletedIds.length} transaction${deletedIds.length === 1 ? '' : 's'} moved to Recently Deleted.`)
+    } catch (error) {
+      alert(error?.message || 'Unable to delete the selected transactions.')
+    } finally {
+      setBulkDeletingReports(false)
+    }
+  }
+
   const handleRestore = async (id) => {
     if (!window.confirm('Are you sure you want to revoke this deletion? It will return to reports and re-link with employee data if it was paid.')) return
     try {
@@ -2155,6 +2190,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       return true
     })
   }, [filteredEntries, reportSelectedEmployees, employees])
+  const reportAdvanceRows = reportApplied ? advForReport : advances
+  const reportExpenseRows = reportApplied ? expForReport : expenses
+  const visibleReportEntries = [...reportAdvanceRows, ...reportExpenseRows]
+  const selectableReportEntries = visibleReportEntries.filter((entry) => !entry.isTransferredAdvance)
+  const selectedVisibleReportCount = selectableReportEntries.filter((entry) => reportSelectedEntryIds.includes(entry.id)).length
 
   const handleScreenshot = async () => {
     try {
@@ -4483,6 +4523,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               </div>
             </div>
           )}
+          {canSelectAll && selectedVisibleReportCount > 0 && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-rose-100 bg-rose-50/60 px-4 py-3">
+              <p className="text-xs font-semibold text-rose-800">{selectedVisibleReportCount} report record{selectedVisibleReportCount === 1 ? '' : 's'} selected</p>
+              <div className="flex items-center gap-2"><button type="button" onClick={() => setReportSelectedEntryIds([])} disabled={bulkDeletingReports} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">Clear selection</button><button type="button" onClick={() => handleBulkReportDelete(selectableReportEntries)} disabled={bulkDeletingReports} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50"><Trash2 size={14} />{bulkDeletingReports ? 'Deleting…' : 'Delete selected'}</button></div>
+            </div>
+          )}
           
           {/* Reports Container for Screenshot */}
           <div ref={reportsContainerRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -4499,7 +4545,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
-                    {(reportApplied ? advForReport : advances).length} Records
+                    {reportAdvanceRows.length} Records
                   </span>
                 </div>
               </div>
@@ -4507,6 +4553,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b border-gray-100 bg-slate-50">
+                      {canSelectAll && <th className="w-9 border-r border-gray-100 px-2 py-2.5 text-center"><input type="checkbox" checked={reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance).length > 0 && reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance).every((entry) => reportSelectedEntryIds.includes(entry.id))} onChange={() => toggleReportSectionSelection(reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance))} aria-label="Select all advance report records" className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" /></th>}
                       <th className="w-[55px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
                       <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
                       <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
@@ -4516,14 +4563,15 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     </tr>
                   </thead>
                   <tbody>
-                    {(reportApplied ? advForReport : advances).length === 0 ? (
+                    {reportAdvanceRows.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-10 text-center text-[11px] font-medium text-slate-400">
+                        <td colSpan={canSelectAll ? 7 : 6} className="py-10 text-center text-[11px] font-medium text-slate-400">
                           No records found for this criteria
                         </td>
                       </tr>
-                    ) : (reportApplied ? advForReport : advances).map(a => (
+                    ) : reportAdvanceRows.map(a => (
                       <tr key={a.id} className="border-b border-gray-100 text-slate-700 hover:bg-emerald-50/30">
+                        {canSelectAll && <td className="border-r border-gray-100 px-2 py-2.5 text-center">{a.isTransferredAdvance ? <span className="text-[10px] text-slate-300">—</span> : <input type="checkbox" checked={reportSelectedEntryIds.includes(a.id)} onChange={() => toggleReportEntrySelection(a.id)} aria-label={`Select advance ${a.transactionNo || a.id}`} className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" />}</td>}
                         <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-medium text-slate-500">
                           {new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
@@ -4603,7 +4651,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
-                    {(reportApplied ? expForReport : expenses).length} Records
+                    {reportExpenseRows.length} Records
                   </span>
                 </div>
               </div>
@@ -4611,6 +4659,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b border-gray-100 bg-slate-50">
+                      {canSelectAll && <th className="w-9 border-r border-gray-100 px-2 py-2.5 text-center"><input type="checkbox" checked={reportExpenseRows.length > 0 && reportExpenseRows.every((entry) => reportSelectedEntryIds.includes(entry.id))} onChange={() => toggleReportSectionSelection(reportExpenseRows)} aria-label="Select all expense report records" className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" /></th>}
                       <th className="w-[55px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
                       <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
                       <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
@@ -4622,12 +4671,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   <tbody>
                     {(reportApplied ? expForReport : expenses).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-10 text-center text-[11px] font-medium text-slate-400">
+                        <td colSpan={canSelectAll ? 7 : 6} className="py-10 text-center text-[11px] font-medium text-slate-400">
                           No records found for this criteria
                         </td>
                       </tr>
-                    ) : (reportApplied ? expForReport : expenses).map(e => (
+                    ) : reportExpenseRows.map(e => (
                       <tr key={e.id} className="border-b border-gray-100 text-slate-700 hover:bg-violet-50/30">
+                        {canSelectAll && <td className="border-r border-gray-100 px-2 py-2.5 text-center"><input type="checkbox" checked={reportSelectedEntryIds.includes(e.id)} onChange={() => toggleReportEntrySelection(e.id)} aria-label={`Select expense ${e.transactionNo || e.id}`} className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" /></td>}
                         <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-medium text-slate-500">
                           {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
@@ -4856,7 +4906,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
                   <div className="rounded-[12px] border border-gray-100 bg-white shadow-sm">
                     <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">All advances and expenses</p><p className="mt-0.5 text-sm font-semibold text-slate-900">{allLedgerEntries.length} record{allLedgerEntries.length !== 1 ? 's' : ''} · {ledgerShowAll ? 'Showing all filtered rows' : `Page ${ledgerPage} of ${ledgerPageCount}`}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={exportLedgerPDF} disabled={!allLedgerEntries.length} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white hover:bg-slate-900 disabled:opacity-50"><FileDown size={14} /> Export PDF</button><button type="button" onClick={() => { setLedgerShowAll((value) => !value); setLedgerPage(1) }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">{ledgerShowAll ? 'Use pages' : 'Show all'}</button></div></div>
-                    {allLedgerEntries.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-400">No advance or expense entries match these filters.</p> : <><div className="overflow-x-auto"><div className="min-w-[1010px]"><div className="grid border-b border-gray-100 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400" style={{ gridTemplateColumns: '110px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 100px' }}><div className="px-4 py-3">Date</div><div className="px-4 py-3">Employee</div><div className="px-4 py-3">Type</div><div className="px-4 py-3">Category</div><div className="px-4 py-3">Transaction</div><div className="px-4 py-3 text-right">Amount</div><div className="px-4 py-3 text-right">Paid</div><div className="px-4 py-3">Status</div></div><div ref={ledgerTableRef} className="max-h-[560px] overflow-y-auto"><div style={{ height: `${ledgerVirtualizer.getTotalSize()}px`, position: 'relative' }}>{ledgerVirtualizer.getVirtualItems().map((virtualRow) => { const entry = ledgerVisibleEntries[virtualRow.index]; return <div key={entry.id} className="grid items-center border-b border-gray-100 text-sm text-slate-700 hover:bg-slate-50" style={{ gridTemplateColumns: '110px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 100px', position: 'absolute', transform: `translateY(${virtualRow.start}px)`, height: `${virtualRow.size}px`, width: '100%' }}><div className="px-4 py-2">{formatLedgerDate(entry.date)}</div><div className="truncate px-4 py-2 font-medium text-slate-900" title={entry.employeeName}>{entry.employeeName}</div><div className="px-4 py-2"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.type === 'Expense' ? 'bg-violet-50 text-violet-700' : 'bg-cyan-50 text-cyan-700'}`}>{entry.type}</span></div><div className="truncate px-4 py-2" title={entry.category || '—'}>{entry.category || '—'}</div><div className="truncate px-4 py-2 font-mono text-xs" title={entry.transactionNo || '—'}>{entry.transactionNo || '—'}</div><div className="px-4 py-2 text-right font-medium">{formatINR(entry.amount)}</div><div className="px-4 py-2 text-right text-emerald-700">{formatINR(entry.paidAmount)}</div><div className="px-4 py-2"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{entry.status || 'Pending'}</span></div></div> })}</div></div></div></div>{!ledgerShowAll && <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3"><p className="text-xs text-slate-500">Showing {ledgerVisibleEntries.length ? (ledgerPage - 1) * ledgerPageSize + 1 : 0}–{Math.min(ledgerPage * ledgerPageSize, allLedgerEntries.length)} of {allLedgerEntries.length}</p><div className="flex gap-2"><button type="button" onClick={() => setLedgerPage((page) => Math.max(1, page - 1))} disabled={ledgerPage === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Previous</button><button type="button" onClick={() => setLedgerPage((page) => Math.min(ledgerPageCount, page + 1))} disabled={ledgerPage === ledgerPageCount} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Next</button></div></div>}</>}
+                    {allLedgerEntries.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-400">No advance or expense entries match these filters.</p> : <><div className="overflow-x-auto"><div className="min-w-[1024px]"><div className="grid border-b border-gray-100 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400" style={{ gridTemplateColumns: '124px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 100px' }}><div className="px-3 py-3 whitespace-nowrap">Date</div><div className="px-4 py-3">Employee</div><div className="px-4 py-3">Type</div><div className="px-4 py-3">Category</div><div className="px-4 py-3">Transaction</div><div className="px-4 py-3 text-right">Amount</div><div className="px-4 py-3 text-right">Paid</div><div className="px-4 py-3">Status</div></div><div ref={ledgerTableRef} className="max-h-[560px] overflow-y-auto"><div style={{ height: `${ledgerVirtualizer.getTotalSize()}px`, position: 'relative' }}>{ledgerVirtualizer.getVirtualItems().map((virtualRow) => { const entry = ledgerVisibleEntries[virtualRow.index]; return <div key={entry.id} className="grid items-center border-b border-gray-100 text-sm text-slate-700 hover:bg-slate-50" style={{ gridTemplateColumns: '124px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 100px', position: 'absolute', transform: `translateY(${virtualRow.start}px)`, height: `${virtualRow.size}px`, width: '100%' }}><div className="whitespace-nowrap px-3 py-2">{formatLedgerDate(entry.date)}</div><div className="truncate px-4 py-2 font-medium text-slate-900" title={entry.employeeName}>{entry.employeeName}</div><div className="px-4 py-2"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.type === 'Expense' ? 'bg-violet-50 text-violet-700' : 'bg-cyan-50 text-cyan-700'}`}>{entry.type}</span></div><div className="truncate px-4 py-2" title={entry.category || '—'}>{entry.category || '—'}</div><div className="truncate px-4 py-2 font-mono text-xs" title={entry.transactionNo || '—'}>{entry.transactionNo || '—'}</div><div className="px-4 py-2 text-right font-medium">{formatINR(entry.amount)}</div><div className="px-4 py-2 text-right text-emerald-700">{formatINR(entry.paidAmount)}</div><div className="px-4 py-2"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{entry.status || 'Pending'}</span></div></div> })}</div></div></div></div>{!ledgerShowAll && <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3"><p className="text-xs text-slate-500">Showing {ledgerVisibleEntries.length ? (ledgerPage - 1) * ledgerPageSize + 1 : 0}–{Math.min(ledgerPage * ledgerPageSize, allLedgerEntries.length)} of {allLedgerEntries.length}</p><div className="flex gap-2"><button type="button" onClick={() => setLedgerPage((page) => Math.max(1, page - 1))} disabled={ledgerPage === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Previous</button><button type="button" onClick={() => setLedgerPage((page) => Math.min(ledgerPageCount, page + 1))} disabled={ledgerPage === ledgerPageCount} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Next</button></div></div>}</>}
                   </div>
                 </>
               )}
