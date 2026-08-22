@@ -981,10 +981,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (!entries || !Array.isArray(entries)) return { groups: [], monthTotal: 0 }
     const isAdvance = activeModule === 'Add Advance'
     
-    // Filter items matching active module (Advance vs Expense)
-    const filtered = entries.filter(item => {
-      const itemType = (item.type || '').toLowerCase()
-      return isAdvance ? itemType.includes('advance') : (itemType.includes('expense') || itemType === 'reimbursement')
+    // Use the accounting classification, not only the stored type. A legacy
+    // "Given to Others" giver record can have type=Advance, but it belongs to
+    // the Expense side while its linked recipient record is the real Advance.
+    const filtered = entries.filter((item) => {
+      const accountingType = getAccountingEntryType(item)
+      return isAdvance ? accountingType === 'Advance' : accountingType === 'Expense'
     })
 
     const grouped = {}
@@ -4505,13 +4507,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="w-full min-w-[790px] table-fixed border-collapse">
                   <thead>
                     <tr className="border-b border-gray-100 bg-slate-50">
                       {canSelectAll && <th className="w-9 border-r border-gray-100 px-2 py-2.5 text-center"><input type="checkbox" checked={reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance).length > 0 && reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance).every((entry) => reportSelectedEntryIds.includes(entry.id))} onChange={() => toggleReportSectionSelection(reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance))} aria-label="Select all advance report records" className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" /></th>}
                       <th className="w-[55px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
-                      <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
-                      <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
+                      <th className="w-[120px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
+                      <th className="w-[175px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
                       <th className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Remarks</th>
                       <th className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</th>
                       <th className="w-[60px] px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Actions</th>
@@ -4530,8 +4532,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-medium text-slate-500">
                           {new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
-                        <td className="border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">{a.employeeName}</td>
-                        <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
+                        <td className="w-[120px] border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">{a.employeeName}</td>
+                        <td className="w-[175px] border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
                           <div className="flex flex-col gap-0.5">
                             <span className="font-semibold text-slate-700">{a.category || a.type || '—'}</span>
                             {a.givenByEmployeeName && (
@@ -4611,13 +4613,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="w-full min-w-[790px] table-fixed border-collapse">
                   <thead>
                     <tr className="border-b border-gray-100 bg-slate-50">
                       {canSelectAll && <th className="w-9 border-r border-gray-100 px-2 py-2.5 text-center"><input type="checkbox" checked={reportExpenseRows.length > 0 && reportExpenseRows.every((entry) => reportSelectedEntryIds.includes(entry.id))} onChange={() => toggleReportSectionSelection(reportExpenseRows)} aria-label="Select all expense report records" className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" /></th>}
                       <th className="w-[55px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
-                      <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
-                      <th className="border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
+                      <th className="w-[120px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
+                      <th className="w-[175px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
                       <th className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Remarks</th>
                       <th className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</th>
                       <th className="w-[50px] px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Actions</th>
@@ -4636,8 +4638,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-medium text-slate-500">
                           {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </td>
-                        <td className="border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">{e.employeeName}</td>
-                        <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
+                        <td className="w-[120px] border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">{e.employeeName}</td>
+                        <td className="w-[175px] border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
                           <div className="flex flex-col gap-0.5">
                             <span className="font-semibold text-slate-700">{e.category || e.type || '—'}</span>
                             {(e.paidToName || e.paidToCustomName) && ((e.category && e.category.toLowerCase().includes('given to others')) || (e.paidToName || e.paidToCustomName) !== e.employeeName) && (
