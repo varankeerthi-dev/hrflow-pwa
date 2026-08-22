@@ -40,6 +40,23 @@ function approvalStatusTextClass(status, lane) {
   return isHr ? 'text-amber-700' : 'text-orange-800'
 }
 
+function isGivenToOthersCategory(category) {
+  return String(category || '')
+    .replace(/\s*\[[^\]]*\]\s*$/, '')
+    .trim()
+    .toLowerCase() === 'given to others'
+}
+
+function getAccountingEntryType(entry) {
+  // A "Given to Others" transaction is the cash giver's expense. The linked
+  // recipient document is the actual Advance, so legacy giver records must
+  // never be presented as advances merely because they were saved with a
+  // historical type of Advance.
+  return entry?.type === 'Advance' && isGivenToOthersCategory(entry?.category)
+    ? 'Expense'
+    : entry?.type
+}
+
 function EmployeeLedgerCard({ emp, formatINR }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -478,7 +495,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
     // Process all advance entries
     entries.forEach(entry => {
-      if (entry.type !== 'Advance') return
+      if (getAccountingEntryType(entry) !== 'Advance') return
       const emp = employeeMap.get(entry.employeeId)
       if (!emp) return
 
@@ -527,12 +544,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     return Number.isNaN(parsed?.getTime?.()) ? String(value) : format(parsed, 'dd-MMM-yyyy')
   }
 
-  const ledgerCategories = useMemo(() => [...new Set(entries.filter((entry) => ['Advance', 'Expense'].includes(entry.type)).map((entry) => entry.category).filter(Boolean))].sort(), [entries])
+  const ledgerCategories = useMemo(() => [...new Set(entries.filter((entry) => ['Advance', 'Expense'].includes(getAccountingEntryType(entry))).map((entry) => entry.category).filter(Boolean))].sort(), [entries])
 
   const allLedgerEntries = useMemo(() => {
     return entries
       .filter((entry) => {
-        if (!['Advance', 'Expense'].includes(entry.type)) return false
+        if (!['Advance', 'Expense'].includes(getAccountingEntryType(entry))) return false
         if (ledgerEmployeeId && entry.employeeId !== ledgerEmployeeId) return false
         if (ledgerFromDate && String(entry.date || '') < ledgerFromDate) return false
         if (ledgerToDate && String(entry.date || '') > ledgerToDate) return false
@@ -545,6 +562,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const employee = employees.find((item) => item.id === entry.employeeId)
         return {
           ...entry,
+          persistedType: entry.type,
+          type: getAccountingEntryType(entry),
           employeeName: entry.employeeName || employee?.name || 'Unknown employee',
           amount,
           paidAmount,
@@ -584,8 +603,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const resolvedCategory = row.category === 'custom' && row.customCategory
           ? row.customCategory.trim()
           : row.category
+        const isGivenToOthers = isGivenToOthersCategory(resolvedCategory)
         let type = 'Expense'
-        if (activeModule === 'Add Advance') type = 'Advance'
+        if (isGivenToOthers) type = 'Expense'
+        else if (activeModule === 'Add Advance') type = 'Advance'
         else if (activeModule === 'Add Expense') type = 'Expense'
         else type = resolvedCategory.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
 
@@ -607,7 +628,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         // ANY expense paid to an employee creates an advance for that receiving employee
         let linkedAdvanceId = null
         const isPaidToEmployee = row.paidToType === 'employee' && row.paidTo
-        if (isPaidToEmployee) {
+        if (type === 'Expense' && isPaidToEmployee) {
           // Create linked Advance record for the receiving employee
           const advanceTxnNo = `ADV-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
           const advanceDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
@@ -1122,20 +1143,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         }
         
         // Employee multi-select filter
-        const selectedEmpNamesLower = reportSelectedEmployees
-          .map(id => employees.find(emp => emp.id === id)?.name)
-          .filter(Boolean)
-          .map(n => n.toLowerCase().trim())
-
-        const empNameLower = (e.employeeName || '').toLowerCase().trim()
-        const paidToNameLower = (e.paidToName || e.paidToCustomName || '').toLowerCase().trim()
-
-        const matchesEmployee = reportSelectedEmployees.length === 0 || 
-          reportSelectedEmployees.includes(e.employeeId) ||
-          (e.paidTo && reportSelectedEmployees.includes(e.paidTo)) ||
-          (e.paidToId && reportSelectedEmployees.includes(e.paidToId)) ||
-          (empNameLower && selectedEmpNamesLower.includes(empNameLower)) ||
-          (paidToNameLower && selectedEmpNamesLower.includes(paidToNameLower))
+        // Reports belong to the transaction owner. A recipient reference on a
+        // cash-giver expense must not make that expense appear under the
+        // recipient (or make a recipient advance appear under the giver).
+        const matchesEmployee = reportSelectedEmployees.length === 0 ||
+          reportSelectedEmployees.includes(e.employeeId)
         
         // Category filter
         const matchesCategory = !reportFilterCategory || 
@@ -1150,7 +1162,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           (e.transactionNo && e.transactionNo.toLowerCase().includes(reportFilterTxn.toLowerCase()))
         
         // Type filter
-        const matchesType = reportFilterType === 'All' || e.type === reportFilterType
+        const matchesType = reportFilterType === 'All' || getAccountingEntryType(e) === reportFilterType
         
         // Payout filter
         const matchesPayout = reportFilterPayout === 'All' || e.payoutMethod === reportFilterPayout
@@ -1994,8 +2006,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
   }
 
-  const advances = entries.filter(e => e.type === 'Advance')
-  const expenses = entries.filter(e => e.type === 'Expense')
+  const advances = entries.filter(e => getAccountingEntryType(e) === 'Advance')
+  const expenses = entries.filter(e => getAccountingEntryType(e) === 'Expense')
   const portalExpenses = portalMode
     ? expenses.filter((entry) => entry.employeeId === portalEmployeeId).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
     : []
@@ -2028,8 +2040,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }
 
   const summary = useMemo(() => {
-    const adv = entries.filter((e) => e.type === 'Advance')
-    const exp = entries.filter((e) => e.type === 'Expense')
+    const adv = entries.filter((e) => getAccountingEntryType(e) === 'Advance')
+    const exp = entries.filter((e) => getAccountingEntryType(e) === 'Expense')
     const statusKey = (e) => e.status || 'Pending'
     const roll = (list) => {
       const map = {}
@@ -2121,50 +2133,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }
 
   const advForReport = useMemo(() => {
-    const list = []
-    const selectedEmpNamesLower = reportSelectedEmployees
-      .map(id => employees.find(emp => emp.id === id)?.name)
-      .filter(Boolean)
-      .map(n => n.toLowerCase().trim())
-    
-    filteredEntries.forEach(e => {
-      if (e.type === 'Advance') {
-        if (reportSelectedEmployees.length > 0) {
-          const empNameLower = (e.employeeName || '').toLowerCase().trim()
-          const paidToNameLower = (e.paidToName || e.paidToCustomName || '').toLowerCase().trim()
-          const matches = reportSelectedEmployees.includes(e.employeeId) ||
-            (e.paidTo && reportSelectedEmployees.includes(e.paidTo)) ||
-            (e.paidToId && reportSelectedEmployees.includes(e.paidToId)) ||
-            (empNameLower && selectedEmpNamesLower.includes(empNameLower)) ||
-            (paidToNameLower && selectedEmpNamesLower.includes(paidToNameLower))
-          if (matches) list.push(e)
-        } else {
-          list.push(e)
-        }
-      }
+    return filteredEntries.filter((entry) => {
+      if (getAccountingEntryType(entry) !== 'Advance') return false
+      return reportSelectedEmployees.length === 0 || reportSelectedEmployees.includes(entry.employeeId)
     })
-    
-    return list
-  }, [filteredEntries, reportSelectedEmployees, employees])
+  }, [filteredEntries, reportSelectedEmployees])
 
   const expForReport = useMemo(() => {
-    const selectedEmpNamesLower = reportSelectedEmployees
-      .map(id => employees.find(emp => emp.id === id)?.name)
-      .filter(Boolean)
-      .map(n => n.toLowerCase().trim())
-
-    return filteredEntries.filter(e => {
-      if (e.type !== 'Expense') return false
-      
-      if (reportSelectedEmployees.length > 0) {
-        const empNameLower = (e.employeeName || '').toLowerCase().trim()
-        const isGiver = reportSelectedEmployees.includes(e.employeeId) || selectedEmpNamesLower.includes(empNameLower)
-        return isGiver
-      }
-      
-      return true
+    return filteredEntries.filter((entry) => {
+      if (getAccountingEntryType(entry) !== 'Expense') return false
+      return reportSelectedEmployees.length === 0 || reportSelectedEmployees.includes(entry.employeeId)
     })
-  }, [filteredEntries, reportSelectedEmployees, employees])
+  }, [filteredEntries, reportSelectedEmployees])
   const reportAdvanceRows = reportApplied ? advForReport : advances
   const reportExpenseRows = reportApplied ? expForReport : expenses
   const visibleReportEntries = [...reportAdvanceRows, ...reportExpenseRows]
