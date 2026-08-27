@@ -165,7 +165,7 @@ function EmployeeLedgerCard({ emp, formatINR }) {
   )
 }
 
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, disableCashTransfer, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
   const categoryRequiresPaidTo = ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
 
   return (
@@ -207,7 +207,13 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category <span className="text-rose-500">*</span></label>
-            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => handleRowChange(row.id, 'category', value)} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} />
+            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => {
+              if (disableCashTransfer && isGivenToOthersCategory(value)) {
+                alert('Given to Others is not available for Self Expense. Use Employee Expense to record a cash transfer to another employee.')
+                return
+              }
+              handleRowChange(row.id, 'category', value)
+            }} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} />
             {row.category === 'custom' && <input type="text" value={row.customCategory || ''} onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500" placeholder="Custom category..." />}
           </div>
           <div>
@@ -719,7 +725,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     },
     onSuccess: (txnNos) => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
-      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: !canSelectAll ? getMyEmpId() : '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
+      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: activeModule === 'Add Expense' && expenseMode === 'self' ? getMyEmpId() : (!canSelectAll ? getMyEmpId() : ''), category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
       try { localStorage.removeItem('hrflow_expense_draft') } catch (e) { /* ignore */ }
       // Note: Drawer will open automatically showing submitted items
     }
@@ -1500,21 +1506,33 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     // Check for future dates in Expenses
     const todayStr = new Date().toISOString().split('T')[0]
     const isExpenseModule = activeModule === 'Add Expense' || activeModule === 'Expense'
+    const isSelfExpenseSubmission = activeModule === 'Add Expense' && expenseMode === 'self'
+    const selfEmployeeId = isSelfExpenseSubmission ? getMyEmpId() : ''
+    if (isSelfExpenseSubmission && !selfEmployeeId) {
+      return alert('Your employee record is not linked to this account yet. Ask HR to link your employee profile before submitting a Self Expense.')
+    }
+    const rowsForSubmission = isSelfExpenseSubmission
+      ? addRows.map((row) => ({ ...row, employeeId: selfEmployeeId }))
+      : addRows
     if (isExpenseModule) {
-      if (sessionDate > todayStr || addRows.some(r => r.date && r.date > todayStr)) {
+      if (sessionDate > todayStr || rowsForSubmission.some(r => r.date && r.date > todayStr)) {
         return alert('Expenses cannot be created for future dates.')
       }
     }
 
     // Check for required fields
-    const rowsWithMissingFields = addRows.filter(r => !r.date || !r.employeeId || !r.amount || !r.category)
+    const rowsWithMissingFields = rowsForSubmission.filter(r => !r.date || !r.employeeId || !r.amount || !r.category)
     if (rowsWithMissingFields.length > 0) {
       return alert('Please fill in required fields (Date, Employee, Category, Amount) for all rows.')
     }
     
     // Check for "Paid To" requirement in specific categories
     const categoriesRequiringPaidTo = ['salary to others', 'given to others']
-    const rowsMissingPaidTo = addRows.filter(r => {
+    const selfTransferRows = rowsForSubmission.filter((row) => isGivenToOthersCategory(row.category))
+    if (isSelfExpenseSubmission && selfTransferRows.length > 0) {
+      return alert('Given to Others is not available for Self Expense. Use Employee Expense to record a cash transfer to another employee.')
+    }
+    const rowsMissingPaidTo = rowsForSubmission.filter(r => {
       const categoryLower = r.category?.toLowerCase().trim() || ''
       const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => 
         categoryLower.includes(reqCat)
@@ -1533,7 +1551,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     // Check for over-advance cap (Advances only)
     const maxCap = parseFloat(orgSettings.maxAdvanceAmount)
     if (maxCap > 0) {
-      const rowsOverCap = addRows.filter(r => {
+      const rowsOverCap = rowsForSubmission.filter(r => {
         const isAdvance = r.category?.toLowerCase().includes('advance') || r.type === 'Advance'
         return isAdvance && parseFloat(r.amount) > maxCap
       })
@@ -1550,7 +1568,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     
     // Check for expense category limits
     const expenseLimits = orgSettings.expenseCategoryLimits || {}
-    const rowsOverExpenseLimit = addRows.filter(r => {
+    const rowsOverExpenseLimit = rowsForSubmission.filter(r => {
       const isExpense = r.category?.toLowerCase().includes('expense') || r.type === 'Expense'
       if (!isExpense) return false
       const limit = parseFloat(expenseLimits[r.category])
@@ -1568,7 +1586,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
     
     // All rows are valid
-    const validRows = addRows
+    const validRows = rowsForSubmission
     
     // Exact duplicate check within the current submission batch. This catches
     // an accidental copied row without blocking two genuinely different bills.
@@ -1708,7 +1726,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             project: '',
             reason: ''
           }])
-          setActiveModule('Reports')
+          if (rowType === 'Advance') setActiveModule('Reports')
           return
         }
 
@@ -3544,6 +3562,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 <Dropdown
                                   value={row.category === 'custom' ? '' : row.category}
                                   onChange={(val, e) => {
+                                    if (isSelfExpense && isGivenToOthersCategory(val)) {
+                                      alert('Given to Others is not available for Self Expense. Use Employee Expense to record a cash transfer to another employee.')
+                                      return
+                                    }
                                     handleRowChange(row.id, 'category', val);
                                     const lower = (val || '').toLowerCase();
                                     if (lower.includes('given to others') || lower.includes('salary to others')) {
@@ -3816,6 +3838,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       showProjectColumn={showProjectColumn}
                       portalMode={portalMode}
                       hideEmployee={isSelfExpense}
+                      disableCashTransfer={isSelfExpense}
                       handleRowChange={handleRowChange}
                       handleDuplicateRow={handleDuplicateRow}
                       handleDeleteRow={(rowId) => setAddRows(prev => prev.filter(item => item.id !== rowId))}
