@@ -1115,7 +1115,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     try {
       const date = value?.toDate?.() || parseISO(String(value))
       if (Number.isNaN(date.getTime())) return String(value)
-      return format(date, 'dd-MM-yyyy')
+      return format(date, 'dd/MM/yyyy')
     } catch {
       return String(value)
     }
@@ -1325,11 +1325,20 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const handleAddRow = () => {
     const isSelfEntry = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self'
+    const isEmployeeEntry = !portalMode && ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'employee'
     const activeEmp = isSelfEntry ? getMyEmpId() : (sessionDefaultEmp || getMyEmpId() || '')
     const newId = Date.now() + Math.random()
     setAddRows(prev => [...prev, { id: newId, date: sessionDate || new Date().toISOString().split('T')[0], employeeId: activeEmp, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: sessionPayout || 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
-    // Auto-focus the new row's category cell after React renders it
+    // Employee-entry grids intentionally begin the next row in Employee;
+    // self-entry grids keep the faster Category-first data-entry flow.
     setTimeout(() => {
+      if (isEmployeeEntry) {
+        const employeeSelector = document.querySelector(`#employee-cell-${newId} select`)
+        if (employeeSelector) {
+          employeeSelector.focus()
+          return
+        }
+      }
       const catCell = document.getElementById(`category-cell-${newId}`)
       if (catCell) {
         const categoryTrigger = catCell.querySelector('button')
@@ -3725,7 +3734,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             </td>
 
                             {!portalMode && !isSelfEntry && (
-                              <td className="py-1.5 px-2">
+                              <td id={`employee-cell-${row.id}`} className="py-1.5 px-2">
                                 <select
                                   value={row.employeeId}
                                   onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
@@ -4085,7 +4094,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             </div>
 
             {/* Right Column: Side Panel (~25% width) */}
-            <div className="w-full lg:w-[25%] lg:max-w-[290px] shrink-0 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 self-start">
+            <div className="w-full shrink-0 self-start rounded-2xl border border-slate-200/80 bg-white p-3.5 font-body shadow-sm lg:ml-auto lg:w-[25%] lg:max-w-[290px]">
               <button
                 type="button"
                 onClick={() => setIsMobileReportExpanded((expanded) => !expanded)}
@@ -4105,22 +4114,22 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 {/* 1. Panel Header: Current Month & Total Spent/Adv */}
                 <div className="border-b border-slate-100 pb-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-extrabold text-slate-900 tracking-tight uppercase font-heading">
+                    <h4 className="text-xs font-medium uppercase tracking-tight text-slate-900">
                       {format(new Date(), 'MMMM yyyy')}
                     </h4>
-                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 font-mono">
+                    <span className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-700">
                       {formatINR(sidePanelData.monthTotal)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500 font-medium font-body">
+                  <div className="mt-1 flex items-center justify-between text-[11px] font-normal text-slate-500">
                     <span>{activeModule === 'Add Advance' ? 'Total Advance' : 'Total Spent'}</span>
-                    <span className="font-bold text-slate-800 font-mono">{formatINR(sidePanelData.monthTotal)}</span>
+                    <span className="font-medium text-slate-800 font-mono">{formatINR(sidePanelData.monthTotal)}</span>
                   </div>
                 </div>
 
                 {/* 2. Recent Entries Section (Date-wise, Recent to Oldest) */}
                 <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 font-body">
+                  <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-slate-400">
                     Recent {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}
                   </div>
 
@@ -4142,12 +4151,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   ? current.filter((date) => date !== group.dateStr)
                                   : [...current, group.dateStr]
                               ))}
-                              className="flex w-full items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1 text-left text-[11px] font-bold text-slate-800 transition-colors hover:bg-slate-100 font-heading"
+                              className="flex w-full items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-left text-[11px] font-medium text-slate-800 transition-colors hover:bg-slate-100"
                               aria-expanded={!isCollapsed}
                             >
                               <ChevronDown size={13} className={`shrink-0 text-slate-500 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
                               <span>{formatDateTitle(group.dateStr)}</span>
-                              <span className="ml-auto text-right font-mono text-slate-900 tabular-nums">{formatINR(group.total)}</span>
+                              <span className="ml-auto text-right font-mono font-medium tabular-nums text-slate-900">{formatINR(group.total)}</span>
                             </button>
 
                             {!isCollapsed && (
@@ -4160,24 +4169,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   return (
                                     <div
                                       key={item.id || iIdx}
-                                      className={`${isSelfEntry ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[85px_minmax(0,1fr)_auto_auto]'} group grid items-center gap-1 text-[9px] font-medium text-slate-600 hover:text-slate-900 py-1 font-body border-b border-slate-50 last:border-0`}
+                                      className={`${isSelfEntry ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[82px_minmax(0,1fr)_auto]'} ${isSelfEntry ? '' : 'relative'} group grid items-center gap-2 border-b border-slate-50 py-2 font-body text-[10px] font-normal text-slate-600 last:border-0 hover:text-slate-900`}
                                     >
                                       {isSelfEntry ? (
                                         <div className="flex min-w-0 flex-col">
-                                          <span className="truncate text-slate-600 font-semibold" title={item.category || 'General'}>{item.category || 'General'}</span>
-                                          {item.reason && <span className="mt-0.5 truncate text-[8px] font-normal leading-none text-slate-400" title={item.reason}>{item.reason}</span>}
+                                          <span className="truncate font-medium text-slate-600" title={item.category || 'General'}>{item.category || 'General'}</span>
+                                          {item.reason && <span className="mt-1 line-clamp-2 whitespace-normal break-words text-[9px] font-normal leading-4 text-slate-400" title={item.reason}>{item.reason}</span>}
                                         </div>
                                       ) : (
                                         <>
-                                          <span className="truncate pr-1 font-semibold text-slate-800" title={item.employeeName || 'Unknown'}>{item.employeeName || 'Unknown'}</span>
-                                          <div className="flex min-w-0 flex-col">
-                                            <span className="truncate font-medium text-slate-500" title={item.category || 'General'}>- {item.category || 'General'}</span>
-                                            {showRecipient && <span className="mt-0.5 truncate text-[6px] font-bold leading-none text-blue-600 font-body" title={`Recipient: ${recipientName}`}>→ {recipientName}</span>}
+                                          <span className="truncate pr-1 font-medium text-slate-800" title={item.employeeName || 'Unknown'}>{item.employeeName || 'Unknown'}</span>
+                                          <div className="flex min-w-0 flex-col gap-0.5 pr-1">
+                                            <span className="truncate font-normal text-slate-500" title={item.category || 'General'}>- {item.category || 'General'}</span>
+                                            {item.reason && <span className="line-clamp-2 whitespace-normal break-words text-[9px] font-normal leading-4 text-slate-400" title={item.reason}>{item.reason}</span>}
+                                            {showRecipient && <span className="mt-0.5 truncate text-[8px] font-medium leading-none text-blue-600" title={`Recipient: ${recipientName}`}>→ {recipientName}</span>}
                                           </div>
                                         </>
                                       )}
-                                      <span className="ml-auto shrink-0 text-right font-mono font-bold text-slate-900 tabular-nums">{formatINR(item.amount)}</span>
-                                      <span className="invisible flex shrink-0 items-center gap-1 group-hover:visible group-focus-within:visible">
+                                      <span className="ml-auto shrink-0 text-right font-mono font-medium tabular-nums text-slate-900">{formatINR(item.amount)}</span>
+                                      <span className={`${isSelfEntry ? 'invisible flex shrink-0' : 'invisible absolute right-0 top-1/2 -translate-y-1/2 bg-white/95 pl-2'} items-center gap-1 group-hover:visible group-focus-within:visible`}>
                                         <button type="button" onClick={() => handleEdit(item)} className="text-[8px] font-semibold text-indigo-600 hover:text-indigo-800" aria-label={`Edit ${item.category || 'expense'}`}>Edit</button>
                                         <span className="text-slate-200">|</span>
                                         <button type="button" onClick={() => confirmDelete(item)} className="text-[8px] font-semibold text-rose-600 hover:text-rose-800" aria-label={`Delete ${item.category || 'expense'}`}>Delete</button>
@@ -5180,16 +5190,16 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
       {/* Escalation Module */}
       {activeModule === 'Escalation' && (
-        <div className="space-y-6">
+        <div className="space-y-4 font-body">
           {loading ? (
             <div className="flex justify-center py-16">
               <Spinner />
             </div>
           ) : (
             <>
-              <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest max-w-2xl">
+              <p className="max-w-2xl text-xs font-normal text-slate-500">
                 Requests that still need action in the approval chain. Use{' '}
-                <span className="font-black text-indigo-600">Approvals</span> to resolve them.
+                <span className="font-medium text-indigo-600">Approvals</span> to resolve them.
               </p>
 
               {[
@@ -5214,57 +5224,57 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               ].map((block) => (
                 <div
                   key={block.key}
-                  className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm"
+                  className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm"
                 >
-                  <div className="px-5 py-4 border-b border-zinc-100 bg-white/60 flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4">
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
+                      <AlertTriangle className="mt-0.5 shrink-0 text-amber-600" size={18} />
                       <div>
-                        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-800">{block.title}</h3>
-                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-tight mt-1">{block.subtitle}</p>
+                        <h3 className="text-sm font-medium text-slate-900">{block.title}</h3>
+                        <p className="mt-1 text-[11px] font-normal text-slate-500">{block.subtitle}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-full border border-zinc-200">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-medium text-slate-600">
                       {block.rows.length}
                     </span>
                   </div>
-                  <div className="bg-white overflow-x-auto">
+                  <div className="overflow-x-auto bg-white">
                     {block.rows.length === 0 ? (
-                      <p className="text-center text-zinc-300 font-bold uppercase italic tracking-widest py-12 opacity-40">None right now</p>
+                      <p className="py-12 text-center text-sm font-normal text-slate-400">No requests in this queue.</p>
                     ) : (
-                      <table className="w-full text-left border-collapse min-w-[640px]">
+                      <table className="min-w-[640px] w-full border-collapse text-left">
                         <thead>
-                          <tr className="bg-zinc-50/80 border-b border-zinc-200 h-10">
-                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Date</th>
-                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Type</th>
-                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-100">Employee</th>
-                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-100">Amount</th>
-                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">HR</th>
-                            <th className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">MD</th>
+                          <tr className="h-10 border-b border-slate-200 bg-slate-50">
+                            <th className="border-r border-slate-200 px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">Date</th>
+                            <th className="border-r border-slate-200 px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">Type</th>
+                            <th className="border-r border-slate-200 px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">Employee</th>
+                            <th className="border-r border-slate-200 px-4 text-right text-[10px] font-medium uppercase tracking-widest text-slate-500">Amount</th>
+                            <th className="px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">HR</th>
+                            <th className="px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">MD</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-50">
+                        <tbody className="divide-y divide-slate-100">
                           {block.rows.map((row) => (
-                            <tr key={row.id} className="h-12 hover:bg-zinc-50/50 transition-colors">
-                              <td className="px-4 text-[12px] font-bold text-zinc-600 border-r border-zinc-50">{formatEscalationDate(row.date)}</td>
-                              <td className="px-4 border-r border-zinc-50">
+                            <tr key={row.id} className="h-12 transition-colors hover:bg-slate-50/70">
+                              <td className="border-r border-slate-100 px-4 text-[12px] font-normal text-slate-600">{formatEscalationDate(row.date)}</td>
+                              <td className="border-r border-slate-100 px-4">
                                 {(() => {
                                   const cat = row.category || row.type || '—'
                                   const match = cat.match(/(.*?) \[(.*?)\]/)
                                   if (match) {
                                     return (
                                       <div className="flex flex-col">
-                                        <span className={`text-[11px] font-bold ${row.type === 'Advance' ? 'text-amber-700' : 'text-indigo-700'}`}>{match[1]}</span>
-                                        <span className="text-red-500 text-[9px] font-black uppercase tracking-tighter italic">[{match[2]}]</span>
+                                        <span className={`text-[11px] font-medium ${row.type === 'Advance' ? 'text-emerald-700' : 'text-rose-700'}`}>{match[1]}</span>
+                                        <span className="text-[9px] font-normal text-slate-400">{match[2]}</span>
                                       </div>
                                     )
                                   }
                                   return (
                                     <span
-                                      className={`text-[9px] font-black uppercase tracking-tight px-2 py-0.5 rounded-md ${
+                                      className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${
                                         row.type === 'Advance' 
-                                          ? 'bg-amber-100 text-amber-800' 
-                                          : 'bg-indigo-100 text-indigo-800'
+                                          ? 'bg-emerald-50 text-emerald-700'
+                                          : 'bg-rose-50 text-rose-700'
                                       }`}
                                     >
                                       {cat}
@@ -5272,12 +5282,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   )
                                 })()}
                               </td>
-                              <td className="px-4 text-[13px] font-bold text-zinc-800 border-r border-zinc-50">{row.employeeName || '—'}</td>
-                              <td className="px-4 text-right text-[13px] font-black text-zinc-900 border-r border-zinc-50 tabular-nums">{formatINR(effectiveAmount(row))}</td>
-                              <td className="px-4 text-[10px] font-black uppercase border-r border-zinc-50">
+                              <td className="border-r border-slate-100 px-4 text-[13px] font-medium text-slate-800">{row.employeeName || '—'}</td>
+                              <td className="border-r border-slate-100 px-4 text-right text-[13px] font-medium tabular-nums text-slate-900">{formatINR(effectiveAmount(row))}</td>
+                              <td className="border-r border-slate-100 px-4 text-[10px] font-normal">
                                 <span className={approvalStatusTextClass(row.hrApproval, 'hr')}>{row.hrApproval || 'Pending'}</span>
                               </td>
-                              <td className="px-4 text-[10px] font-black uppercase">
+                              <td className="px-4 text-[10px] font-normal">
                                 <span className={approvalStatusTextClass(row.mdApproval, 'md')}>{row.mdApproval || 'Pending'}</span>
                               </td>
                             </tr>
