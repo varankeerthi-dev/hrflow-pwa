@@ -165,7 +165,7 @@ function EmployeeLedgerCard({ emp, formatINR }) {
   )
 }
 
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, portalMode, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
   const categoryRequiresPaidTo = ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
 
   return (
@@ -179,7 +179,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
       </div>
 
       <div className="space-y-2.5">
-        {!portalMode && (
+        {!portalMode && !hideEmployee && (
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Employee <span className="text-rose-500">*</span></label>
             <Dropdown
@@ -1273,11 +1273,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     return newId
   }
 
-  const handleSelfExpense = () => {
+  const handleSelfExpense = (confirmReassignment = activeModule === 'Add Expense') => {
     const currentUserEmp = employees.find(e => e.email === user.email || e.id === user.uid)
     const empId = currentUserEmp ? currentUserEmp.id : (user.uid || '')
+    const hasOtherEmployeeRows = addRows.some((row) => row.employeeId && row.employeeId !== empId)
+    if (confirmReassignment && hasOtherEmployeeRows && !window.confirm('Switch to Self Expense? All current rows will be assigned to your employee record.')) return false
+    setSessionDefaultEmp(empId)
     setAddRows(addRows.map(row => ({ ...row, employeeId: empId })))
+    return true
   }
+
+  useEffect(() => {
+    if (activeModule !== 'Add Expense' || expenseMode !== 'self') return
+    const ownEmployeeId = getMyEmpId()
+    if (!ownEmployeeId) return
+    setSessionDefaultEmp((current) => current || ownEmployeeId)
+    setAddRows((rows) => rows.map((row) => (
+      row.employeeId ? row : { ...row, employeeId: ownEmployeeId }
+    )))
+  }, [activeModule, expenseMode, employees, user?.email, user?.uid])
 
   const handleCSVImport = (event) => {
     const file = event.target.files[0]
@@ -3162,6 +3176,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (() => {
         const totalExpensesCount = addRows.length;
         const totalExpensesAmount = addRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        const isSelfExpense = activeModule === 'Add Expense' && expenseMode === 'self'
 
         const getCategoryIconDetails = (catName) => {
           const c = String(catName || '').toLowerCase()
@@ -3189,44 +3204,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             {/* 1. Integrated Header, Compact Mode Selector & Main Actions */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200/90 shadow-sm">
               <div className="flex flex-col gap-2 w-full">
-                <span className={portalMode ? 'hidden' : 'text-sm font-bold text-slate-800 tracking-tight'}>{activeModule === 'Add Advance' ? 'Advance' : 'Expense'} type:</span>
-
-                {/* Ultra-Compact Mode Selector with Increased Spacing & Green Selection */}
-                <div className={portalMode ? 'hidden' : 'flex flex-row flex-wrap items-center gap-5 text-xs'}>
-                  <button
-                    type="button"
-                    onClick={() => { setExpenseMode('self'); handleSelfExpense(); }}
-                    className={`py-2 transition-all flex items-center gap-2 tracking-wide cursor-pointer ${
-                      expenseMode === 'self'
-                        ? 'text-slate-900 font-semibold'
-                        : 'text-slate-600 hover:text-slate-900 font-normal'
-                    }`}
-                  >
-                    <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                      expenseMode === 'self' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
-                    }`}>
-                      {expenseMode === 'self' && <Check size={10} className="text-white stroke-[3]" />}
-                    </span>
-                    Self {activeModule === 'Add Advance' ? 'Advance' : 'Expense'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setExpenseMode('employee')}
-                    className={`py-2 transition-all flex items-center gap-2 tracking-wide cursor-pointer ${
-                      expenseMode === 'employee'
-                        ? 'text-slate-900 font-semibold'
-                        : 'text-slate-600 hover:text-slate-900 font-normal'
-                    }`}
-                  >
-                    <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                      expenseMode === 'employee' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
-                    }`}>
-                      {expenseMode === 'employee' && <Check size={10} className="text-white stroke-[3]" />}
-                    </span>
-                    Employee {activeModule === 'Add Advance' ? 'Advance' : 'Expense'}
-                  </button>
-                </div>
+                {activeModule === 'Add Expense' ? (
+                  <>
+                    <span className="text-sm font-bold text-slate-800 tracking-tight">Add Expense</span>
+                    {!portalMode && <div role="tablist" aria-label="Expense entry type" className="flex w-fit items-end border-b border-slate-200 text-xs">
+                      <button type="button" role="tab" aria-selected={expenseMode === 'self'} onClick={() => { if (handleSelfExpense()) setExpenseMode('self') }} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'self' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><User size={14} />Self Expense</button>
+                      <button type="button" role="tab" aria-selected={expenseMode === 'employee'} onClick={() => setExpenseMode('employee')} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'employee' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Users size={14} />Employee Expense</button>
+                    </div>}
+                  </>
+                ) : (
+                  <>
+                    <span className={portalMode ? 'hidden' : 'text-sm font-bold text-slate-800 tracking-tight'}>Advance type:</span>
+                    <div className={portalMode ? 'hidden' : 'flex flex-row flex-wrap items-center gap-5 text-xs'}>
+                      <button type="button" onClick={() => { if (handleSelfExpense()) setExpenseMode('self') }} className={`py-2 transition-all flex items-center gap-2 tracking-wide cursor-pointer ${expenseMode === 'self' ? 'text-slate-900 font-semibold' : 'text-slate-600 hover:text-slate-900 font-normal'}`}><span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${expenseMode === 'self' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'}`}>{expenseMode === 'self' && <Check size={10} className="text-white stroke-[3]" />}</span>Self Advance</button>
+                      <button type="button" onClick={() => setExpenseMode('employee')} className={`py-2 transition-all flex items-center gap-2 tracking-wide cursor-pointer ${expenseMode === 'employee' ? 'text-slate-900 font-semibold' : 'text-slate-600 hover:text-slate-900 font-normal'}`}><span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${expenseMode === 'employee' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'}`}>{expenseMode === 'employee' && <Check size={10} className="text-white stroke-[3]" />}</span>Employee Advance</button>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -3306,7 +3300,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   )}
 
                   {/* Default Employee */}
-                  {showSessionEmployee && !portalMode && (
+                  {showSessionEmployee && !portalMode && !isSelfExpense && (
                   <>
                     <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
@@ -3423,7 +3417,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             Toggle visible fields
                           </div>
 
-                          {!portalMode && (
+                          {!portalMode && !isSelfExpense && (
                             <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
                               <span className="font-semibold">Employee</span>
                               <input type="checkbox" checked={showSessionEmployee} onChange={(e) => setShowSessionEmployee(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
@@ -3475,11 +3469,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                 {/* 5. High-Density Spreadsheet Table Grid */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                  <table className="w-full min-w-[920px] table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200/80 [&_tbody_td]:border-r [&_tbody_td]:border-slate-100 [&_tr>*:last-child]:border-r-0">
                     <thead>
                       <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                         <th className="py-3 px-3 w-10 text-center">#</th>
-                        {!portalMode && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
+                        {!portalMode && !isSelfExpense && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
                         {activeModule === 'Add Expense' && <th className="py-3 px-3 min-w-[128px] w-32">Date <span className="text-rose-500">*</span></th>}
                         <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
                         {showAdvanceFields && (
@@ -3501,13 +3495,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         const CategoryIcon = catDetails.icon;
 
                         return (
-                          <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
+                          <tr key={row.id} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors group">
                             {/* Row Index */}
                             <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-xs">
                               {idx + 1}
                             </td>
 
-                            {!portalMode && (
+                            {!portalMode && !isSelfExpense && (
                               <td className="py-2 px-3">
                                 <select
                                   value={row.employeeId}
@@ -3814,6 +3808,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       showAdvanceFields={showAdvanceFields}
                       showProjectColumn={showProjectColumn}
                       portalMode={portalMode}
+                      hideEmployee={isSelfExpense}
                       handleRowChange={handleRowChange}
                       handleDuplicateRow={handleDuplicateRow}
                       handleDeleteRow={(rowId) => setAddRows(prev => prev.filter(item => item.id !== rowId))}
