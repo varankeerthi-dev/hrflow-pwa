@@ -10,6 +10,7 @@ import { arrayUnion, collection, addDoc, query, getDocs, onSnapshot, serverTimes
 import { Trash2, FileDown, Edit2, PieChart, AlertTriangle, Clock, CheckCircle2, ChevronLeft, ChevronRight, Calendar, Search, Filter, RefreshCw, X, History, RotateCcw, Banknote, Camera, Building2, User, Users, Repeat, Send, Plus, Copy, MoreVertical, Sparkles, ChevronDown, Check, HelpCircle, Utensils, Coffee, Car, Hotel, PenTool, Tag, Package, Calculator, Receipt, Shield, Info, Lightbulb, Layers, FilePlus, Folder, SlidersHorizontal } from 'lucide-react'
 import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
+import Modal from '../ui/Modal'
 import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR } from '../../lib/salaryUtils'
 import { jsPDF } from 'jspdf'
@@ -3023,25 +3024,30 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
       {/* Edit Modal */}
       {editingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]">
-          <div role="dialog" aria-modal="true" aria-labelledby="edit-transaction-title" className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-[12px] border border-slate-200 bg-white shadow-xl">
-            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
+        <Modal
+          isOpen={!!editingId}
+          onClose={() => { setEditingId(null); setEditForm({}) }}
+          title={`EDIT TRANSACTION: ${editForm.category || ''}`}
+          size="3xl"
+        >
+          <div className="mx-auto flex max-w-3xl flex-col bg-white font-inter [&_input]:transition-all [&_select]:transition-all [&_input:hover]:border-gray-400 [&_select:hover]:border-gray-400 [&_input:hover]:shadow-sm [&_select:hover]:shadow-sm">
+            <div className="space-y-5 px-6 py-6">
+              <div className="flex items-start gap-3 border-b border-gray-100 pb-5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-indigo-100 bg-indigo-50 text-indigo-500"><Receipt size={18} /></div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-800">Transaction details</p>
+                  <p className="mt-0.5 text-[11px] text-gray-400">Saving changes resets the current approval decision.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Advance & Expense</p>
-                <h2 id="edit-transaction-title" className="mt-1 text-base font-semibold text-slate-900">Edit transaction</h2>
-                <p className="mt-1 text-xs text-slate-500">Changes will reset the current approval decision for this request.</p>
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Date</label>
+                <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
               </div>
-              <button type="button" onClick={() => setEditingId(null)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700" aria-label="Close edit transaction"><X size={16}/></button>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</label>
-                <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee</label>
-                <select value={editForm.employeeId} onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+              <div>
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Employee</label>
+                <select value={editForm.employeeId} onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900">
                   {sortedEmployees.map(e => (
                     <option key={e.id} value={e.id}>
                       {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
@@ -3049,42 +3055,43 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   ))}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
-                <input list="categories-list" value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
+              <div>
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Category</label>
+                <input list="categories-list" value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</label>
-                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
+              <div>
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Amount</label>
+                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Request type</label>
-                <select value={editForm.requestType} onChange={e => setEditForm(f => ({ ...f, requestType: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+              <div>
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Request type</label>
+                <select value={editForm.requestType} onChange={e => setEditForm(f => ({ ...f, requestType: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900">
                   <option value="Reimbursement">Reimbursement</option>
                   <option value="Pre-Approval">Pre-Approval</option>
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Payout</label>
-                <select value={editForm.payoutMethod} onChange={e => setEditForm(f => ({ ...f, payoutMethod: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+              <div>
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Payout</label>
+                <select value={editForm.payoutMethod} onChange={e => setEditForm(f => ({ ...f, payoutMethod: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900">
                   <option value="Immediate">Immediate</option>
                   <option value="With Salary">With Salary</option>
                 </select>
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Brief description</label>
-                <input type="text" value={editForm.reason} onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Brief description..." />
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Brief description</label>
+                <input type="text" value={editForm.reason} onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" placeholder="Brief description..." />
+              </div>
               </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
-              <button type="button" onClick={() => setEditingId(null)} className="h-10 rounded-[8px] border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50">Cancel</button>
-              <button type="button" onClick={handleUpdate} disabled={updateMutation.isPending} className="h-10 rounded-[8px] border border-emerald-700 bg-emerald-600 px-4 text-xs font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+            <div className="flex gap-3 border-t border-gray-100 bg-white px-6 py-4">
+              <button type="button" onClick={() => { setEditingId(null); setEditForm({}) }} className="h-10 rounded-lg border border-gray-200 px-5 text-sm font-medium text-gray-500 transition-all hover:bg-gray-50">Cancel</button>
+              <button type="button" onClick={handleUpdate} disabled={updateMutation.isPending} className="h-10 flex-1 rounded-lg bg-gray-900 text-sm font-semibold text-white transition-all hover:bg-gray-800 disabled:opacity-50">
                 {updateMutation.isPending ? 'Updating...' : 'Save & Revoke Approval'}
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Recently Deleted Modal */}
