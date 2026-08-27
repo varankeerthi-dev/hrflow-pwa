@@ -165,7 +165,7 @@ function EmployeeLedgerCard({ emp, formatINR }) {
   )
 }
 
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, disableCashTransfer, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
   const categoryRequiresPaidTo = ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
 
   return (
@@ -200,20 +200,22 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
         {activeModule === 'Add Expense' && (
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Date <span className="text-rose-500">*</span></label>
-            <input type="date" value={row.date || ''} max={new Date().toISOString().split('T')[0]} onChange={(e) => handleRowChange(row.id, 'date', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+            <DatePicker
+              selected={row.date ? parseISO(row.date) : null}
+              maxDate={new Date()}
+              onChange={(date) => date && handleRowChange(row.id, 'date', format(date, 'yyyy-MM-dd'))}
+              dateFormat="dd MMM yyyy"
+              popperClassName="z-[99999]"
+              popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+              customInput={<div className="flex h-10 w-full items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
+            />
           </div>
         )}
 
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category <span className="text-rose-500">*</span></label>
-            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => {
-              if (disableCashTransfer && isGivenToOthersCategory(value)) {
-                alert('Given to Others is not available for Self Expense. Use Employee Expense to record a cash transfer to another employee.')
-                return
-              }
-              handleRowChange(row.id, 'category', value)
-            }} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} />
+            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => handleRowChange(row.id, 'category', value)} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} />
             {row.category === 'custom' && <input type="text" value={row.customCategory || ''} onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500" placeholder="Custom category..." />}
           </div>
           <div>
@@ -882,7 +884,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const categoryLower = row.category?.toLowerCase().trim() || ''
     const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => categoryLower.includes(reqCat))
 
-    const activeEmps = employees.filter(e => (e.status || 'Active').toLowerCase() === 'active')
+    const activeEmps = employees.filter((employee) => (
+      (employee.status || 'Active').toLowerCase() === 'active'
+      && employee.id !== row.employeeId
+    ))
     const employeeOptions = activeEmps.map(e => ({ label: e.name, value: e.id }))
 
     const displayValue = (() => {
@@ -1528,10 +1533,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     
     // Check for "Paid To" requirement in specific categories
     const categoriesRequiringPaidTo = ['salary to others', 'given to others']
-    const selfTransferRows = rowsForSubmission.filter((row) => isGivenToOthersCategory(row.category))
-    if (isSelfExpenseSubmission && selfTransferRows.length > 0) {
-      return alert('Given to Others is not available for Self Expense. Use Employee Expense to record a cash transfer to another employee.')
-    }
     const rowsMissingPaidTo = rowsForSubmission.filter(r => {
       const categoryLower = r.category?.toLowerCase().trim() || ''
       const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => 
@@ -3546,12 +3547,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                             {activeModule === 'Add Expense' && (
                               <td className="py-1.5 px-2 w-32">
-                                <input
-                                  type="date"
-                                  value={row.date || ''}
-                                  max={new Date().toISOString().split('T')[0]}
-                                  onChange={(e) => handleRowChange(row.id, 'date', e.target.value)}
-                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                <DatePicker
+                                  selected={row.date ? parseISO(row.date) : null}
+                                  maxDate={new Date()}
+                                  onChange={(date) => date && handleRowChange(row.id, 'date', format(date, 'yyyy-MM-dd'))}
+                                  dateFormat="dd MMM yyyy"
+                                  popperClassName="z-[99999]"
+                                  popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
+                                  customInput={<div className="flex h-9 w-full items-center rounded-[4px] border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
                                 />
                               </td>
                             )}
@@ -3562,10 +3565,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 <Dropdown
                                   value={row.category === 'custom' ? '' : row.category}
                                   onChange={(val, e) => {
-                                    if (isSelfExpense && isGivenToOthersCategory(val)) {
-                                      alert('Given to Others is not available for Self Expense. Use Employee Expense to record a cash transfer to another employee.')
-                                      return
-                                    }
                                     handleRowChange(row.id, 'category', val);
                                     const lower = (val || '').toLowerCase();
                                     if (lower.includes('given to others') || lower.includes('salary to others')) {
@@ -3838,7 +3837,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       showProjectColumn={showProjectColumn}
                       portalMode={portalMode}
                       hideEmployee={isSelfExpense}
-                      disableCashTransfer={isSelfExpense}
                       handleRowChange={handleRowChange}
                       handleDuplicateRow={handleDuplicateRow}
                       handleDeleteRow={(rowId) => setAddRows(prev => prev.filter(item => item.id !== rowId))}
@@ -3872,13 +3870,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     type="button"
                     onClick={handleSubmitAll}
                     disabled={submitting}
-                    className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 sm:px-5 text-xs font-bold uppercase tracking-wide text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
+                    className="min-h-10 rounded-xl border border-emerald-700 bg-emerald-600 px-4 sm:px-5 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
                   >
-                    {submitting ? <Spinner size="w-3.5 h-3.5" color="text-emerald-600" /> : <Send size={14} className="text-emerald-600" />}
-                    <span className="text-slate-800">
+                    {submitting ? <Spinner size="w-3.5 h-3.5" color="text-white" /> : <Send size={14} className="text-white" />}
+                    <span className="text-white">
                       {submitting ? 'Submitting...' : `Submit ${activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}`}
                     </span>
-                    <span className="hidden sm:inline-block rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                    <span className="hidden sm:inline-block rounded-md border border-white/25 bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white">
                       Ctrl+Enter
                     </span>
                   </button>
@@ -3950,21 +3948,34 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               return (
                                 <div 
                                   key={item.id || iIdx}
-                                  className="grid grid-cols-[85px_1fr_auto] items-center gap-1 text-[9px] font-medium text-slate-600 hover:text-slate-900 py-0.5 font-body border-b border-slate-50 last:border-0"
+                                  className={`${isSelfExpense ? 'grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-[85px_1fr_auto]'} grid items-center gap-1 text-[9px] font-medium text-slate-600 hover:text-slate-900 py-0.5 font-body border-b border-slate-50 last:border-0`}
                                 >
-                                  <span className="truncate text-slate-800 font-semibold pr-1" title={item.employeeName || 'Unknown'}>
-                                    {item.employeeName || 'Unknown'}
-                                  </span>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="truncate text-slate-500 font-medium" title={item.category || 'General'}>
-                                      - {item.category || 'General'}
-                                    </span>
-                                    {showRecipient && (
-                                      <span className="text-[6px] font-bold text-blue-600 leading-none truncate mt-0.5 font-body" title={`Recipient: ${recipientName}`}>
-                                        → {recipientName}
+                                  {isSelfExpense ? (
+                                    <div className="flex min-w-0 flex-col">
+                                      <span className="truncate text-slate-600 font-semibold" title={item.category || 'General'}>
+                                        {item.category || 'General'}
                                       </span>
-                                    )}
-                                  </div>
+                                      <span className="mt-0.5 truncate text-[8px] font-normal leading-none text-slate-400" title={item.reason || 'No brief description'}>
+                                        {item.reason || 'No brief description'}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <span className="truncate text-slate-800 font-semibold pr-1" title={item.employeeName || 'Unknown'}>
+                                        {item.employeeName || 'Unknown'}
+                                      </span>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="truncate text-slate-500 font-medium" title={item.category || 'General'}>
+                                          - {item.category || 'General'}
+                                        </span>
+                                        {showRecipient && (
+                                          <span className="text-[6px] font-bold text-blue-600 leading-none truncate mt-0.5 font-body" title={`Recipient: ${recipientName}`}>
+                                            → {recipientName}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
                                   <span className="font-bold text-slate-900 font-mono shrink-0 text-right tabular-nums ml-auto">
                                     {formatINR(item.amount)}
                                   </span>
