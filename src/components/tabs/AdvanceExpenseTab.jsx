@@ -58,6 +58,16 @@ function getAccountingEntryType(entry) {
     : entry?.type
 }
 
+function formatDeletedRecordDate(dateValue) {
+  if (!dateValue) return '—'
+  try {
+    const parsed = dateValue?.toDate ? dateValue.toDate() : parseISO(String(dateValue))
+    return Number.isNaN(parsed.getTime()) ? String(dateValue) : format(parsed, 'dd/MM/yyyy')
+  } catch {
+    return String(dateValue)
+  }
+}
+
 function EmployeeLedgerCard({ emp, formatINR }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -271,7 +281,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [internalActiveModule, setInternalActiveModule] = useState(defaultModule || 'Add Advance')
   const activeModule = activeModuleProp !== undefined ? activeModuleProp : internalActiveModule
   const setActiveModule = (mod) => {
-    if (mod !== activeModule && draftDirtyRef.current && !window.confirm('You have unsaved Advance / Expense entries. Leave this section and keep the saved draft?')) return
     setInternalActiveModule(mod)
     if (onModuleChange) onModuleChange(mod)
   }
@@ -381,6 +390,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
+  const [selectedDeletedEntryIds, setSelectedDeletedEntryIds] = useState([])
   const [collapsedRecentExpenseDates, setCollapsedRecentExpenseDates] = useState([])
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' })
   const [portalEditForm, setPortalEditForm] = useState(null)
@@ -2062,9 +2072,39 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (!window.confirm('Are you sure you want to PERMANENTLY DELETE this record? This action cannot be undone.')) return
     try {
       await permanentDeleteMutation.mutateAsync(id)
+      setSelectedDeletedEntryIds((current) => current.filter((entryId) => entryId !== id))
       alert('Record permanently deleted')
     } catch (err) {
       alert('Failed to delete')
+    }
+  }
+
+  const toggleDeletedEntrySelection = (id) => {
+    setSelectedDeletedEntryIds((current) => (
+      current.includes(id) ? current.filter((entryId) => entryId !== id) : [...current, id]
+    ))
+  }
+
+  const toggleAllDeletedEntrySelection = () => {
+    setSelectedDeletedEntryIds((current) => (
+      deletedEntries.length > 0 && deletedEntries.every((entry) => current.includes(entry.id))
+        ? []
+        : deletedEntries.map((entry) => entry.id)
+    ))
+  }
+
+  const handleBulkPermanentDelete = async () => {
+    const selectedIds = selectedDeletedEntryIds.filter((id) => deletedEntries.some((entry) => entry.id === id))
+    if (!selectedIds.length || permanentDeleteMutation.isPending) return
+    if (!window.confirm(`Permanently delete ${selectedIds.length} selected record${selectedIds.length === 1 ? '' : 's'}? This cannot be undone.`)) return
+    try {
+      const outcomes = await Promise.allSettled(selectedIds.map((id) => permanentDeleteMutation.mutateAsync(id)))
+      const removedIds = selectedIds.filter((_, index) => outcomes[index].status === 'fulfilled')
+      setSelectedDeletedEntryIds((current) => current.filter((id) => !removedIds.includes(id)))
+      const failed = selectedIds.length - removedIds.length
+      alert(failed ? `${removedIds.length} records permanently deleted; ${failed} could not be deleted.` : `${removedIds.length} records permanently deleted.`)
+    } catch (error) {
+      alert(error?.message || 'Unable to permanently delete the selected records.')
     }
   }
 
@@ -3097,64 +3137,76 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       {/* Recently Deleted Modal */}
       {showDeletedModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-8 mx-4 border border-gray-100 max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-[12px] shadow-xl w-full max-w-4xl mx-4 border border-slate-200 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex flex-wrap justify-between items-center gap-3 px-5 py-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
                   <History size={20}/>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-800">Recently Deleted</h2>
-                  <p className="text-xs font-medium text-gray-400">Records available for 30 days since deletion</p>
+                  <h2 className="text-base font-semibold text-slate-900">Recently Deleted</h2>
+                  <p className="text-xs font-normal text-slate-400">Records available for 30 days since deletion</p>
                 </div>
               </div>
-              <button onClick={() => setShowDeletedModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleBulkPermanentDelete}
+                  disabled={!selectedDeletedEntryIds.length || permanentDeleteMutation.isPending}
+                  className="h-8 rounded-lg border border-rose-200 bg-rose-50 px-3 text-[10px] font-semibold uppercase tracking-wide text-rose-600 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Delete all{selectedDeletedEntryIds.length ? ` (${selectedDeletedEntryIds.length})` : ''}
+                </button>
+                <button type="button" onClick={() => { setShowDeletedModal(false); setSelectedDeletedEntryIds([]) }} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700" aria-label="Close recently deleted"><X size={18}/></button>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-auto border border-zinc-100 rounded-xl">
+            <div className="m-5 flex-1 overflow-auto rounded-[10px] border border-slate-100">
               {loadingDeleted ? (
                 <div className="py-20 flex justify-center"><Spinner /></div>
               ) : deletedEntries.length === 0 ? (
                 <div className="py-20 text-center space-y-3">
-                   <p className="text-sm font-bold text-zinc-300 uppercase tracking-widest italic opacity-60">No recently deleted items</p>
+                   <p className="text-sm font-normal text-zinc-400">No recently deleted items</p>
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-100">
+                <table className="w-full text-left border-collapse text-[12px] font-normal text-slate-600">
+                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-100">
                     <tr className="h-10">
-                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-r border-zinc-50">Trans. Date</th>
-                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-r border-zinc-50">Type</th>
-                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-r border-zinc-50">Employee</th>
-                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right border-r border-zinc-50">Amount</th>
-                      <th className="px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right">Action</th>
+                      <th className="w-10 px-3 text-center"><input type="checkbox" checked={deletedEntries.length > 0 && deletedEntries.every((entry) => selectedDeletedEntryIds.includes(entry.id))} onChange={toggleAllDeletedEntrySelection} className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" aria-label="Select all recently deleted records" /></th>
+                      <th className="px-4 text-[10px] font-normal text-slate-400 uppercase tracking-widest border-r border-slate-100">Trans. Date</th>
+                      <th className="px-4 text-[10px] font-normal text-slate-400 uppercase tracking-widest border-r border-slate-100">Type</th>
+                      <th className="px-4 text-[10px] font-normal text-slate-400 uppercase tracking-widest border-r border-slate-100">Employee</th>
+                      <th className="px-4 text-[10px] font-normal text-slate-400 uppercase tracking-widest text-right border-r border-slate-100">Amount</th>
+                      <th className="px-4 text-[10px] font-normal text-slate-400 uppercase tracking-widest text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-50">
+                  <tbody className="divide-y divide-slate-100">
                     {deletedEntries.map(item => (
-                      <tr key={item.id} className="h-12 hover:bg-zinc-50/50 transition-colors">
-                        <td className="px-4 text-[12px] font-bold text-zinc-600 border-r border-zinc-50">{item.date}</td>
-                        <td className="px-4 border-r border-zinc-50">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tight ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                      <tr key={item.id} className="h-12 transition-colors hover:bg-slate-50/70">
+                        <td className="px-3 text-center"><input type="checkbox" checked={selectedDeletedEntryIds.includes(item.id)} onChange={() => toggleDeletedEntrySelection(item.id)} className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" aria-label={`Select ${item.employeeName || 'transaction'}`} /></td>
+                        <td className="border-r border-slate-100 px-4 font-normal text-slate-600">{formatDeletedRecordDate(item.date)}</td>
+                        <td className="border-r border-slate-100 px-4">
+                          <span className={`rounded px-2 py-0.5 text-[9px] font-normal uppercase tracking-tight ${item.type === 'Advance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
                             {item.type}
                           </span>
                         </td>
-                        <td className="px-4 text-[13px] font-bold text-zinc-800 border-r border-zinc-50">{item.employeeName}</td>
-                        <td className="px-4 text-[13px] font-black text-zinc-900 text-right border-r border-zinc-50 tabular-nums">{formatINR(item.amount)}</td>
+                        <td className="border-r border-slate-100 px-4 font-normal text-slate-700">{item.employeeName}</td>
+                        <td className="border-r border-slate-100 px-4 text-right font-normal text-slate-800 tabular-nums">{formatINR(item.amount)}</td>
                         <td className="px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button 
                               onClick={() => handleRestore(item.id)}
                               disabled={restoreMutation.isPending}
-                              className="h-8 px-4 bg-indigo-50 text-indigo-600 font-black rounded-lg text-[9px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2 shadow-sm"
+                              className="flex h-8 items-center gap-1.5 rounded-lg border border-indigo-100 bg-indigo-50 px-3 text-[10px] font-medium text-indigo-600 transition-colors hover:bg-indigo-600 hover:text-white"
                             >
-                              <RotateCcw size={14} /> Revoke
+                              <RotateCcw size={13} /> Restore
                             </button>
                             <button 
                               onClick={() => handlePermanentDelete(item.id)}
                               disabled={permanentDeleteMutation.isPending}
-                              className="h-8 px-4 bg-rose-50 text-rose-600 font-black rounded-lg text-[9px] uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all flex items-center gap-2 shadow-sm"
+                              className="flex h-8 items-center gap-1.5 rounded-lg border border-rose-100 bg-rose-50 px-3 text-[10px] font-medium text-rose-600 transition-colors hover:bg-rose-600 hover:text-white"
                             >
-                              <Trash2 size={14} /> Delete
+                              <Trash2 size={13} /> Delete
                             </button>
                           </div>
                         </td>
