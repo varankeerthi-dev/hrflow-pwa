@@ -401,7 +401,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const isHR = user?.role?.toLowerCase() === 'hr' || isAdmin
   const isMD = user?.role?.toLowerCase() === 'md' || isAdmin
   const canSelectAll = !portalMode && (isAdmin || isAccountant)
-  const canChooseEntryEmployee = canSelectAll || (!portalMode && activeModule === 'Add Expense' && expenseMode === 'employee')
+  const canChooseEntryEmployee = canSelectAll || (
+    !portalMode
+    && ['Add Expense', 'Add Advance'].includes(activeModule)
+    && expenseMode === 'employee'
+  )
 
   // For editing
   const [editingId, setEditingId] = useState(null)
@@ -741,7 +745,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     },
     onSuccess: (txnNos) => {
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
-      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: activeModule === 'Add Expense' && expenseMode === 'self' ? getMyEmpId() : (!canSelectAll ? getMyEmpId() : ''), category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
+      setAddRows([{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : (!canSelectAll ? getMyEmpId() : ''), category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
       try { localStorage.removeItem('hrflow_expense_draft') } catch (e) { /* ignore */ }
       // Note: Drawer will open automatically showing submitted items
     }
@@ -916,7 +920,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const categoryLower = row.category?.toLowerCase().trim() || ''
     const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => categoryLower.includes(reqCat))
 
-    const selfExpenseEmployeeId = activeModule === 'Add Expense' && expenseMode === 'self' ? getMyEmpId() : ''
+    const selfExpenseEmployeeId = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : ''
     const activeEmps = employees.filter((employee) => (
       (employee.status || 'Active').toLowerCase() === 'active'
       && employee.id !== row.employeeId
@@ -1098,6 +1102,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       return format(d, 'dd-MMM-yyyy')
     } catch {
       return dStr
+    }
+  }
+
+  const formatEscalationDate = (value) => {
+    if (!value) return '—'
+    try {
+      const date = value?.toDate?.() || parseISO(String(value))
+      if (Number.isNaN(date.getTime())) return String(value)
+      return format(date, 'dd-MM-yyyy')
+    } catch {
+      return String(value)
     }
   }
 
@@ -1304,7 +1319,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }, [toDateDropdownOpen])
 
   const handleAddRow = () => {
-    const activeEmp = sessionDefaultEmp || getMyEmpId() || ''
+    const isSelfEntry = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self'
+    const activeEmp = isSelfEntry ? getMyEmpId() : (sessionDefaultEmp || getMyEmpId() || '')
     const newId = Date.now() + Math.random()
     setAddRows(prev => [...prev, { id: newId, date: sessionDate || new Date().toISOString().split('T')[0], employeeId: activeEmp, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: sessionPayout || 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
     // Auto-focus the new row's category cell after React renders it
@@ -1332,8 +1348,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }, [activeModule, expenseMode])
 
   const handleSelfExpense = (confirmReassignment = activeModule === 'Add Expense') => {
-    const currentUserEmp = employees.find(e => e.email === user.email || e.id === user.uid)
-    const empId = currentUserEmp ? currentUserEmp.id : (user.uid || '')
+    const empId = getMyEmpId()
+    if (!empId) {
+      alert('Your employee record is not linked to this account yet. Ask HR to link your employee profile before using Self Entry.')
+      return false
+    }
     const hasOtherEmployeeRows = addRows.some((row) => row.employeeId && row.employeeId !== empId)
     if (confirmReassignment && hasOtherEmployeeRows && !window.confirm('Switch to Self Expense? All current rows will be assigned to your employee record.')) return false
     setSessionDefaultEmp(empId)
@@ -1342,7 +1361,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }
 
   useEffect(() => {
-    if (activeModule !== 'Add Expense' || expenseMode !== 'self') return
+    if (!['Add Expense', 'Add Advance'].includes(activeModule) || expenseMode !== 'self') return
     const ownEmployeeId = getMyEmpId()
     if (!ownEmployeeId) return
     setSessionDefaultEmp((current) => current || ownEmployeeId)
@@ -1558,12 +1577,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     // Check for future dates in Expenses
     const todayStr = new Date().toISOString().split('T')[0]
     const isExpenseModule = activeModule === 'Add Expense' || activeModule === 'Expense'
-    const isSelfExpenseSubmission = activeModule === 'Add Expense' && expenseMode === 'self'
-    const selfEmployeeId = isSelfExpenseSubmission ? getMyEmpId() : ''
-    if (isSelfExpenseSubmission && !selfEmployeeId) {
-      return alert('Your employee record is not linked to this account yet. Ask HR to link your employee profile before submitting a Self Expense.')
+    const isSelfEntrySubmission = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self'
+    const selfEmployeeId = isSelfEntrySubmission ? getMyEmpId() : ''
+    if (isSelfEntrySubmission && !selfEmployeeId) {
+      const entryLabel = activeModule === 'Add Advance' ? 'Self Advance' : 'Self Expense'
+      return alert(`Your employee record is not linked to this account yet. Ask HR to link your employee profile before submitting a ${entryLabel}.`)
     }
-    const rowsForSubmission = isSelfExpenseSubmission
+    const rowsForSubmission = isSelfEntrySubmission
       ? addRows.map((row) => ({ ...row, employeeId: selfEmployeeId }))
       : addRows
     if (isExpenseModule) {
@@ -3336,7 +3356,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (() => {
         const totalExpensesCount = addRows.length;
         const totalExpensesAmount = addRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-        const isSelfExpense = activeModule === 'Add Expense' && expenseMode === 'self'
+        const isSelfEntry = expenseMode === 'self'
+        const entryLabel = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
 
         const getCategoryIconDetails = (catName) => {
           const c = String(catName || '').toLowerCase()
@@ -3364,22 +3385,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             {/* 1. Integrated Header, Compact Mode Selector & Main Actions */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200/90 shadow-sm">
               <div className="flex flex-col gap-2 w-full">
-                {activeModule === 'Add Expense' ? (
-                  <>
-                    {!portalMode && <div role="tablist" aria-label="Expense entry type" className="flex w-fit items-end border-b border-slate-200 text-xs">
-                      <button type="button" role="tab" aria-selected={expenseMode === 'self'} onClick={() => { if (handleSelfExpense()) setExpenseMode('self') }} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'self' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><User size={14} />Self Expense</button>
-                      <button type="button" role="tab" aria-selected={expenseMode === 'employee'} onClick={() => setExpenseMode('employee')} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'employee' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Users size={14} />Employee Expense</button>
-                    </div>}
-                  </>
-                ) : (
-                  <>
-                    <span className={portalMode ? 'hidden' : 'text-sm font-bold text-slate-800 tracking-tight'}>Advance type:</span>
-                    <div className={portalMode ? 'hidden' : 'flex flex-row flex-wrap items-center gap-5 text-xs'}>
-                      <button type="button" onClick={() => { if (handleSelfExpense()) setExpenseMode('self') }} className={`py-2 transition-all flex items-center gap-2 tracking-wide cursor-pointer ${expenseMode === 'self' ? 'text-slate-900 font-semibold' : 'text-slate-600 hover:text-slate-900 font-normal'}`}><span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${expenseMode === 'self' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'}`}>{expenseMode === 'self' && <Check size={10} className="text-white stroke-[3]" />}</span>Self Advance</button>
-                      <button type="button" onClick={() => setExpenseMode('employee')} className={`py-2 transition-all flex items-center gap-2 tracking-wide cursor-pointer ${expenseMode === 'employee' ? 'text-slate-900 font-semibold' : 'text-slate-600 hover:text-slate-900 font-normal'}`}><span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${expenseMode === 'employee' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'}`}>{expenseMode === 'employee' && <Check size={10} className="text-white stroke-[3]" />}</span>Employee Advance</button>
-                    </div>
-                  </>
-                )}
+                {!portalMode && <div role="tablist" aria-label={`${entryLabel} entry type`} className="flex w-fit items-end border-b border-slate-200 text-xs">
+                  <button type="button" role="tab" aria-selected={expenseMode === 'self'} onClick={() => { if (handleSelfExpense()) setExpenseMode('self') }} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'self' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><User size={14} />Self {entryLabel}</button>
+                  <button type="button" role="tab" aria-selected={expenseMode === 'employee'} onClick={() => setExpenseMode('employee')} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'employee' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Users size={14} />Employee {entryLabel}</button>
+                </div>}
               </div>
 
               {/* Action Buttons */}
@@ -3459,7 +3468,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   )}
 
                   {/* Default Employee */}
-                  {showSessionEmployee && !portalMode && !isSelfExpense && (
+                  {showSessionEmployee && !portalMode && !isSelfEntry && (
                   <>
                     <div className="hidden md:flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
                       <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Default employee:</span>
@@ -3576,7 +3585,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             Toggle visible fields
                           </div>
 
-                          {!portalMode && !isSelfExpense && (
+                          {!portalMode && !isSelfEntry && (
                             <label className="flex items-center justify-between gap-2 cursor-pointer text-slate-700 font-medium hover:text-slate-900 select-none">
                               <span className="font-semibold">Employee</span>
                               <input type="checkbox" checked={showSessionEmployee} onChange={(e) => setShowSessionEmployee(e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300" />
@@ -3632,7 +3641,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                         <th className="py-3 px-3 w-10 text-center">#</th>
-                        {!portalMode && !isSelfExpense && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
+                        {!portalMode && !isSelfEntry && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
                         <th className="py-3 px-3 min-w-[128px] w-32">Date <span className="text-rose-500">*</span></th>
                         <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
                         {showAdvanceFields && (
@@ -3660,7 +3669,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               {idx + 1}
                             </td>
 
-                            {!portalMode && !isSelfExpense && (
+                            {!portalMode && !isSelfEntry && (
                               <td className="py-1.5 px-2">
                                 <select
                                   value={row.employeeId}
@@ -3972,7 +3981,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       showAdvanceFields={showAdvanceFields}
                       showProjectColumn={showProjectColumn}
                       portalMode={portalMode}
-                      hideEmployee={isSelfExpense}
+                      hideEmployee={isSelfEntry}
                       handleRowChange={handleRowChange}
                       handleDuplicateRow={handleDuplicateRow}
                       handleDeleteRow={(rowId) => setAddRows(prev => prev.filter(item => item.id !== rowId))}
@@ -4096,9 +4105,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   return (
                                     <div
                                       key={item.id || iIdx}
-                                      className={`${isSelfExpense ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[85px_minmax(0,1fr)_auto_auto]'} group grid items-center gap-1 text-[9px] font-medium text-slate-600 hover:text-slate-900 py-1 font-body border-b border-slate-50 last:border-0`}
+                                      className={`${isSelfEntry ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[85px_minmax(0,1fr)_auto_auto]'} group grid items-center gap-1 text-[9px] font-medium text-slate-600 hover:text-slate-900 py-1 font-body border-b border-slate-50 last:border-0`}
                                     >
-                                      {isSelfExpense ? (
+                                      {isSelfEntry ? (
                                         <div className="flex min-w-0 flex-col">
                                           <span className="truncate text-slate-600 font-semibold" title={item.category || 'General'}>{item.category || 'General'}</span>
                                           {item.reason && <span className="mt-0.5 truncate text-[8px] font-normal leading-none text-slate-400" title={item.reason}>{item.reason}</span>}
@@ -5103,27 +5112,24 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   key: 'needsHr',
                   title: 'Awaiting HR',
                   subtitle: 'Not yet submitted to MD',
-                  rows: escalation.needsHr,
-                  accent: 'border-l-4 border-l-indigo-500 bg-indigo-50/20'
+                  rows: escalation.needsHr
                 },
                 {
                   key: 'needsMd',
                   title: 'Awaiting MD',
                   subtitle: 'HR approved — MD decision pending',
-                  rows: escalation.needsMd,
-                  accent: 'border-l-4 border-l-amber-500 bg-amber-50/20'
+                  rows: escalation.needsMd
                 },
                 {
                   key: 'onHold',
                   title: 'On Hold',
                   subtitle: 'Paused pending clarification',
-                  rows: escalation.onHold,
-                  accent: 'border-l-4 border-l-zinc-400 bg-zinc-50/50'
+                  rows: escalation.onHold
                 }
               ].map((block) => (
                 <div
                   key={block.key}
-                  className={`rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden ${block.accent}`}
+                  className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm"
                 >
                   <div className="px-5 py-4 border-b border-zinc-100 bg-white/60 flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -5155,7 +5161,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         <tbody className="divide-y divide-zinc-50">
                           {block.rows.map((row) => (
                             <tr key={row.id} className="h-12 hover:bg-zinc-50/50 transition-colors">
-                              <td className="px-4 text-[12px] font-bold text-zinc-600 border-r border-zinc-50">{row.date || '—'}</td>
+                              <td className="px-4 text-[12px] font-bold text-zinc-600 border-r border-zinc-50">{formatEscalationDate(row.date)}</td>
                               <td className="px-4 border-r border-zinc-50">
                                 {(() => {
                                   const cat = row.category || row.type || '—'
