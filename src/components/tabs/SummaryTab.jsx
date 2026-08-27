@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-// Kinetic Enterprise Monthly Summary: blue tonal layers, Inter data typography, and compact 4px-grid tables.
+// Monthly Summary reference system: compact staff-performance tables, pale blue tonal layers, and measured Inter typography; data logic remains unchanged.
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
@@ -401,7 +401,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
         </div>
       )}
 
-      <div className="kinetic-monthly-toolbar flex h-12 shrink-0 items-center justify-between rounded-lg px-4">
+      <div className="kinetic-monthly-toolbar monthly-summary-controlbar flex h-12 shrink-0 items-center justify-between rounded-xl px-4">
         <div className="flex items-center gap-1.5">
           <button onClick={() => navigateMonth(-1)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><ChevronLeft size={14} className="text-gray-600" /></button>
           <div className="flex items-center bg-gray-50 rounded-md px-2.5 py-0.5 border border-gray-100 min-w-[120px] justify-center gap-1.5 h-6.5">
@@ -479,7 +479,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                 {/* Performance Table in Overview */}
                 <div className="space-y-3">
                   <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Performance Summary</h3>
-                  <div className="bg-white border border-gray-300 shadow-sm overflow-hidden rounded-xl">
+                  <div className="monthly-summary-performance-table bg-white overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
@@ -526,7 +526,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
             ) : (
               <div className="space-y-3">
                 <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Individual Employee Performance</h3>
-                <div className="bg-white border border-gray-300 shadow-sm overflow-hidden rounded-xl">
+                <div className="monthly-summary-performance-table bg-white overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
@@ -576,7 +576,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
 
       {activeMainTab === 'monthlyView' && (
         <div className="space-y-4 flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
-          <div className="kinetic-monthly-pivot-card flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="kinetic-monthly-pivot-card monthly-summary-data-shell flex-1 flex flex-col min-h-0 overflow-hidden">
               {(() => {
                 const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
                 let blockW = 0
@@ -602,7 +602,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                       onScroll={handleTableScroll} 
                       className="kinetic-monthly-table-scroll overflow-x-auto flex-1 overflow-y-auto"
                     >
-                      <table id="monthly-pivot-table" className="kinetic-monthly-pivot-table border-separate border-spacing-0 text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
+                      <table id="monthly-pivot-table" className="kinetic-monthly-pivot-table monthly-summary-grid border-separate border-spacing-0 text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
                         <colgroup>
                       <col style={{ width: '65px' }} />
                       {monthlyViewData.employees?.map(emp => (

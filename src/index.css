@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+/* Monthly Summary reference system: compact staff-performance tables, pale blue tonal layers, and measured Inter typography; scoped to summary surfaces only. */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -245,11 +246,14 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
+.kinetic-monthly-summary .monthly-summary-controlbar,
+.kinetic-payroll-monthly-summary .monthly-summary-controlbar,
 .kinetic-monthly-toolbar,
 .kinetic-attendance-monthly-toolbar,
 .kinetic-payroll-summary-toolbar {
   border: 1px solid var(--kinetic-outline);
   background: var(--kinetic-container);
+  min-height: 48px;
   box-shadow: none;
 }
 
@@ -300,37 +304,52 @@ body {
 
 .kinetic-monthly-pivot-card {
   border: 1px solid var(--kinetic-outline);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--kinetic-container);
   box-shadow: none;
 }
 
 .kinetic-monthly-scroll-rail { border-bottom: 1px solid var(--kinetic-outline); }
 
-.kinetic-monthly-pivot-table { color: var(--kinetic-text); font-variant-numeric: tabular-nums lining-nums; }
+.kinetic-monthly-pivot-table,
+.monthly-summary-performance-table table { color: var(--kinetic-text); font-variant-numeric: tabular-nums lining-nums; }
 .kinetic-monthly-pivot-table thead th { border-color: var(--kinetic-outline) !important; }
-.kinetic-monthly-pivot-table thead tr:first-child th { background: var(--kinetic-container-mid) !important; color: var(--kinetic-text) !important; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
-.kinetic-monthly-pivot-table thead tr:nth-child(2) th { background: var(--kinetic-low) !important; color: var(--kinetic-muted) !important; font-size: 11px; font-weight: 600; }
+.kinetic-monthly-pivot-table thead tr:first-child th { background: var(--kinetic-container-mid) !important; color: var(--kinetic-text) !important; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.kinetic-monthly-pivot-table thead tr:first-child th:not(:first-child) { border-right-width: 1px !important; border-right-color: var(--kinetic-outline) !important; }
+.kinetic-monthly-pivot-table thead tr:nth-child(2) th { background: var(--kinetic-container-lowest, #fff) !important; color: var(--kinetic-muted) !important; font-size: 10px; font-weight: 600; letter-spacing: 0.035em; }
 .kinetic-monthly-pivot-table tbody tr { height: 40px; }
 .kinetic-monthly-pivot-table tbody tr:hover { background: #f1f5f9 !important; }
 .kinetic-monthly-pivot-table tbody td { border-color: var(--kinetic-outline) !important; font-size: 12px; font-weight: 400 !important; }
 .kinetic-monthly-pivot-table tbody tr:nth-child(even) td:not([class*='bg-']) { background: #fbfcff; }
+.kinetic-monthly-pivot-table tbody td.border-r-\[8px\] { border-right-width: 1px !important; border-right-color: var(--kinetic-outline) !important; }
+.kinetic-monthly-pivot-table .sticky.left-0 { background-color: var(--kinetic-container) !important; }
 
 .kinetic-enterprise-table.enterprise-table-card {
   border: 1px solid var(--kinetic-outline) !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
   background: var(--kinetic-container) !important;
   box-shadow: none !important;
   color: var(--kinetic-text);
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-.kinetic-enterprise-table.enterprise-table-card thead tr:first-child th { background: var(--kinetic-container-mid) !important; color: var(--kinetic-text) !important; }
+.kinetic-enterprise-table.enterprise-table-card thead tr:first-child th { background: var(--kinetic-container-mid) !important; color: var(--kinetic-text) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.05em !important; text-transform: uppercase; }
 .kinetic-enterprise-table.enterprise-table-card .th-header-cell { min-height: 40px; background: var(--kinetic-low) !important; color: var(--kinetic-muted) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.05em !important; text-transform: uppercase; }
 .kinetic-enterprise-table.enterprise-table-card tbody tr { height: 48px !important; }
 .kinetic-enterprise-table.enterprise-table-card tbody td { color: var(--kinetic-text) !important; font-family: 'Inter', sans-serif !important; font-size: 14px !important; font-weight: 400 !important; }
 .kinetic-enterprise-table.enterprise-table-card .table-row-item:nth-child(even) { background: #fbfcff !important; }
 .kinetic-enterprise-table.enterprise-table-card .table-row-item:hover { background: #f1f5f9 !important; }
+.kinetic-enterprise-table.enterprise-table-card .table-row-item td:first-child { font-weight: 600 !important; }
+
+.monthly-summary-performance-table {
+  border: 1px solid var(--kinetic-outline) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+.monthly-summary-performance-table .th-header-cell { background: var(--kinetic-low) !important; border-color: var(--kinetic-outline) !important; color: var(--kinetic-muted) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.05em !important; }
+.monthly-summary-performance-table tbody td { border-color: var(--kinetic-outline) !important; }
+.monthly-summary-performance-table tbody tr { height: 44px; }
 
 /* Attendance Entry: each header cell owns its opaque sticky paint layer to prevent rows showing through. */
 .attendance-entry-table { isolation: isolate; }
