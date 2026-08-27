@@ -16,6 +16,7 @@ import { formatINR } from '../../lib/salaryUtils'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import html2canvas from 'html2canvas'
+import { registerPdfCurrencyFont } from '../../lib/pdfCurrencyFont'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { barY, defineChart } from '@tanstack/charts'
@@ -2629,6 +2630,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         unit: 'mm',
         format: 'a4'
       })
+      const currencyFont = await registerPdfCurrencyFont(doc)
 
       const pageWidth = doc.internal.pageSize.width || 210
       const pageHeight = doc.internal.pageSize.height || 297
@@ -2740,48 +2742,48 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       const totalExpSum = dataToUseExp.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
       const cashInHand = totalAdvSum - totalExpSum
 
-      const formatCurrency = (num) => '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
+      const formatCurrency = (num) => `₹ ${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)}`
+      const neutralSurface = [238, 237, 236] // #EEEDEC
+      const neutralBorder = [211, 210, 208]
 
       const cardW = (contentWidth - 8) / 3 // ~58mm each
       const cardH = 11
 
-      // Advance KPI
-      doc.setFillColor(254, 243, 199) // amber-100
-      doc.setDrawColor(251, 191, 36) // amber-400
+      // Neutral KPI surfaces keep printed statements legible without colour blocks.
+      doc.setFillColor(...neutralSurface)
+      doc.setDrawColor(...neutralBorder)
       doc.roundedRect(margin, startY, cardW, cardH, 1, 1, 'FD')
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(120, 53, 15)
+      doc.setTextColor(51, 65, 85)
       doc.text('TOTAL ADVANCES', margin + 3, startY + 3.8)
       doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(5, 150, 105) // emerald-600
+      doc.setFont(currencyFont, 'normal')
+      doc.setTextColor(15, 23, 42)
       doc.text(formatCurrency(totalAdvSum), margin + 3, startY + 8.8)
 
-      // Expense KPI (Neutral Slate Grey card)
-      doc.setFillColor(241, 245, 249) // slate-100
-      doc.setDrawColor(203, 213, 225) // slate-300
+      doc.setFillColor(...neutralSurface)
+      doc.setDrawColor(...neutralBorder)
       doc.roundedRect(margin + cardW + 4, startY, cardW, cardH, 1, 1, 'FD')
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(51, 65, 85) // slate-700
+      doc.setTextColor(51, 65, 85)
       doc.text('TOTAL EXPENSES', margin + cardW + 7, startY + 3.8)
       doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(225, 29, 72) // rose-600
+      doc.setFont(currencyFont, 'normal')
+      doc.setTextColor(15, 23, 42)
       doc.text(formatCurrency(totalExpSum), margin + cardW + 7, startY + 8.8)
 
-      // Cash in hand KPI
-      doc.setFillColor(236, 253, 245) // emerald-50
-      doc.setDrawColor(110, 231, 183) // emerald-300
+      doc.setFillColor(...neutralSurface)
+      doc.setDrawColor(...neutralBorder)
       doc.roundedRect(margin + (cardW + 4) * 2, startY, cardW, cardH, 1, 1, 'FD')
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(6, 78, 59)
+      doc.setTextColor(51, 65, 85)
       doc.text('CASH IN HAND', margin + (cardW + 4) * 2 + 3, startY + 3.8)
       doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(217, 119, 6) // amber-600
+      doc.setFont(currencyFont, 'normal')
+      doc.setTextColor(15, 23, 42)
       doc.text(formatCurrency(cashInHand), margin + (cardW + 4) * 2 + 3, startY + 8.8)
 
       startY += cardH + 6
@@ -2837,21 +2839,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             borderColor: [226, 232, 240]
           },
           headStyles: { 
-            fillColor: [51, 65, 85], // Charcoal Slate Grey
-            textColor: [255, 255, 255], 
+            fillColor: neutralSurface,
+            textColor: [51, 65, 85],
             fontSize: 8,
             fontStyle: 'bold',
             halign: 'left'
           },
           alternateRowStyles: {
-            fillColor: [248, 250, 252]
+            fillColor: neutralSurface
           },
           columnStyles: {
             0: { cellWidth: 18 },
             1: { cellWidth: 42 }, // Equal width
             2: { cellWidth: 42 }, // Equal width
             3: { cellWidth: 42 }, // Equal width
-            4: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+            4: { cellWidth: 22, halign: 'right', font: currencyFont, fontStyle: 'normal' },
             5: { cellWidth: 16, halign: 'center', overflow: 'linebreak' }
           }
         })
@@ -2906,21 +2908,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             borderColor: [226, 232, 240]
           },
           headStyles: { 
-            fillColor: [71, 85, 105], // Medium Slate Grey
-            textColor: [255, 255, 255], 
+            fillColor: neutralSurface,
+            textColor: [51, 65, 85],
             fontSize: 8,
             fontStyle: 'bold',
             halign: 'left'
           },
           alternateRowStyles: {
-            fillColor: [248, 250, 252]
+            fillColor: neutralSurface
           },
           columnStyles: {
             0: { cellWidth: 18 },
             1: { cellWidth: 42 }, // Equal width
             2: { cellWidth: 42 }, // Equal width
             3: { cellWidth: 42 }, // Equal width
-            4: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+            4: { cellWidth: 22, halign: 'right', font: currencyFont, fontStyle: 'normal' },
             5: { cellWidth: 16, halign: 'center', overflow: 'linebreak' }
           }
         })
