@@ -5,8 +5,16 @@ import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { SidebarProvider } from './contexts/SidebarContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { registerSW } from 'virtual:pwa-register'
 
 const queryClient = new QueryClient()
+
+// Explicit registration is required for Vite PWA auto-updates to activate and
+// reload clients after a deploy. Without it, an older cached index can request
+// deleted hashed chunks and receive the SPA HTML fallback instead of JavaScript.
+if (import.meta.env.PROD) {
+  registerSW({ immediate: true })
+}
 
 const UpdateChecker = () => {
   useEffect(() => {

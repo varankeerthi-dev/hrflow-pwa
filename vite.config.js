@@ -21,8 +21,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
       workbox: {
         maximumFileSizeToCacheInBytes: 10485760, // 10MB
+        cleanupOutdatedCaches: true,
       },
       manifest: {
         name: 'HRFlow',
