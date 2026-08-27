@@ -40,6 +40,7 @@ The baseline standards are deliberately compact and should not be widened merely
 | Gap between tabs | `4px` |
 | Corner treatment | `6px 6px 0 0` on the active tab only |
 | Active-tab border | Right outline only; no visual divider below the tab |
+| Inactive separation | Quiet vertical rules between neighbouring inactive tabs; labels use 98% opacity |
 | Active weight | Geist Sans semi-bold (`600`) |
 | Inactive weight | Geist Sans medium (`500`) |
 | Mobile behavior | Horizontally scrollable; no wrapping or compressed labels |
