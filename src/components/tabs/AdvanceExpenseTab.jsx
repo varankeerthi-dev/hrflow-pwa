@@ -874,13 +874,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const getMyEmpId = () => {
     if (portalMode && portalEmployeeId) return portalEmployeeId
-    const me = employees.find((employee) => (
-      employee.email === user.email
-      || employee.id === user.uid
-      || employee.uid === user.uid
-      || employee.userId === user.uid
-      || employee.authUid === user.uid
-    ))
+    const normalizedEmail = user?.email?.toLowerCase().trim() || ''
+    const normalizedUid = user?.uid?.toLowerCase().trim() || ''
+    const linkedEmployeeId = user?.employeeId?.toLowerCase().trim() || ''
+    const me = employees.find((employee) => {
+      const employeeId = employee.id?.toLowerCase().trim() || ''
+      const employeeEmail = employee.email?.toLowerCase().trim() || ''
+      const personalEmail = employee.personalEmail?.toLowerCase().trim() || ''
+      const workEmail = employee.workEmail?.toLowerCase().trim() || ''
+      const employeeCode = employee.empCode?.toLowerCase().trim() || ''
+      return (
+        (!!linkedEmployeeId && employeeId === linkedEmployeeId)
+        || [employeeEmail, personalEmail, workEmail].includes(normalizedEmail)
+        || (!!normalizedEmail && employeeCode === normalizedEmail)
+        || (!!normalizedUid && employeeId === normalizedUid)
+        || employee.uid === user?.uid
+        || employee.userId === user?.uid
+        || employee.authUid === user?.uid
+      )
+    })
     return me ? me.id : ''
   }
 
@@ -890,9 +902,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const categoryLower = row.category?.toLowerCase().trim() || ''
     const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => categoryLower.includes(reqCat))
 
+    const selfExpenseEmployeeId = activeModule === 'Add Expense' && expenseMode === 'self' ? getMyEmpId() : ''
     const activeEmps = employees.filter((employee) => (
       (employee.status || 'Active').toLowerCase() === 'active'
       && employee.id !== row.employeeId
+      && employee.id !== selfExpenseEmployeeId
     ))
     const employeeOptions = activeEmps.map(e => ({ label: e.name, value: e.id }))
 
@@ -3238,7 +3252,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               <div className="flex flex-col gap-2 w-full">
                 {activeModule === 'Add Expense' ? (
                   <>
-                    <span className="text-sm font-bold text-slate-800 tracking-tight">Add Expense</span>
                     {!portalMode && <div role="tablist" aria-label="Expense entry type" className="flex w-fit items-end border-b border-slate-200 text-xs">
                       <button type="button" role="tab" aria-selected={expenseMode === 'self'} onClick={() => { if (handleSelfExpense()) setExpenseMode('self') }} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'self' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><User size={14} />Self Expense</button>
                       <button type="button" role="tab" aria-selected={expenseMode === 'employee'} onClick={() => setExpenseMode('employee')} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'employee' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Users size={14} />Employee Expense</button>
@@ -3606,12 +3619,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     <div className="flex items-center gap-1.5 overflow-hidden">
                                       <span className="text-slate-700 font-semibold truncate max-w-[85px]">
                                         {(() => {
-                                          const mainEmp = employees.find((employee) => (
-                                            employee.id === row.employeeId
-                                            || employee.uid === row.employeeId
-                                            || employee.userId === row.employeeId
-                                            || employee.authUid === row.employeeId
-                                          ));
+                                          const mainEmp = employees.find((employee) => employee.id === row.employeeId);
                                           return mainEmp ? mainEmp.name : (row.employeeId || 'Employee');
                                         })()}
                                       </span>
@@ -3676,9 +3684,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                       {employees
                                         .filter(e => {
                                           const isActive = (e.status || 'Active').toLowerCase() === 'active';
+                                          const selfExpenseEmployeeId = activeModule === 'Add Expense' && expenseMode === 'self' ? getMyEmpId() : '';
                                           const notCol1Emp = e.id !== row.employeeId && e.name !== row.employeeId;
+                                          const notSelfExpenseEmployee = !selfExpenseEmployeeId || e.id !== selfExpenseEmployeeId;
                                           const matchesSearch = e.name.toLowerCase().includes((paidToSearchTerm || '').toLowerCase());
-                                          return isActive && notCol1Emp && matchesSearch;
+                                          return isActive && notCol1Emp && notSelfExpenseEmployee && matchesSearch;
                                         })
                                         .map(e => (
                                           <button
