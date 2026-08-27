@@ -1840,17 +1840,17 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
           </div>
 
           {/* Main Table Card */}
-          <div className="flex-1 bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible flex flex-col">
-            <div className="overflow-x-visible pb-[400px] isolate">
-              <table className="w-full border-separate border-spacing-0 text-left">
-                <thead className="relative z-40 isolate">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+            <div className="min-h-0 flex-1 overflow-auto isolate">
+              <table className="min-w-[900px] w-full border-separate border-spacing-0 text-left">
+                <thead className="sticky top-0 z-30 isolate">
                   <tr className="h-10 border-b border-gray-200 bg-orange-50">
-                    <th className="sticky top-[100px] z-40 w-[220px] border-b border-gray-200 bg-orange-50 px-2 text-left text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Employee Name</th>
-                    <th className="sticky top-[100px] z-40 w-[95px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>In Time</th>
-                    <th className="sticky top-[100px] z-40 w-[95px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Out Time</th>
-                    <th className="sticky top-[100px] z-40 w-[50px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>OT</th>
-                    <th className="sticky top-[100px] z-40 w-[120px] border-b border-gray-200 bg-orange-50 px-0 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>{remarksLabel}</th>
-                    <th className="sticky top-[100px] z-40 w-[110px] border-b border-gray-200 bg-orange-50 px-1 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>
+                    <th className="w-[220px] border-b border-gray-200 bg-orange-50 px-2 text-left text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Employee Name</th>
+                    <th className="w-[95px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>In Time</th>
+                    <th className="w-[95px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Out Time</th>
+                    <th className="w-[50px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>OT</th>
+                    <th className="w-[120px] border-b border-gray-200 bg-orange-50 px-0 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>{remarksLabel}</th>
+                    <th className="w-[110px] border-b border-gray-200 bg-orange-50 px-1 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>
                       <button
                         type="button"
                         onClick={onConfigAllowance}
@@ -1862,8 +1862,8 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                         </span>
                       </button>
                     </th>
-                    <th className="sticky top-[100px] z-40 w-[100px] border-b border-gray-200 bg-orange-50 px-0 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Status</th>
-                    <th className="sticky top-[100px] z-40 w-[36px] border-b border-gray-200 bg-orange-50 px-1 text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}></th>
+                    <th className="w-[100px] border-b border-gray-200 bg-orange-50 px-0 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Status</th>
+                    <th className="w-[36px] border-b border-gray-200 bg-orange-50 px-1 text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
