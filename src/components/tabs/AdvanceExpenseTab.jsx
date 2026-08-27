@@ -18,6 +18,11 @@ import autoTable from 'jspdf-autotable'
 import html2canvas from 'html2canvas'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { barY, defineChart } from '@tanstack/charts'
+import { Chart } from '@tanstack/charts/react/tooltip'
+import { tooltip } from '@tanstack/charts/tooltip'
+import { scaleBand } from '@tanstack/charts/scales/band'
+import { scaleLinear } from '@tanstack/charts/scales/linear'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { buildPortalApprovalFields } from '../../lib/portalApprovalWorkflow'
 
@@ -2321,6 +2326,56 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
     return { periodRows, expenseRows, advanceRows, categoryRows, expenseTotal, advanceTotal, paidTotal, outstandingTotal }
   }, [employees, entries, summaryMonth])
+
+  const expenseCategoryChart = useMemo(() => {
+    const chartRows = monthlyStatement.categoryRows.map((category) => ({
+      category: category.category,
+      amount: category.amount,
+      vouchers: category.count,
+    }))
+
+    return defineChart({
+      marks: [
+        barY(chartRows, {
+          id: 'expense-category-bars',
+          x: 'category',
+          y: 'amount',
+          fill: '#e11d48',
+          radius: 8,
+        }),
+      ],
+      scales: {
+        x: {
+          scale: () => scaleBand().padding(0.18),
+          axis: {
+            line: false,
+            ticks: {
+              size: 0,
+              padding: 10,
+              format: (value) => String(value).length > 14 ? `${String(value).slice(0, 14)}…` : String(value),
+            },
+          },
+        },
+        y: {
+          scale: scaleLinear,
+          nice: true,
+          grid: true,
+          axis: {
+            line: false,
+            ticks: {
+              size: 0,
+              padding: 8,
+              format: (value) => formatINR(Number(value)),
+            },
+          },
+        },
+      },
+      margin: { top: 12, right: 12, bottom: 50, left: 76 },
+      tooltip,
+      focus: 'group-x',
+      svgAnimation: true,
+    })
+  }, [monthlyStatement.categoryRows])
 
   const escalation = useMemo(() => {
     const needsHr = entries.filter(
@@ -4997,6 +5052,36 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 <div className="border-b border-slate-100 px-5 py-4">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense analysis</p>
                   <h3 className="mt-1 text-sm font-semibold text-slate-900">Category-wise monthly register</h3>
+                </div>
+                <div className="border-b border-slate-100 px-5 py-4">
+                  {monthlyStatement.categoryRows.length === 0 ? (
+                    <div className="flex min-h-[220px] items-center justify-center text-center">
+                      <p className="text-sm font-normal text-slate-400">No category expenses are available to chart for this month.</p>
+                    </div>
+                  ) : (
+                    <Chart
+                      definition={expenseCategoryChart}
+                      height={260}
+                      initialWidth={760}
+                      ariaLabel={`Expense amount by category for ${format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}`}
+                      ariaDescription="Bar chart showing the effective expense amount recorded for each expense category in the selected statement month."
+                      className="w-full"
+                      renderTooltipBody={({ points, defaultBody }) => {
+                        const category = points[0]?.datum
+                        if (!category) return defaultBody
+                        return (
+                          <div className="min-w-[176px] rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense category</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">{category.category}</p>
+                            <div className="mt-2 flex items-end justify-between gap-4 border-t border-slate-100 pt-2">
+                              <span className="text-[11px] font-normal text-slate-500">{category.vouchers} voucher{category.vouchers === 1 ? '' : 's'}</span>
+                              <span className="text-sm font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</span>
+                            </div>
+                          </div>
+                        )
+                      }}
+                    />
+                  )}
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[700px] border-collapse text-left">
