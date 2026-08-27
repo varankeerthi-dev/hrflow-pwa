@@ -121,7 +121,7 @@ body {
   padding: 12px 24px;
   border: 0;
   border-right: 1px solid transparent;
-  border-radius: 3px 3px 0 0;
+  border-radius: 6px 6px 0 0;
   background: transparent;
   color: var(--fleet-text-secondary);
   font-family: 'Geist Variable', 'Geist Sans', system-ui, sans-serif;

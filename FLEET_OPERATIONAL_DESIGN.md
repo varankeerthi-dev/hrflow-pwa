@@ -38,7 +38,7 @@ The baseline standards are deliberately compact and should not be widened merely
 |---|---|
 | Tab padding | `12px 24px` |
 | Gap between tabs | `4px` |
-| Corner treatment | `3px 3px 0 0` on the active tab only |
+| Corner treatment | `6px 6px 0 0` on the active tab only |
 | Active-tab border | Right outline only; no visual divider below the tab |
 | Active weight | Geist Sans semi-bold (`600`) |
 | Inactive weight | Geist Sans medium (`500`) |
