@@ -176,7 +176,7 @@ function EmployeeLedgerCard({ emp, formatINR }) {
   )
 }
 
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
   const categoryRequiresPaidTo = ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
 
   return (
@@ -203,17 +203,17 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
               panelWidth="w-[min(20rem,calc(100vw-2rem))]"
               mobileMenu
               autoFocusSearch={false}
-              disabled={!canSelectAll}
+              disabled={!canChooseEntryEmployee}
             />
           </div>
         )}
 
-        {activeModule === 'Add Expense' && (
+        {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Date <span className="text-rose-500">*</span></label>
             <DatePicker
               selected={row.date ? parseISO(row.date) : null}
-              maxDate={new Date()}
+              maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
               onChange={(date) => date && handleRowChange(row.id, 'date', format(date, 'yyyy-MM-dd'))}
               dateFormat="dd MMM yyyy"
               popperClassName="z-[99999]"
@@ -297,6 +297,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const firstDayOfMonth = new Date().toISOString().slice(0, 8) + '01'
   
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM
+  const [summaryMonth, setSummaryMonth] = useState(new Date().toISOString().slice(0, 7))
   const [reportFromDate, setReportFromDate] = useState(firstDayOfMonth)
   const [reportToDate, setReportToDate] = useState(today)
   const [reportSelectedEmployees, setReportSelectedEmployees] = useState([]) // Multi-select
@@ -400,6 +401,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const isHR = user?.role?.toLowerCase() === 'hr' || isAdmin
   const isMD = user?.role?.toLowerCase() === 'md' || isAdmin
   const canSelectAll = !portalMode && (isAdmin || isAccountant)
+  const canChooseEntryEmployee = canSelectAll || (!portalMode && activeModule === 'Add Expense' && expenseMode === 'employee')
 
   // For editing
   const [editingId, setEditingId] = useState(null)
@@ -2264,6 +2266,42 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
   }, [entries])
 
+  const monthlyStatement = useMemo(() => {
+    const periodRows = entries
+      .filter((entry) => String(entry.date || '').startsWith(summaryMonth))
+      .map((entry) => {
+        const employee = employees.find((candidate) => candidate.id === entry.employeeId)
+        return {
+          ...entry,
+          accountingType: getAccountingEntryType(entry),
+          statementAmount: effectiveAmount(entry),
+          statementEmployeeName: entry.employeeName || employee?.name || employee?.empCode || 'Unassigned employee',
+        }
+      })
+      .sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')) || Number(right.createdAt?.seconds || 0) - Number(left.createdAt?.seconds || 0))
+
+    const expenseRows = periodRows.filter((entry) => entry.accountingType === 'Expense')
+    const advanceRows = periodRows.filter((entry) => entry.accountingType === 'Advance')
+    const categoryMap = new Map()
+    expenseRows.forEach((entry) => {
+      const category = entry.category || 'Uncategorised'
+      const current = categoryMap.get(category) || { category, count: 0, amount: 0, paid: 0, outstanding: 0 }
+      current.count += 1
+      current.amount += entry.statementAmount
+      if (entry.paymentStatus === 'Paid') current.paid += entry.statementAmount
+      else current.outstanding += entry.statementAmount
+      categoryMap.set(category, current)
+    })
+
+    const categoryRows = [...categoryMap.values()].sort((left, right) => right.amount - left.amount || left.category.localeCompare(right.category))
+    const expenseTotal = expenseRows.reduce((sum, entry) => sum + entry.statementAmount, 0)
+    const advanceTotal = advanceRows.reduce((sum, entry) => sum + entry.statementAmount, 0)
+    const paidTotal = periodRows.filter((entry) => entry.paymentStatus === 'Paid').reduce((sum, entry) => sum + entry.statementAmount, 0)
+    const outstandingTotal = expenseRows.filter((entry) => entry.paymentStatus !== 'Paid').reduce((sum, entry) => sum + entry.statementAmount, 0)
+
+    return { periodRows, expenseRows, advanceRows, categoryRows, expenseTotal, advanceTotal, paidTotal, outstandingTotal }
+  }, [employees, entries, summaryMonth])
+
   const escalation = useMemo(() => {
     const needsHr = entries.filter(
       (e) => e.status === 'Pending' && (e.hrApproval === 'Pending' || !e.hrApproval)
@@ -3589,13 +3627,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
 
                 {/* 5. High-Density Spreadsheet Table Grid */}
-                <div className="hidden min-h-[360px] md:block overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full min-w-[920px] table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200 [&_tbody_td]:border-r [&_tbody_td]:border-slate-200/80 [&_tr>*:last-child]:border-r-0">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                         <th className="py-3 px-3 w-10 text-center">#</th>
                         {!portalMode && !isSelfExpense && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
-                        {activeModule === 'Add Expense' && <th className="py-3 px-3 min-w-[128px] w-32">Date <span className="text-rose-500">*</span></th>}
+                        <th className="py-3 px-3 min-w-[128px] w-32">Date <span className="text-rose-500">*</span></th>
                         <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
                         {showAdvanceFields && (
                           <th className="py-3 px-3 min-w-[160px]">Paid To <span className="text-rose-500">*</span></th>
@@ -3627,7 +3665,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 <select
                                   value={row.employeeId}
                                   onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
-                                  disabled={!canSelectAll}
+                                  disabled={!canChooseEntryEmployee}
                                   className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="">Select Employee...</option>
@@ -3640,11 +3678,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               </td>
                             )}
 
-                            {activeModule === 'Add Expense' && (
+                            {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
                               <td className="py-1.5 px-2 w-32">
                                 <DatePicker
                                   selected={row.date ? parseISO(row.date) : null}
-                                  maxDate={new Date()}
+                                  maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
                                   onChange={(date) => date && handleRowChange(row.id, 'date', format(date, 'yyyy-MM-dd'))}
                                   dateFormat="dd MMM yyyy"
                                   popperClassName="z-[99999]"
@@ -3916,20 +3954,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           </tr>
                         );
                       })}
-                      {activeModule === 'Add Expense' && [0, 1, 2].map((continuationIndex) => (
-                        <tr key={`expense-continuation-${continuationIndex}`} aria-hidden="true" className="h-[54px] border-b border-slate-200/60 bg-slate-50/20 text-slate-300">
-                          <td className="bg-slate-50/70 px-3 py-2.5 text-center text-xs font-semibold text-slate-300">{addRows.length + continuationIndex + 1}</td>
-                          {!portalMode && !isSelfExpense && <td className="px-2 py-1.5" />}
-                          <td className="px-2 py-1.5"><span className="flex h-9 items-center rounded-[4px] border border-slate-100 bg-white/70 px-2 text-xs font-medium text-slate-400">{format(parseISO(sessionDate || new Date().toISOString().split('T')[0]), 'dd MMM yyyy')}</span></td>
-                          <td className="px-2 py-1.5" />
-                          {showAdvanceFields && <td className="px-2 py-1.5" />}
-                          <td className="px-2 py-1.5" />
-                          {!portalMode && <td className="px-2 py-1.5" />}
-                          <td className="px-2 py-1.5" />
-                          {showProjectColumn && <td className="px-2 py-1.5" />}
-                          <td className="px-2 py-1.5" />
-                        </tr>
-                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -3944,6 +3968,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       sortedEmployees={sortedEmployees}
                       categories={categories}
                       canSelectAll={canSelectAll}
+                      canChooseEntryEmployee={canChooseEntryEmployee}
                       showAdvanceFields={showAdvanceFields}
                       showProjectColumn={showProjectColumn}
                       portalMode={portalMode}
@@ -4923,110 +4948,73 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
       {/* Summary Module */}
       {activeModule === 'Summary' && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {loading ? (
             <div className="flex justify-center py-16">
               <Spinner />
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div className="bg-gradient-to-br from-amber-50 to-white rounded-xl border border-amber-200 p-5 shadow-card">
-                  <div className="flex items-center gap-2 text-amber-700 mb-3">
-                    <PieChart size={20} />
-                    <span className="text-sm font-medium">Advances</span>
+              <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Advance & Expense Register</p>
+                    <h2 className="mt-1 text-lg font-semibold text-slate-900">Monthly statement</h2>
+                    <p className="mt-1 text-xs font-normal text-slate-500">Category ledger and voucher-level detail for {format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}.</p>
                   </div>
-                  <p className="text-2xl font-bold text-amber-900">{formatINR(summary.advSum)}</p>
-                  <p className="text-xs text-amber-600 font-medium mt-1">{summary.advCount} records</p>
-                </div>
-                
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl border border-blue-200 p-5 shadow-card">
-                  <div className="flex items-center gap-2 text-blue-700 mb-3">
-                    <PieChart size={20} />
-                    <span className="text-sm font-medium">Expenses</span>
-                  </div>
-                  <p className="text-2xl font-bold text-blue-900">{formatINR(summary.expSum)}</p>
-                  <p className="text-xs text-blue-600 font-medium mt-1">{summary.expCount} records</p>
-                </div>
-                
-                <div className="bg-gradient-to-br from-violet-50 to-white rounded-xl border border-violet-200 p-5 shadow-card">
-                  <div className="flex items-center gap-2 text-violet-700 mb-3">
-                    <Clock size={20} />
-                    <span className="text-sm font-medium">Awaiting Payment</span>
-                  </div>
-                  <p className="text-2xl font-bold text-violet-900">{formatINR(summary.awaitingPaymentSum)}</p>
-                  <p className="text-xs text-violet-600 font-medium mt-1">{summary.awaitingPaymentCount} in queue</p>
-                </div>
-                
-                <div className="bg-gradient-to-br from-emerald-50 to-white rounded-xl border border-emerald-200 p-5 shadow-card">
-                  <div className="flex items-center gap-2 text-emerald-700 mb-3">
-                    <CheckCircle2 size={20} />
-                    <span className="text-sm font-medium">Paid Out</span>
-                  </div>
-                  <p className="text-2xl font-bold text-emerald-900">{formatINR(summary.paidSum)}</p>
-                  <p className="text-xs text-emerald-600 font-medium mt-1">{summary.paidCount} settled</p>
+                  <label className="w-full md:w-auto">
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Statement month</span>
+                    <input type="month" value={summaryMonth} onChange={(event) => setSummaryMonth(event.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 md:w-[180px]" />
+                  </label>
                 </div>
 
-                <div className="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-200 p-5 shadow-card">
-                  <div className="flex items-center gap-2 text-indigo-700 mb-3">
-                    <Banknote size={20} />
-                    <span className="text-sm font-medium">Accrued (Salary)</span>
-                  </div>
-                  <p className="text-2xl font-bold text-indigo-900">{formatINR(summary.accruedSum)}</p>
-                  <p className="text-xs text-indigo-600 font-medium mt-1">{summary.accruedCount} awaiting payroll</p>
+                <div className="grid grid-cols-2 border-b border-slate-200 lg:grid-cols-4">
+                  {[
+                    { label: 'Expense total', value: monthlyStatement.expenseTotal, caption: `${monthlyStatement.expenseRows.length} expense vouchers`, tone: 'text-rose-700' },
+                    { label: 'Advance total', value: monthlyStatement.advanceTotal, caption: `${monthlyStatement.advanceRows.length} advance vouchers`, tone: 'text-emerald-700' },
+                    { label: 'Paid amount', value: monthlyStatement.paidTotal, caption: 'Settled in the selected month', tone: 'text-slate-900' },
+                    { label: 'Expense pending', value: monthlyStatement.outstandingTotal, caption: 'Not marked as paid', tone: 'text-amber-700' },
+                  ].map((metric, index) => (
+                    <div key={metric.label} className={`px-5 py-4 ${index < 3 ? 'border-b border-slate-200 lg:border-b-0 lg:border-r' : ''} ${index === 1 ? 'border-r border-slate-200 lg:border-r' : ''}`}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{metric.label}</p>
+                      <p className={`mt-2 text-xl font-semibold tabular-nums ${metric.tone}`}>{formatINR(metric.value)}</p>
+                      <p className="mt-1 text-[11px] font-normal text-slate-500">{metric.caption}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/30">
-                  <h3 className="text-base font-bold text-zinc-800">By Request Status</h3>
-                  <p className="text-[11px] font-medium text-zinc-400 mt-1">
-                    Counts and amounts across all advance & expense entries
-                  </p>
+              <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-5 py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense analysis</p>
+                  <h3 className="mt-1 text-sm font-semibold text-slate-900">Category-wise monthly register</h3>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[480px]">
-                    <thead>
-                      <tr className="bg-zinc-50/80 border-b border-zinc-200">
-                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Status</th>
-                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-200">Count</th>
-                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Total Amount</th>
+                  <table className="w-full min-w-[700px] border-collapse text-left">
+                    <thead className="bg-slate-50">
+                      <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <th className="px-4 py-3">Particulars</th><th className="px-4 py-3 text-right">Vouchers</th><th className="px-4 py-3 text-right">Expense amount</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Pending</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-50">
-                      {Object.keys(summary.byStatus).length === 0 ? (
-                        <tr>
-                          <td colSpan={3} className="p-12 text-center text-zinc-300 font-bold uppercase italic tracking-widest opacity-40">
-                            No entries yet
-                          </td>
-                        </tr>
-                      ) : (
-                        Object.entries(summary.byStatus)
-                          .sort(([a], [b]) => (a || '').localeCompare(b || ''))
-                          .map(([st, { count, sum }]) => (
-                            <tr key={st} className="h-12 border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                              <td className="px-4 border-r border-zinc-50">
-                                <span
-                                  className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight ${
-                                    st === 'Approved'
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                      : st === 'Rejected'
-                                        ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                        : st === 'Hold'
-                                          ? 'bg-zinc-100 text-zinc-600 border border-zinc-200'
-                                          : st === 'Partial'
-                                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                            : 'bg-amber-50 text-amber-700 border border-amber-100'
-                                  }`}
-                                >
-                                  {st}
-                                </span>
-                              </td>
-                              <td className="px-4 text-right text-[13px] font-bold text-zinc-800 border-r border-zinc-50 tabular-nums">{count}</td>
-                              <td className="px-4 text-right text-[13px] font-black text-zinc-900 tabular-nums">{formatINR(sum)}</td>
-                            </tr>
-                          ))
-                      )}
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {monthlyStatement.categoryRows.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-sm font-normal text-slate-400">No expense vouchers for this month.</td></tr> : monthlyStatement.categoryRows.map((category) => (
+                        <tr key={category.category} className="hover:bg-slate-50/70"><td className="px-4 py-3 font-medium text-slate-800">{category.category}</td><td className="px-4 py-3 text-right font-normal tabular-nums text-slate-600">{category.count}</td><td className="px-4 py-3 text-right font-medium tabular-nums text-rose-700">{formatINR(category.amount)}</td><td className="px-4 py-3 text-right font-normal tabular-nums text-slate-700">{formatINR(category.paid)}</td><td className="px-4 py-3 text-right font-normal tabular-nums text-amber-700">{formatINR(category.outstanding)}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Voucher register</p><h3 className="mt-1 text-sm font-semibold text-slate-900">Transaction detail</h3></div>
+                  <p className="text-xs font-normal text-slate-500">{monthlyStatement.periodRows.length} record{monthlyStatement.periodRows.length === 1 ? '' : 's'} in the statement period</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[980px] border-collapse text-left">
+                    <thead className="bg-slate-50"><tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400"><th className="px-4 py-3">Date</th><th className="px-4 py-3">Voucher no.</th><th className="px-4 py-3">Particulars</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Type</th><th className="px-4 py-3 text-right">Debit / expense</th><th className="px-4 py-3 text-right">Advance</th><th className="px-4 py-3">Status</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {monthlyStatement.periodRows.length === 0 ? <tr><td colSpan={8} className="px-4 py-10 text-center text-sm font-normal text-slate-400">No advance or expense records for this month.</td></tr> : monthlyStatement.periodRows.map((entry) => <tr key={entry.id} className="hover:bg-slate-50/70"><td className="whitespace-nowrap px-4 py-3 font-normal text-slate-600">{formatDeletedRecordDate(entry.date)}</td><td className="px-4 py-3 font-mono text-xs text-slate-500">{entry.transactionNo || '—'}</td><td className="px-4 py-3"><p className="font-medium text-slate-800">{entry.category || 'Uncategorised'}</p>{entry.reason && <p className="mt-0.5 max-w-[260px] truncate text-[11px] font-normal text-slate-400">{entry.reason}</p>}</td><td className="px-4 py-3 font-normal text-slate-700">{entry.statementEmployeeName}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.accountingType === 'Expense' ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>{entry.accountingType}</span></td><td className="px-4 py-3 text-right font-medium tabular-nums text-rose-700">{entry.accountingType === 'Expense' ? formatINR(entry.statementAmount) : '—'}</td><td className="px-4 py-3 text-right font-medium tabular-nums text-emerald-700">{entry.accountingType === 'Advance' ? formatINR(entry.statementAmount) : '—'}</td><td className="px-4 py-3 text-[11px] font-normal text-slate-600">{entry.status || 'Pending'} · {entry.paymentStatus || 'Unpaid'}</td></tr>)}
                     </tbody>
                   </table>
                 </div>
