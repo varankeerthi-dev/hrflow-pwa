@@ -215,6 +215,7 @@ export default function Dashboard() {
   const { employees, loading: empLoading } = useEmployees(canFetchEmployees ? user.orgId : null)
 
   const [activeTab, setActiveTab] = useState('attendance')
+  const [operationsSubTab, setOperationsSubTab] = useState('dates')
 
   useEffect(() => {
     if (activeTab === 'salary-slip') {
@@ -356,7 +357,7 @@ export default function Dashboard() {
     }
   }, [tabSearchParams, visibleTabs])
 
-  const mainTabs = ['home', 'attendance-list', 'advance', 'vehicle', 'approvals']
+  const mainTabs = ['home', 'attendance-list', 'advance', 'vehicle']
   
   const hrTabs = ['employees', 'leave', 'letters', 'recruitment', 'documents', 'correction']
   const featuresTabs = ['fines', 'engage', 'chat']
@@ -451,6 +452,7 @@ export default function Dashboard() {
     const helpItem = visibleTabs.find(t => t.id === 'help')
     const accountantItem = visibleTabs.find(t => t.id === 'accountant')
     const salarySlipItem = visibleTabs.find(t => t.id === 'salary-slip')
+    const approvalsItem = visibleTabs.find(t => t.id === 'approvals')
     const reportsChildren = visibleTabs.filter(t => ['attendance-reports', 'site-reports'].includes(t.id))
     const hrParent = hrItems.length > 0 ? menuGroups.hr : null
     const featuresParent = featuresItems.length > 0 ? menuGroups.features : null
@@ -458,7 +460,14 @@ export default function Dashboard() {
 
     return (
       <>
-        {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => { if (navigateToTab(tab.id)) setIsMobileMenuOpen(false) }))}
+        {mainItems.map(tab => renderMenuItem(tab, activeTab === tab.id, () => {
+          if (tab.id === 'vehicle' && isAdmin) {
+            setOperationsSubTab('vehicles')
+            if (navigateToTab('operations')) setIsMobileMenuOpen(false)
+            return
+          }
+          if (navigateToTab(tab.id)) setIsMobileMenuOpen(false)
+        }))}
 
         {hrParent && (
           <div className="mt-1">
@@ -489,6 +498,8 @@ export default function Dashboard() {
               {renderMenuItem({ id: reportsParentGroup.id, label: reportsParentGroup.label, icon: reportsParentGroup.icon }, reportsChildren.some(t => t.id === activeTab), () => { handleParentClick('reports'); setIsMobileMenuOpen(false) })}
             </div>
           )}
+
+          {approvalsItem && renderMenuItem(approvalsItem, activeTab === 'approvals', () => { if (navigateToTab('approvals')) setIsMobileMenuOpen(false) })}
           
           {settingsItem && renderMenuItem(settingsItem, activeTab === 'settings', () => { if (navigateToTab('settings')) setIsMobileMenuOpen(false) })}
 
@@ -541,7 +552,7 @@ export default function Dashboard() {
       case 'approvals': return <ApprovalsTab />
       case 'letters': return <HRLettersTab />
       case 'vehicle': return isAdmin ? <OperationsTab initialSubTab="vehicles" /> : <EmployeeVehiclePortal employeeId={currentEmployee?.id || null} />
-      case 'operations': return <OperationsTab initialSubTab="dates" />
+      case 'operations': return <OperationsTab initialSubTab={operationsSubTab} />
       case 'employees': return <EmployeesTab />
       case 'recruitment': return <RecruitmentTab />
       case 'documents': return <DocumentsTab />
