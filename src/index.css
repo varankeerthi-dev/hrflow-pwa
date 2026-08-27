@@ -103,7 +103,14 @@ body {
   font-family: 'Work Sans Variable', 'Work Sans', system-ui, sans-serif;
 }
 
-.fleet-vehicle-tabs {
+.fleet-vehicle-tabs,
+.fleet-secondary-tabs {
+  --fleet-green: #008744;
+  --fleet-surface: #F4FAFD;
+  --fleet-container: #FFFFFF;
+  --fleet-border: #E0E0E0;
+  --fleet-text: #1A1C1E;
+  --fleet-text-secondary: #44474E;
   display: flex;
   gap: 4px;
   min-height: 49px;
@@ -114,9 +121,11 @@ body {
   scrollbar-width: none;
 }
 
-.fleet-vehicle-tabs::-webkit-scrollbar { display: none; }
+.fleet-vehicle-tabs::-webkit-scrollbar,
+.fleet-secondary-tabs::-webkit-scrollbar { display: none; }
 
-.fleet-vehicle-tab {
+.fleet-vehicle-tab,
+.fleet-secondary-tab {
   align-self: end;
   min-height: 38px;
   padding: 12px 24px;
@@ -132,13 +141,16 @@ body {
   white-space: nowrap;
 }
 
-.fleet-vehicle-tab:hover { color: var(--fleet-green); }
+.fleet-vehicle-tab:hover,
+.fleet-secondary-tab:hover { color: var(--fleet-green); }
 
-.fleet-vehicle-tab:not(.fleet-vehicle-tab-active) {
+.fleet-vehicle-tab:not(.fleet-vehicle-tab-active),
+.fleet-secondary-tab:not(.fleet-secondary-tab-active) {
   opacity: 0.98;
 }
 
-.fleet-vehicle-tab:not(.fleet-vehicle-tab-active):not(:first-child)::before {
+.fleet-vehicle-tab:not(.fleet-vehicle-tab-active):not(:first-child)::before,
+.fleet-secondary-tab:not(.fleet-secondary-tab-active):not(:first-child)::before {
   position: absolute;
   top: 11px;
   bottom: 11px;
@@ -148,12 +160,14 @@ body {
   background: var(--fleet-border);
 }
 
-.fleet-vehicle-tab:focus-visible {
+.fleet-vehicle-tab:focus-visible,
+.fleet-secondary-tab:focus-visible {
   outline: 2px solid var(--fleet-green);
   outline-offset: -2px;
 }
 
-.fleet-vehicle-tab-active {
+.fleet-vehicle-tab-active,
+.fleet-secondary-tab-active {
   position: relative;
   z-index: 1;
   margin-bottom: -1px;
@@ -164,7 +178,8 @@ body {
   box-shadow: 0 8px 14px -12px rgba(26, 28, 30, 0.65);
 }
 
-.fleet-vehicle-tab-active::after {
+.fleet-vehicle-tab-active::after,
+.fleet-secondary-tab-active::after {
   position: absolute;
   right: 0;
   bottom: -1px;
@@ -205,8 +220,10 @@ body {
 }
 
 @media (max-width: 640px) {
-  .fleet-vehicle-tabs { padding-inline: 12px; }
-  .fleet-vehicle-tab { padding-inline: 16px; }
+  .fleet-vehicle-tabs,
+  .fleet-secondary-tabs { padding-inline: 12px; }
+  .fleet-vehicle-tab,
+  .fleet-secondary-tab { padding-inline: 16px; }
   .fleet-vehicle-content,
   .fleet-vehicle-mileage { margin-inline: 12px; }
 }

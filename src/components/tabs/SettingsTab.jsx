@@ -46,7 +46,7 @@ import {
   normalizeEmployeeStatus,
 } from '../../lib/employeeStatus'
 import { Table as ReusableTable } from '../table'
-import { SubTabsNav } from '../ui/SubTabsNav'
+import { FleetSecondaryTabs } from '../ui/FleetSecondaryTabs'
 import { PORTAL_APPROVAL_MODULES, PORTAL_APPROVAL_ROLES, createPortalApprovalDraft, normalizePortalApprovalSetting } from '../../lib/portalApprovalWorkflow'
 
 import { formatDateDDMMYYYY } from '../../lib/utils';
@@ -321,7 +321,7 @@ const settingsSubTabMeta = {
     pill: 'Compensation',
   },
   advance_cat: {
-    title: 'Advance Categories',
+    title: 'Categories',
     description: 'Organize request types with quick inline editing instead of interruptive prompts.',
     kicker: '',
     pill: 'Categories',
@@ -371,7 +371,7 @@ const mobileSettingsItemMeta = {
   salary: { group: 'General', title: 'Salary Slab', detail: 'Payroll structures and salary rules', icon: Wallet },
   policy: { group: 'General', title: 'Policy', detail: 'Full Day, grace and late rules', icon: AlertCircle },
   leave_policy: { group: 'General', title: 'Leave Policy', detail: 'Paid leave, sandwich and threshold rules', icon: Calendar },
-  advance_cat: { group: 'Others', title: 'Advance Categories', detail: 'Advance and expense request types', icon: Wallet },
+  advance_cat: { group: 'Others', title: 'Categories', detail: 'Advance and expense request types', icon: Wallet },
   holidays: { group: 'Others', title: 'Holidays', detail: 'Holiday calendar and weekly offs', icon: Calendar },
   site_geofence: { group: 'Others', title: 'Site Geofence', detail: 'Attendance locations and radius', icon: MapPin },
   approval_settings: { group: 'Others', title: 'Approval Settings', detail: 'Approval stages and workflows', icon: Check },
@@ -510,7 +510,7 @@ export default function SettingsTab({ initialSubTab }) {
     { id: 'user_roles', label: 'Users & Roles', module: 'Roles' },
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
-    { id: 'advance_cat', label: 'Advance Categories', module: 'AdvanceExpense' },
+    { id: 'advance_cat', label: 'Categories', module: 'AdvanceExpense' },
     { id: 'holidays', label: 'Holidays', module: 'Settings' },
     { id: 'site_geofence', label: 'Site Geofence', module: 'Settings' },
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' },
@@ -3505,10 +3505,11 @@ export default function SettingsTab({ initialSubTab }) {
           </div>
 
           <div className="hidden md:block">
-            <SubTabsNav
+            <FleetSecondaryTabs
               tabs={visibleSubTabs}
               activeTabId={activeSubTab}
               onTabChange={(tab) => setActiveSubTab(tab.id)}
+              ariaLabel="Settings sections"
             />
           </div>
         </>
@@ -4028,7 +4029,7 @@ export default function SettingsTab({ initialSubTab }) {
           <div className="grid max-w-5xl grid-cols-1 gap-5 xl:grid-cols-[0.85fr_1.15fr] no-print">
             <div className={`${settingsPanelClassName} p-6 md:p-7`}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] leading-tight text-indigo-600">Create category</p>
-              <h3 className="mt-2 text-[22px] font-normal tracking-[-0.03em] text-slate-950">Advance Categories</h3>
+              <h3 className="mt-2 text-[22px] font-normal tracking-[-0.03em] text-slate-950">Categories</h3>
               <p className="mt-2 text-[13px] leading-6 text-slate-500">
                 Add request types inline so the finance setup stays quick and predictable for the whole team.
               </p>

@@ -618,7 +618,6 @@ export default function Dashboard() {
             const isAdmin = user?.role?.toLowerCase() === 'admin'
             const quickActions = [
               { label: 'Add Attendance', tab: 'attendance-list', tooltip: 'New entry?', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
-              { label: 'Add Employee', tab: 'employees', tooltip: 'New employee?', icon: <Users size={14} />, module: 'Employees', right: 'create' },
               { label: 'Expense', tab: 'advance', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
               { label: 'Full Summary', tab: 'attendance-list', attendanceSubTab: 'grid', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'Attendance', right: 'view' },
               { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', tooltip: 'Track daily checklist?', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },

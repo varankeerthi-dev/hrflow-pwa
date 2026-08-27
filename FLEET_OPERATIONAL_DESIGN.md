@@ -2,9 +2,9 @@
 
 ## Purpose and scope
 
-This document defines the **Fleet Operational Design System** introduced for the admin-facing **Operations → Vehicles** workspace. It establishes a focused operational interface for fleet records, mileage, maintenance, and associated administration. The implementation is intentionally scoped to Vehicle pages; it does not change typography, colours, or shared sub-tab behavior elsewhere in HRFlow.
+This document defines the **Fleet Operational Design System** introduced for the admin-facing **Operations → Vehicles** workspace. It establishes a focused operational interface for fleet records, mileage, maintenance, and associated administration. Its connected secondary-tab treatment is also adopted in the nested navigation of **HR → Employees**, **HR Communications**, and desktop **Settings**, while all other shared page navigation remains unchanged.
 
-The design prioritises low-friction scanning and data entry. Vehicle operators and administrators work with registrations, readings, maintenance state, and ownership details throughout the day, so the interface should feel structured, calm, and connected rather than decorative.
+The design prioritises low-friction scanning and data entry. Vehicle operators and administrators work with registrations, readings, maintenance state, and ownership details throughout the day, so the interface should feel structured, calm, and connected rather than decorative. The same restrained navigation language now helps users orient within the selected HR and Settings workspaces without changing their underlying workflows.
 
 | Design decision | Vehicle implementation |
 |---|---|
@@ -30,7 +30,7 @@ Fleet Green is a functional colour, not a decoration. It should be used for the 
 
 ## Sub-tab construction
 
-Vehicle sub-tabs are treated as part of the active content area rather than a detached underline navigation bar. Inactive tabs sit on the Fleet Surface. The active tab has a white background matching the content container, no lower border, a three-pixel top radius, a right outline, and a restrained bottom-weighted shadow. This creates a continuous visual route from navigation to the selected workspace.
+Vehicle sub-tabs are treated as part of the active content area rather than a detached underline navigation bar. Inactive tabs sit on the Fleet Surface. The active tab has a white background matching the content container, no lower border, a six-pixel top radius, a right outline, and a restrained bottom-weighted shadow. This creates a continuous visual route from navigation to the selected workspace.
 
 The baseline standards are deliberately compact and should not be widened merely to fill space.
 
@@ -41,8 +41,8 @@ The baseline standards are deliberately compact and should not be widened merely
 | Corner treatment | `6px 6px 0 0` on the active tab only |
 | Active-tab border | Right outline only; no visual divider below the tab |
 | Inactive separation | Quiet vertical rules between neighbouring inactive tabs; labels use 98% opacity |
-| Active weight | Geist Sans semi-bold (`600`) |
-| Inactive weight | Geist Sans medium (`500`) |
+| Active weight | DM Sans semi-bold (`600`) |
+| Inactive weight | DM Sans medium (`500`) |
 | Mobile behavior | Horizontally scrollable; no wrapping or compressed labels |
 
 ## Layout and surface rules
@@ -67,11 +67,11 @@ Vehicle data is composed in Work Sans. It is intended for labels, values, table 
 
 Primary create actions use Fleet Green with white text. Focus outlines use the same colour and remain visible to keyboard users. Tab selection is immediate and leaves the current content in place unless a user changes the active workspace. On mobile, users may scroll the tab strip horizontally; the selected tab must remain readable and maintain the connected active surface.
 
-The design system does not alter Vehicle permissions, mileage validation, maintenance logic, storage behavior, audit records, or employee portal functionality. It is a presentation and navigation-surface layer over the existing operational workflow.
+The design system does not alter Vehicle permissions, mileage validation, maintenance logic, storage behavior, audit records, employee portal functionality, or the data workflows in the adopted HR and Settings sections. It is a presentation and navigation-surface layer over the existing operational workflows.
 
 ## Reuse guardrails for later rollout
 
-Before extending this system to another HRFlow area, assess whether the page is an operational workspace with multiple connected views. Use the system where a calm surface, integrated sub-tabs, and a single clear operational action improve task flow. Do not globally replace shared `SubTabsNav`; create a scoped variant when another page needs materially different navigation behavior.
+Before extending this system beyond the currently adopted Vehicle, Employee, HR Communications, and Settings sections, assess whether the page is an operational workspace with multiple connected views. Use the system where a calm surface, integrated sub-tabs, and a single clear operational action improve task flow. Do not globally replace shared `SubTabsNav`; use the scoped secondary variant when another page needs this connected navigation behavior.
 
 Future page adoption should preserve the following contract:
 

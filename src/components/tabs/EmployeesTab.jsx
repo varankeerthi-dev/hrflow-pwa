@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, ChevronDown, Calendar, Clock, FileText, Wallet, Gavel, Gift, User, Briefcase, Mail, Phone, MapPin, BadgeCheck, Circle, Activity, Users, List, UserCheck, Cake, ChevronRight, ClipboardCheck } from 'lucide-react';
 import EmployeeDirectoryTab from './EmployeeDirectoryTab';
 import EmployeeProfileUpdatesTab from './EmployeeProfileUpdatesTab';
-import { SubTabsNav } from '../ui/SubTabsNav';
+import { FleetSecondaryTabs } from '../ui/FleetSecondaryTabs';
 const formatDate = d => d ? new Date(d).toLocaleDateString('en-IN', {
   day: '2-digit',
   month: 'short',
@@ -498,10 +498,11 @@ export default function EmployeesTab() {
   return <div className="flex flex-col h-full" style={{
     fontFamily: 'Figtree, system-ui, sans-serif'
   }}>
-      <SubTabsNav
+      <FleetSecondaryTabs
         tabs={employeeSubTabs}
         activeTabId={activeEmployeeTab}
         onTabChange={(tab) => setActiveEmployeeTab(tab.id)}
+        ariaLabel="Employee workspace sections"
       />
       {activeEmployeeTab === 'directory' && <EmployeeDirectoryTab />}
       {activeEmployeeTab === 'details' && <DetailsView />}
