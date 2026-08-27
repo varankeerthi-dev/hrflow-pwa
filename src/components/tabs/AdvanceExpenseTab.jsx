@@ -197,6 +197,13 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
           </div>
         )}
 
+        {activeModule === 'Add Expense' && (
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Date <span className="text-rose-500">*</span></label>
+            <input type="date" value={row.date || ''} max={new Date().toISOString().split('T')[0]} onChange={(e) => handleRowChange(row.id, 'date', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </div>
+        )}
+
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category <span className="text-rose-500">*</span></label>
@@ -223,7 +230,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
         </div>
 
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Remarks</label>
+          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Brief Description</label>
           <input type="text" value={row.reason} onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500" placeholder="Add a note..." />
         </div>
 
@@ -234,7 +241,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
   )
 }
 
-export default function AdvanceExpenseTab({ defaultModule, activeModule: activeModuleProp, onModuleChange, portalMode = false, portalEmployeeId = null }) {
+export default function AdvanceExpenseTab({ defaultModule, activeModule: activeModuleProp, onModuleChange, onDirtyChange, portalMode = false, portalEmployeeId = null }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   
@@ -251,9 +258,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     })
   }, [employees, portalEmployeeId, portalMode])
   const queryClient = useQueryClient()
+  const draftDirtyRef = useRef(false)
   const [internalActiveModule, setInternalActiveModule] = useState(defaultModule || 'Add Advance')
   const activeModule = activeModuleProp !== undefined ? activeModuleProp : internalActiveModule
   const setActiveModule = (mod) => {
+    if (mod !== activeModule && draftDirtyRef.current && !window.confirm('You have unsaved Advance / Expense entries. Leave this section and keep the saved draft?')) return
     setInternalActiveModule(mod)
     if (onModuleChange) onModuleChange(mod)
   }
@@ -935,6 +944,15 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (draft?.addRows?.length) return draft.addRows
     return [{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }]
   })
+  const hasUnsavedEntries = useMemo(() => addRows.some((row) => (
+    Boolean(row.category?.trim()) ||
+    Boolean(row.customCategory?.trim()) ||
+    Number(row.amount) > 0 ||
+    Boolean(row.reason?.trim()) ||
+    Boolean(row.project?.trim()) ||
+    Boolean(row.paidTo) ||
+    Boolean(row.paidToCustomName?.trim())
+  )), [addRows])
 
   const [expenseMode, setExpenseMode] = useState(draft?.expenseMode || 'self')
   const [sessionDate, setSessionDate] = useState(() => draft?.sessionDate || new Date().toISOString().split('T')[0])
@@ -975,6 +993,21 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       localStorage.setItem(LS_KEY, JSON.stringify(draftData))
     } catch (e) { /* quota exceeded, ignore */ }
   }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn, showSessionEmployee, showSessionAccount, showSessionPayout])
+
+  useEffect(() => {
+    draftDirtyRef.current = hasUnsavedEntries
+    onDirtyChange?.(hasUnsavedEntries)
+  }, [hasUnsavedEntries, onDirtyChange])
+
+  useEffect(() => {
+    if (!hasUnsavedEntries) return
+    const handler = (event) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasUnsavedEntries])
 
   // Compute side panel data: Date-grouped recent entries & Current Month total
   const sidePanelData = useMemo(() => {
@@ -1228,7 +1261,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const handleAddRow = () => {
     const activeEmp = sessionDefaultEmp || getMyEmpId() || ''
     const newId = Date.now() + Math.random()
-    setAddRows(prev => [...prev, { id: newId, date: new Date().toISOString().split('T')[0], employeeId: activeEmp, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: sessionPayout || 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
+    setAddRows(prev => [...prev, { id: newId, date: sessionDate || new Date().toISOString().split('T')[0], employeeId: activeEmp, category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: sessionPayout || 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }])
     // Auto-focus the new row's category cell after React renders it
     setTimeout(() => {
       const catCell = document.getElementById(`category-cell-${newId}`)
@@ -1422,9 +1455,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const handleUpdate = async () => {
     try {
       let type = editForm.type
-      if (editForm.category.toLowerCase().includes('advance')) {
+      const category = editForm.category || ''
+      if (isGivenToOthersCategory(category)) {
+        type = 'Expense'
+      } else if (category.toLowerCase().includes('advance')) {
         type = 'Advance'
-      } else if (editForm.category.toLowerCase().includes('expense')) {
+      } else if (category.toLowerCase().includes('expense')) {
         type = 'Expense'
       } else if (!type) {
         type = 'Expense'
@@ -1446,6 +1482,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }
 
   const handleSubmitAll = async () => {
+    if (submitting) return
     // Check for future dates in Expenses
     const todayStr = new Date().toISOString().split('T')[0]
     const isExpenseModule = activeModule === 'Add Expense' || activeModule === 'Expense'
@@ -1456,9 +1493,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
 
     // Check for required fields
-    const rowsWithMissingFields = addRows.filter(r => !r.employeeId || !r.amount || !r.category)
+    const rowsWithMissingFields = addRows.filter(r => !r.date || !r.employeeId || !r.amount || !r.category)
     if (rowsWithMissingFields.length > 0) {
-      return alert('Please fill in required fields (Employee, Category, Amount) for all rows.')
+      return alert('Please fill in required fields (Date, Employee, Category, Amount) for all rows.')
     }
     
     // Check for "Paid To" requirement in specific categories
@@ -1519,7 +1556,29 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     // All rows are valid
     const validRows = addRows
     
-    // Enhanced Duplicate Detection with fuzzy matching
+    // Exact duplicate check within the current submission batch. This catches
+    // an accidental copied row without blocking two genuinely different bills.
+    const submittedFingerprints = new Map()
+    const duplicateDraftRows = []
+    validRows.forEach((row, index) => {
+      const fingerprint = [
+        row.employeeId,
+        row.date,
+        String(row.category || '').trim().toLowerCase(),
+        Number(row.amount || 0).toFixed(2),
+        String(row.reason || '').trim().toLowerCase(),
+        row.paidTo || String(row.paidToCustomName || '').trim().toLowerCase()
+      ].join('|')
+      const firstIndex = submittedFingerprints.get(fingerprint)
+      if (firstIndex !== undefined) {
+        duplicateDraftRows.push(`Row ${index + 1} duplicates row ${firstIndex + 1}: ${row.date}, ${row.category}, ₹${Number(row.amount).toLocaleString('en-IN')}`)
+      } else {
+        submittedFingerprints.set(fingerprint, index)
+      }
+    })
+    if (duplicateDraftRows.length > 0 && !window.confirm(`DUPLICATE ROWS DETECTED:\n\n${duplicateDraftRows.join('\n')}\n\nSubmit them anyway?`)) return
+
+    // Enhanced persisted-record duplicate detection with fuzzy matching
     const duplicates = []
     const AMOUNT_TOLERANCE = 0.05 // 5% tolerance for amount matching
     const DATE_TOLERANCE_DAYS = 2 // Within 2 days for date proximity
@@ -3421,13 +3480,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                         <th className="py-3 px-3 w-10 text-center">#</th>
                         {!portalMode && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
+                        {activeModule === 'Add Expense' && <th className="py-3 px-3 min-w-[128px] w-32">Date <span className="text-rose-500">*</span></th>}
                         <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
                         {showAdvanceFields && (
                           <th className="py-3 px-3 min-w-[160px]">Paid To <span className="text-rose-500">*</span></th>
                         )}
                         <th className="py-3 px-2.5 min-w-[100px] w-28 text-right">Amount (₹) <span className="text-rose-500">*</span></th>
                         {!portalMode && <th className="py-3 px-2.5 min-w-[100px] w-28">Payout <span className="text-rose-500">*</span></th>}
-                        <th className="py-3 px-3 min-w-[220px]">Remarks</th>
+                        <th className="py-3 px-3 min-w-[220px]">Brief Description</th>
                         {showProjectColumn && (
                           <th className="py-3 px-3 min-w-[160px]">Project (Optional)</th>
                         )}
@@ -3462,6 +3522,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     </option>
                                   ))}
                                 </select>
+                              </td>
+                            )}
+
+                            {activeModule === 'Add Expense' && (
+                              <td className="py-2 px-3 w-32">
+                                <input
+                                  type="date"
+                                  value={row.date || ''}
+                                  max={new Date().toISOString().split('T')[0]}
+                                  onChange={(e) => handleRowChange(row.id, 'date', e.target.value)}
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                />
                               </td>
                             )}
 
@@ -3666,7 +3738,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               </td>
                             )}
 
-                            {/* Remarks */}
+                            {/* Brief description */}
                             <td className="py-2 px-3">
                               <input
                                 type="text"
@@ -3678,7 +3750,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     handleAddRow()
                                   }
                                 }}
-                                placeholder="Remarks..."
+                                placeholder="Brief description..."
                                 className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
                               />
                             </td>

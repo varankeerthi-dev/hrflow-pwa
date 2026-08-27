@@ -110,6 +110,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   const employeeId = employee?.id || null
 
   const [activePortalTab, setActivePortalTab] = useState(initialSubTab)
+  const [expenseDraftDirty, setExpenseDraftDirty] = useState(false)
   const [loading, setLoading] = useState(false)
   const [requests, setRequests] = useState([])
   const [portalFines, setPortalFines] = useState([])
@@ -702,6 +703,11 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
   }
 
 
+  const handlePortalTabChange = (tabId) => {
+    if (activePortalTab === 'expenses' && tabId !== 'expenses' && expenseDraftDirty && !window.confirm('You have an unsaved expense entry. Leaving this page will keep the saved draft, but it has not been submitted. Continue?')) return
+    setActivePortalTab(tabId)
+  }
+
   return (
     <div className="module-layout-root h-full flex flex-col font-inter gap-5 pb-6">
       {/* Canonical HRFlow sub-navigation */}
@@ -709,7 +715,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         <SubTabsNav
           className="min-w-0"
           activeTabId={activePortalTab}
-          onTabChange={(tab) => setActivePortalTab(tab.id)}
+          onTabChange={(tab) => handlePortalTabChange(tab.id)}
           tabs={[
             { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={15} /> },
             { id: 'tasks', label: 'Tasks', icon: <CheckCircle2 size={15} /> },
@@ -1297,7 +1303,7 @@ export default function EmployeePortalTab({ portalSubTab: initialSubTab = 'dashb
         {activePortalTab === 'expenses' && (
           <div className="max-w-6xl mx-auto w-full">
             {employee ? (
-              <AdvanceExpenseTab portalMode portalEmployeeId={employee.id} defaultModule="Add Expense" />
+              <AdvanceExpenseTab portalMode portalEmployeeId={employee.id} defaultModule="Add Expense" onDirtyChange={setExpenseDraftDirty} />
             ) : (
               <div className="rounded-[12px] border border-gray-100 bg-white p-8 shadow-sm">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Expense submission unavailable</p>

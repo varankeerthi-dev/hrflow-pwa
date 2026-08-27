@@ -243,6 +243,7 @@ export default function Dashboard() {
   const [attendanceSubTab, setAttendanceSubTab] = useState('attendance')
   const [advanceSubTab, setAdvanceSubTab] = useState('Add Advance')
   const [attendanceDirty, setAttendanceDirty] = useState(false)
+  const [advanceExpenseDirty, setAdvanceExpenseDirty] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLog, setShowLog] = useState(false)
   
@@ -331,6 +332,10 @@ export default function Dashboard() {
   const navigateToTab = (tabId) => {
     if (attendanceDirty && tabId !== activeTab) {
       const ok = window.confirm('You have unsaved attendance changes. Leaving now will lose your entered data. Continue?')
+      if (!ok) return false
+    }
+    if (advanceExpenseDirty && ['advance', 'expense'].includes(activeTab) && tabId !== activeTab) {
+      const ok = window.confirm('You have unsaved Advance / Expense entries. Leaving now will keep the saved draft, but it has not been submitted. Continue?')
       if (!ok) return false
     }
     if (tabId !== activeTab) {
@@ -543,7 +548,7 @@ export default function Dashboard() {
       case 'accountant': return <AccountantTab />
       case 'salary-slip': return <SalarySlipTab defaultSummarySubTab={salarySubTab} defaultActiveTab={salaryActiveTab} onActiveTabChange={setSalaryActiveTab} />
       case 'advance':
-      case 'expense': return <AdvanceExpenseTab activeModule={advanceSubTab} onModuleChange={setAdvanceSubTab} defaultModule={activeTab === 'expense' ? 'Add Expense' : 'Add Advance'} />
+      case 'expense': return <AdvanceExpenseTab activeModule={advanceSubTab} onModuleChange={setAdvanceSubTab} onDirtyChange={setAdvanceExpenseDirty} defaultModule={activeTab === 'expense' ? 'Add Expense' : 'Add Advance'} />
       case 'fines': return <FineTab />
       case 'engage': return <EngagementTab />
       case 'chat': return <ChatTab />
