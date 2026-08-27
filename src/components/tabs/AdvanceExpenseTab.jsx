@@ -380,6 +380,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
+  const [collapsedRecentExpenseDates, setCollapsedRecentExpenseDates] = useState([])
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' })
   const [portalEditForm, setPortalEditForm] = useState(null)
 
@@ -2030,7 +2031,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       queryClient.invalidateQueries(['advances_expenses', user?.orgId])
       queryClient.invalidateQueries(['deleted_advances_expenses', user?.orgId])
       setShowDeletedModal(false)
-      setActiveModule('Reports')
     }
   })
 
@@ -3951,63 +3951,66 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                     </div>
                   ) : (
                     <div className="max-h-[480px] overflow-y-auto pr-0.5 space-y-3 custom-scrollbar">
-                      {sidePanelData.groups.map(group => (
-                        <div key={group.dateStr} className="space-y-1">
-                          {/* Date Separator Row (dd-MMM-yyyy, 11px font size, right aligned total) */}
-                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100 font-heading">
-                            <span>{formatDateTitle(group.dateStr)}</span>
-                            <span className="font-mono text-slate-900 text-right ml-auto tabular-nums">{formatINR(group.total)}</span>
-                          </div>
+                      {sidePanelData.groups.map((group) => {
+                        const isCollapsed = collapsedRecentExpenseDates.includes(group.dateStr)
+                        return (
+                          <div key={group.dateStr} className="space-y-1">
+                            {/* Clickable date separator keeps large daily groups manageable. */}
+                            <button
+                              type="button"
+                              onClick={() => setCollapsedRecentExpenseDates((current) => (
+                                current.includes(group.dateStr)
+                                  ? current.filter((date) => date !== group.dateStr)
+                                  : [...current, group.dateStr]
+                              ))}
+                              className="flex w-full items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1 text-left text-[11px] font-bold text-slate-800 transition-colors hover:bg-slate-100 font-heading"
+                              aria-expanded={!isCollapsed}
+                            >
+                              <ChevronDown size={13} className={`shrink-0 text-slate-500 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                              <span>{formatDateTitle(group.dateStr)}</span>
+                              <span className="ml-auto text-right font-mono text-slate-900 tabular-nums">{formatINR(group.total)}</span>
+                            </button>
 
-                          {/* Indented Expense Details (3-4pt indent, 9px font size, vertically aligned category column) */}
-                          <div className="ml-3 pl-2 border-l-2 border-slate-200/80 space-y-1 py-0.5">
-                            {group.items.map((item, iIdx) => {
-                              const recipientName = item.paidToName || item.paidToCustomName || item.transferredToName || (item.paidTo ? (employees.find(e => e.id === item.paidTo || e.name === item.paidTo)?.name || item.paidTo) : null);
-                              const catLower = (item.category || '').toLowerCase();
-                              const showRecipient = (catLower.includes('given to others') || catLower.includes('salary to others') || recipientName) && recipientName;
+                            {!isCollapsed && (
+                              <div className="ml-3 space-y-1 border-l-2 border-slate-200/80 py-0.5 pl-2">
+                                {group.items.map((item, iIdx) => {
+                                  const recipientName = item.paidToName || item.paidToCustomName || item.transferredToName || (item.paidTo ? (employees.find(e => e.id === item.paidTo || e.name === item.paidTo)?.name || item.paidTo) : null);
+                                  const catLower = (item.category || '').toLowerCase();
+                                  const showRecipient = (catLower.includes('given to others') || catLower.includes('salary to others') || recipientName) && recipientName;
 
-                              return (
-                                <div 
-                                  key={item.id || iIdx}
-                                  className={`${isSelfExpense ? 'grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-[85px_1fr_auto]'} grid items-center gap-1 text-[9px] font-medium text-slate-600 hover:text-slate-900 py-0.5 font-body border-b border-slate-50 last:border-0`}
-                                >
-                                  {isSelfExpense ? (
-                                    <div className="flex min-w-0 flex-col">
-                                      <span className="truncate text-slate-600 font-semibold" title={item.category || 'General'}>
-                                        {item.category || 'General'}
-                                      </span>
-                                      {item.reason && (
-                                        <span className="mt-0.5 truncate text-[8px] font-normal leading-none text-slate-400" title={item.reason}>
-                                          {item.reason}
-                                        </span>
+                                  return (
+                                    <div
+                                      key={item.id || iIdx}
+                                      className={`${isSelfExpense ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[85px_minmax(0,1fr)_auto_auto]'} group grid items-center gap-1 text-[9px] font-medium text-slate-600 hover:text-slate-900 py-1 font-body border-b border-slate-50 last:border-0`}
+                                    >
+                                      {isSelfExpense ? (
+                                        <div className="flex min-w-0 flex-col">
+                                          <span className="truncate text-slate-600 font-semibold" title={item.category || 'General'}>{item.category || 'General'}</span>
+                                          {item.reason && <span className="mt-0.5 truncate text-[8px] font-normal leading-none text-slate-400" title={item.reason}>{item.reason}</span>}
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <span className="truncate pr-1 font-semibold text-slate-800" title={item.employeeName || 'Unknown'}>{item.employeeName || 'Unknown'}</span>
+                                          <div className="flex min-w-0 flex-col">
+                                            <span className="truncate font-medium text-slate-500" title={item.category || 'General'}>- {item.category || 'General'}</span>
+                                            {showRecipient && <span className="mt-0.5 truncate text-[6px] font-bold leading-none text-blue-600 font-body" title={`Recipient: ${recipientName}`}>→ {recipientName}</span>}
+                                          </div>
+                                        </>
                                       )}
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <span className="truncate text-slate-800 font-semibold pr-1" title={item.employeeName || 'Unknown'}>
-                                        {item.employeeName || 'Unknown'}
+                                      <span className="ml-auto shrink-0 text-right font-mono font-bold text-slate-900 tabular-nums">{formatINR(item.amount)}</span>
+                                      <span className="invisible flex shrink-0 items-center gap-1 group-hover:visible group-focus-within:visible">
+                                        <button type="button" onClick={() => handleEdit(item)} className="text-[8px] font-semibold text-indigo-600 hover:text-indigo-800" aria-label={`Edit ${item.category || 'expense'}`}>Edit</button>
+                                        <span className="text-slate-200">|</span>
+                                        <button type="button" onClick={() => confirmDelete(item)} className="text-[8px] font-semibold text-rose-600 hover:text-rose-800" aria-label={`Delete ${item.category || 'expense'}`}>Delete</button>
                                       </span>
-                                      <div className="flex flex-col min-w-0">
-                                        <span className="truncate text-slate-500 font-medium" title={item.category || 'General'}>
-                                          - {item.category || 'General'}
-                                        </span>
-                                        {showRecipient && (
-                                          <span className="text-[6px] font-bold text-blue-600 leading-none truncate mt-0.5 font-body" title={`Recipient: ${recipientName}`}>
-                                            → {recipientName}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </>
-                                  )}
-                                  <span className="font-bold text-slate-900 font-mono shrink-0 text-right tabular-nums ml-auto">
-                                    {formatINR(item.amount)}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
