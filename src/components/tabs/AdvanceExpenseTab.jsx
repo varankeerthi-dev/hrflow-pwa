@@ -1661,6 +1661,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       
       // After successful submission
       if (result && result.length > 0) {
+        // Clear the dirty ref synchronously before any post-submit navigation.
+        // React state updates from resetting rows are asynchronous, so relying on
+        // them alone could still make setActiveModule show a false leave warning.
+        draftDirtyRef.current = false
+        onDirtyChange?.(false)
+        try { localStorage.removeItem('hrflow_expense_draft') } catch (e) { /* ignore */ }
+
         const rowType = activeModule === 'Add Advance' ? 'Advance' : 'Expense'
         setSuccessModal({
           open: true,
