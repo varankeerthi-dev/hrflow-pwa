@@ -22,7 +22,7 @@ import AttendanceApprovalQueue from './AttendanceApprovalQueue'
 import AllowanceClaimsView from '../ui/AllowanceClaimsView'
 import { formatINR } from '../../lib/salaryUtils'
 import { logActivity } from '../../hooks/useActivityLog'
-import { canActOnPortalApproval, getPortalApprovalStage } from '../../lib/portalApprovalWorkflow'
+import { canActOnPortalApproval, getPortalApprovalStage, requiresStandardApproval } from '../../lib/portalApprovalWorkflow'
 import { 
   CheckCircle2, 
   XCircle, 
@@ -156,6 +156,7 @@ export default function ApprovalsTab() {
   const [requests, setRequests] = useState([])
   const [portalApprovals, setPortalApprovals] = useState([])
   const [leaveApprovalSetting, setLeaveApprovalSetting] = useState(null)
+  const [standardApprovalSettingsLoaded, setStandardApprovalSettingsLoaded] = useState(false)
   
   // For the Advance/Expense action toggles
   const [actionState, setActionState] = useState({}) // hrPick, mdPick, remarks, partialAmount, paymentMethod, paymentRef, ...
@@ -270,11 +271,13 @@ export default function ApprovalsTab() {
 
   useEffect(() => {
     if (!user?.orgId) return
+    setStandardApprovalSettingsLoaded(false)
     const fetchSettings = async () => {
       const q = query(collection(db, 'organisations', user.orgId, 'approvalSettings'))
       const snap = await getDocs(q)
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       setAllApprovalSettings(list)
+      setStandardApprovalSettingsLoaded(true)
       const leaveSetting = list.find(s => s.moduleName === 'Leave')
       if (leaveSetting) {
         setLeaveApprovalSetting(leaveSetting)
@@ -282,6 +285,46 @@ export default function ApprovalsTab() {
     }
     fetchSettings()
   }, [user?.orgId])
+
+  // Older standard entries were persisted as pending even where no workflow was
+  // configured. Reconcile only those untouched pending items; configured and
+  // portal workflows remain unchanged.
+  useEffect(() => {
+    if (!user?.orgId || !standardApprovalSettingsLoaded) return
+
+    const reconcileUnconfiguredStandardEntries = async () => {
+      const snapshot = await getDocs(collection(db, 'organisations', user.orgId, 'advances_expenses'))
+      const legacyPendingEntries = snapshot.docs
+        .map((document) => ({ id: document.id, ...document.data() }))
+        .filter((entry) => (
+          !entry.portalApproval &&
+          ['Advance', 'Expense'].includes(entry.type) &&
+          entry.status === 'Pending' &&
+          !requiresStandardApproval(allApprovalSettings, entry.type)
+        ))
+
+      if (!legacyPendingEntries.length) return
+
+      await Promise.all(legacyPendingEntries.map((entry) => updateDoc(
+        doc(db, 'organisations', user.orgId, 'advances_expenses', entry.id),
+        {
+          status: 'Approved',
+          hrApproval: 'Approved',
+          mdApproval: 'Approved',
+          approvalRequired: false,
+          approvalWorkflow: 'none',
+          approved_by: 'System — approval not configured',
+          approved_at: serverTimestamp(),
+          approvalReconciledAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }
+      )))
+    }
+
+    reconcileUnconfiguredStandardEntries().catch((error) => {
+      console.error('Approval reconciliation error:', error)
+    })
+  }, [allApprovalSettings, standardApprovalSettingsLoaded, user?.orgId])
 
   useEffect(() => {
     if (!user?.orgId) return

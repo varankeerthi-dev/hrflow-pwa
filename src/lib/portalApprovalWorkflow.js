@@ -6,6 +6,17 @@ export const PORTAL_APPROVAL_MODULES = [
 
 export const PORTAL_APPROVAL_ROLES = ['Admin', 'HR', 'MD', 'Accountant', 'Finance']
 
+/**
+ * Standard module approvals are opt-in: an absent configuration or a
+ * configuration explicitly set to "none" must bypass HR and MD queues.
+ */
+export function requiresStandardApproval(settings, moduleName) {
+  const setting = Array.isArray(settings)
+    ? settings.find((candidate) => candidate?.moduleName === moduleName)
+    : null
+  return !!setting?.type && setting.type !== 'none'
+}
+
 export function createPortalApprovalDraft(moduleName) {
   return {
     moduleName,

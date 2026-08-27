@@ -25,7 +25,7 @@ import { tooltip } from '@tanstack/charts/tooltip'
 import { scaleBand } from '@tanstack/charts/scales/band'
 import { scaleLinear } from '@tanstack/charts/scales/linear'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
-import { buildPortalApprovalFields } from '../../lib/portalApprovalWorkflow'
+import { buildPortalApprovalFields, requiresStandardApproval } from '../../lib/portalApprovalWorkflow'
 
 function approvalStatusTextClass(status, lane) {
   const s = (status || 'Pending').toLowerCase()
@@ -699,11 +699,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           linkedAdvanceId = advanceDoc.id
         }
 
-        let initialStatus = 'Pending'
-        let initialHrApproval = 'Pending'
-        let initialMdApproval = 'Pending'
-        let initialApprovedBy = null
-        let initialApprovedAt = null
+        const standardApprovalRequired = !portalMode && requiresStandardApproval(approvalSettings, type)
+        const autoApproveStandardEntry = !portalMode && !standardApprovalRequired
+        let initialStatus = autoApproveStandardEntry ? 'Approved' : 'Pending'
+        let initialHrApproval = autoApproveStandardEntry ? 'Approved' : 'Pending'
+        let initialMdApproval = autoApproveStandardEntry ? 'Approved' : 'Pending'
+        let initialApprovedBy = autoApproveStandardEntry ? (user.name || user.email) : null
+        let initialApprovedAt = autoApproveStandardEntry ? serverTimestamp() : null
         const portalApprovalFields = portalMode
           ? buildPortalApprovalFields(type, portalApprovalSettings.find((setting) => setting.moduleName === type))
           : {}
@@ -729,8 +731,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           submittedByUid: user.uid,
           createdAt: serverTimestamp(),
           approvalSource: portalMode ? 'my-portal' : 'advance-expense',
-          approvalRequired: true,
-          approvalWorkflow: portalMode ? 'portal-config' : 'standard',
+          approvalRequired: portalMode || standardApprovalRequired,
+          approvalWorkflow: portalMode ? 'portal-config' : (standardApprovalRequired ? 'standard' : 'none'),
           paidTo: row.paidTo || null,
           paidToType: row.paidToType || null,
           paidToName: paidToName,
