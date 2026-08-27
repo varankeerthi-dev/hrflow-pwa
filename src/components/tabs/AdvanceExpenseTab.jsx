@@ -1298,12 +1298,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     setTimeout(() => {
       const catCell = document.getElementById(`category-cell-${newId}`)
       if (catCell) {
-        const select = catCell.querySelector('select')
-        if (select) select.focus()
+        const categoryTrigger = catCell.querySelector('button')
+        if (categoryTrigger) categoryTrigger.focus()
       }
     }, 50)
     return newId
   }
+
+  // Opening Add Expense should place the keyboard on the first real Category
+  // cell. The visible continuation rows below are presentation-only and never
+  // enter addRows, so they cannot be submitted as empty expenses.
+  useEffect(() => {
+    if (activeModule !== 'Add Expense') return undefined
+    const firstBlankRow = addRows.find((row) => !row.category && !row.amount && !row.reason)
+    if (!firstBlankRow) return undefined
+    const timer = window.setTimeout(() => {
+      document.querySelector(`#category-cell-${firstBlankRow.id} button`)?.focus()
+    }, 120)
+    return () => window.clearTimeout(timer)
+  }, [activeModule, expenseMode])
 
   const handleSelfExpense = (confirmReassignment = activeModule === 'Add Expense') => {
     const currentUserEmp = employees.find(e => e.email === user.email || e.id === user.uid)
@@ -3840,6 +3853,20 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                           </tr>
                         );
                       })}
+                      {activeModule === 'Add Expense' && [0, 1, 2].map((continuationIndex) => (
+                        <tr key={`expense-continuation-${continuationIndex}`} aria-hidden="true" className="h-[54px] border-b border-slate-200/60 bg-slate-50/20 text-slate-300">
+                          <td className="bg-slate-50/70 px-3 py-2.5 text-center text-xs font-semibold text-slate-300">{addRows.length + continuationIndex + 1}</td>
+                          {!portalMode && !isSelfExpense && <td className="px-2 py-1.5" />}
+                          <td className="px-2 py-1.5"><span className="flex h-9 items-center rounded-[4px] border border-slate-100 bg-white/70 px-2 text-xs font-medium text-slate-400">{format(parseISO(sessionDate || new Date().toISOString().split('T')[0]), 'dd MMM yyyy')}</span></td>
+                          <td className="px-2 py-1.5" />
+                          {showAdvanceFields && <td className="px-2 py-1.5" />}
+                          <td className="px-2 py-1.5" />
+                          {!portalMode && <td className="px-2 py-1.5" />}
+                          <td className="px-2 py-1.5" />
+                          {showProjectColumn && <td className="px-2 py-1.5" />}
+                          <td className="px-2 py-1.5" />
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
