@@ -1842,8 +1842,8 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
           {/* Main Table Card */}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <div className="min-h-0 flex-1 overflow-auto isolate">
-              <table className="min-w-[900px] w-full border-separate border-spacing-0 text-left">
-                <thead className="sticky top-0 z-30 isolate">
+              <table className="attendance-entry-table min-w-[900px] w-full border-separate border-spacing-0 text-left">
+                <thead className="relative z-30 isolate">
                   <tr className="h-10 border-b border-gray-200 bg-orange-50">
                     <th className="w-[220px] border-b border-gray-200 bg-orange-50 px-2 text-left text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Employee Name</th>
                     <th className="w-[95px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>In Time</th>

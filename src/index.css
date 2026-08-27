@@ -332,6 +332,16 @@ body {
 .kinetic-enterprise-table.enterprise-table-card .table-row-item:nth-child(even) { background: #fbfcff !important; }
 .kinetic-enterprise-table.enterprise-table-card .table-row-item:hover { background: #f1f5f9 !important; }
 
+/* Attendance Entry: each header cell owns its opaque sticky paint layer to prevent rows showing through. */
+.attendance-entry-table { isolation: isolate; }
+.attendance-entry-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background-color: #fff7ed !important;
+}
+.attendance-entry-table tbody { position: relative; z-index: 0; }
+
 @media (max-width: 768px) {
   .kinetic-attendance-monthly-summary .kinetic-attendance-monthly-toolbar,
   .kinetic-payroll-monthly-summary .kinetic-payroll-summary-toolbar { padding-inline: 16px; }
