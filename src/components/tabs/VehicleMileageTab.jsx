@@ -416,7 +416,7 @@ export default function VehicleMileageTab() {
   const isMutating = createMutation.isPending || updateMutation.isPending
 
   return (
-    <div className="flex-1 overflow-auto px-6 md:px-8 pt-1 pb-6 bg-white space-y-4">
+    <div className="fleet-vehicle-mileage flex-1 overflow-auto px-6 md:px-8 pt-1 pb-6 space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
         <div>
@@ -435,7 +435,7 @@ export default function VehicleMileageTab() {
           </button>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-md shadow-blue-500/20 active:scale-98 font-heading"
+            className="fleet-primary-action flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-bold transition active:scale-98 font-heading"
           >
             <Plus size={16} /> Add Entry
           </button>

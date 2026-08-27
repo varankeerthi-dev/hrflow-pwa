@@ -30,7 +30,7 @@ import {
   Clock
 } from 'lucide-react'
 import Spinner from '../ui/Spinner'
-import { SubTabsNav } from '../ui/SubTabsNav'
+import { FleetVehicleSubTabs } from '../ui/FleetVehicleSubTabs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../lib/firebase'
@@ -312,10 +312,10 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
   }
 
   return (
-    <div className="flex flex-col h-full bg-white font-inter selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="fleet-vehicle-shell flex h-full flex-col selection:bg-emerald-100 selection:text-emerald-950">
 
 
-      <SubTabsNav
+      <FleetVehicleSubTabs
         tabs={[
           { id: 'mileage-tracker', label: 'Mileage Tracker' },
           { id: 'all-vehicles', label: 'Vehicle list' },
@@ -329,7 +329,7 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
         <VehicleMileageTab />
       ) : (
         <>
-          <div className="flex items-center gap-3 px-6 py-2 border-b border-gray-200">
+          <div className="fleet-vehicle-status-rail flex items-center gap-3 px-6 py-3">
             <div className="flex gap-2">
               <div className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md">
                 <span className="text-xs text-gray-600">{vehicles.length} Assets</span>
@@ -345,7 +345,7 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto px-6 py-6">
+          <div className="fleet-vehicle-content flex-1 overflow-auto px-6 py-6">
             {activeSubTab === 'all-vehicles' && (
           <div className="max-w-screen-2xl mx-auto space-y-6">
             {/* Toolbar */}
@@ -362,7 +362,7 @@ export default function VehicleManagementTab({ initialSubTab = 'mileage-tracker'
               </div>
               <button 
                 onClick={() => setShowAddVehicle(true)}
-                className="w-full md:w-fit h-10 px-6 bg-indigo-600 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+                className="fleet-primary-action w-full md:w-fit h-10 px-6 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
               >
                 <Plus size={16} /> Add Asset
               </button>

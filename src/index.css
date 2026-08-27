@@ -3,6 +3,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/work-sans";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -82,6 +83,106 @@ body {
 
 .font-heading {
   font-family: var(--font-heading);
+}
+
+/* Fleet Operational Design System — scoped exclusively to Operations → Vehicles. */
+.fleet-vehicle-shell {
+  --fleet-green: #008744;
+  --fleet-surface: #F4FAFD;
+  --fleet-container: #FFFFFF;
+  --fleet-border: #E0E0E0;
+  --fleet-text: #1A1C1E;
+  --fleet-text-secondary: #44474E;
+  background: var(--fleet-surface);
+  color: var(--fleet-text);
+  font-family: 'Work Sans Variable', 'Work Sans', system-ui, sans-serif;
+}
+
+.fleet-vehicle-shell .font-heading {
+  font-family: 'Work Sans Variable', 'Work Sans', system-ui, sans-serif;
+}
+
+.fleet-vehicle-tabs {
+  display: flex;
+  gap: 4px;
+  min-height: 49px;
+  padding: 10px 24px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--fleet-border);
+  background: var(--fleet-surface);
+  scrollbar-width: none;
+}
+
+.fleet-vehicle-tabs::-webkit-scrollbar { display: none; }
+
+.fleet-vehicle-tab {
+  align-self: end;
+  min-height: 38px;
+  padding: 12px 24px;
+  border: 0;
+  border-right: 1px solid transparent;
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+  color: var(--fleet-text-secondary);
+  font-family: 'Geist Variable', 'Geist Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.fleet-vehicle-tab:hover { color: var(--fleet-green); }
+
+.fleet-vehicle-tab:focus-visible {
+  outline: 2px solid var(--fleet-green);
+  outline-offset: -2px;
+}
+
+.fleet-vehicle-tab-active {
+  position: relative;
+  z-index: 1;
+  margin-bottom: -1px;
+  border-right-color: var(--fleet-border);
+  background: var(--fleet-container);
+  color: var(--fleet-text);
+  font-weight: 600;
+  box-shadow: 0 8px 14px -12px rgba(26, 28, 30, 0.65);
+}
+
+.fleet-vehicle-status-rail {
+  border-bottom: 1px solid var(--fleet-border);
+  background: var(--fleet-container);
+}
+
+.fleet-vehicle-content,
+.fleet-vehicle-mileage {
+  margin: 0 24px 24px;
+  border: 1px solid var(--fleet-border);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: var(--fleet-container);
+  box-shadow: 0 12px 28px -26px rgba(26, 28, 30, 0.55);
+}
+
+.fleet-vehicle-mileage { padding-top: 20px; }
+
+.fleet-vehicle-shell .fleet-primary-action {
+  background: var(--fleet-green);
+  box-shadow: 0 8px 16px -12px rgba(0, 135, 68, 0.8);
+}
+
+.fleet-vehicle-shell .fleet-primary-action:hover { background: #006C36; }
+
+.fleet-vehicle-shell .fleet-primary-action:focus-visible {
+  outline: 2px solid #008744;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .fleet-vehicle-tabs { padding-inline: 12px; }
+  .fleet-vehicle-tab { padding-inline: 16px; }
+  .fleet-vehicle-content,
+  .fleet-vehicle-mileage { margin-inline: 12px; }
 }
 
 /* Enhanced UI Utilities */
