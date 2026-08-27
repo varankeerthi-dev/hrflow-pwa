@@ -4,6 +4,7 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/work-sans";
+@import "@fontsource-variable/dm-sans";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -124,7 +125,7 @@ body {
   border-radius: 6px 6px 0 0;
   background: transparent;
   color: var(--fleet-text-secondary);
-  font-family: 'Geist Variable', 'Geist Sans', system-ui, sans-serif;
+  font-family: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   line-height: 1;

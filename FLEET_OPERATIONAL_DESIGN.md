@@ -13,7 +13,7 @@ The design prioritises low-friction scanning and data entry. Vehicle operators a
 | Brand/action colour | Fleet Green (`#008744`) identifies create actions, focus states, and active operational emphasis. |
 | Separation | `#E0E0E0` outlines create quiet hierarchy without heavy cards or coloured panels. |
 | Body typography | Work Sans is used within the Vehicle workspace for practical, highly legible operational content. |
-| Sub-tab typography | Geist Sans is used for concise, modern workspace navigation. |
+| Sub-tab typography | DM Sans is used for concise, modern workspace navigation. |
 
 ## Colour roles
 
@@ -52,13 +52,13 @@ The status rail is white and separated with the quiet border token. This prevent
 
 ## Typography system
 
-Vehicle data is composed in Work Sans. It is intended for labels, values, table rows, filters, and action text. Geist Sans is reserved for the sub-tab navigation because its compact, technical character improves high-level workspace orientation. Existing semantic hierarchy is retained: headings are clear, supporting labels are quieter, and operational values do not rely on excessive bold weight.
+Vehicle data is composed in Work Sans. It is intended for labels, values, table rows, filters, and action text. DM Sans is reserved for the sub-tab navigation because its compact, modern character improves high-level workspace orientation. Existing semantic hierarchy is retained: headings are clear, supporting labels are quieter, and operational values do not rely on excessive bold weight.
 
 | Element | Font | Weight guidance |
 |---|---|---|
 | Vehicle workspace body | Work Sans | 400–500 |
 | Operational values | Work Sans | 500–600 when needed for scanning |
-| Sub-tab label | Geist Sans | 500 inactive, 600 active |
+| Sub-tab label | DM Sans | 500 inactive, 600 active |
 | Primary action | Work Sans | 500–600 |
 | Table header | Work Sans | 600, compact uppercase only where existing convention requires it |
 
