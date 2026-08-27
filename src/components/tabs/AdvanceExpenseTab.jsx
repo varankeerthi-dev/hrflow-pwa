@@ -3023,21 +3023,25 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
       {/* Edit Modal */}
       {editingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 mx-4 border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Edit Transaction</h2>
-              <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" aria-labelledby="edit-transaction-title" className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-[12px] border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Advance & Expense</p>
+                <h2 id="edit-transaction-title" className="mt-1 text-base font-semibold text-slate-900">Edit transaction</h2>
+                <p className="mt-1 text-xs text-slate-500">Changes will reset the current approval decision for this request.</p>
+              </div>
+              <button type="button" onClick={() => setEditingId(null)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700" aria-label="Close edit transaction"><X size={16}/></button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Date</label>
-                <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" />
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</label>
+                <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Employee</label>
-                <select value={editForm.employeeId} onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee</label>
+                <select value={editForm.employeeId} onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
                   {sortedEmployees.map(e => (
                     <option key={e.id} value={e.id}>
                       {e.name} {!isEmployeeActiveStatus(e.status) ? '(Inactive)' : ''}
@@ -3045,37 +3049,37 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   ))}
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category</label>
-                <input list="categories-list" value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" />
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
+                <input list="categories-list" value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Amount</label>
-                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" />
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</label>
+                <input type="number" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Type</label>
-                <select value={editForm.requestType} onChange={e => setEditForm(f => ({ ...f, requestType: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Request type</label>
+                <select value={editForm.requestType} onChange={e => setEditForm(f => ({ ...f, requestType: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
                   <option value="Reimbursement">Reimbursement</option>
                   <option value="Pre-Approval">Pre-Approval</option>
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Payout</label>
-                <select value={editForm.payoutMethod} onChange={e => setEditForm(f => ({ ...f, payoutMethod: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Payout</label>
+                <select value={editForm.payoutMethod} onChange={e => setEditForm(f => ({ ...f, payoutMethod: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
                   <option value="Immediate">Immediate</option>
                   <option value="With Salary">With Salary</option>
                 </select>
               </div>
-              <div className="space-y-1 md:col-span-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Remarks</label>
-                <input type="text" value={editForm.reason} onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))} className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-bold bg-gray-50 focus:ring-2 focus:ring-primary-500 outline-none" />
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Brief description</label>
+                <input type="text" value={editForm.reason} onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))} className="h-10 w-full rounded-[6px] border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Brief description..." />
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button onClick={() => setEditingId(null)} className="flex-1 h-11 bg-gray-100 text-gray-600 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-gray-200">Cancel</button>
-              <button onClick={handleUpdate} disabled={updateMutation.isPending} className="flex-1 h-11 bg-primary-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200">
+            <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <button type="button" onClick={() => setEditingId(null)} className="h-10 rounded-[8px] border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50">Cancel</button>
+              <button type="button" onClick={handleUpdate} disabled={updateMutation.isPending} className="h-10 rounded-[8px] border border-emerald-700 bg-emerald-600 px-4 text-xs font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
                 {updateMutation.isPending ? 'Updating...' : 'Save & Revoke Approval'}
               </button>
             </div>
