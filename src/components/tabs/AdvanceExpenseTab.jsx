@@ -207,7 +207,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
               dateFormat="dd MMM yyyy"
               popperClassName="z-[99999]"
               popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
-              customInput={<div className="flex h-10 w-full items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
+              customInput={<div className="flex h-10 w-full cursor-pointer items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
             />
           </div>
         )}
@@ -228,7 +228,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
           {!portalMode && (
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payout <span className="text-rose-500">*</span></label>
-              <select value={row.payoutMethod} onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"><option value="Immediate">Immediate</option><option value="With Salary">Monthly</option></select>
+              <select value={row.payoutMethod} onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-normal text-slate-800 outline-none focus:border-blue-500"><option value="Immediate">Immediate</option><option value="With Salary">Monthly</option></select>
             </div>
           )}
           <div>
@@ -874,7 +874,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const getMyEmpId = () => {
     if (portalMode && portalEmployeeId) return portalEmployeeId
-    const me = employees.find(e => e.email === user.email || e.id === user.uid)
+    const me = employees.find((employee) => (
+      employee.email === user.email
+      || employee.id === user.uid
+      || employee.uid === user.uid
+      || employee.userId === user.uid
+      || employee.authUid === user.uid
+    ))
     return me ? me.id : ''
   }
 
@@ -3494,7 +3500,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
 
                 {/* 5. High-Density Spreadsheet Table Grid */}
-                <div className="hidden md:block overflow-x-auto">
+                <div className="hidden min-h-[360px] md:block overflow-x-auto">
                   <table className="w-full min-w-[920px] table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200 [&_tbody_td]:border-r [&_tbody_td]:border-slate-200/80 [&_tr>*:last-child]:border-r-0">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
@@ -3554,7 +3560,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   dateFormat="dd MMM yyyy"
                                   popperClassName="z-[99999]"
                                   popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
-                                  customInput={<div className="flex h-9 w-full items-center rounded-[4px] border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
+                                  customInput={<div className="flex h-9 w-full cursor-pointer items-center rounded-[4px] border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
                                 />
                               </td>
                             )}
@@ -3600,7 +3606,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     <div className="flex items-center gap-1.5 overflow-hidden">
                                       <span className="text-slate-700 font-semibold truncate max-w-[85px]">
                                         {(() => {
-                                          const mainEmp = employees.find(e => e.id === row.employeeId);
+                                          const mainEmp = employees.find((employee) => (
+                                            employee.id === row.employeeId
+                                            || employee.uid === row.employeeId
+                                            || employee.userId === row.employeeId
+                                            || employee.authUid === row.employeeId
+                                          ));
                                           return mainEmp ? mainEmp.name : (row.employeeId || 'Employee');
                                         })()}
                                       </span>
@@ -3752,7 +3763,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 <select
                                   value={row.payoutMethod}
                                   onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
-                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-1.5 text-xs font-normal text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="Immediate">Immediate</option>
                                   <option value="With Salary">Monthly</option>
@@ -3955,9 +3966,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                       <span className="truncate text-slate-600 font-semibold" title={item.category || 'General'}>
                                         {item.category || 'General'}
                                       </span>
-                                      <span className="mt-0.5 truncate text-[8px] font-normal leading-none text-slate-400" title={item.reason || 'No brief description'}>
-                                        {item.reason || 'No brief description'}
-                                      </span>
+                                      {item.reason && (
+                                        <span className="mt-0.5 truncate text-[8px] font-normal leading-none text-slate-400" title={item.reason}>
+                                          {item.reason}
+                                        </span>
+                                      )}
                                     </div>
                                   ) : (
                                     <>
