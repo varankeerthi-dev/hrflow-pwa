@@ -3384,7 +3384,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
 
                 {/* 4. Expenses Table Header & Controls Bar */}
-                <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
+                <div className="bg-white rounded-[12px] border border-slate-200/90 overflow-hidden shadow-sm">
                 <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between gap-3 sm:flex-row sm:gap-4 bg-slate-50/40">
                   <div className="flex items-center gap-4">
                     <h2 className="text-base font-bold text-slate-900">
@@ -3469,9 +3469,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                 {/* 5. High-Density Spreadsheet Table Grid */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full min-w-[920px] table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200/80 [&_tbody_td]:border-r [&_tbody_td]:border-slate-100 [&_tr>*:last-child]:border-r-0">
+                  <table className="w-full min-w-[920px] table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200 [&_tbody_td]:border-r [&_tbody_td]:border-slate-200/80 [&_tr>*:last-child]:border-r-0">
                     <thead>
-                      <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                         <th className="py-3 px-3 w-10 text-center">#</th>
                         {!portalMode && !isSelfExpense && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
                         {activeModule === 'Add Expense' && <th className="py-3 px-3 min-w-[128px] w-32">Date <span className="text-rose-500">*</span></th>}
@@ -3495,19 +3495,19 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         const CategoryIcon = catDetails.icon;
 
                         return (
-                          <tr key={row.id} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors group">
+                          <tr key={row.id} className="h-[54px] border-b border-slate-200/80 hover:bg-indigo-50/20 transition-colors group">
                             {/* Row Index */}
-                            <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-xs">
+                            <td className="bg-slate-50/70 py-2.5 px-3 text-center text-slate-500 font-bold text-xs">
                               {idx + 1}
                             </td>
 
                             {!portalMode && !isSelfExpense && (
-                              <td className="py-2 px-3">
+                              <td className="py-1.5 px-2">
                                 <select
                                   value={row.employeeId}
                                   onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
                                   disabled={!canSelectAll}
-                                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="">Select Employee...</option>
                                   {sortedEmployees.map(e => (
@@ -3520,20 +3520,20 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             )}
 
                             {activeModule === 'Add Expense' && (
-                              <td className="py-2 px-3 w-32">
+                              <td className="py-1.5 px-2 w-32">
                                 <input
                                   type="date"
                                   value={row.date || ''}
                                   max={new Date().toISOString().split('T')[0]}
                                   onChange={(e) => handleRowChange(row.id, 'date', e.target.value)}
-                                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                 />
                               </td>
                             )}
 
                             {/* Category */}
-                            <td id={`category-cell-${row.id}`} className="py-2 px-3 relative">
-                              <div className="w-full">
+                            <td id={`category-cell-${row.id}`} className="py-1.5 px-2 relative">
+                              <div className="w-full rounded-[4px] [&_button]:min-h-9 [&_button]:rounded-[4px] [&_button]:border-slate-200 [&_button:focus]:border-indigo-500">
                                 <Dropdown
                                   value={row.category === 'custom' ? '' : row.category}
                                   onChange={(val, e) => {
@@ -3697,13 +3697,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                             {/* Paid To (Conditional) */}
                             {showAdvanceFields && (
-                              <td className="py-2 px-3">
+                              <td className="py-1.5 px-2">
                                 <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
                               </td>
                             )}
 
                             {/* Amount */}
-                            <td className="py-2 px-2 w-28">
+                            <td className="py-1.5 px-2 w-28">
                               <input
                                 type="number"
                                 value={row.amount}
@@ -3715,16 +3715,16 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   }
                                 }}
                                 placeholder="0.00"
-                                className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2 text-xs font-bold text-right text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2 text-xs font-bold text-right text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               />
                             </td>
 
                             {!portalMode && (
-                              <td className="py-2 px-2 w-28">
+                              <td className="py-1.5 px-2 w-28">
                                 <select
                                   value={row.payoutMethod}
                                   onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
-                                  className="w-full h-9 bg-white border border-slate-200 rounded-lg px-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="Immediate">Immediate</option>
                                   <option value="With Salary">Monthly</option>
@@ -3733,29 +3733,29 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             )}
 
                             {/* Brief description */}
-                            <td className="py-2 px-3">
+                            <td className="py-1.5 px-2">
                               <input
                                 type="text"
                                 value={row.reason}
                                 onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && rowIdx === addRows.length - 1) {
+                                  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && idx === addRows.length - 1) {
                                     e.preventDefault()
                                     handleAddRow()
                                   }
                                 }}
                                 placeholder="Brief description..."
-                                className="w-full h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+                                className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               />
                             </td>
 
                             {/* Project (Optional - Conditional) */}
                             {showProjectColumn && (
-                              <td className="py-2 px-3">
+                              <td className="py-1.5 px-2">
                                 <select
                                   value={row.project}
                                   onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
-                                  className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="">Select Project...</option>
                                   <option value="P-0001">P-0001</option>
@@ -3768,12 +3768,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             )}
 
                             {/* Action */}
-                            <td className="py-2 px-3 text-center">
-                              <div className="flex items-center justify-center gap-1">
+                            <td className="py-1.5 px-2 text-center">
+                              <div className="flex items-center justify-center gap-2">
                                 <button
                                   type="button"
                                   onClick={() => handleDuplicateRow(row.id)}
-                                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
                                   title="Duplicate Row (Ctrl+D)"
                                 >
                                   <Copy size={14} />
@@ -3781,7 +3781,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 <button
                                   type="button"
                                   onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))}
-                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
                                   title="Delete Row"
                                 >
                                   <Trash2 size={14} />
