@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
+// Kinetic Enterprise Monthly Summary: scoped Payroll and Attendance summary presentation; calculations remain unchanged.
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useSalarySlab } from '../../hooks/useSalarySlab'
@@ -2392,20 +2393,21 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
 
   if (attendanceMonthlySummaryOnly) {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-white text-gray-900">
-        <div className="flex shrink-0 items-center justify-end border-b border-gray-100 px-4 py-2">
+      <div className="kinetic-monthly-summary kinetic-attendance-monthly-summary flex h-full min-h-0 flex-col text-gray-900">
+        <div className="kinetic-attendance-monthly-toolbar flex shrink-0 items-center justify-end px-6 py-3">
           <div className="flex items-center rounded-md border border-gray-200 bg-gray-100 p-1">
             <button type="button" onClick={() => { const [year, month] = summaryMonth.split('-').map(Number); const date = new Date(year, month - 2, 1); setSummaryMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`) }} className="rounded p-1 text-gray-600 transition-all hover:bg-white hover:shadow-sm" aria-label="Previous month"><ChevronLeft size={14} /></button>
             <input type="month" value={summaryMonth} onChange={e => setSummaryMonth(e.target.value)} className="h-6 w-28 cursor-pointer border-0 bg-transparent text-center text-[10px] font-black uppercase outline-none focus:ring-0" aria-label="Monthly Summary month" />
             <button type="button" onClick={() => { const [year, month] = summaryMonth.split('-').map(Number); const date = new Date(year, month, 1); setSummaryMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`) }} className="rounded p-1 text-gray-600 transition-all hover:bg-white hover:shadow-sm" aria-label="Next month"><ChevronRight size={14} /></button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto bg-zinc-50/30">
-          <div className="h-full overflow-auto premium-overview-scroll px-4 pb-4 pt-1">
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div className="h-full overflow-auto premium-overview-scroll px-6 py-4">
             {isAttendanceLoading ? (
               <div className="py-20 text-center"><Spinner /></div>
             ) : (
               <ReusableTable
+                className="kinetic-enterprise-table"
                 data={filteredAttendanceSummaryData}
                 columns={attendanceOverviewColumns}
                 nestedHeaders={attendanceOverviewNestedHeaders}
@@ -2619,8 +2621,8 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
           </div>
         )}
         {activeTab === 'salary-summary' && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex justify-between items-center py-2 border-b shrink-0 bg-white z-[80] px-2">
+          <div className="kinetic-payroll-monthly-summary flex-1 flex flex-col min-h-0">
+            <div className="kinetic-payroll-summary-toolbar flex justify-between items-center shrink-0 z-[80] px-6 py-3">
               <div className="flex gap-4 items-center">
                 <div className="flex items-center gap-0.5">
                   <button 
@@ -2765,11 +2767,12 @@ export default function SalarySlipTab({ defaultSummarySubTab = 'overview', defau
                     </div>
                   )}
                   {summarySubTab==='overview' ? (
-                    <div className="h-full overflow-auto premium-overview-scroll px-4 pb-4 pt-1">
+                    <div className="h-full overflow-auto premium-overview-scroll px-6 py-4">
                       {isAttendanceLoading ? (
                         <div className="py-20 text-center"><Spinner /></div>
                       ) : (
                         <ReusableTable
+                          className="kinetic-enterprise-table"
                           data={filteredAttendanceSummaryData}
                           columns={overviewColumns}
                           nestedHeaders={overviewNestedHeaders}

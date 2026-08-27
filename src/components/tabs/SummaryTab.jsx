@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+// Kinetic Enterprise Monthly Summary: blue tonal layers, Inter data typography, and compact 4px-grid tables.
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useAttendance } from '../../hooks/useAttendance'
@@ -385,7 +386,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
   const handleDragEnd = () => { setDraggedItem(null) }
 
   return (
-    <div className="space-y-2.5 font-inter text-slate-900 flex-1 flex flex-col min-h-0">
+    <div className={`${activeMainTab === 'monthlyView' ? 'kinetic-monthly-summary ' : ''}space-y-4 font-inter text-slate-900 flex-1 flex flex-col min-h-0`}>
       {/* Main Tabs Navigation */}
       {!hideMainTabs && (
         <div>
@@ -400,7 +401,7 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
         </div>
       )}
 
-      <div className="bg-white px-2.5 h-9 rounded-lg border border-gray-200/80 shadow-sm flex items-center justify-between shrink-0">
+      <div className="kinetic-monthly-toolbar flex h-12 shrink-0 items-center justify-between rounded-lg px-4">
         <div className="flex items-center gap-1.5">
           <button onClick={() => navigateMonth(-1)} className="p-1 hover:bg-gray-100 rounded-md transition-colors"><ChevronLeft size={14} className="text-gray-600" /></button>
           <div className="flex items-center bg-gray-50 rounded-md px-2.5 py-0.5 border border-gray-100 min-w-[120px] justify-center gap-1.5 h-6.5">
@@ -574,8 +575,8 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
       )}
 
       {activeMainTab === 'monthlyView' && (
-        <div className="space-y-2 flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
-          <div className="flex-1 flex flex-col min-h-0 bg-white border border-gray-300 rounded-xl shadow-sm overflow-hidden">
+        <div className="space-y-4 flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
+          <div className="kinetic-monthly-pivot-card flex-1 flex flex-col min-h-0 overflow-hidden">
               {(() => {
                 const colW = { inTime: 56, outTime: 56, workingTime: 48, ot: 40, remarks: 52 }, gapW = 8
                 let blockW = 0
@@ -591,17 +592,17 @@ export default function SummaryTab({ defaultSubTab = 'summary', hideMainTabs = f
                     <div 
                       ref={topScrollRef} 
                       onScroll={handleTopScroll} 
-                      className="overflow-x-auto overflow-y-hidden custom-scrollbar" 
-                      style={{ height: '14px', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}
+                      className="kinetic-monthly-scroll-rail overflow-x-auto overflow-y-hidden custom-scrollbar"
+                      style={{ height: '14px', flexShrink: 0 }}
                     >
                       <div style={{ width: `${totalTableW}px`, height: '1px' }}></div>
                     </div>
                     <div 
                       ref={tableScrollRef} 
                       onScroll={handleTableScroll} 
-                      className="overflow-x-auto flex-1 overflow-y-auto"
+                      className="kinetic-monthly-table-scroll overflow-x-auto flex-1 overflow-y-auto"
                     >
-                      <table id="monthly-pivot-table" className="border-separate border-spacing-0 text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
+                      <table id="monthly-pivot-table" className="kinetic-monthly-pivot-table border-separate border-spacing-0 text-sm font-inter table-fixed" style={{ width: `${totalTableW}px`, minWidth: `${totalTableW}px` }}>
                         <colgroup>
                       <col style={{ width: '65px' }} />
                       {monthlyViewData.employees?.map(emp => (

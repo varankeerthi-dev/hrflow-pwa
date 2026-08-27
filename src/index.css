@@ -228,6 +228,116 @@ body {
   .fleet-vehicle-mileage { margin-inline: 12px; }
 }
 
+/* Kinetic Enterprise Monthly Summary — scoped to Payroll → Monthly Summary and Attendance → Monthly Summary. */
+.kinetic-monthly-summary,
+.kinetic-payroll-monthly-summary {
+  --kinetic-surface: #f8f9ff;
+  --kinetic-low: #eff4ff;
+  --kinetic-container: #ffffff;
+  --kinetic-container-mid: #e5eeff;
+  --kinetic-container-high: #dce9ff;
+  --kinetic-text: #0b1c30;
+  --kinetic-muted: #45464d;
+  --kinetic-outline: #c6c6cd;
+  --kinetic-blue: #0051d5;
+  background: var(--kinetic-surface) !important;
+  color: var(--kinetic-text);
+  font-family: 'Inter', sans-serif;
+}
+
+.kinetic-monthly-toolbar,
+.kinetic-attendance-monthly-toolbar,
+.kinetic-payroll-summary-toolbar {
+  border: 1px solid var(--kinetic-outline);
+  background: var(--kinetic-container);
+  box-shadow: none;
+}
+
+.kinetic-monthly-summary button,
+.kinetic-payroll-monthly-summary button,
+.kinetic-monthly-summary input,
+.kinetic-payroll-monthly-summary input,
+.kinetic-monthly-summary select,
+.kinetic-payroll-monthly-summary select {
+  font-family: 'Inter', sans-serif;
+}
+
+.kinetic-monthly-summary button:focus-visible,
+.kinetic-payroll-monthly-summary button:focus-visible,
+.kinetic-monthly-summary input:focus-visible,
+.kinetic-payroll-monthly-summary input:focus-visible,
+.kinetic-monthly-summary select:focus-visible,
+.kinetic-payroll-monthly-summary select:focus-visible {
+  outline: 2px solid var(--kinetic-blue);
+  outline-offset: 2px;
+}
+
+.kinetic-monthly-summary .bg-indigo-600,
+.kinetic-payroll-monthly-summary .bg-indigo-600,
+.kinetic-monthly-summary .bg-blue-500,
+.kinetic-payroll-monthly-summary .bg-blue-500 {
+  background-color: var(--kinetic-blue) !important;
+}
+
+.kinetic-monthly-summary .text-indigo-600,
+.kinetic-payroll-monthly-summary .text-indigo-600,
+.kinetic-monthly-summary .text-blue-600,
+.kinetic-payroll-monthly-summary .text-blue-600 {
+  color: var(--kinetic-blue) !important;
+}
+
+.kinetic-monthly-summary .bg-white,
+.kinetic-payroll-monthly-summary .bg-white {
+  background-color: var(--kinetic-container);
+}
+
+.kinetic-monthly-summary .bg-gray-50,
+.kinetic-payroll-monthly-summary .bg-gray-50,
+.kinetic-monthly-summary .bg-zinc-50,
+.kinetic-payroll-monthly-summary .bg-zinc-50 {
+  background-color: var(--kinetic-low) !important;
+}
+
+.kinetic-monthly-pivot-card {
+  border: 1px solid var(--kinetic-outline);
+  border-radius: 8px;
+  background: var(--kinetic-container);
+  box-shadow: none;
+}
+
+.kinetic-monthly-scroll-rail { border-bottom: 1px solid var(--kinetic-outline); }
+
+.kinetic-monthly-pivot-table { color: var(--kinetic-text); font-variant-numeric: tabular-nums lining-nums; }
+.kinetic-monthly-pivot-table thead th { border-color: var(--kinetic-outline) !important; }
+.kinetic-monthly-pivot-table thead tr:first-child th { background: var(--kinetic-container-mid) !important; color: var(--kinetic-text) !important; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.kinetic-monthly-pivot-table thead tr:nth-child(2) th { background: var(--kinetic-low) !important; color: var(--kinetic-muted) !important; font-size: 11px; font-weight: 600; }
+.kinetic-monthly-pivot-table tbody tr { height: 40px; }
+.kinetic-monthly-pivot-table tbody tr:hover { background: #f1f5f9 !important; }
+.kinetic-monthly-pivot-table tbody td { border-color: var(--kinetic-outline) !important; font-size: 12px; font-weight: 400 !important; }
+.kinetic-monthly-pivot-table tbody tr:nth-child(even) td:not([class*='bg-']) { background: #fbfcff; }
+
+.kinetic-enterprise-table.enterprise-table-card {
+  border: 1px solid var(--kinetic-outline) !important;
+  border-radius: 8px !important;
+  background: var(--kinetic-container) !important;
+  box-shadow: none !important;
+  color: var(--kinetic-text);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.kinetic-enterprise-table.enterprise-table-card thead tr:first-child th { background: var(--kinetic-container-mid) !important; color: var(--kinetic-text) !important; }
+.kinetic-enterprise-table.enterprise-table-card .th-header-cell { min-height: 40px; background: var(--kinetic-low) !important; color: var(--kinetic-muted) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.05em !important; text-transform: uppercase; }
+.kinetic-enterprise-table.enterprise-table-card tbody tr { height: 48px !important; }
+.kinetic-enterprise-table.enterprise-table-card tbody td { color: var(--kinetic-text) !important; font-family: 'Inter', sans-serif !important; font-size: 14px !important; font-weight: 400 !important; }
+.kinetic-enterprise-table.enterprise-table-card .table-row-item:nth-child(even) { background: #fbfcff !important; }
+.kinetic-enterprise-table.enterprise-table-card .table-row-item:hover { background: #f1f5f9 !important; }
+
+@media (max-width: 768px) {
+  .kinetic-attendance-monthly-summary .kinetic-attendance-monthly-toolbar,
+  .kinetic-payroll-monthly-summary .kinetic-payroll-summary-toolbar { padding-inline: 16px; }
+  .kinetic-attendance-monthly-summary .premium-overview-scroll { padding-inline: 16px; }
+}
+
 /* Enhanced UI Utilities */
 
 /* ─── Sidebar — Refactored Design System ──────────────────────── */

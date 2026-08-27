@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+// Kinetic Enterprise Monthly Summary: optional scoped table surface for Payroll and Attendance only.
 import { Eye } from 'lucide-react';
 import { TableToolbar } from './TableToolbar';
 import { TableHeader } from './TableHeader';
@@ -34,6 +35,7 @@ export interface NestedHeaderDef {
 }
 
 export interface DataTableProps<T> {
+  className?: string;
   data: T[];
   columns: ColumnDef<T>[];
   loading?: boolean;
@@ -89,6 +91,7 @@ export interface DataTableProps<T> {
 }
 
 export function Table<T extends { id?: string | number }>({
+  className,
   data,
   columns,
   loading = false,
@@ -216,7 +219,7 @@ export function Table<T extends { id?: string | number }>({
         fontFamily: '"Inter", sans-serif',
         boxShadow: '0 1px 3px rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.02)',
       }}
-      className="enterprise-table-card"
+      className={`enterprise-table-card ${className || ''}`}
     >
       {/* Bulk Actions Bar (replaces toolbar when rows are selected) */}
       {selectable && bulkActions && bulkActions.length > 0 && selectedRowIds.size > 0 ? (
