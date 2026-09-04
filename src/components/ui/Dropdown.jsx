@@ -18,6 +18,7 @@ export default function Dropdown({
   emptyText = 'No options',
   mobileMenu = false,
   autoFocusSearch = true,
+  onKeyDown,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -76,12 +77,46 @@ export default function Dropdown({
       ? 'h-10 px-3 text-[13px]'
       : 'h-11 px-3 text-sm'
 
+  const handleButtonKeyDown = (e) => {
+    if (onKeyDown) onKeyDown(e)
+    if (e.defaultPrevented) return
+
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+      if (!isOpen) {
+        e.preventDefault()
+        openDropdown()
+        return
+      }
+    }
+
+    if (e.key === 'Escape' && isOpen) {
+      e.preventDefault()
+      handleClose()
+      return
+    }
+
+    // Type-to-select: typing a letter or number selects the matching option (cycles if repeatedly pressed)
+    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const char = e.key.toLowerCase()
+      const matches = normalized.filter(o => (o.label || '').toLowerCase().startsWith(char))
+      if (matches.length > 0) {
+        e.preventDefault()
+        const currentIndex = matches.findIndex(o => o.value === value)
+        const nextMatch = currentIndex >= 0 && currentIndex < matches.length - 1
+          ? matches[currentIndex + 1]
+          : matches[0]
+        handleSelect(nextMatch.value)
+      }
+    }
+  }
+
   return (
     <div className={`relative ${className}`}>
       <button
         ref={triggerRef}
         type="button"
         disabled={disabled}
+        onKeyDown={handleButtonKeyDown}
         onClick={() => {
           if (isOpen) {
             handleClose()
@@ -123,7 +158,7 @@ export default function Dropdown({
               </div>
             )}
 
-            <div className="max-h-60 overflow-y-auto py-1">
+            <div className="max-h-60 overflow-y-auto py-1 slim-scrollbar">
               {allowCustom && (
                 <button
                   type="button"

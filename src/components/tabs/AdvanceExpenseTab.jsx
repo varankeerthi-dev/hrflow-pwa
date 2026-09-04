@@ -15,7 +15,6 @@ import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR } from '../../lib/salaryUtils'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import html2canvas from 'html2canvas'
 import { registerPdfCurrencyFont } from '../../lib/pdfCurrencyFont'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -62,6 +61,11 @@ function getAccountingEntryType(entry) {
   return entry?.type === 'Advance' && isGivenToOthersCategory(entry?.category)
     ? 'Expense'
     : entry?.type
+}
+
+function isPetrolCategory(category) {
+  const clean = String(category || '').toLowerCase().replace(/[\s_-]+/g, '')
+  return clean.includes('petrol') || clean.includes('sitepetrol') || clean.includes('fuel') || clean.includes('diesel')
 }
 
 function formatDeletedRecordDate(dateValue) {
@@ -182,7 +186,7 @@ function EmployeeLedgerCard({ emp, formatINR }) {
   )
 }
 
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown }) {
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true }) {
   const categoryRequiresPaidTo = ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
 
   return (
@@ -232,8 +236,86 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,112px)] gap-2">
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category <span className="text-rose-500">*</span></label>
-            <Dropdown value={row.category === 'custom' ? '' : row.category} onChange={(value) => handleRowChange(row.id, 'category', value)} options={categories} placeholder="Select category..." size="sm" searchable allowCustom customActive={row.category === 'custom'} onAddOther={() => handleRowChange(row.id, 'category', 'custom')} panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} />
-            {row.category === 'custom' && <input type="text" value={row.customCategory || ''} onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500" placeholder="Custom category..." />}
+            <Dropdown
+              value={row.category === 'custom' ? '' : row.category}
+              onChange={(value) => {
+                handleRowChange(row.id, 'category', value)
+                if (enableSiteRemarks && isPetrolCategory(value) && !row.siteName && availableSiteNames?.length > 0) {
+                  handleRowChange(row.id, 'siteName', availableSiteNames[0])
+                }
+              }}
+              options={categories}
+              placeholder="Select category..."
+              size="sm"
+              searchable
+              allowCustom
+              customActive={row.category === 'custom'}
+              onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
+              panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+              mobileMenu
+              autoFocusSearch={false}
+            />
+            {row.category === 'custom' && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <input
+                  type="text"
+                  value={row.customCategory || ''}
+                  onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      saveNewCategory && saveNewCategory(row.id, row.customCategory)
+                    }
+                  }}
+                  className="h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500"
+                  placeholder="Type category & hit Enter..."
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => saveNewCategory && saveNewCategory(row.id, row.customCategory)}
+                  className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs shrink-0 transition-colors"
+                  title="Save category to organisation"
+                >
+                  Save
+                </button>
+              </div>
+            )}
+            {enableSiteRemarks && isPetrolCategory(row.category) && (
+              <div className="mt-2 rounded-lg bg-emerald-50/70 p-2.5 border border-emerald-200/70">
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-emerald-800">Site Name <span className="text-rose-500">*</span></label>
+                <Dropdown
+                  value={row.siteName === 'custom' ? '' : (row.siteName || '')}
+                  onChange={(val) => {
+                    handleRowChange(row.id, 'siteName', val)
+                    handleRowChange(row.id, 'isCustomSite', false)
+                  }}
+                  options={availableSiteNames}
+                  placeholder="Select site..."
+                  size="sm"
+                  searchable
+                  allowCustom
+                  customActive={row.isCustomSite}
+                  onAddOther={() => {
+                    handleRowChange(row.id, 'isCustomSite', true)
+                    handleRowChange(row.id, 'siteName', '')
+                  }}
+                  panelWidth="w-[min(20rem,calc(100vw-2rem))]"
+                  mobileMenu
+                  autoFocusSearch={false}
+                />
+                {row.isCustomSite && (
+                  <input
+                    type="text"
+                    value={row.siteName || ''}
+                    onChange={(e) => handleRowChange(row.id, 'siteName', e.target.value)}
+                    className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-emerald-500"
+                    placeholder="Type custom site name..."
+                    autoFocus
+                  />
+                )}
+              </div>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Amount <span className="text-rose-500">*</span></label>
@@ -241,22 +323,32 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          {!portalMode && (
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payout <span className="text-rose-500">*</span></label>
-              <select value={row.payoutMethod} onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-normal text-slate-800 outline-none focus:border-blue-500"><option value="Immediate">Immediate</option><option value="With Salary">Monthly</option></select>
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Project</label>
-            {showProjectColumn ? <select value={row.project} onChange={(e) => handleRowChange(row.id, 'project', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"><option value="">Select project...</option><option value="P-0001">P-0001</option><option value="P-0002">P-0002</option><option value="P-0008">P-0008</option><option value="P-0012">P-0012</option><option value="Site visit - Client Meeting">Site visit - Client Meeting</option></select> : <span className="flex h-10 items-center text-[11px] italic text-slate-400">Optional column off</span>}
+        {((!portalMode && showSessionPayout) || showProjectColumn) && (
+          <div className={`grid ${(!portalMode && showSessionPayout) && showProjectColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+            {!portalMode && showSessionPayout && (
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Payout <span className="text-rose-500">*</span></label>
+                <select value={row.payoutMethod} onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-normal text-slate-800 outline-none focus:border-blue-500"><option value="Immediate">Immediate</option><option value="With Salary">Monthly</option></select>
+              </div>
+            )}
+            {showProjectColumn && (
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Project</label>
+                <select value={row.project} onChange={(e) => handleRowChange(row.id, 'project', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"><option value="">Select project...</option><option value="P-0001">P-0001</option><option value="P-0002">P-0002</option><option value="P-0008">P-0008</option><option value="P-0012">P-0012</option><option value="Site visit - Client Meeting">Site visit - Client Meeting</option></select>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         <div>
           <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Brief Description</label>
-          <input type="text" value={row.reason} onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500" placeholder="Add a note..." />
+          <input
+            type="text"
+            value={row.reason}
+            onChange={(e) => handleRowChange(row.id, 'reason', e.target.value)}
+            className="h-10 w-full rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-500"
+            placeholder="Add a note..."
+          />
         </div>
 
         {showAdvanceFields && <div className="rounded-lg bg-slate-50 p-2.5"><label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Paid to / advance reference</label><PaidToDropdown rowId={row.id} row={row} isMobile /></div>}
@@ -296,7 +388,90 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       setInternalActiveModule(defaultModule)
     }
   }, [defaultModule, activeModuleProp])
-  const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical'])
+
+  const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Petrol', 'Site Petrol', 'Others'])
+  const [enableSiteRemarks, setEnableSiteRemarks] = useState(true)
+  const [orgRemarksOptions, setOrgRemarksOptions] = useState([])
+  const [sites, setSites] = useState([])
+
+  const availableSiteNames = useMemo(() => {
+    return [...new Set([...sites, ...orgRemarksOptions])].filter(Boolean)
+  }, [sites, orgRemarksOptions])
+
+  // LocalStorage persistence helpers
+  const LS_KEY = 'hrflow_expense_draft'
+  const loadDraft = () => {
+    try {
+      const saved = localStorage.getItem(LS_KEY)
+      if (saved) return JSON.parse(saved)
+    } catch (e) { /* ignore parse errors */ }
+    return null
+  }
+  const draft = loadDraft()
+
+  const [addRows, setAddRows] = useState(() => {
+    if (draft?.addRows?.length) return draft.addRows
+    return [{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }]
+  })
+  const hasUnsavedEntries = useMemo(() => addRows.some((row) => (
+    Boolean(row.category?.trim()) ||
+    Boolean(row.customCategory?.trim()) ||
+    Number(row.amount) > 0 ||
+    Boolean(row.reason?.trim()) ||
+    Boolean(row.project?.trim()) ||
+    Boolean(row.paidTo) ||
+    Boolean(row.paidToCustomName?.trim())
+  )), [addRows])
+
+  const [expenseMode, setExpenseMode] = useState(draft?.expenseMode || 'self')
+  const [sessionDate, setSessionDate] = useState(() => draft?.sessionDate || new Date().toISOString().split('T')[0])
+  const [sessionAccount, setSessionAccount] = useState(draft?.sessionAccount || 'Petty Cash - HO')
+  const [sessionDefaultEmp, setSessionDefaultEmp] = useState(draft?.sessionDefaultEmp || '')
+  const [sessionPayout, setSessionPayout] = useState(draft?.sessionPayout || 'Immediate')
+  const [showAdvanceFields, setShowAdvanceFields] = useState(draft?.showAdvanceFields || false)
+  const [showAdvancedColumns, setShowAdvancedColumns] = useState(false)
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+  const [showAdvanceFieldsDropdown, setShowAdvanceFieldsDropdown] = useState(false)
+  const [showProjectColumn, setShowProjectColumn] = useState(draft?.showProjectColumn ?? false)
+  const [showSessionEmployee, setShowSessionEmployee] = useState(draft?.showSessionEmployee ?? true)
+  const [showSessionAccount, setShowSessionAccount] = useState(draft?.showSessionAccount ?? true)
+  const [showSessionPayout, setShowSessionPayout] = useState(draft?.showSessionPayout ?? true)
+  const [isMobileReportExpanded, setIsMobileReportExpanded] = useState(false)
+  const [activePaidToRowId, setActivePaidToRowId] = useState(null)
+  const [paidToPopoverPos, setPaidToPopoverPos] = useState({ top: 200, left: 200 })
+  const [paidToSearchTerm, setPaidToSearchTerm] = useState('')
+  const advanceFieldsDropdownRef = useRef(null)
+  const paidToPopoverRef = useRef(null)
+  const [activeSiteRowId, setActiveSiteRowId] = useState(null)
+  const [sitePopoverPos, setSitePopoverPos] = useState({ top: 200, left: 200 })
+  const [siteSearchTerm, setSiteSearchTerm] = useState('')
+  const [isCustomSiteActive, setIsCustomSiteActive] = useState(false)
+  const sitePopoverRef = useRef(null)
+
+  // Auto-save draft to localStorage on state changes
+  useEffect(() => {
+    const draftData = {
+      addRows,
+      expenseMode,
+      sessionDate,
+      sessionAccount,
+      sessionDefaultEmp,
+      sessionPayout,
+      showAdvanceFields,
+      showProjectColumn,
+      showSessionEmployee,
+      showSessionAccount,
+      showSessionPayout,
+    }
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(draftData))
+    } catch (e) { /* quota exceeded, ignore */ }
+  }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn, showSessionEmployee, showSessionAccount, showSessionPayout])
+
+  useEffect(() => {
+    draftDirtyRef.current = hasUnsavedEntries
+    onDirtyChange?.(hasUnsavedEntries)
+  }, [hasUnsavedEntries, onDirtyChange])
   
   // Reports Filter States
   const today = new Date().toISOString().split('T')[0]
@@ -398,7 +573,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   // Recently Deleted State
   const [showDeletedModal, setShowDeletedModal] = useState(false)
   const [selectedDeletedEntryIds, setSelectedDeletedEntryIds] = useState([])
-  const [collapsedRecentExpenseDates, setCollapsedRecentExpenseDates] = useState([])
+  const [expandedRecentExpenseDates, setExpandedRecentExpenseDates] = useState([])
+  const [summaryEmployeeSearch, setSummaryEmployeeSearch] = useState('')
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' })
   const [portalEditForm, setPortalEditForm] = useState(null)
 
@@ -644,6 +820,24 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const resolvedCategory = row.category === 'custom' && row.customCategory
           ? row.customCategory.trim()
           : row.category
+
+        // Auto-save custom category to organisation categories if not already present
+        if (row.category === 'custom' && row.customCategory?.trim() && user?.orgId) {
+          const newCat = row.customCategory.trim()
+          try {
+            const orgRef = doc(db, 'organisations', user.orgId)
+            await setDoc(orgRef, {
+              advanceCategories: arrayUnion(newCat)
+            }, { merge: true })
+            setCategories(prev => {
+              if (prev.some(c => c.toLowerCase() === newCat.toLowerCase())) return prev
+              return [...prev, newCat]
+            })
+          } catch (e) {
+            console.error('Error auto-saving custom category to org:', e)
+          }
+        }
+
         const isGivenToOthers = isGivenToOthersCategory(resolvedCategory)
         let type = 'Expense'
         if (isGivenToOthers) type = 'Expense'
@@ -716,6 +910,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           employeeName: emp?.name || 'Unknown',
           type: type,
           category: finalCategory,
+          siteName: row.siteName || null,
           requestType: row.requestType || 'Reimbursement',
           payoutMethod: row.payoutMethod || 'Immediate',
           amount: Number(row.amount),
@@ -986,76 +1181,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     )
   }
 
-  // LocalStorage persistence helpers
-  const LS_KEY = 'hrflow_expense_draft'
-  const loadDraft = () => {
-    try {
-      const saved = localStorage.getItem(LS_KEY)
-      if (saved) return JSON.parse(saved)
-    } catch (e) { /* ignore parse errors */ }
-    return null
-  }
-  const draft = loadDraft()
-
-  const [addRows, setAddRows] = useState(() => {
-    if (draft?.addRows?.length) return draft.addRows
-    return [{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }]
-  })
-  const hasUnsavedEntries = useMemo(() => addRows.some((row) => (
-    Boolean(row.category?.trim()) ||
-    Boolean(row.customCategory?.trim()) ||
-    Number(row.amount) > 0 ||
-    Boolean(row.reason?.trim()) ||
-    Boolean(row.project?.trim()) ||
-    Boolean(row.paidTo) ||
-    Boolean(row.paidToCustomName?.trim())
-  )), [addRows])
-
-  const [expenseMode, setExpenseMode] = useState(draft?.expenseMode || 'self')
-  const [sessionDate, setSessionDate] = useState(() => draft?.sessionDate || new Date().toISOString().split('T')[0])
-  const [sessionAccount, setSessionAccount] = useState(draft?.sessionAccount || 'Petty Cash - HO')
-  const [sessionDefaultEmp, setSessionDefaultEmp] = useState(draft?.sessionDefaultEmp || '')
-  const [sessionPayout, setSessionPayout] = useState(draft?.sessionPayout || 'Immediate')
-  const [showAdvanceFields, setShowAdvanceFields] = useState(draft?.showAdvanceFields || false)
-  const [showAdvancedColumns, setShowAdvancedColumns] = useState(false)
-  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
-  const [showAdvanceFieldsDropdown, setShowAdvanceFieldsDropdown] = useState(false)
-  const [showProjectColumn, setShowProjectColumn] = useState(draft?.showProjectColumn ?? false)
-  const [showSessionEmployee, setShowSessionEmployee] = useState(draft?.showSessionEmployee ?? true)
-  const [showSessionAccount, setShowSessionAccount] = useState(draft?.showSessionAccount ?? true)
-  const [showSessionPayout, setShowSessionPayout] = useState(draft?.showSessionPayout ?? true)
-  const [isMobileReportExpanded, setIsMobileReportExpanded] = useState(false)
-  const [activePaidToRowId, setActivePaidToRowId] = useState(null)
-  const [paidToPopoverPos, setPaidToPopoverPos] = useState({ top: 200, left: 200 })
-  const [paidToSearchTerm, setPaidToSearchTerm] = useState('')
-  const advanceFieldsDropdownRef = useRef(null)
-  const paidToPopoverRef = useRef(null)
-
-  // Auto-save draft to localStorage on state changes
-  useEffect(() => {
-    const draftData = {
-      addRows,
-      expenseMode,
-      sessionDate,
-      sessionAccount,
-      sessionDefaultEmp,
-      sessionPayout,
-      showAdvanceFields,
-      showProjectColumn,
-      showSessionEmployee,
-      showSessionAccount,
-      showSessionPayout,
-    }
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(draftData))
-    } catch (e) { /* quota exceeded, ignore */ }
-  }, [addRows, expenseMode, sessionDate, sessionAccount, sessionDefaultEmp, sessionPayout, showAdvanceFields, showProjectColumn, showSessionEmployee, showSessionAccount, showSessionPayout])
-
-  useEffect(() => {
-    draftDirtyRef.current = hasUnsavedEntries
-    onDirtyChange?.(hasUnsavedEntries)
-  }, [hasUnsavedEntries, onDirtyChange])
-
   useEffect(() => {
     if (!hasUnsavedEntries) return
     const handler = (event) => {
@@ -1113,17 +1238,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
   }
 
-  const formatEscalationDate = (value) => {
-    if (!value) return '—'
-    try {
-      const date = value?.toDate?.() || parseISO(String(value))
-      if (Number.isNaN(date.getTime())) return String(value)
-      return format(date, 'dd/MM/yyyy')
-    } catch {
-      return String(value)
-    }
-  }
-
   const openPaidToPopover = (rowId, targetElem) => {
     if (!rowId) {
       setActivePaidToRowId(null)
@@ -1148,6 +1262,32 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }, 10)
   }
 
+  const openSitePopover = (rowId, targetElem) => {
+    if (!rowId) {
+      setActiveSiteRowId(null)
+      return
+    }
+    setTimeout(() => {
+      const cellElem = document.getElementById(`category-cell-${rowId}`) || targetElem
+      if (cellElem) {
+        const rect = cellElem.getBoundingClientRect()
+        const popupHeight = 220
+        const spaceBelow = window.innerHeight - rect.bottom
+        let topPos = rect.bottom + 4
+        if (spaceBelow < popupHeight && rect.top > popupHeight) {
+          topPos = rect.top - popupHeight - 4
+        }
+        setSitePopoverPos({
+          top: Math.max(10, topPos),
+          left: Math.min(window.innerWidth - 330, Math.max(10, rect.left))
+        })
+      }
+      setActiveSiteRowId(rowId)
+      setIsCustomSiteActive(false)
+      setSiteSearchTerm('')
+    }, 10)
+  }
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (advanceFieldsDropdownRef.current && !advanceFieldsDropdownRef.current.contains(event.target)) {
@@ -1155,6 +1295,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       }
       if (paidToPopoverRef.current && !paidToPopoverRef.current.contains(event.target)) {
         setActivePaidToRowId(null)
+      }
+      if (sitePopoverRef.current && !sitePopoverRef.current.contains(event.target)) {
+        setActiveSiteRowId(null)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -1204,8 +1347,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const modules = portalMode
     ? ['Add Advance', 'Add Expense']
-    : ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Ledger', 'Reports']
-  const defaultCategories = ['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Others']
+    : ['Add Advance', 'Add Expense', 'Cash Summary', 'Ledger', 'Reports']
+  const defaultCategories = ['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Petrol', 'Site Petrol', 'Others']
 
   const fetchCategories = async () => {
     if (!user?.orgId) return
@@ -1219,6 +1362,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         } else {
           setCategories(defaultCategories)
         }
+        if (orgData.enableSiteRemarksInExpenseAdvance !== undefined) {
+          setEnableSiteRemarks(orgData.enableSiteRemarksInExpenseAdvance !== false)
+        }
+        if (Array.isArray(orgData.remarksOptions)) {
+          setOrgRemarksOptions(orgData.remarksOptions.filter(Boolean))
+        }
       }
     } catch (err) {
       console.error('Error fetching categories:', err)
@@ -1226,7 +1375,48 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
   }
 
+  const saveNewCategory = async (rowId, categoryName) => {
+    const trimmed = (categoryName || '').trim()
+    if (!trimmed) return
+    if (!user?.orgId) return
+
+    // 1. Immediately update row to use this new category and clear custom input
+    handleRowChange(rowId, 'category', trimmed)
+    handleRowChange(rowId, 'customCategory', '')
+
+    // 2. Add to local categories state if not present
+    setCategories(prev => {
+      if (prev.some(c => c.toLowerCase() === trimmed.toLowerCase())) return prev
+      return [...prev, trimmed]
+    })
+
+    // 3. Persist to organisations/{orgId} under advanceCategories
+    try {
+      const orgRef = doc(db, 'organisations', user.orgId)
+      await setDoc(orgRef, {
+        advanceCategories: arrayUnion(trimmed)
+      }, { merge: true })
+    } catch (err) {
+      console.error('Error saving new category to organisation:', err)
+    }
+  }
+
   useEffect(() => { fetchCategories() }, [user?.orgId])
+
+  useEffect(() => {
+    if (!user?.orgId) return
+    const q = query(collection(db, 'organisations', user.orgId, 'sites'), orderBy('siteName', 'asc'))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(s => s.active !== false && s.siteName)
+        .map(s => s.siteName.trim())
+      setSites(list)
+    }, (err) => {
+      console.warn('Error fetching sites:', err)
+    })
+    return () => unsubscribe()
+  }, [user?.orgId])
 
   // Auto-apply filters when any filter changes
   useEffect(() => {
@@ -1518,7 +1708,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }
 
   const handleRowChange = (id, field, value) => {
-    setAddRows(addRows.map(row => {
+    setAddRows(prev => prev.map(row => {
       if (row.id === id) {
         if (field === 'category' && value === 'Others') {
           setTransferModalRowId(id)
@@ -1546,6 +1736,14 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             ...row, 
             [field]: value,
             paidToType: 'custom'
+          }
+        }
+        // Handle siteName selection
+        if (field === 'siteName') {
+          return {
+            ...row,
+            siteName: value,
+            isCustomSite: false
           }
         }
         return { ...row, [field]: value }
@@ -1822,6 +2020,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           employeeName: employees.find(e => e.id === row.employeeId)?.name || 'Unknown',
           employeeId: row.employeeId,
           category: row.category,
+          siteName: row.siteName || null,
           amount: row.amount,
           date: row.date,
           type: rowType,
@@ -2336,7 +2535,36 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const paidTotal = periodRows.filter((entry) => entry.paymentStatus === 'Paid').reduce((sum, entry) => sum + entry.statementAmount, 0)
     const outstandingTotal = expenseRows.filter((entry) => entry.paymentStatus !== 'Paid').reduce((sum, entry) => sum + entry.statementAmount, 0)
 
-    return { periodRows, expenseRows, advanceRows, categoryRows, expenseTotal, advanceTotal, paidTotal, outstandingTotal }
+    // Employee Summary for the month
+    const employeeMap = new Map()
+    periodRows.forEach((entry) => {
+      const empId = entry.employeeId || entry.statementEmployeeName || 'unassigned'
+      const empName = entry.statementEmployeeName || 'Unassigned employee'
+      const current = employeeMap.get(empId) || {
+        id: empId,
+        name: empName,
+        advance: 0,
+        expense: 0,
+        count: 0
+      }
+      if (entry.accountingType === 'Advance') {
+        current.advance += entry.statementAmount
+        current.count += 1
+      } else if (entry.accountingType === 'Expense') {
+        current.expense += entry.statementAmount
+        current.count += 1
+      }
+      employeeMap.set(empId, current)
+    })
+
+    const employeeRows = [...employeeMap.values()]
+      .map((row) => ({
+        ...row,
+        net: row.advance - row.expense
+      }))
+      .sort((left, right) => (right.advance + right.expense) - (left.advance + left.expense) || left.name.localeCompare(right.name))
+
+    return { periodRows, expenseRows, advanceRows, categoryRows, employeeRows, expenseTotal, advanceTotal, paidTotal, outstandingTotal }
   }, [employees, entries, summaryMonth])
 
   const expenseCategoryChart = useMemo(() => {
@@ -2389,19 +2617,20 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     })
   }, [monthlyStatement.categoryRows])
 
-  const escalation = useMemo(() => {
-    const needsHr = entries.filter(
-      (e) => e.status === 'Pending' && (e.hrApproval === 'Pending' || !e.hrApproval)
-    )
-    const needsMd = entries.filter(
-      (e) =>
-        e.status === 'Pending' &&
-        e.hrApproval === 'Approved' &&
-        (e.mdApproval === 'Pending' || !e.mdApproval)
-    )
-    const onHold = entries.filter((e) => e.status === 'Hold')
-    return { needsHr, needsMd, onHold }
-  }, [entries])
+  const filteredEmployeeRows = useMemo(() => {
+    const rows = monthlyStatement.employeeRows || []
+    if (!summaryEmployeeSearch.trim()) return rows
+    const q = summaryEmployeeSearch.toLowerCase()
+    return rows.filter((r) => r.name.toLowerCase().includes(q))
+  }, [monthlyStatement.employeeRows, summaryEmployeeSearch])
+
+  const employeeSummaryTotals = useMemo(() => {
+    const rows = monthlyStatement.employeeRows || []
+    const totalAdvance = rows.reduce((acc, r) => acc + r.advance, 0)
+    const totalExpense = rows.reduce((acc, r) => acc + r.expense, 0)
+    const totalNet = totalAdvance - totalExpense
+    return { totalAdvance, totalExpense, totalNet }
+  }, [monthlyStatement.employeeRows])
 
   const handleMonthChange = (direction) => {
     const [year, month] = reportMonth.split('-').map(Number)
@@ -2447,11 +2676,28 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   }, [filteredEntries, reportSelectedEmployees])
   const reportAdvanceRows = reportApplied ? advForReport : advances
   const reportExpenseRows = reportApplied ? expForReport : expenses
-  const visibleReportEntries = [...reportAdvanceRows, ...reportExpenseRows]
+  const reportUnifiedRows = useMemo(() => {
+    const list = reportApplied
+      ? filteredEntries.filter((entry) => reportSelectedEmployees.length === 0 || reportSelectedEmployees.includes(entry.employeeId))
+      : entries
+    return [...list].sort((a, b) => {
+      const dateDiff = (b.date || '').localeCompare(a.date || '')
+      if (dateDiff !== 0) return dateDiff
+      const aType = getAccountingEntryType(a) === 'Advance' ? 0 : 1
+      const bType = getAccountingEntryType(b) === 'Advance' ? 0 : 1
+      if (aType !== bType) return aType - bType
+      const aTime = a.createdAt?.seconds || 0
+      const bTime = b.createdAt?.seconds || 0
+      if (bTime !== aTime) return bTime - aTime
+      return (b.id || '').localeCompare(a.id || '')
+    })
+  }, [reportApplied, filteredEntries, entries, reportSelectedEmployees])
+  const visibleReportEntries = reportUnifiedRows
   const selectableReportEntries = visibleReportEntries.filter((entry) => !entry.isTransferredAdvance)
   const selectedVisibleReportCount = selectableReportEntries.filter((entry) => reportSelectedEntryIds.includes(entry.id)).length
 
   const handleScreenshot = async () => {
+    const button = document.querySelector('button[title="Take Screenshot"]')
     try {
       if (!reportsContainerRef.current) {
         alert('No content to capture')
@@ -2459,11 +2705,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       }
       
       // Show loading indicator
-      const button = document.querySelector('button[title="Take Screenshot"]')
       if (button) {
         button.innerHTML = '<span class="animate-spin">⟳</span> Capturing...'
         button.disabled = true
       }
+      
+      // Dynamically load html2canvas-pro to avoid initial module graph conflicts
+      const { default: html2canvas } = await import('html2canvas-pro')
       
       // Capture the reports container
       const canvas = await html2canvas(reportsContainerRef.current, {
@@ -2473,7 +2721,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         allowTaint: true,
         logging: false,
         foreignObjectRendering: false,
-        removeContainer: false
+        removeContainer: true
       })
       
       // Check if canvas was created
@@ -2494,20 +2742,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      
-      // Reset button
-      if (button) {
-        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Screenshot'
-        button.disabled = false
-      }
     } catch (err) {
       console.error('Screenshot Error:', err)
       console.error('Error details:', err.message)
       console.error('Error stack:', err.stack)
       alert(`Failed to capture screenshot: ${err.message || 'Unknown error'}. Please check console for details.`)
-      
-      // Reset button on error
-      const button = document.querySelector('button[title="Take Screenshot"]')
+    } finally {
+      // Reset button
       if (button) {
         button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Screenshot'
         button.disabled = false
@@ -3357,6 +3598,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             if (isActive) {
               if (mod === 'Add Advance') colorClass = 'border-b-2 border-amber-500 text-amber-700 bg-amber-50'
               else if (mod === 'Add Expense') colorClass = 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
+              else if (mod === 'Cash Summary' || mod === 'Summary') colorClass = 'border-b-2 border-emerald-500 text-emerald-700 bg-emerald-50'
               else colorClass = 'border-b-2 border-primary-500 text-primary-700'
             }
 
@@ -3391,8 +3633,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 if (!isActive) return 'bg-white/60 text-gray-600 border-gray-200/60 hover:bg-gray-50/80'
                 if (mod === 'Add Advance') return 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
                 if (mod === 'Add Expense') return 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/25'
-                if (mod === 'Escalation') return 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/25'
-                if (mod === 'Summary') return 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/25'
+                if (mod === 'Cash Summary' || mod === 'Summary') return 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/25'
                 if (mod === 'Ledger') return 'bg-cyan-500 text-white border-cyan-500 shadow-lg shadow-cyan-500/25'
                 return 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/25'
               }
@@ -3400,8 +3641,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               const getShortLabel = () => {
                 if (mod === 'Add Advance') return 'Adv'
                 if (mod === 'Add Expense') return 'Exp'
-                if (mod === 'Escalation') return 'Esc'
-                if (mod === 'Summary') return 'Sum'
+                if (mod === 'Cash Summary' || mod === 'Summary') return 'Cash Sum'
                 if (mod === 'Ledger') return 'Ledger'
                 return 'Rep'
               }
@@ -3470,10 +3710,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 />
               </div>
             </div>
-            {/* Split Layout: Main Workspace (75%) + Right Side Panel (25%) */}
+            {/* Split Layout: Main Workspace (72%) + Right Side Panel (28%) */}
             <div className="flex flex-col lg:flex-row items-start gap-4">
-              {/* Left Column: Ribbon Controls + Spreadsheet Table Grid (~75%) */}
-              <div className="flex-1 w-full lg:w-[75%] min-w-0 space-y-3">
+              {/* Left Column: Ribbon Controls + Spreadsheet Table Grid (~72%) */}
+              <div className="flex-1 w-full lg:w-[72%] min-w-0 space-y-3">
                 {/* 2. Session Details Ribbon */}
                 <div className="grid grid-cols-2 gap-2.5 text-xs md:flex md:flex-wrap md:items-center">
                   {/* Date */}
@@ -3705,23 +3945,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                 {/* 5. High-Density Spreadsheet Table Grid */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full min-w-[920px] table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200 [&_tbody_td]:border-r [&_tbody_td]:border-slate-200/80 [&_tr>*:last-child]:border-r-0">
+                  <table className="w-full table-fixed text-left border-collapse text-xs [&_thead_th]:border-r [&_thead_th]:border-slate-200 [&_tbody_td]:border-r [&_tbody_td]:border-slate-200/80 [&_tr>*:last-child]:border-r-0">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                        <th className="py-3 px-3 w-10 text-center">#</th>
-                        {!portalMode && !isSelfEntry && <th className="py-3 px-3 min-w-[200px]">Employee <span className="text-rose-500">*</span></th>}
-                        <th className="py-3 px-3 min-w-[128px] w-32">Date <span className="text-rose-500">*</span></th>
-                        <th className="py-3 px-3 min-w-[180px]">Category <span className="text-rose-500">*</span></th>
+                        <th className="py-2.5 px-1 w-7 text-center">#</th>
+                        {!portalMode && !isSelfEntry && <th className="py-2.5 px-1.5 w-40">Employee <span className="text-rose-500">*</span></th>}
+                        <th className="py-2.5 px-1 w-[100px] text-center">Date <span className="text-rose-500">*</span></th>
+                        <th className="py-2.5 px-1.5 w-[170px]">Category <span className="text-rose-500">*</span></th>
                         {showAdvanceFields && (
-                          <th className="py-3 px-3 min-w-[160px]">Paid To <span className="text-rose-500">*</span></th>
+                          <th className="py-2.5 px-1.5 w-36">Paid To <span className="text-rose-500">*</span></th>
                         )}
-                        <th className="py-3 px-2.5 min-w-[100px] w-28 text-right">Amount (₹) <span className="text-rose-500">*</span></th>
-                        {!portalMode && <th className="py-3 px-2.5 min-w-[100px] w-28">Payout <span className="text-rose-500">*</span></th>}
-                        <th className="py-3 px-3 min-w-[220px]">Brief Description</th>
+                        <th className="py-2.5 px-1.5 w-24 text-right">Amount (₹) <span className="text-rose-500">*</span></th>
+                        {!portalMode && showSessionPayout && <th className="py-2.5 px-1.5 w-24">Payout <span className="text-rose-500">*</span></th>}
+                        <th className="py-2.5 px-1.5 w-[220px]">Brief Description</th>
                         {showProjectColumn && (
-                          <th className="py-3 px-3 min-w-[160px]">Project (Optional)</th>
+                          <th className="py-2.5 px-1.5 w-28">Project</th>
                         )}
-                        <th className="py-3 px-3 w-20 text-center">Action</th>
+                        <th className="py-2.5 px-1 w-16 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200/60">
@@ -3733,12 +3973,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         return (
                           <tr key={row.id} className="h-[54px] border-b border-slate-200/80 hover:bg-indigo-50/20 transition-colors group">
                             {/* Row Index */}
-                            <td className="bg-slate-50/70 py-2.5 px-3 text-center text-slate-500 font-bold text-xs">
+                            <td className="bg-slate-50/70 py-1 px-1 text-center text-slate-500 font-bold text-xs w-7">
                               {idx + 1}
                             </td>
 
                             {!portalMode && !isSelfEntry && (
-                              <td id={`employee-cell-${row.id}`} className="py-1.5 px-2">
+                              <td id={`employee-cell-${row.id}`} className="py-1 px-1.5 w-40">
                                 <select
                                   value={row.employeeId}
                                   onChange={(e) => handleRowChange(row.id, 'employeeId', e.target.value)}
@@ -3756,7 +3996,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             )}
 
                             {(activeModule === 'Add Expense' || activeModule === 'Add Advance') && (
-                              <td className="py-1.5 px-2 w-32">
+                              <td className="py-1 px-1 w-[100px] text-center">
                                 <DatePicker
                                   selected={row.date ? parseISO(row.date) : null}
                                   maxDate={activeModule === 'Add Expense' ? new Date() : undefined}
@@ -3764,13 +4004,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   dateFormat="dd MMM yyyy"
                                   popperClassName="z-[99999]"
                                   popperProps={{ strategy: 'fixed', placement: 'bottom-start' }}
-                                  customInput={<div className="flex h-9 w-full cursor-pointer items-center rounded-[4px] border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select date'}</div>}
+                                  customInput={<div className="flex h-9 w-full cursor-pointer items-center justify-center rounded-[4px] border border-slate-200 bg-white px-1 text-center text-xs font-semibold text-slate-800 outline-none focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">{row.date ? format(parseISO(row.date), 'dd MMM yyyy') : 'Select'}</div>}
                                 />
                               </td>
                             )}
 
                             {/* Category */}
-                            <td id={`category-cell-${row.id}`} className="py-1.5 px-2 relative">
+                            <td id={`category-cell-${row.id}`} className="py-1 px-1.5 w-[170px] relative">
                               <div className="w-full rounded-[4px] [&_button]:min-h-9 [&_button]:rounded-[4px] [&_button]:border-slate-200 [&_button:focus]:border-indigo-500">
                                 <Dropdown
                                   value={row.category === 'custom' ? '' : row.category}
@@ -3779,6 +4019,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     const lower = (val || '').toLowerCase();
                                     if (lower.includes('given to others') || lower.includes('salary to others')) {
                                       openPaidToPopover(row.id, e?.target);
+                                    }
+                                    if (enableSiteRemarks && isPetrolCategory(val)) {
+                                      if (!row.siteName && availableSiteNames.length > 0) {
+                                        handleRowChange(row.id, 'siteName', availableSiteNames[0]);
+                                      }
+                                      openSitePopover(row.id, e?.target);
                                     }
                                   }}
                                   options={categories}
@@ -3790,14 +4036,169 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   onAddOther={() => handleRowChange(row.id, 'category', 'custom')}
                                 />
                                 {row.category === 'custom' && (
-                                  <input
-                                    type="text"
-                                    value={row.customCategory || ''}
-                                    onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
-                                    className="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-500"
-                                    placeholder="Custom category..."
-                                    autoFocus
-                                  />
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <input
+                                      type="text"
+                                      value={row.customCategory || ''}
+                                      onChange={(e) => handleRowChange(row.id, 'customCategory', e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault()
+                                          saveNewCategory(row.id, row.customCategory)
+                                        }
+                                      }}
+                                      className="w-full bg-white border border-slate-200 rounded-[4px] px-2 py-1 text-xs outline-none focus:border-indigo-500"
+                                      placeholder="Type category & hit Enter..."
+                                      autoFocus
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => saveNewCategory(row.id, row.customCategory)}
+                                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-[4px] text-[10px] shrink-0 transition-colors"
+                                      title="Save category to organisation"
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Sub-badge: Site Name for Petrol / Sitepetrol */}
+                                {enableSiteRemarks && isPetrolCategory(row.category) && (
+                                  <div
+                                    onClick={(e) => openSitePopover(activeSiteRowId === row.id ? null : row.id, e.currentTarget)}
+                                    className="mt-[-2px] flex items-center justify-between gap-1.5 text-[10px] font-bold text-emerald-900 bg-emerald-50/90 hover:bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-200/80 shadow-2xs cursor-pointer transition-all group/badge"
+                                    title="Click to change site"
+                                  >
+                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                      <span className="text-emerald-700 font-semibold shrink-0">Site:</span>
+                                      <span className="text-emerald-950 font-bold truncate max-w-[140px]">
+                                        {row.siteName || (availableSiteNames.length > 0 ? availableSiteNames[0] : 'Select site...')}
+                                      </span>
+                                    </div>
+                                    <span className="text-[9px] text-emerald-600 opacity-70 group-hover/badge:opacity-100 font-bold underline shrink-0">
+                                      {row.siteName ? 'Change' : 'Choose'}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* 2-Column Searchable Site Popup - Same behavior, animation & 2-column visual as Given to Others */}
+                                {activeSiteRowId === row.id && createPortal(
+                                  <div
+                                    ref={sitePopoverRef}
+                                    style={{
+                                      position: 'fixed',
+                                      top: `${sitePopoverPos.top}px`,
+                                      left: `${sitePopoverPos.left}px`,
+                                      zIndex: 9999
+                                    }}
+                                    className="w-80 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 text-xs space-y-2 animate-in fade-in zoom-in-95 duration-150"
+                                  >
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
+                                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                        Select Site / Branch
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => { setActiveSiteRowId(null); setSiteSearchTerm(''); }}
+                                        className="text-slate-400 hover:text-slate-600 p-0.5 rounded hover:bg-slate-100"
+                                      >
+                                        <X size={13} />
+                                      </button>
+                                    </div>
+
+                                    {/* Search by type input */}
+                                    <div className="relative">
+                                      <Search size={12} className="absolute left-2.5 top-2 text-slate-400" />
+                                      <input
+                                        type="text"
+                                        value={siteSearchTerm}
+                                        onChange={(e) => setSiteSearchTerm(e.target.value)}
+                                        placeholder="Type to search site..."
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-2.5 py-1 text-xs outline-none focus:border-emerald-500 focus:bg-white"
+                                        autoFocus
+                                      />
+                                    </div>
+
+                                    {/* 2-Column Grid Layout of Configured Sites */}
+                                    <div className="max-h-44 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-1 slim-scrollbar">
+                                      {availableSiteNames
+                                        .filter(site => site.toLowerCase().includes((siteSearchTerm || '').toLowerCase()))
+                                        .map(site => (
+                                          <button
+                                            key={site}
+                                            type="button"
+                                            onClick={() => {
+                                              handleRowChange(row.id, 'siteName', site);
+                                              setActiveSiteRowId(null);
+                                              setSiteSearchTerm('');
+                                              setIsCustomSiteActive(false);
+                                            }}
+                                            className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] font-semibold ${
+                                              row.siteName === site
+                                                ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200'
+                                                : 'text-slate-700 hover:bg-slate-100 border border-slate-100'
+                                            }`}
+                                          >
+                                            <span className="truncate">{site}</span>
+                                            {row.siteName === site && <Check size={12} className="text-emerald-600 shrink-0" />}
+                                          </button>
+                                        ))}
+                                      {availableSiteNames.filter(site => site.toLowerCase().includes((siteSearchTerm || '').toLowerCase())).length === 0 && (
+                                        <div className="col-span-2 py-3 text-center text-[11px] text-slate-400">
+                                          No matching sites found
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsCustomSiteActive(prev => !prev)}
+                                      className="w-full text-left px-2 py-1 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors text-xs font-bold border-t border-slate-100 pt-1.5"
+                                    >
+                                      + Add Other Site...
+                                    </button>
+
+                                    {isCustomSiteActive && (
+                                      <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+                                        <input
+                                          type="text"
+                                          value={row.customSiteName || ''}
+                                          onChange={(e) => handleRowChange(row.id, 'customSiteName', e.target.value)}
+                                          placeholder="Enter site name..."
+                                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-emerald-500"
+                                          autoFocus
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              const customVal = (row.customSiteName || '').trim();
+                                              if (customVal) {
+                                                handleRowChange(row.id, 'siteName', customVal);
+                                              }
+                                              setActiveSiteRowId(null);
+                                              setSiteSearchTerm('');
+                                              setIsCustomSiteActive(false);
+                                            }
+                                          }}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const customVal = (row.customSiteName || '').trim();
+                                            if (customVal) {
+                                              handleRowChange(row.id, 'siteName', customVal);
+                                            }
+                                            setActiveSiteRowId(null);
+                                            setSiteSearchTerm('');
+                                            setIsCustomSiteActive(false);
+                                          }}
+                                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] shrink-0"
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>,
+                                  document.body
                                 )}
 
                                 {/* Sub-badge: [1st Column Employee] → [Chosen Recipient] with -2px spacing */}
@@ -3871,7 +4272,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                     </div>
 
                                     {/* 2-Column Grid Layout of Active Employees (Excludes Column 1 Employee) */}
-                                    <div className="max-h-44 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-0.5">
+                                    <div className="max-h-44 overflow-y-auto grid grid-cols-2 gap-1 py-1 pr-1 slim-scrollbar">
                                       {employees
                                         .filter(e => {
                                           const isActive = (e.status || 'Active').toLowerCase() === 'active';
@@ -3937,13 +4338,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
                             {/* Paid To (Conditional) */}
                             {showAdvanceFields && (
-                              <td className="py-1.5 px-2">
+                              <td id={`paid-to-cell-${row.id}`} className="py-1 px-1.5 w-36">
                                 <PaidToDropdown rowId={row.id} row={row} isMobile={false} />
                               </td>
                             )}
 
                             {/* Amount */}
-                            <td className="py-1.5 px-2 w-28">
+                            <td className="py-1 px-1.5 w-24">
                               <input
                                 type="number"
                                 value={row.amount}
@@ -3959,12 +4360,12 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                               />
                             </td>
 
-                            {!portalMode && (
-                              <td className="py-1.5 px-2 w-28">
+                            {!portalMode && showSessionPayout && (
+                              <td className="py-1 px-1.5 w-24">
                                 <select
                                   value={row.payoutMethod}
                                   onChange={(e) => handleRowChange(row.id, 'payoutMethod', e.target.value)}
-                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-1.5 text-xs font-normal text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-1 text-xs font-normal text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="Immediate">Immediate</option>
                                   <option value="With Salary">Monthly</option>
@@ -3973,7 +4374,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             )}
 
                             {/* Brief description */}
-                            <td className="py-1.5 px-2">
+                            <td className="py-1 px-1.5 w-[220px]">
                               <input
                                 type="text"
                                 value={row.reason}
@@ -3985,17 +4386,17 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   }
                                 }}
                                 placeholder="Brief description..."
-                                className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2 text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               />
                             </td>
 
                             {/* Project (Optional - Conditional) */}
                             {showProjectColumn && (
-                              <td className="py-1.5 px-2">
+                              <td className="py-1 px-1.5 w-28">
                                 <select
                                   value={row.project}
                                   onChange={(e) => handleRowChange(row.id, 'project', e.target.value)}
-                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2.5 text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                  className="w-full h-9 bg-white border border-slate-200 rounded-[4px] px-2 text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="">Select Project...</option>
                                   <option value="P-0001">P-0001</option>
@@ -4008,23 +4409,23 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                             )}
 
                             {/* Action */}
-                            <td className="py-1.5 px-2 text-center">
-                              <div className="flex items-center justify-center gap-2">
+                            <td className="py-1 px-1 w-16 text-center">
+                              <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() => handleDuplicateRow(row.id)}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
                                   title="Duplicate Row (Ctrl+D)"
                                 >
-                                  <Copy size={14} />
+                                  <Copy size={13} />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setAddRows(addRows.filter(r => r.id !== row.id))}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
                                   title="Delete Row"
                                 >
-                                  <Trash2 size={14} />
+                                  <Trash2 size={13} />
                                 </button>
                               </div>
                             </td>
@@ -4054,6 +4455,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       handleDuplicateRow={handleDuplicateRow}
                       handleDeleteRow={(rowId) => setAddRows(prev => prev.filter(item => item.id !== rowId))}
                       PaidToDropdown={PaidToDropdown}
+                      enableSiteRemarks={enableSiteRemarks}
+                      availableSiteNames={availableSiteNames}
+                      saveNewCategory={saveNewCategory}
+                      showSessionPayout={showSessionPayout}
                     />
                   ))}
                 </div>
@@ -4097,8 +4502,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               </div>
             </div>
 
-            {/* Right Column: Side Panel (~25% width) */}
-            <div className="w-full shrink-0 self-start rounded-2xl border border-slate-200/80 bg-white p-3.5 font-body shadow-sm lg:ml-auto lg:w-[25%] lg:max-w-[290px]">
+            {/* Right Column: Side Panel (~28% width) */}
+            <div className="w-full shrink-0 self-start rounded-2xl border border-slate-200/80 bg-white p-3 font-body shadow-sm lg:ml-auto lg:w-[28%] lg:max-w-[340px]">
               <button
                 type="button"
                 onClick={() => setIsMobileReportExpanded((expanded) => !expanded)}
@@ -4107,33 +4512,34 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               >
                 <span>
                   <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">{format(new Date(), 'MMMM yyyy')}</span>
-                  <span className="mt-1 block text-xs font-semibold text-slate-800">{activeModule === 'Add Advance' ? 'Advance report' : 'Expense report'}</span>
+                  <span className="mt-0.5 block text-xs font-semibold text-slate-800">{activeModule === 'Add Advance' ? 'Advance report' : 'Expense report'}</span>
                 </span>
                 <span className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 font-mono">{formatINR(sidePanelData.monthTotal)}</span>
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 tabular-nums">{formatINR(sidePanelData.monthTotal)}</span>
                   <ChevronDown size={16} className={`text-slate-500 transition-transform ${isMobileReportExpanded ? 'rotate-180' : ''}`} />
                 </span>
               </button>
-              <div className={`${isMobileReportExpanded ? 'block' : 'hidden'} space-y-3.5 md:block`}>
+              <div className={`${isMobileReportExpanded ? 'block' : 'hidden'} space-y-2.5 md:block`}>
                 {/* 1. Panel Header: Current Month & Total Spent/Adv */}
-                <div className="border-b border-slate-100 pb-3">
+                <div className="border-b border-slate-100 pb-2.5">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-medium uppercase tracking-tight text-slate-900">
-                      {format(new Date(), 'MMMM yyyy')}
-                    </h4>
-                    <span className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-700">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                        {format(new Date(), 'MMMM yyyy')}
+                      </h4>
+                      <div className="mt-0.5 text-[11px] font-medium text-slate-500">
+                        {activeModule === 'Add Advance' ? 'Total Advance' : 'Total Spent'}
+                      </div>
+                    </div>
+                    <span className="rounded-md border border-emerald-200/70 bg-emerald-50 px-2.5 py-1 text-xs font-bold tabular-nums text-emerald-700 shadow-2xs">
                       {formatINR(sidePanelData.monthTotal)}
                     </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] font-normal text-slate-500">
-                    <span>{activeModule === 'Add Advance' ? 'Total Advance' : 'Total Spent'}</span>
-                    <span className="font-medium text-slate-800 font-mono">{formatINR(sidePanelData.monthTotal)}</span>
                   </div>
                 </div>
 
                 {/* 2. Recent Entries Section (Date-wise, Recent to Oldest) */}
                 <div>
-                  <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-slate-400">
+                  <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Recent {activeModule === 'Add Advance' ? 'Advances' : 'Expenses'}
                   </div>
 
@@ -4142,29 +4548,29 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       No recent entries recorded.
                     </div>
                   ) : (
-                    <div className="max-h-[480px] overflow-y-auto pr-0.5 space-y-3 custom-scrollbar">
+                    <div className="max-h-[500px] overflow-y-auto pr-1 space-y-1.5 slim-scrollbar" style={{ scrollbarWidth: 'thin' }}>
                       {sidePanelData.groups.map((group) => {
-                        const isCollapsed = collapsedRecentExpenseDates.includes(group.dateStr)
+                        const isCollapsed = !expandedRecentExpenseDates.includes(group.dateStr)
                         return (
                           <div key={group.dateStr} className="space-y-1">
-                            {/* Clickable date separator keeps large daily groups manageable. */}
+                            {/* Clickable date separator */}
                             <button
                               type="button"
-                              onClick={() => setCollapsedRecentExpenseDates((current) => (
+                              onClick={() => setExpandedRecentExpenseDates((current) => (
                                 current.includes(group.dateStr)
                                   ? current.filter((date) => date !== group.dateStr)
                                   : [...current, group.dateStr]
                               ))}
-                              className="flex w-full items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-left text-[11px] font-medium text-slate-800 transition-colors hover:bg-slate-100"
+                              className="flex w-full items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2 py-1 text-left text-xs font-medium text-slate-800 transition-colors hover:bg-slate-100"
                               aria-expanded={!isCollapsed}
                             >
                               <ChevronDown size={13} className={`shrink-0 text-slate-500 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-                              <span>{formatDateTitle(group.dateStr)}</span>
-                              <span className="ml-auto text-right font-mono font-medium tabular-nums text-slate-900">{formatINR(group.total)}</span>
+                              <span className="font-semibold text-slate-700">{formatDateTitle(group.dateStr)}</span>
+                              <span className="ml-auto text-right font-semibold tabular-nums text-slate-800 text-xs">{formatINR(group.total)}</span>
                             </button>
 
                             {!isCollapsed && (
-                              <div className="ml-3 space-y-1 border-l-2 border-slate-200/80 py-0.5 pl-2">
+                              <div className="ml-1 space-y-0.5 border-l border-slate-200/80 py-0.5 pl-1.5">
                                 {group.items.map((item, iIdx) => {
                                   const recipientName = item.paidToName || item.paidToCustomName || item.transferredToName || (item.paidTo ? (employees.find(e => e.id === item.paidTo || e.name === item.paidTo)?.name || item.paidTo) : null);
                                   const catLower = (item.category || '').toLowerCase();
@@ -4173,28 +4579,64 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   return (
                                     <div
                                       key={item.id || iIdx}
-                                      className={`${isSelfEntry ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-[82px_minmax(0,1fr)_auto]'} ${isSelfEntry ? '' : 'relative'} group grid items-center gap-2 border-b border-slate-50 py-2 font-body text-[10px] font-normal text-slate-600 last:border-0 hover:text-slate-900`}
+                                      className="relative group grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_auto] items-center gap-1.5 border-b border-slate-100/70 py-1.5 px-1 font-body text-xs last:border-0 hover:bg-slate-50/80 rounded transition-colors"
                                     >
+                                      {/* Left Column: Category & Site Name */}
                                       {isSelfEntry ? (
-                                        <div className="flex min-w-0 flex-col">
-                                          <span className="truncate font-medium text-slate-600" title={item.category || 'General'}>{item.category || 'General'}</span>
-                                          {item.reason && <span className="mt-1 line-clamp-2 whitespace-normal break-words text-[9px] font-normal leading-4 text-slate-400" title={item.reason}>{item.reason}</span>}
+                                        <div className="min-w-0 flex flex-col justify-center leading-tight">
+                                          <span className="truncate font-semibold text-slate-800 text-[11px]" title={item.category || 'General'}>
+                                            {item.category || 'General'}
+                                          </span>
+                                          {item.siteName && (
+                                            <span className="truncate text-[9px] font-medium text-emerald-600 flex items-center gap-0.5" title={`Site: ${item.siteName}`}>
+                                              <span className="shrink-0 text-[8px]">📍</span>
+                                              <span className="truncate">{item.siteName}</span>
+                                            </span>
+                                          )}
                                         </div>
                                       ) : (
-                                        <>
-                                          <span className="truncate pr-1 font-medium text-slate-800" title={item.employeeName || 'Unknown'}>{item.employeeName || 'Unknown'}</span>
-                                          <div className="flex min-w-0 flex-col gap-0.5 pr-1">
-                                            <span className="truncate font-normal text-slate-500" title={item.category || 'General'}>- {item.category || 'General'}</span>
-                                            {item.reason && <span className="line-clamp-2 whitespace-normal break-words text-[9px] font-normal leading-4 text-slate-400" title={item.reason}>{item.reason}</span>}
-                                            {showRecipient && <span className="mt-0.5 truncate text-[8px] font-medium leading-none text-blue-600" title={`Recipient: ${recipientName}`}>→ {recipientName}</span>}
-                                          </div>
-                                        </>
+                                        <div className="min-w-0 flex flex-col justify-center leading-tight">
+                                          <span className="truncate font-semibold text-slate-800 text-[11px]" title={item.employeeName || 'Unknown'}>
+                                            {item.employeeName || 'Unknown'}
+                                          </span>
+                                          <span className="truncate text-[10px] text-slate-500 font-medium" title={item.category || 'General'}>
+                                            {item.category || 'General'}
+                                          </span>
+                                          {item.siteName && (
+                                            <span className="truncate text-[9px] font-medium text-emerald-600 flex items-center gap-0.5" title={`Site: ${item.siteName}`}>
+                                              <span className="shrink-0 text-[8px]">📍</span>
+                                              <span className="truncate">{item.siteName}</span>
+                                            </span>
+                                          )}
+                                        </div>
                                       )}
-                                      <span className="ml-auto shrink-0 text-right font-mono font-medium tabular-nums text-slate-900">{formatINR(item.amount)}</span>
-                                      <span className={`${isSelfEntry ? 'invisible flex shrink-0' : 'invisible absolute right-0 top-1/2 -translate-y-1/2 bg-white/95 pl-2'} items-center gap-1 group-hover:visible group-focus-within:visible`}>
-                                        <button type="button" onClick={() => handleEdit(item)} className="text-[8px] font-semibold text-indigo-600 hover:text-indigo-800" aria-label={`Edit ${item.category || 'expense'}`}>Edit</button>
+
+                                      {/* Center Column: Remarks */}
+                                      <div className="min-w-0 px-1 text-center">
+                                        {item.reason ? (
+                                          <span className="block truncate text-[11px] font-normal text-slate-600" title={item.reason}>
+                                            {item.reason}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-slate-300 select-none">—</span>
+                                        )}
+                                        {showRecipient && (
+                                          <span className="block truncate text-[9px] font-medium text-blue-600" title={`Recipient: ${recipientName}`}>
+                                            → {recipientName}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Right Column: Amount */}
+                                      <div className="shrink-0 text-right font-semibold tabular-nums text-slate-900 text-[11px] whitespace-nowrap pl-1">
+                                        {formatINR(item.amount)}
+                                      </div>
+
+                                      {/* Hover Actions: Edit | Delete */}
+                                      <span className="invisible group-hover:visible group-focus-within:visible absolute right-0 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-xs px-2 py-0.5 flex items-center gap-1.5 shadow-sm border border-slate-200/80 rounded">
+                                        <button type="button" onClick={() => handleEdit(item)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline" aria-label={`Edit ${item.category || 'expense'}`}>Edit</button>
                                         <span className="text-slate-200">|</span>
-                                        <button type="button" onClick={() => confirmDelete(item)} className="text-[8px] font-semibold text-rose-600 hover:text-rose-800" aria-label={`Delete ${item.category || 'expense'}`}>Delete</button>
+                                        <button type="button" onClick={() => confirmDelete(item)} className="text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline" aria-label={`Delete ${item.category || 'expense'}`}>Delete</button>
                                       </span>
                                     </div>
                                   )
@@ -4751,24 +5193,24 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
               <div className="flex items-center justify-center gap-x-2.5 gap-y-[5px] flex-wrap sm:mx-auto">
                 {/* Advance Card */}
                 <div className="bg-amber-50/70 border border-amber-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
-                  <span className="text-[10px] font-normal text-black/90">Advance</span>
-                  <span className="text-xs font-black text-emerald-600">
+                  <span className="text-[10px] font-medium text-slate-600">Advance</span>
+                  <span className="text-xs font-semibold text-emerald-600">
                     ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0))}
                   </span>
                 </div>
 
                 {/* Expense Card */}
                 <div className="bg-blue-50/70 border border-blue-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
-                  <span className="text-[10px] font-normal text-black/90">Expense</span>
-                  <span className="text-xs font-black text-rose-600">
+                  <span className="text-[10px] font-medium text-slate-600">Expense</span>
+                  <span className="text-xs font-semibold text-rose-600">
                     ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}
                   </span>
                 </div>
 
                 {/* Cash in hand Card */}
                 <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-lg px-3 py-[5px] flex flex-col justify-center">
-                  <span className="text-[10px] font-normal text-black/90">Cash in hand</span>
-                  <span className="text-xs font-black text-amber-600">
+                  <span className="text-[10px] font-medium text-slate-600">Cash in hand</span>
+                  <span className="text-xs font-semibold text-amber-600">
                     ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
                       advForReport.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) - 
                       expForReport.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
@@ -4815,12 +5257,11 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           )}
           
           {/* Reports Container for Screenshot */}
-          <div ref={reportsContainerRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Advances Panel */}
-            <div className="overflow-hidden rounded-[12px] border border-gray-100 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3">
+          <div ref={reportsContainerRef} className="space-y-4">
+            <div className="w-fit max-w-full overflow-hidden rounded-[12px] border border-gray-100 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 gap-4">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-800">Advances</h3>
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-800">Advance & Expense Register</h3>
                   {reportApplied && (
                     <span className="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
                       Filtered
@@ -4829,194 +5270,203 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
-                    {reportAdvanceRows.length} Records
+                    {reportUnifiedRows.length} Records
                   </span>
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[790px] table-fixed border-collapse">
+                <table className="w-fit table-fixed border-collapse">
                   <thead>
                     <tr className="border-b border-gray-100 bg-slate-50">
-                      {canSelectAll && <th className="w-9 border-r border-gray-100 px-2 py-2.5 text-center"><input type="checkbox" checked={reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance).length > 0 && reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance).every((entry) => reportSelectedEntryIds.includes(entry.id))} onChange={() => toggleReportSectionSelection(reportAdvanceRows.filter((entry) => !entry.isTransferredAdvance))} aria-label="Select all advance report records" className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" /></th>}
-                      <th className="w-[55px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
-                      <th className="w-[120px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
-                      <th className="w-[175px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
-                      <th className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Remarks</th>
-                      <th className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</th>
-                      <th className="w-[60px] px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Actions</th>
+                      {canSelectAll && (
+                        <th className="w-10 border-r border-gray-100 px-2 py-2.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectableReportEntries.length > 0 && selectableReportEntries.every((entry) => reportSelectedEntryIds.includes(entry.id))}
+                            onChange={() => toggleReportSectionSelection(selectableReportEntries)}
+                            aria-label="Select all report records"
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                          />
+                        </th>
+                      )}
+                      <th className="w-[80px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Date</th>
+                      <th className="w-[130px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Name</th>
+                      <th className="w-[160px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Category Type</th>
+                      <th className="w-[180px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Remarks</th>
+                      <th className="w-[100px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-widest text-emerald-600">Advance</th>
+                      <th className="w-[100px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-widest text-rose-600">Expense</th>
+                      <th className="w-[70px] px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {reportAdvanceRows.length === 0 ? (
+                    {reportUnifiedRows.length === 0 ? (
                       <tr>
-                        <td colSpan={canSelectAll ? 7 : 6} className="py-10 text-center text-[11px] font-medium text-slate-400">
+                        <td colSpan={canSelectAll ? 8 : 7} className="py-10 text-center text-[11px] font-semibold text-slate-400">
                           No records found for this criteria
                         </td>
                       </tr>
-                    ) : reportAdvanceRows.map(a => (
-                      <tr key={a.id} className="border-b border-gray-100 text-slate-700 hover:bg-emerald-50/30">
-                        {canSelectAll && <td className="border-r border-gray-100 px-2 py-2.5 text-center">{a.isTransferredAdvance ? <span className="text-[10px] text-slate-300">—</span> : <input type="checkbox" checked={reportSelectedEntryIds.includes(a.id)} onChange={() => toggleReportEntrySelection(a.id)} aria-label={`Select advance ${a.transactionNo || a.id}`} className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" />}</td>}
-                        <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-medium text-slate-500">
-                          {new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                        </td>
-                        <td className="w-[120px] border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">{a.employeeName}</td>
-                        <td className="w-[175px] border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-semibold text-slate-700">{a.category || a.type || '—'}</span>
-                            {a.givenByEmployeeName && (
-                              <span className="text-[9.5px] text-blue-700 font-medium leading-tight tracking-[0.5px]">
-                                Given by {a.givenByEmployeeName}
-                              </span>
+                    ) : (
+                      reportUnifiedRows.map((entry) => {
+                        const isAdvance = getAccountingEntryType(entry) === 'Advance'
+                        return (
+                          <tr
+                            key={entry.id}
+                            className={`border-b border-gray-100 text-slate-700 transition-colors ${
+                              isAdvance ? 'hover:bg-emerald-50/20' : 'hover:bg-rose-50/20'
+                            }`}
+                          >
+                            {canSelectAll && (
+                              <td className="border-r border-gray-100 px-2 py-2.5 text-center">
+                                {entry.isTransferredAdvance ? (
+                                  <span className="text-[10px] text-slate-300">—</span>
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    checked={reportSelectedEntryIds.includes(entry.id)}
+                                    onChange={() => toggleReportEntrySelection(entry.id)}
+                                    aria-label={`Select record ${entry.transactionNo || entry.id}`}
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                                  />
+                                )}
+                              </td>
                             )}
-                            {a.requestType && (
-                              <span className="text-[9.5px] text-gray-500 tracking-[0.5px]">{a.requestType}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-[11px] leading-relaxed text-slate-600 whitespace-normal break-words">{a.remarks || '—'}</td>
-                        <td className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[12px] font-bold tabular-nums text-slate-800">
-                          <div className="flex flex-col">
-                            <span>{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(a.amount)}</span>
-                            {a.paidByName && (
-                              <span className="text-[8.5px] text-gray-500 mt-0.5 tracking-[0.5px]">
-                                {a.paidByName}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <div className="flex items-center gap-0.5">
-                            {a.requestType === 'Pre-Approval' && a.mdApproval === 'Approved' && (
-                              <button 
-                                onClick={() => { setFinalizingId(a.id); setFinalizeAmount(a.amount); }} 
-                                className="text-emerald-600 hover:bg-emerald-50 p-0.5 transition-colors"
-                                title="Submit Bill"
-                              >
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                  <polyline points="14 2 14 8 20 8"/>
-                                  <path d="M9 15l2 2 4-4"/>
-                                </svg>
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => handleEdit(a)} 
-                              className="text-amber-600 hover:bg-gray-100 p-0.5 transition-colors"
-                              title="Edit & Revoke"
-                            >
-                              <Edit2 size={10} />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(a.id)} 
-                              className="text-red-600 hover:bg-gray-100 p-0.5 transition-colors"
-                              title="Delete Transaction"
-                            >
-                              <Trash2 size={10} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-semibold text-slate-600 whitespace-nowrap">
+                              {entry.date ? new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
+                            </td>
+                            <td className="border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">
+                              {entry.employeeName || '—'}
+                            </td>
+                            <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-semibold text-slate-700">{entry.category || entry.type || '—'}</span>
+                                {isAdvance ? (
+                                  <>
+                                    {entry.givenByEmployeeName && (
+                                      <span className="text-[9.5px] text-blue-700 font-semibold leading-tight tracking-[0.5px]">
+                                        Given by {entry.givenByEmployeeName}
+                                      </span>
+                                    )}
+                                    {entry.requestType && (
+                                      <span className="text-[9.5px] text-gray-500 font-semibold tracking-[0.5px]">{entry.requestType}</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    {(entry.paidToName || entry.paidToCustomName) &&
+                                      ((entry.category && entry.category.toLowerCase().includes('given to others')) ||
+                                        (entry.paidToName || entry.paidToCustomName) !== entry.employeeName) && (
+                                        <span className="text-[9.5px] text-blue-700 font-semibold leading-tight tracking-[0.5px]">
+                                          {entry.employeeName} &rarr; {entry.paidToName || entry.paidToCustomName}
+                                        </span>
+                                      )}
+                                    {entry.siteName && (
+                                      <span className="text-[9.5px] text-emerald-700 font-semibold leading-tight tracking-[0.5px]">
+                                        Site: {entry.siteName}
+                                      </span>
+                                    )}
+                                    {entry.requestType && (
+                                      <span className="text-[9.5px] text-gray-500 font-semibold tracking-[0.5px]">{entry.requestType}</span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-semibold leading-relaxed text-slate-700 whitespace-normal break-words">
+                              {entry.remarks || '—'}
+                            </td>
+                            <td className="border-r border-gray-100 px-3 py-2.5 text-right text-[12px] font-semibold tabular-nums">
+                              {isAdvance ? (
+                                <div className="flex flex-col items-end">
+                                  <span className="text-emerald-700 font-semibold">
+                                    {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                                      entry.amount
+                                    )}
+                                  </span>
+                                  {entry.paidByName && (
+                                    <span className="text-[8.5px] text-gray-500 mt-0.5 tracking-[0.5px] font-semibold">
+                                      {entry.paidByName}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-slate-300 font-normal">—</span>
+                              )}
+                            </td>
+                            <td className="border-r border-gray-100 px-3 py-2.5 text-right text-[12px] font-semibold tabular-nums">
+                              {!isAdvance ? (
+                                <span className="text-rose-700 font-semibold">
+                                  {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                                    entry.amount
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300 font-normal">—</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-1.5 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {entry.requestType === 'Pre-Approval' && entry.mdApproval === 'Approved' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFinalizingId(entry.id)
+                                      setFinalizeAmount(entry.amount)
+                                    }}
+                                    className="text-emerald-600 hover:bg-emerald-50 p-1 rounded transition-colors"
+                                    title="Submit Bill"
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                      <polyline points="14 2 14 8 20 8" />
+                                      <path d="M9 15l2 2 4-4" />
+                                    </svg>
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleEdit(entry)}
+                                  className="text-amber-600 hover:bg-amber-50 p-1 rounded transition-colors"
+                                  title="Edit & Revoke"
+                                >
+                                  <Edit2 size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(entry.id)}
+                                  className="text-red-600 hover:bg-red-50 p-1 rounded transition-colors"
+                                  title="Delete Transaction"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
                   </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Expenses Panel */}
-            <div className="overflow-hidden rounded-[12px] border border-gray-100 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-800">Expenses</h3>
-                  {reportApplied && (
-                    <span className="rounded-md border border-violet-100 bg-violet-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-700">
-                      Filtered
-                    </span>
+                  {reportUnifiedRows.length > 0 && (
+                    <tfoot className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
+                      <tr>
+                        {canSelectAll && <td className="border-r border-gray-200 px-2 py-2.5 text-center"></td>}
+                        <td className="border-r border-gray-200 px-3 py-2.5 text-[11px] font-semibold text-slate-700 uppercase tracking-wider" colSpan={3}>
+                          Total ({reportUnifiedRows.length} {reportUnifiedRows.length === 1 ? 'record' : 'records'})
+                        </td>
+                        <td className="border-r border-gray-200 px-3 py-2.5"></td>
+                        <td className="border-r border-gray-200 px-3 py-2.5 text-right text-[12px] tabular-nums font-semibold text-emerald-700">
+                          ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                            reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Advance').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+                          )}
+                        </td>
+                        <td className="border-r border-gray-200 px-3 py-2.5 text-right text-[12px] tabular-nums font-semibold text-rose-700">
+                          ₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                            reportUnifiedRows.filter(r => getAccountingEntryType(r) === 'Expense').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-center"></td>
+                      </tr>
+                    </tfoot>
                   )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
-                    {reportExpenseRows.length} Records
-                  </span>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[790px] table-fixed border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-slate-50">
-                      {canSelectAll && <th className="w-9 border-r border-gray-100 px-2 py-2.5 text-center"><input type="checkbox" checked={reportExpenseRows.length > 0 && reportExpenseRows.every((entry) => reportSelectedEntryIds.includes(entry.id))} onChange={() => toggleReportSectionSelection(reportExpenseRows)} aria-label="Select all expense report records" className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" /></th>}
-                      <th className="w-[55px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
-                      <th className="w-[120px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</th>
-                      <th className="w-[175px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Category Type</th>
-                      <th className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Remarks</th>
-                      <th className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</th>
-                      <th className="w-[50px] px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(reportApplied ? expForReport : expenses).length === 0 ? (
-                      <tr>
-                        <td colSpan={canSelectAll ? 7 : 6} className="py-10 text-center text-[11px] font-medium text-slate-400">
-                          No records found for this criteria
-                        </td>
-                      </tr>
-                    ) : reportExpenseRows.map(e => (
-                      <tr key={e.id} className="border-b border-gray-100 text-slate-700 hover:bg-violet-50/30">
-                        {canSelectAll && <td className="border-r border-gray-100 px-2 py-2.5 text-center"><input type="checkbox" checked={reportSelectedEntryIds.includes(e.id)} onChange={() => toggleReportEntrySelection(e.id)} aria-label={`Select expense ${e.transactionNo || e.id}`} className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" /></td>}
-                        <td className="border-r border-gray-100 px-3 py-2.5 text-[11px] font-medium text-slate-500">
-                          {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                        </td>
-                        <td className="w-[120px] border-r border-gray-100 px-3 py-2.5 text-[12px] font-semibold text-slate-800">{e.employeeName}</td>
-                        <td className="w-[175px] border-r border-gray-100 px-3 py-2.5 text-[11px] text-slate-600">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-semibold text-slate-700">{e.category || e.type || '—'}</span>
-                            {(e.paidToName || e.paidToCustomName) && ((e.category && e.category.toLowerCase().includes('given to others')) || (e.paidToName || e.paidToCustomName) !== e.employeeName) && (
-                              <span className="text-[9.5px] text-blue-700 font-medium leading-tight tracking-[0.5px]">
-                                {e.employeeName} &rarr; {e.paidToName || e.paidToCustomName}
-                              </span>
-                            )}
-                            {e.requestType && (
-                              <span className="text-[9.5px] text-gray-500 tracking-[0.5px]">{e.requestType}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="w-[190px] border-r border-gray-100 px-3 py-2.5 text-[11px] leading-relaxed text-slate-600 whitespace-normal break-words">{e.remarks || '—'}</td>
-                        <td className="w-[60px] border-r border-gray-100 px-3 py-2.5 text-right text-[12px] font-bold tabular-nums text-slate-800">
-                          {new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(e.amount)}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <div className="flex items-center gap-0.5">
-                            {e.requestType === 'Pre-Approval' && e.mdApproval === 'Approved' && (
-                              <button 
-                                onClick={() => { setFinalizingId(e.id); setFinalizeAmount(e.amount); }} 
-                                className="text-emerald-600 hover:bg-emerald-50 p-0.5 transition-colors"
-                                title="Submit Bill"
-                              >
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                  <polyline points="14 2 14 8 20 8"/>
-                                  <path d="M9 15l2 2 4-4"/>
-                                </svg>
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => handleEdit(e)} 
-                              className="text-amber-600 hover:bg-gray-100 p-0.5 transition-colors"
-                              title="Edit & Revoke"
-                            >
-                              <Edit2 size={10} />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(e.id)} 
-                              className="text-red-600 hover:bg-gray-100 p-0.5 transition-colors"
-                              title="Delete Transaction"
-                            >
-                              <Trash2 size={10} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
                 </table>
               </div>
             </div>
@@ -5024,8 +5474,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         </div>
       )}
 
-      {/* Summary Module */}
-      {activeModule === 'Summary' && (
+      {/* Cash Summary Module */}
+      {(activeModule === 'Cash Summary' || activeModule === 'Summary') && (
         <div className="space-y-5">
           {loading ? (
             <div className="flex justify-center py-16">
@@ -5037,8 +5487,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Advance & Expense Register</p>
-                    <h2 className="mt-1 text-lg font-semibold text-slate-900">Monthly statement</h2>
-                    <p className="mt-1 text-xs font-normal text-slate-500">Category ledger and voucher-level detail for {format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}.</p>
+                    <h2 className="mt-1 text-lg font-semibold text-slate-900 font-heading">Cash Summary</h2>
+                    <p className="mt-1 text-xs font-normal text-slate-500 font-body">Category ledger and employee balances for {format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}.</p>
                   </div>
                   <label className="w-full md:w-auto">
                     <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Statement month</span>
@@ -5062,54 +5512,191 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-5 py-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense analysis</p>
-                  <h3 className="mt-1 text-sm font-semibold text-slate-900">Category-wise monthly register</h3>
-                </div>
-                <div className="border-b border-slate-100 px-5 py-4">
-                  {monthlyStatement.categoryRows.length === 0 ? (
-                    <div className="flex min-h-[220px] items-center justify-center text-center">
-                      <p className="text-sm font-normal text-slate-400">No category expenses are available to chart for this month.</p>
-                    </div>
-                  ) : (
-                    <Chart
-                      definition={expenseCategoryChart}
-                      height={260}
-                      initialWidth={760}
-                      ariaLabel={`Expense amount by category for ${format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}`}
-                      ariaDescription="Bar chart showing the effective expense amount recorded for each expense category in the selected statement month."
-                      className="w-full"
-                      renderTooltipBody={({ points, defaultBody }) => {
-                        const category = points[0]?.datum
-                        if (!category) return defaultBody
-                        return (
-                          <div className="min-w-[176px] rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense category</p>
-                            <p className="mt-1 text-sm font-semibold text-slate-900">{category.category}</p>
-                            <div className="mt-2 flex items-end justify-between gap-4 border-t border-slate-100 pt-2">
-                              <span className="text-[11px] font-normal text-slate-500">{category.vouchers} voucher{category.vouchers === 1 ? '' : 's'}</span>
-                              <span className="text-sm font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</span>
+              {/* 2-Column Grid: Left (Expense Analysis) + Right (Employee Summary) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+                {/* Left Side: Expense Analysis Breakdown */}
+                <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
+                  <div className="border-b border-slate-100 px-5 py-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Expense analysis</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-900 font-heading">Category breakdown</h3>
+                  </div>
+                  <div className="border-b border-slate-100 px-5 py-4">
+                    {monthlyStatement.categoryRows.length === 0 ? (
+                      <div className="flex min-h-[220px] items-center justify-center text-center">
+                        <p className="text-sm font-normal text-slate-400 font-body">No category expenses are available to chart for this month.</p>
+                      </div>
+                    ) : (
+                      <Chart
+                        definition={expenseCategoryChart}
+                        height={240}
+                        initialWidth={520}
+                        ariaLabel={`Expense amount by category for ${format(parseISO(`${summaryMonth}-01`), 'MMMM yyyy')}`}
+                        ariaDescription="Bar chart showing the effective expense amount recorded for each expense category in the selected statement month."
+                        className="w-full"
+                        renderTooltipBody={({ points, defaultBody }) => {
+                          const category = points[0]?.datum
+                          if (!category) return defaultBody
+                          return (
+                            <div className="min-w-[176px] rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg font-body">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Expense category</p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">{category.category}</p>
+                              <div className="mt-2 flex items-end justify-between gap-4 border-t border-slate-100 pt-2">
+                                <span className="text-[11px] font-normal text-slate-500">{category.vouchers} voucher{category.vouchers === 1 ? '' : 's'}</span>
+                                <span className="text-sm font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</span>
+                              </div>
                             </div>
-                          </div>
-                        )
-                      }}
-                    />
-                  )}
+                          )
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="max-h-[360px] overflow-y-auto overflow-x-auto slim-scrollbar">
+                    <table className="w-full border-collapse text-left text-xs font-body">
+                      <thead className="bg-slate-50 sticky top-0 z-10 shadow-2xs">
+                        <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          <th className="px-4 py-2.5">Category</th>
+                          <th className="px-3 py-2.5 text-right">Vouchers</th>
+                          <th className="px-4 py-2.5 text-right">Expense</th>
+                          <th className="px-3 py-2.5 text-right">Paid</th>
+                          <th className="px-3 py-2.5 text-right">Pending</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {monthlyStatement.categoryRows.length === 0 ? (
+                          <tr><td colSpan={5} className="px-4 py-10 text-center text-xs font-normal text-slate-400">No expense vouchers for this month.</td></tr>
+                        ) : monthlyStatement.categoryRows.map((category) => (
+                          <tr key={category.category} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="px-4 py-2.5 font-medium text-slate-800">{category.category}</td>
+                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-600">{category.count}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-rose-700">{formatINR(category.amount)}</td>
+                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-slate-700">{formatINR(category.paid)}</td>
+                            <td className="px-3 py-2.5 text-right font-normal tabular-nums text-amber-700">{formatINR(category.outstanding)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[700px] border-collapse text-left">
-                    <thead className="bg-slate-50">
-                      <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                        <th className="px-4 py-3">Particulars</th><th className="px-4 py-3 text-right">Vouchers</th><th className="px-4 py-3 text-right">Expense amount</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Pending</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {monthlyStatement.categoryRows.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-sm font-normal text-slate-400">No expense vouchers for this month.</td></tr> : monthlyStatement.categoryRows.map((category) => (
-                        <tr key={category.category} className="hover:bg-slate-50/70"><td className="px-4 py-3 font-medium text-slate-800">{category.category}</td><td className="px-4 py-3 text-right font-normal tabular-nums text-slate-600">{category.count}</td><td className="px-4 py-3 text-right font-medium tabular-nums text-rose-700">{formatINR(category.amount)}</td><td className="px-4 py-3 text-right font-normal tabular-nums text-slate-700">{formatINR(category.paid)}</td><td className="px-4 py-3 text-right font-normal tabular-nums text-amber-700">{formatINR(category.outstanding)}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
+
+                {/* Right Side: Employee Monthly Summary */}
+                <div className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm flex flex-col">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-5 py-4">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-body">Monthly balances</p>
+                      <h3 className="mt-1 text-sm font-semibold text-slate-900 font-heading">Employee Summary</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-44">
+                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={summaryEmployeeSearch}
+                          onChange={(e) => setSummaryEmployeeSearch(e.target.value)}
+                          placeholder="Search employee..."
+                          className="w-full h-8 pl-8 pr-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 focus:bg-white font-body placeholder:text-slate-400 text-slate-800"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="max-h-[620px] overflow-y-auto overflow-x-auto slim-scrollbar flex-1">
+                    <table className="w-full border-collapse text-left text-xs font-body">
+                      <thead className="bg-slate-50 sticky top-0 z-10 shadow-2xs">
+                        <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          <th className="px-4 py-2.5">Employee Name</th>
+                          <th className="px-3 py-2.5 text-right">Advance</th>
+                          <th className="px-3 py-2.5 text-right">Expense</th>
+                          <th className="px-4 py-2.5 text-right">Summary</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {filteredEmployeeRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-12 text-center text-xs font-normal text-slate-400">
+                              {summaryEmployeeSearch ? 'No matching employee found.' : 'No employee advance or expense records for this month.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredEmployeeRows.map((emp) => {
+                            const isAdvanceSurplus = emp.advance > emp.expense
+                            const isExpenseSurplus = emp.expense > emp.advance
+                            const diff = Math.abs(emp.advance - emp.expense)
+
+                            return (
+                              <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <span className="font-semibold text-slate-800 font-body">{emp.name}</span>
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
+                                  {emp.advance > 0 ? formatINR(emp.advance) : '—'}
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-medium tabular-nums text-slate-700">
+                                  {emp.expense > 0 ? formatINR(emp.expense) : '—'}
+                                </td>
+                                <td className="px-4 py-2.5 text-right">
+                                  {isAdvanceSurplus ? (
+                                    <span
+                                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200/70 bg-emerald-50 px-2 py-0.5 text-xs font-bold tabular-nums text-emerald-700 shadow-2xs"
+                                      title="Advance surplus (cash in hand)"
+                                    >
+                                      +{formatINR(diff)}
+                                    </span>
+                                  ) : isExpenseSurplus ? (
+                                    <span
+                                      className="inline-flex items-center gap-1 rounded-md border border-rose-200/70 bg-rose-50 px-2 py-0.5 text-xs font-bold tabular-nums text-rose-700 shadow-2xs"
+                                      title="Expense surplus (due to employee)"
+                                    >
+                                      -{formatINR(diff)}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-500"
+                                      title="Settled (Advance = Expense)"
+                                    >
+                                      ₹0.00
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                      {monthlyStatement.employeeRows?.length > 0 && (
+                        <tfoot className="bg-slate-50/90 border-t border-slate-200 font-bold text-xs sticky bottom-0 z-10">
+                          <tr>
+                            <td className="px-4 py-2.5 text-slate-800">Total ({monthlyStatement.employeeRows.length})</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">{formatINR(employeeSummaryTotals.totalAdvance)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-rose-700">{formatINR(employeeSummaryTotals.totalExpense)}</td>
+                            <td className="px-4 py-2.5 text-right">
+                              {employeeSummaryTotals.totalAdvance > employeeSummaryTotals.totalExpense ? (
+                                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-100/70 px-2 py-0.5 text-xs font-black tabular-nums text-emerald-800">
+                                  +{formatINR(employeeSummaryTotals.totalAdvance - employeeSummaryTotals.totalExpense)}
+                                </span>
+                              ) : employeeSummaryTotals.totalExpense > employeeSummaryTotals.totalAdvance ? (
+                                <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-100/70 px-2 py-0.5 text-xs font-black tabular-nums text-rose-800">
+                                  -{formatINR(employeeSummaryTotals.totalExpense - employeeSummaryTotals.totalAdvance)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-600 font-bold">₹0.00</span>
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+
+                  <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 font-body">
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                      Green: More advance than expense
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-rose-500" />
+                      Red: More expense than advance
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -5187,121 +5774,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </div>
                 </>
               )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Escalation Module */}
-      {activeModule === 'Escalation' && (
-        <div className="space-y-4 font-body">
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <Spinner />
-            </div>
-          ) : (
-            <>
-              <p className="max-w-2xl text-xs font-normal text-slate-500">
-                Requests that still need action in the approval chain. Use{' '}
-                <span className="font-medium text-indigo-600">Approvals</span> to resolve them.
-              </p>
-
-              {[
-                {
-                  key: 'needsHr',
-                  title: 'Awaiting HR',
-                  subtitle: 'Not yet submitted to MD',
-                  rows: escalation.needsHr
-                },
-                {
-                  key: 'needsMd',
-                  title: 'Awaiting MD',
-                  subtitle: 'HR approved — MD decision pending',
-                  rows: escalation.needsMd
-                },
-                {
-                  key: 'onHold',
-                  title: 'On Hold',
-                  subtitle: 'Paused pending clarification',
-                  rows: escalation.onHold
-                }
-              ].map((block) => (
-                <div
-                  key={block.key}
-                  className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="mt-0.5 shrink-0 text-amber-600" size={18} />
-                      <div>
-                        <h3 className="text-sm font-medium text-slate-900">{block.title}</h3>
-                        <p className="mt-1 text-[11px] font-normal text-slate-500">{block.subtitle}</p>
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-medium text-slate-600">
-                      {block.rows.length}
-                    </span>
-                  </div>
-                  <div className="overflow-x-auto bg-white">
-                    {block.rows.length === 0 ? (
-                      <p className="py-12 text-center text-sm font-normal text-slate-400">No requests in this queue.</p>
-                    ) : (
-                      <table className="min-w-[640px] w-full border-collapse text-left">
-                        <thead>
-                          <tr className="h-10 border-b border-slate-200 bg-slate-50">
-                            <th className="border-r border-slate-200 px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">Date</th>
-                            <th className="border-r border-slate-200 px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">Type</th>
-                            <th className="border-r border-slate-200 px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">Employee</th>
-                            <th className="border-r border-slate-200 px-4 text-right text-[10px] font-medium uppercase tracking-widest text-slate-500">Amount</th>
-                            <th className="px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">HR</th>
-                            <th className="px-4 text-[10px] font-medium uppercase tracking-widest text-slate-500">MD</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {block.rows.map((row) => (
-                            <tr key={row.id} className="h-12 transition-colors hover:bg-slate-50/70">
-                              <td className="border-r border-slate-100 px-4 text-[12px] font-normal text-slate-600">{formatEscalationDate(row.date)}</td>
-                              <td className="border-r border-slate-100 px-4">
-                                {(() => {
-                                  const cat = row.category || row.type || '—'
-                                  const match = cat.match(/(.*?) \[(.*?)\]/)
-                                  if (match) {
-                                    return (
-                                      <div className="flex flex-col">
-                                        <span className={`text-[11px] font-medium ${row.type === 'Advance' ? 'text-emerald-700' : 'text-rose-700'}`}>{match[1]}</span>
-                                        <span className="text-[9px] font-normal text-slate-400">{match[2]}</span>
-                                      </div>
-                                    )
-                                  }
-                                  return (
-                                    <span
-                                      className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${
-                                        row.type === 'Advance' 
-                                          ? 'bg-emerald-50 text-emerald-700'
-                                          : 'bg-rose-50 text-rose-700'
-                                      }`}
-                                    >
-                                      {cat}
-                                    </span>
-                                  )
-                                })()}
-                              </td>
-                              <td className="border-r border-slate-100 px-4 text-[13px] font-medium text-slate-800">{row.employeeName || '—'}</td>
-                              <td className="border-r border-slate-100 px-4 text-right text-[13px] font-medium tabular-nums text-slate-900">{formatINR(effectiveAmount(row))}</td>
-                              <td className="border-r border-slate-100 px-4 text-[10px] font-normal">
-                                <span className={approvalStatusTextClass(row.hrApproval, 'hr')}>{row.hrApproval || 'Pending'}</span>
-                              </td>
-                              <td className="px-4 text-[10px] font-normal">
-                                <span className={approvalStatusTextClass(row.mdApproval, 'md')}>{row.mdApproval || 'Pending'}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-              ))}
             </>
           )}
         </div>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmployees } from '../../hooks/useEmployees'
 import { db } from '../../lib/firebase'
@@ -20,6 +20,7 @@ import {
 import Spinner from '../ui/Spinner'
 import AttendanceApprovalQueue from './AttendanceApprovalQueue'
 import AllowanceClaimsView from '../ui/AllowanceClaimsView'
+import { SubTabsNav } from '../ui/SubTabsNav'
 import { formatINR } from '../../lib/salaryUtils'
 import { logActivity } from '../../hooks/useActivityLog'
 import { canActOnPortalApproval, getPortalApprovalStage, requiresStandardApproval } from '../../lib/portalApprovalWorkflow'
@@ -33,7 +34,8 @@ import {
   Trash2,
   Pencil,
   Check,
-  RotateCcw
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react'
 
 function getInitials(name) {
@@ -140,14 +142,26 @@ function paidAtToDateKey(ts) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function ApprovalsTab() {
+export default function ApprovalsTab({ initialSubTab = 'advance-expense', onSubTabChange }) {
   const { user } = useAuth()
   const { employees } = useEmployees(user?.orgId)
   
-  const [activeSubTab, setActiveSubTab] = useState('advance-expense') // 'advance-expense', 'leave-permission', 'attendance-queue', or 'payment-queue'
+  const [activeSubTab, setActiveSubTabState] = useState(initialSubTab)
+  const setActiveSubTab = (tabId) => {
+    setActiveSubTabState(tabId)
+    if (onSubTabChange) onSubTabChange(tabId)
+  }
+
+  useEffect(() => {
+    if (initialSubTab && initialSubTab !== activeSubTab) {
+      setActiveSubTabState(initialSubTab)
+    }
+  }, [initialSubTab])
+
   const [loading, setLoading] = useState(false)
   const [successStatus, setSuccessStatus] = useState({}) // { [id]: 'Success message' }
   const [errorStatus, setErrorStatus] = useState({}) // { [id]: 'Error message' }
+  const [allAdvExpenses, setAllAdvExpenses] = useState([])
   const [advExpenses, setAdvExpenses] = useState([])
   const [recentAdvExpenses, setRecentAdvExpenses] = useState([])
   const [currentMonthPaidAdvances, setCurrentMonthPaidAdvances] = useState([])
@@ -157,6 +171,29 @@ export default function ApprovalsTab() {
   const [portalApprovals, setPortalApprovals] = useState([])
   const [leaveApprovalSetting, setLeaveApprovalSetting] = useState(null)
   const [standardApprovalSettingsLoaded, setStandardApprovalSettingsLoaded] = useState(false)
+
+  const subTabs = [
+    { id: 'advance-expense', label: 'Advance & Expense' },
+    { id: 'escalation', label: 'Escalation' },
+    { id: 'payment-queue', label: 'Payment Queue' },
+    { id: 'attendance-queue', label: 'Attendance' },
+    { id: 'allowance', label: 'Allowance' },
+  ]
+
+  const escalation = useMemo(() => {
+    const standard = allAdvExpenses.filter((item) => !item.portalApproval)
+    const needsHr = standard.filter(
+      (e) => (e.status === 'Pending' || !e.status) && (e.hrApproval === 'Pending' || !e.hrApproval)
+    )
+    const needsMd = standard.filter(
+      (e) =>
+        (e.status === 'Pending' || !e.status) &&
+        e.hrApproval === 'Approved' &&
+        (e.mdApproval === 'Pending' || !e.mdApproval)
+    )
+    const onHold = standard.filter((e) => e.status === 'Hold')
+    return { needsHr, needsMd, onHold }
+  }, [allAdvExpenses])
   
   // For the Advance/Expense action toggles
   const [actionState, setActionState] = useState({}) // hrPick, mdPick, remarks, partialAmount, paymentMethod, paymentRef, ...
@@ -349,13 +386,14 @@ export default function ApprovalsTab() {
       if (activeSubTab === 'attendance-queue') {
         return
       }
-      if (activeSubTab === 'advance-expense' || activeSubTab === 'payment-queue') {
+      if (activeSubTab === 'advance-expense' || activeSubTab === 'payment-queue' || activeSubTab === 'escalation') {
         const q = query(
           collection(db, 'organisations', user.orgId, 'advances_expenses'),
           orderBy('date', 'desc')
         )
         const snap = await getDocs(q)
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setAllAdvExpenses(data)
 
         const now = new Date()
         const cmStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -1007,8 +1045,15 @@ export default function ApprovalsTab() {
   return (
     <div className="approvals-workspace module-layout-root space-y-6 font-inter text-gray-900">
       <style>{`.approvals-workspace .font-black, .approvals-workspace .font-bold { font-weight: 600 !important; }`}</style>
-      <div className="module-top-surface flex items-center py-2 border-b border-gray-100 mb-2">
+      <div className="module-top-surface flex flex-col gap-3 py-2 border-b border-gray-100 mb-2">
         <h2 className="text-2xl font-black tracking-tight text-gray-900">Approvals</h2>
+        <div className="rounded-[12px] border border-gray-100 bg-white px-4 pt-3 shadow-sm">
+          <SubTabsNav
+            tabs={subTabs}
+            activeTabId={activeSubTab}
+            onTabChange={(tab) => setActiveSubTab(tab.id)}
+          />
+        </div>
       </div>
 
       {portalApprovals.length > 0 && (
@@ -1073,6 +1118,134 @@ export default function ApprovalsTab() {
         <AllowanceClaimsView mode="approval" canManage={canManageAttendance} />
       ) : loading ? (
         <div className="py-20 flex justify-center"><Spinner /></div>
+      ) : activeSubTab === 'escalation' ? (
+        <div className="space-y-4 font-body">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Approval Escalation Queue</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Requests that still need action in the approval chain. Switch to <span className="font-semibold text-indigo-600">Advance & Expense</span> to resolve them.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('advance-expense')}
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0 shadow-sm"
+            >
+              Go to Advance & Expense &rarr;
+            </button>
+          </div>
+
+          {[
+            {
+              key: 'needsHr',
+              title: 'Awaiting HR',
+              subtitle: 'Not yet submitted to MD',
+              rows: escalation.needsHr,
+              badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
+            },
+            {
+              key: 'needsMd',
+              title: 'Awaiting MD',
+              subtitle: 'HR approved — MD decision pending',
+              rows: escalation.needsMd,
+              badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200'
+            },
+            {
+              key: 'onHold',
+              title: 'On Hold',
+              subtitle: 'Paused pending clarification',
+              rows: escalation.onHold,
+              badgeColor: 'bg-slate-100 text-slate-600 border-slate-200'
+            }
+          ].map((block) => (
+            <div
+              key={block.key}
+              className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 shrink-0 text-amber-600" size={18} />
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">{block.title}</h3>
+                    <p className="mt-0.5 text-[11px] font-normal text-slate-500">{block.subtitle}</p>
+                  </div>
+                </div>
+                <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${block.badgeColor}`}>
+                  {block.rows.length}
+                </span>
+              </div>
+              <div className="overflow-x-auto bg-white">
+                {block.rows.length === 0 ? (
+                  <p className="py-12 text-center text-xs font-normal text-slate-400">No requests in this queue.</p>
+                ) : (
+                  <table className="min-w-[640px] w-full border-collapse text-left">
+                    <thead>
+                      <tr className="h-10 border-b border-slate-200 bg-slate-50">
+                        <th className="border-r border-slate-200 px-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Date</th>
+                        <th className="border-r border-slate-200 px-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Type</th>
+                        <th className="border-r border-slate-200 px-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Employee</th>
+                        <th className="border-r border-slate-200 px-4 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Amount</th>
+                        <th className="border-r border-slate-200 px-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">HR</th>
+                        <th className="border-r border-slate-200 px-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">MD</th>
+                        <th className="px-4 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {block.rows.map((row) => (
+                        <tr key={row.id} className="h-12 transition-colors hover:bg-slate-50/70">
+                          <td className="border-r border-slate-100 px-4 text-[12px] font-normal text-slate-600">{formatAdvDateDMY(row.date)}</td>
+                          <td className="border-r border-slate-100 px-4">
+                            {(() => {
+                              const cat = row.category || row.type || '—'
+                              const match = cat.match(/(.*?) \[(.*?)\]/)
+                              if (match) {
+                                return (
+                                  <div className="flex flex-col">
+                                    <span className={`text-[11px] font-semibold ${row.type === 'Advance' ? 'text-emerald-700' : 'text-rose-700'}`}>{match[1]}</span>
+                                    <span className="text-[9px] font-normal text-slate-400">{match[2]}</span>
+                                  </div>
+                                )
+                              }
+                              return (
+                                <span
+                                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                                    row.type === 'Advance' 
+                                      ? 'bg-emerald-50 text-emerald-700'
+                                      : 'bg-rose-50 text-rose-700'
+                                  }`}
+                                >
+                                  {cat}
+                                </span>
+                              )
+                            })()}
+                          </td>
+                          <td className="border-r border-slate-100 px-4 text-[13px] font-semibold text-slate-800">{row.employeeName || '—'}</td>
+                          <td className="border-r border-slate-100 px-4 text-right text-[13px] font-bold tabular-nums text-slate-900">{formatINR(parseFloat(row.partialAmount || row.amount) || 0)}</td>
+                          <td className="border-r border-slate-100 px-4 text-[10px] font-semibold">
+                            <span className={approvalStatusTextClass(row.hrApproval, 'hr')}>{row.hrApproval || 'Pending'}</span>
+                          </td>
+                          <td className="border-r border-slate-100 px-4 text-[10px] font-semibold">
+                            <span className={approvalStatusTextClass(row.mdApproval, 'md')}>{row.mdApproval || 'Pending'}</span>
+                          </td>
+                          <td className="px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setActiveSubTab('advance-expense')}
+                              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                            >
+                              Review &rarr;
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : activeSubTab === 'payment-queue' ? (
         <>
           <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm overflow-hidden">

@@ -54,7 +54,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
           'vendor-ui': ['@mui/material', '@emotion/react', '@emotion/styled', 'lucide-react'],
-          'vendor-pdf': ['@react-pdf/renderer', 'jspdf', 'jspdf-autotable', 'html2canvas'],
+          'vendor-pdf': ['@react-pdf/renderer', 'jspdf', 'jspdf-autotable', 'html2canvas-pro'],
           'vendor-utils': ['date-fns', 'zod', 'clsx', 'tailwind-merge', 'jszip', 'browser-image-compression'],
           'vendor-maps': ['leaflet', 'react-leaflet']
         }

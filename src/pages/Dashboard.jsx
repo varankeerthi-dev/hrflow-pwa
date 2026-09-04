@@ -84,7 +84,12 @@ class ErrorBoundary extends Component {
         <div className="p-8 text-center bg-red-50 border border-red-100 rounded-xl m-4">
           <div className="text-4xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold text-red-800 mb-2 uppercase tracking-tight font-inter">Component Failure</h2>
-          <p className="text-red-600 text-xs font-bold uppercase mb-6">{this.state.error?.message || 'Unexpected Rendering Error'}</p>
+          <p className="text-red-600 text-xs font-bold uppercase mb-4">{this.state.error?.message || 'Unexpected Rendering Error'}</p>
+          {this.state.error?.stack && (
+            <pre className="text-left bg-white p-4 rounded border border-red-200 text-red-900 text-xs font-mono overflow-auto max-h-60 mb-4 whitespace-pre-wrap">
+              {this.state.error.stack}
+            </pre>
+          )}
           <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg uppercase text-xs">Reload Application</button>
         </div>
       )
@@ -824,7 +829,7 @@ export default function Dashboard() {
                       )
                     }
                     if (activeTab === 'advance' || activeTab === 'expense') {
-                      const advanceModules = ['Add Advance', 'Add Expense', 'Escalation', 'Summary', 'Ledger', 'Reports']
+                      const advanceModules = ['Add Advance', 'Add Expense', 'Cash Summary', 'Ledger', 'Reports']
                       return (
                         <div className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md shrink-0">
                           <div className="flex items-center gap-1 px-4 max-w-[1300px] mx-auto overflow-x-auto no-scrollbar">

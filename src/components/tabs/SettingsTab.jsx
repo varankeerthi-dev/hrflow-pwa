@@ -562,6 +562,7 @@ export default function SettingsTab({ initialSubTab }) {
   const [orgSettings, setOrgSettings] = useState({
     name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: [], code: '', shiftStrategy: 'Day', logoURL: '',
     advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
+    enableSiteRemarksInExpenseAdvance: true,
     holidays: [],
     saturdayType: 'working', // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
     sundayType: 'working', // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
@@ -1176,6 +1177,7 @@ export default function SettingsTab({ initialSubTab }) {
             name: data.name || user?.orgName || prev.name || '',
             code: data.code || orgSnap.id,
             advanceCategories: data.advanceCategories || prev.advanceCategories,
+            enableSiteRemarksInExpenseAdvance: data.enableSiteRemarksInExpenseAdvance !== false,
             holidays: data.holidays || prev.holidays,
             bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : []
             ,attendancePolicy: normalizeAttendancePolicy(data.attendancePolicy)
@@ -2338,6 +2340,7 @@ export default function SettingsTab({ initialSubTab }) {
           ...prev,
           ...data,
           name: data.name || prev.name,
+          enableSiteRemarksInExpenseAdvance: data.enableSiteRemarksInExpenseAdvance !== false,
           bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : []
         }))
       }
@@ -3837,6 +3840,22 @@ export default function SettingsTab({ initialSubTab }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Expense & Advance Site Remarks Toggle */}
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orgSettings.enableSiteRemarksInExpenseAdvance !== false}
+                      onChange={e => setOrgSettings(s => ({ ...s, enableSiteRemarksInExpenseAdvance: e.target.checked }))}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>
+                      <strong className="block text-[12px] font-semibold text-slate-800">Enable Site Name in Expense & Advance Remarks</strong>
+                      <small className="mt-0.5 block text-[11px] leading-tight text-slate-500">Allow users to select site names for remarks when choosing Petrol or site-related expense categories.</small>
+                    </span>
+                  </label>
+                </div>
               </div>
 
               {/* Right Card - Structure & Accounts */}
@@ -4094,6 +4113,25 @@ export default function SettingsTab({ initialSubTab }) {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              <div className={`${settingsInsetPanelClassName} mt-4 p-5`}>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={orgSettings.enableSiteRemarksInExpenseAdvance !== false}
+                    onChange={e => setOrgSettings(s => ({ ...s, enableSiteRemarksInExpenseAdvance: e.target.checked }))}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>
+                    <strong className="block text-[13px] font-semibold text-slate-900">
+                      Enable Site Name Selection in Remarks
+                    </strong>
+                    <small className="mt-1 block text-[11px] leading-relaxed text-slate-500">
+                      Default enabled. When active, selecting "Petrol" or "Sitepetrol" categories during Expense & Advance lets users select from configured organisation sites in the remarks/description field. Uncheck this if your organisation does not operate physical sites.
+                    </small>
+                  </span>
+                </label>
               </div>
             </div>
 
