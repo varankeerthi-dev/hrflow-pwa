@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -12,12 +12,12 @@ import Spinner from '../ui/Spinner'
 import Dropdown from '../ui/Dropdown'
 import Modal from '../ui/Modal'
 import { SubTabsNav } from '../ui/SubTabsNav'
+import { FleetSecondaryTabs } from '../ui/FleetSecondaryTabs'
 import { formatINR } from '../../lib/salaryUtils'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { registerPdfCurrencyFont } from '../../lib/pdfCurrencyFont'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useVirtualizer } from '@tanstack/react-virtual'
 import { barY, defineChart } from '@tanstack/charts'
 import { Chart } from '@tanstack/charts/react/tooltip'
 import { tooltip } from '@tanstack/charts/tooltip'
@@ -25,6 +25,16 @@ import { scaleBand } from '@tanstack/charts/scales/band'
 import { scaleLinear } from '@tanstack/charts/scales/linear'
 import { isEmployeeActiveStatus } from '../../lib/employeeStatus'
 import { buildPortalApprovalFields, requiresStandardApproval } from '../../lib/portalApprovalWorkflow'
+import { 
+  normalizeExpenseCategory, 
+  DEFAULT_ADVANCE_CATEGORIES, 
+  DEFAULT_EXPENSE_CATEGORIES, 
+  DEFAULT_COMPANY_ACCOUNTS,
+  isGivenToOthersCategory,
+  isAdvanceCategory,
+  isExpenseCategory,
+  getAccountingEntryType as resolveAccountingEntryType
+} from '../../lib/advanceExpenseCategories'
 
 function approvalStatusTextClass(status, lane) {
   const s = (status || 'Pending').toLowerCase()
@@ -46,21 +56,8 @@ function approvalStatusTextClass(status, lane) {
   return isHr ? 'text-amber-700' : 'text-orange-800'
 }
 
-function isGivenToOthersCategory(category) {
-  return String(category || '')
-    .replace(/\s*\[[^\]]*\]\s*$/, '')
-    .trim()
-    .toLowerCase() === 'given to others'
-}
-
 function getAccountingEntryType(entry) {
-  // A "Given to Others" transaction is the cash giver's expense. The linked
-  // recipient document is the actual Advance, so legacy giver records must
-  // never be presented as advances merely because they were saved with a
-  // historical type of Advance.
-  return entry?.type === 'Advance' && isGivenToOthersCategory(entry?.category)
-    ? 'Expense'
-    : entry?.type
+  return resolveAccountingEntryType(entry)
 }
 
 function isPetrolCategory(category) {
@@ -78,116 +75,11 @@ function formatDeletedRecordDate(dateValue) {
   }
 }
 
-function EmployeeLedgerCard({ emp, formatINR }) {
-  const [expanded, setExpanded] = useState(false)
 
-  const getStatusBadge = (status) => {
-    const s = (status || '').toLowerCase()
-    if (s === 'approved') return 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-    if (s === 'rejected') return 'bg-rose-50 text-rose-700 border border-rose-100'
-    if (s === 'partial') return 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-    if (s === 'hold') return 'bg-zinc-100 text-zinc-600 border border-zinc-200'
-    return 'bg-amber-50 text-amber-700 border border-amber-100'
-  }
-
-  const getPaymentBadge = (paymentStatus) => {
-    const s = (paymentStatus || '').toLowerCase()
-    if (s === 'paid') return 'bg-emerald-500 text-white'
-    if (s === 'unpaid') return 'bg-rose-500 text-white'
-    return 'bg-gray-400 text-white'
-  }
-
-  return (
-    <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
-      {/* Employee Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full px-5 py-4 flex items-center justify-between hover:bg-zinc-50/50 transition-colors"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-100 to-cyan-200 flex items-center justify-center text-cyan-700 font-black text-sm">
-            {emp.name?.charAt(0) || '?'}
-          </div>
-          <div className="text-left">
-            <h3 className="text-sm font-bold text-zinc-800">{emp.name}</h3>
-            <p className="text-[11px] text-zinc-500 font-medium">
-              {emp.empCode} &middot; {emp.designation}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Outstanding</p>
-            <p className={`text-lg font-black tabular-nums ${emp.outstanding > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-              {formatINR(emp.outstanding)}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Advanced</p>
-            <p className="text-sm font-bold text-zinc-700 tabular-nums">{formatINR(emp.totalAdvanced)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Paid</p>
-            <p className="text-sm font-bold text-emerald-600 tabular-nums">{formatINR(emp.totalPaid)}</p>
-          </div>
-          <ChevronRight
-            size={16}
-            className={`text-zinc-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
-          />
-        </div>
-      </button>
-
-      {/* Transaction History (Expandable) */}
-      {expanded && (
-        <div className="border-t border-zinc-100">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
-              <thead>
-                <tr className="bg-zinc-50/80 border-b border-zinc-200">
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Date</th>
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Txn No</th>
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Category</th>
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-200">Amount</th>
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-200">Paid</th>
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right border-r border-zinc-200">Balance</th>
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Status</th>
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-r border-zinc-200">Payment</th>
-                  <th className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Payout</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-50">
-                {emp.transactions.map(txn => (
-                  <tr key={txn.id} className="h-11 border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-4 border-r border-zinc-50 text-[12px] font-medium text-zinc-600">{txn.date || '-'}</td>
-                    <td className="px-4 border-r border-zinc-50 text-[11px] font-bold text-zinc-700">{txn.transactionNo}</td>
-                    <td className="px-4 border-r border-zinc-50 text-[12px] font-medium text-zinc-600">{txn.category}</td>
-                    <td className="px-4 text-right border-r border-zinc-50 text-[12px] font-bold text-zinc-800 tabular-nums">{formatINR(txn.amount)}</td>
-                    <td className="px-4 text-right border-r border-zinc-50 text-[12px] font-bold text-emerald-600 tabular-nums">{formatINR(txn.paidAmount)}</td>
-                    <td className="px-4 text-right border-r border-zinc-50 text-[12px] font-black tabular-nums text-rose-600">{formatINR(txn.balance)}</td>
-                    <td className="px-4 border-r border-zinc-50">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight ${getStatusBadge(txn.status)}`}>
-                        {txn.status}
-                      </span>
-                    </td>
-                    <td className="px-4 border-r border-zinc-50">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight ${getPaymentBadge(txn.paymentStatus)}`}>
-                        {txn.paymentStatus}
-                      </span>
-                    </td>
-                    <td className="px-4 text-[11px] font-medium text-zinc-500">{txn.payoutMethod}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true }) {
-  const categoryRequiresPaidTo = ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
+function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, categories, canSelectAll, canChooseEntryEmployee, showAdvanceFields, showProjectColumn, portalMode, hideEmployee, handleRowChange, handleDuplicateRow, handleDeleteRow, PaidToDropdown, enableSiteRemarks = true, availableSiteNames = [], saveNewCategory, showSessionPayout = true, isCategoryPayableToOthers, getRowCategoryOptions }) {
+  const categoryRequiresPaidTo = isCategoryPayableToOthers
+    ? isCategoryPayableToOthers(row.category)
+    : ['salary to others', 'given to others'].some((value) => (row.category || '').toLowerCase().includes(value))
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -244,7 +136,7 @@ function AdvanceExpenseMobileRow({ row, idx, activeModule, sortedEmployees, cate
                   handleRowChange(row.id, 'siteName', availableSiteNames[0])
                 }
               }}
-              options={categories}
+              options={getRowCategoryOptions ? getRowCategoryOptions(row.category) : categories}
               placeholder="Select category..."
               size="sm"
               searchable
@@ -389,7 +281,73 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
   }, [defaultModule, activeModuleProp])
 
-  const [categories, setCategories] = useState(['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Petrol', 'Site Petrol', 'Others'])
+  const [advanceCategoriesList, setAdvanceCategoriesList] = useState(DEFAULT_ADVANCE_CATEGORIES)
+  const [expenseCategoriesList, setExpenseCategoriesList] = useState(DEFAULT_EXPENSE_CATEGORIES)
+  const [companyAccountsList, setCompanyAccountsList] = useState(DEFAULT_COMPANY_ACCOUNTS)
+
+  const isCategoryPayableToOthers = useCallback((categoryName) => {
+    if (!categoryName) return false
+    const clean = String(categoryName).replace(/\s*\[[^\]]*\]\s*$/, '').trim().toLowerCase()
+    if (clean.includes('given to others') || clean.includes('salary to others')) return true
+    const found = (expenseCategoriesList || []).find(c => {
+      const name = (typeof c === 'string' ? c : c?.name || '').toLowerCase().trim()
+      return name === clean
+    })
+    return found ? !!found.payableToOthers : false
+  }, [expenseCategoriesList])
+
+  // Categories strictly partitioned by type
+  const advanceCategoriesOnly = useMemo(() => {
+    const list = advanceCategoriesList && advanceCategoriesList.length > 0
+      ? advanceCategoriesList
+      : DEFAULT_ADVANCE_CATEGORIES
+    return list.map(c => typeof c === 'string' ? c : c?.name).filter(Boolean)
+  }, [advanceCategoriesList])
+
+  const expenseCategoriesOnly = useMemo(() => {
+    const list = expenseCategoriesList && expenseCategoriesList.length > 0
+      ? expenseCategoriesList
+      : DEFAULT_EXPENSE_CATEGORIES
+    return list.map(c => typeof c === 'string' ? c : c?.name).filter(Boolean)
+  }, [expenseCategoriesList])
+
+  // Active categories for the current module ('Add Advance' vs 'Add Expense')
+  const activeCategories = useMemo(() => {
+    if (activeModule === 'Add Advance') {
+      return advanceCategoriesOnly
+    }
+    if (activeModule === 'Add Expense') {
+      return expenseCategoriesOnly
+    }
+    return [...new Set([...advanceCategoriesOnly, ...expenseCategoriesOnly])]
+  }, [activeModule, advanceCategoriesOnly, expenseCategoriesOnly])
+
+  // Combined categories for general references
+  const categories = useMemo(() => {
+    return [...new Set([...advanceCategoriesOnly, ...expenseCategoriesOnly])]
+  }, [advanceCategoriesOnly, expenseCategoriesOnly])
+
+  // Classify entry type accurately (even for older/historical documents)
+  const getAccountingEntryType = useCallback((entry) => {
+    return resolveAccountingEntryType(entry, advanceCategoriesList, expenseCategoriesList)
+  }, [advanceCategoriesList, expenseCategoriesList])
+
+  // Category options strictly scoped to the active module
+  const getRowCategoryOptions = useCallback((rowCat) => {
+    const list = activeModule === 'Add Advance' ? advanceCategoriesOnly : expenseCategoriesOnly
+    if (!rowCat) return list
+    if (list.includes(rowCat)) return list
+    // Strict isolation: NEVER allow an expense category in Add Advance
+    if (activeModule === 'Add Advance' && isExpenseCategory(rowCat, expenseCategoriesList)) {
+      return list
+    }
+    // Strict isolation: NEVER allow an advance category in Add Expense
+    if (activeModule === 'Add Expense' && isAdvanceCategory(rowCat, advanceCategoriesList)) {
+      return list
+    }
+    return [rowCat, ...list]
+  }, [activeModule, advanceCategoriesOnly, expenseCategoriesOnly, advanceCategoriesList, expenseCategoriesList])
+
   const [enableSiteRemarks, setEnableSiteRemarks] = useState(true)
   const [orgRemarksOptions, setOrgRemarksOptions] = useState([])
   const [sites, setSites] = useState([])
@@ -413,6 +371,26 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (draft?.addRows?.length) return draft.addRows
     return [{ id: Date.now(), date: new Date().toISOString().split('T')[0], employeeId: '', category: '', amount: '', reason: '', project: '', requestType: 'Reimbursement', payoutMethod: 'Immediate', transferredToName: '', paidTo: '', paidToType: 'employee', paidToCustomName: '' }]
   })
+
+  // Sanitize rows when switching between Add Advance and Add Expense so categories don't leak
+  useEffect(() => {
+    if (activeModule === 'Add Advance') {
+      setAddRows(prev => prev.map(row => {
+        if (row.category && isExpenseCategory(row.category, expenseCategoriesList)) {
+          return { ...row, category: '', customCategory: '' }
+        }
+        return row
+      }))
+    } else if (activeModule === 'Add Expense') {
+      setAddRows(prev => prev.map(row => {
+        if (row.category && isAdvanceCategory(row.category, advanceCategoriesList)) {
+          return { ...row, category: '', customCategory: '' }
+        }
+        return row
+      }))
+    }
+  }, [activeModule, advanceCategoriesList, expenseCategoriesList])
+
   const hasUnsavedEntries = useMemo(() => addRows.some((row) => (
     Boolean(row.category?.trim()) ||
     Boolean(row.customCategory?.trim()) ||
@@ -488,18 +466,22 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const [reportFilterType, setReportFilterType] = useState('All') // All | Advance | Expense
   const [reportFilterPayout, setReportFilterPayout] = useState('All') // All | Immediate | With Salary
   const [reportFilterProject, setReportFilterProject] = useState('')
+
+  // When reportFilterType changes, clear incompatible category selection
+  useEffect(() => {
+    if (reportFilterCategory) {
+      if (reportFilterType === 'Advance' && isExpenseCategory(reportFilterCategory, expenseCategoriesList)) {
+        setReportFilterCategory('')
+      } else if (reportFilterType === 'Expense' && isAdvanceCategory(reportFilterCategory, advanceCategoriesList)) {
+        setReportFilterCategory('')
+      }
+    }
+  }, [reportFilterType, reportFilterCategory, advanceCategoriesList, expenseCategoriesList])
+
   const [filteredEntries, setFilteredEntries] = useState([])
   const [reportApplied, setReportApplied] = useState(false)
   const [reportSelectedEntryIds, setReportSelectedEntryIds] = useState([])
   const [bulkDeletingReports, setBulkDeletingReports] = useState(false)
-  const [ledgerView, setLedgerView] = useState('employee')
-  const [ledgerEmployeeId, setLedgerEmployeeId] = useState('')
-  const [ledgerFromDate, setLedgerFromDate] = useState('')
-  const [ledgerToDate, setLedgerToDate] = useState('')
-  const [ledgerCategory, setLedgerCategory] = useState('')
-  const [ledgerPage, setLedgerPage] = useState(1)
-  const [ledgerShowAll, setLedgerShowAll] = useState(false)
-  const ledgerTableRef = useRef(null)
   
   // Filter dropdown states
   const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false)
@@ -692,124 +674,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     enabled: !!user?.orgId && showDeletedModal
   })
 
-  // Advance Ledger: Per-employee outstanding balances
-  const ledgerData = useMemo(() => {
-    if (!entries.length || !employees.length) return { employees: [], totalOutstanding: 0 }
-
-    const employeeMap = new Map()
-    employees.forEach(emp => {
-      employeeMap.set(emp.id, {
-        id: emp.id,
-        name: emp.name,
-        empCode: emp.empCode || emp.id.slice(0, 5),
-        designation: emp.designation || '-',
-        totalAdvanced: 0,
-        totalPaid: 0,
-        outstanding: 0,
-        transactions: []
-      })
-    })
-
-    // Process all advance entries
-    entries.forEach(entry => {
-      if (getAccountingEntryType(entry) !== 'Advance') return
-      const emp = employeeMap.get(entry.employeeId)
-      if (!emp) return
-
-      const amount = Number(entry.amount) || 0
-      const paidAmount = entry.paymentStatus === 'Paid'
-        ? (Number(entry.partialAmount) || amount)
-        : 0
-
-      emp.totalAdvanced += amount
-      emp.totalPaid += paidAmount
-      emp.outstanding += (amount - paidAmount)
-
-      emp.transactions.push({
-        id: entry.id,
-        transactionNo: entry.transactionNo || '-',
-        date: entry.date,
-        category: entry.category || '-',
-        amount,
-        paidAmount,
-        balance: amount - paidAmount,
-        status: entry.status || 'Pending',
-        paymentStatus: entry.paymentStatus || 'Pending',
-        payoutMethod: entry.payoutMethod || '-',
-        reason: entry.reason || '-',
-        project: entry.project || '-'
-      })
-    })
-
-    // Sort transactions by date descending
-    employeeMap.forEach(emp => {
-      emp.transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-    })
-
-    const employeeArray = Array.from(employeeMap.values())
-      .filter(emp => emp.totalAdvanced > 0)
-      .sort((a, b) => b.outstanding - a.outstanding)
-
-    const totalOutstanding = employeeArray.reduce((sum, emp) => sum + emp.outstanding, 0)
-
-    return { employees: employeeArray, totalOutstanding }
-  }, [entries, employees])
-
-  const formatLedgerDate = (value) => {
-    if (!value) return '—'
-    const parsed = typeof value === 'string' ? parseISO(value) : value?.toDate?.() || new Date(value)
-    return Number.isNaN(parsed?.getTime?.()) ? String(value) : format(parsed, 'dd-MMM-yyyy')
-  }
-
-  const ledgerCategories = useMemo(() => [...new Set(entries.filter((entry) => ['Advance', 'Expense'].includes(getAccountingEntryType(entry))).map((entry) => entry.category).filter(Boolean))].sort(), [entries])
-
-  const allLedgerEntries = useMemo(() => {
-    return entries
-      .filter((entry) => {
-        if (!['Advance', 'Expense'].includes(getAccountingEntryType(entry))) return false
-        if (ledgerEmployeeId && entry.employeeId !== ledgerEmployeeId) return false
-        if (ledgerFromDate && String(entry.date || '') < ledgerFromDate) return false
-        if (ledgerToDate && String(entry.date || '') > ledgerToDate) return false
-        if (ledgerCategory && entry.category !== ledgerCategory) return false
-        return true
-      })
-      .map((entry) => {
-        const amount = Number(entry.amount || 0)
-        const paidAmount = entry.paymentStatus === 'Paid' ? (Number(entry.partialAmount) || amount) : 0
-        const employee = employees.find((item) => item.id === entry.employeeId)
-        return {
-          ...entry,
-          persistedType: entry.type,
-          type: getAccountingEntryType(entry),
-          employeeName: entry.employeeName || employee?.name || 'Unknown employee',
-          amount,
-          paidAmount,
-          balance: amount - paidAmount,
-        }
-      })
-      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
-  }, [entries, employees, ledgerCategory, ledgerEmployeeId, ledgerFromDate, ledgerToDate])
-
-  const ledgerTotals = useMemo(() => {
-    const advanceTotal = allLedgerEntries.filter((entry) => entry.type === 'Advance').reduce((sum, entry) => sum + entry.amount, 0)
-    const expenseTotal = allLedgerEntries.filter((entry) => entry.type === 'Expense').reduce((sum, entry) => sum + entry.amount, 0)
-    return { advanceTotal, expenseTotal, finalBalance: advanceTotal - expenseTotal }
-  }, [allLedgerEntries])
-
-  const ledgerPageSize = 50
-  const ledgerPageCount = Math.max(1, Math.ceil(allLedgerEntries.length / ledgerPageSize))
-  const ledgerVisibleEntries = useMemo(() => ledgerShowAll ? allLedgerEntries : allLedgerEntries.slice((ledgerPage - 1) * ledgerPageSize, ledgerPage * ledgerPageSize), [allLedgerEntries, ledgerPage, ledgerShowAll])
-  const ledgerVirtualizer = useVirtualizer({
-    count: ledgerVisibleEntries.length,
-    getScrollElement: () => ledgerTableRef.current,
-    estimateSize: () => 46,
-    overscan: 10,
-  })
-
-  useEffect(() => {
-    setLedgerPage(1)
-    setLedgerShowAll(false)
-  }, [ledgerCategory, ledgerEmployeeId, ledgerFromDate, ledgerToDate])
 
   // Mutations
   const addMutation = useMutation({
@@ -826,13 +690,24 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           const newCat = row.customCategory.trim()
           try {
             const orgRef = doc(db, 'organisations', user.orgId)
-            await setDoc(orgRef, {
-              advanceCategories: arrayUnion(newCat)
-            }, { merge: true })
-            setCategories(prev => {
-              if (prev.some(c => c.toLowerCase() === newCat.toLowerCase())) return prev
-              return [...prev, newCat]
-            })
+            if (activeModule === 'Add Advance') {
+              await setDoc(orgRef, {
+                advanceCategories: arrayUnion(newCat)
+              }, { merge: true })
+              setAdvanceCategoriesList(prev => {
+                if (prev.some(c => c.toLowerCase() === newCat.toLowerCase())) return prev
+                return [...prev, newCat]
+              })
+            } else {
+              const newCatItem = { name: newCat, payableToOthers: false }
+              await setDoc(orgRef, {
+                expenseCategories: arrayUnion(newCatItem)
+              }, { merge: true })
+              setExpenseCategoriesList(prev => {
+                if (prev.some(c => (typeof c === 'string' ? c : c.name).toLowerCase() === newCat.toLowerCase())) return prev
+                return [...prev, newCatItem]
+              })
+            }
           } catch (e) {
             console.error('Error auto-saving custom category to org:', e)
           }
@@ -1119,9 +994,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   // Paid To Dropdown Component Helper
   const PaidToDropdown = ({ rowId, row, isMobile = false }) => {
-    const categoriesRequiringPaidTo = ['salary to others', 'given to others']
-    const categoryLower = row.category?.toLowerCase().trim() || ''
-    const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => categoryLower.includes(reqCat))
+    const requiresPaidTo = isCategoryPayableToOthers(row.category)
 
     const selfExpenseEmployeeId = ['Add Expense', 'Add Advance'].includes(activeModule) && expenseMode === 'self' ? getMyEmpId() : ''
     const activeEmps = employees.filter((employee) => (
@@ -1225,7 +1098,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const groups = sortedDates.map(dStr => grouped[dStr])
 
     return { groups, monthTotal }
-  }, [entries, activeModule])
+  }, [entries, activeModule, getAccountingEntryType])
 
   const formatDateTitle = (dStr) => {
     if (!dStr) return ''
@@ -1320,7 +1193,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const handleClearSession = () => {
     const todayStr = new Date().toISOString().split('T')[0]
     setSessionDate(todayStr)
-    setSessionAccount('Petty Cash - HO')
+    setSessionAccount(companyAccountsList?.[0] || 'Petty Cash - HO')
     setSessionDefaultEmp('')
     setSessionPayout('Immediate')
     const myId = !canSelectAll ? getMyEmpId() : ''
@@ -1347,8 +1220,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const modules = portalMode
     ? ['Add Advance', 'Add Expense']
-    : ['Add Advance', 'Add Expense', 'Cash Summary', 'Ledger', 'Reports']
-  const defaultCategories = ['Salary Advance', 'Travel', 'Medical', 'Food', 'Office Supplies', 'Petrol', 'Site Petrol', 'Others']
+    : ['Add Advance', 'Add Expense', 'Cash Summary', 'Reports']
 
   const fetchCategories = async () => {
     if (!user?.orgId) return
@@ -1356,12 +1228,28 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
       if (orgSnap.exists()) {
         const orgData = orgSnap.data()
-        if (orgData.advanceCategories && orgData.advanceCategories.length > 0) {
-          const merged = [...new Set([...orgData.advanceCategories, ...defaultCategories])]
-          setCategories(merged)
+
+        // Advance categories
+        if (Array.isArray(orgData.advanceCategories) && orgData.advanceCategories.length > 0) {
+          setAdvanceCategoriesList(orgData.advanceCategories.filter(Boolean))
         } else {
-          setCategories(defaultCategories)
+          setAdvanceCategoriesList(DEFAULT_ADVANCE_CATEGORIES)
         }
+
+        // Expense categories
+        if (Array.isArray(orgData.expenseCategories) && orgData.expenseCategories.length > 0) {
+          setExpenseCategoriesList(orgData.expenseCategories.map(normalizeExpenseCategory).filter(c => c.name))
+        } else {
+          setExpenseCategoriesList(DEFAULT_EXPENSE_CATEGORIES)
+        }
+
+        // Company accounts
+        if (Array.isArray(orgData.companyAccounts) && orgData.companyAccounts.length > 0) {
+          setCompanyAccountsList(orgData.companyAccounts.filter(Boolean))
+        } else {
+          setCompanyAccountsList(DEFAULT_COMPANY_ACCOUNTS)
+        }
+
         if (orgData.enableSiteRemarksInExpenseAdvance !== undefined) {
           setEnableSiteRemarks(orgData.enableSiteRemarksInExpenseAdvance !== false)
         }
@@ -1370,8 +1258,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         }
       }
     } catch (err) {
-      console.error('Error fetching categories:', err)
-      setCategories(defaultCategories)
+      console.error('Error fetching categories & company accounts:', err)
+      setAdvanceCategoriesList(DEFAULT_ADVANCE_CATEGORIES)
+      setExpenseCategoriesList(DEFAULT_EXPENSE_CATEGORIES)
+      setCompanyAccountsList(DEFAULT_COMPANY_ACCOUNTS)
     }
   }
 
@@ -1384,18 +1274,27 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     handleRowChange(rowId, 'category', trimmed)
     handleRowChange(rowId, 'customCategory', '')
 
-    // 2. Add to local categories state if not present
-    setCategories(prev => {
-      if (prev.some(c => c.toLowerCase() === trimmed.toLowerCase())) return prev
-      return [...prev, trimmed]
-    })
-
-    // 3. Persist to organisations/{orgId} under advanceCategories
+    // 2. Add to appropriate local categories state and persist to Firestore
     try {
       const orgRef = doc(db, 'organisations', user.orgId)
-      await setDoc(orgRef, {
-        advanceCategories: arrayUnion(trimmed)
-      }, { merge: true })
+      if (activeModule === 'Add Advance') {
+        setAdvanceCategoriesList(prev => {
+          if (prev.some(c => c.toLowerCase() === trimmed.toLowerCase())) return prev
+          return [...prev, trimmed]
+        })
+        await setDoc(orgRef, {
+          advanceCategories: arrayUnion(trimmed)
+        }, { merge: true })
+      } else {
+        const newCatItem = { name: trimmed, payableToOthers: false }
+        setExpenseCategoriesList(prev => {
+          if (prev.some(c => (typeof c === 'string' ? c : c.name).toLowerCase() === trimmed.toLowerCase())) return prev
+          return [...prev, newCatItem]
+        })
+        await setDoc(orgRef, {
+          expenseCategories: arrayUnion(newCatItem)
+        }, { merge: true })
+      }
     } catch (err) {
       console.error('Error saving new category to organisation:', err)
     }
@@ -1760,17 +1659,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
 
   const handleUpdate = async () => {
     try {
-      let type = editForm.type
       const category = editForm.category || ''
-      if (isGivenToOthersCategory(category)) {
-        type = 'Expense'
-      } else if (category.toLowerCase().includes('advance')) {
-        type = 'Advance'
-      } else if (category.toLowerCase().includes('expense')) {
-        type = 'Expense'
-      } else if (!type) {
-        type = 'Expense'
-      }
+      const type = resolveAccountingEntryType({ ...editForm, category }, advanceCategoriesList, expenseCategoriesList)
       
       const emp = employees.find(e => e.id === editForm.employeeId) || {}
       const updatedData = {
@@ -1814,21 +1704,13 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
     
     // Check for "Paid To" requirement in specific categories
-    const categoriesRequiringPaidTo = ['salary to others', 'given to others']
     const rowsMissingPaidTo = rowsForSubmission.filter(r => {
-      const categoryLower = r.category?.toLowerCase().trim() || ''
-      const requiresPaidTo = categoriesRequiringPaidTo.some(reqCat => 
-        categoryLower.includes(reqCat)
-      )
-      return requiresPaidTo && (!r.paidTo || r.paidTo === '')
+      const requiresPaidTo = isCategoryPayableToOthers(r.category)
+      return requiresPaidTo && (!r.paidTo || r.paidTo === '') && (!r.paidToCustomName || r.paidToCustomName.trim() === '')
     })
     
     if (rowsMissingPaidTo.length > 0) {
-      const empNames = rowsMissingPaidTo.map(r => {
-        const emp = employees.find(e => e.id === r.employeeId)
-        return emp?.name || 'Unknown'
-      }).join(', ')
-      return alert(`The following categories require "Paid To" field:\n\n${rowsMissingPaidTo.map(r => `• ${r.category} (Employee: ${employees.find(e => e.id === r.employeeId)?.name || 'Unknown'})`).join('\n')}\n\nPlease select who the money is being paid to.`)
+      return alert(`The following categories require a recipient / payee:\n\n${rowsMissingPaidTo.map(r => `• ${r.category} (Employee: ${employees.find(e => e.id === r.employeeId)?.name || 'Unknown'})`).join('\n')}\n\nPlease select or enter who the money is being paid to.`)
     }
     
     // Check for over-advance cap (Advances only)
@@ -2500,7 +2382,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       accruedSum,
       accruedCount
     }
-  }, [entries])
+  }, [entries, getAccountingEntryType])
 
   const monthlyStatement = useMemo(() => {
     const periodRows = entries
@@ -2565,7 +2447,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       .sort((left, right) => (right.advance + right.expense) - (left.advance + left.expense) || left.name.localeCompare(right.name))
 
     return { periodRows, expenseRows, advanceRows, categoryRows, employeeRows, expenseTotal, advanceTotal, paidTotal, outstandingTotal }
-  }, [employees, entries, summaryMonth])
+  }, [employees, entries, summaryMonth, getAccountingEntryType])
 
   const expenseCategoryChart = useMemo(() => {
     const chartRows = monthlyStatement.categoryRows.map((category) => ({
@@ -2756,93 +2638,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     }
   }
 
-  const exportLedgerPDF = () => {
-    if (!allLedgerEntries.length) {
-      alert('No ledger records match the current filters.')
-      return
-    }
-
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const margin = 4
-    const contentWidth = pageWidth - margin * 2
-    const organisationName = orgSettings?.displayName || orgSettings?.name || user?.orgName || 'HRFlow'
-    const selectedEmployee = sortedEmployees.find((employee) => employee.id === ledgerEmployeeId)
-    const filterText = [
-      selectedEmployee ? `Employee: ${selectedEmployee.name || selectedEmployee.empCode}` : 'Employee: All',
-      ledgerFromDate ? `From: ${formatLedgerDate(ledgerFromDate)}` : null,
-      ledgerToDate ? `To: ${formatLedgerDate(ledgerToDate)}` : null,
-      ledgerCategory ? `Category: ${ledgerCategory}` : null,
-    ].filter(Boolean).join('  |  ')
-    const currency = (value) => `₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0)}`
-
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(14)
-    pdf.setTextColor(15, 23, 42)
-    pdf.text(organisationName, margin, 10)
-    pdf.setFontSize(9)
-    pdf.setTextColor(71, 85, 105)
-    pdf.text('LEDGER REPORT', margin, 15)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(7.5)
-    pdf.setTextColor(100, 116, 139)
-    pdf.text(`Generated: ${format(new Date(), 'dd-MMM-yyyy')}`, pageWidth - margin, 10, { align: 'right' })
-    pdf.text(filterText, margin, 20)
-
-    const cardGap = 2
-    const cardWidth = (contentWidth - cardGap * 2) / 3
-    const cards = [
-      { label: 'ADVANCE TOTAL', value: currency(ledgerTotals.advanceTotal), fill: [236, 253, 245], text: [6, 95, 70] },
-      { label: 'EXPENSE TOTAL', value: currency(ledgerTotals.expenseTotal), fill: [254, 242, 242], text: [159, 18, 57] },
-      { label: 'FINAL BALANCE', value: currency(ledgerTotals.finalBalance), fill: [239, 246, 255], text: [30, 64, 175] },
-    ]
-    cards.forEach((card, index) => {
-      const x = margin + index * (cardWidth + cardGap)
-      pdf.setFillColor(...card.fill)
-      pdf.setDrawColor(226, 232, 240)
-      pdf.roundedRect(x, 24, cardWidth, 14, 1, 1, 'FD')
-      pdf.setFont('helvetica', 'bold')
-      pdf.setFontSize(6.5)
-      pdf.setTextColor(100, 116, 139)
-      pdf.text(card.label, x + 2, 29)
-      pdf.setFontSize(8.5)
-      pdf.setTextColor(...card.text)
-      pdf.text(card.value, x + 2, 35)
-    })
-
-    autoTable(pdf, {
-      startY: 43,
-      margin: { left: margin, right: margin, bottom: 9 },
-      head: [['Date', 'Employee', 'Type', 'Category', 'Transaction', 'Amount', 'Paid', 'Status']],
-      body: allLedgerEntries.map((entry) => [
-        formatLedgerDate(entry.date),
-        entry.employeeName,
-        entry.type,
-        entry.category || '—',
-        entry.transactionNo || '—',
-        currency(entry.amount),
-        currency(entry.paidAmount),
-        entry.status || 'Pending',
-      ]),
-      theme: 'grid',
-      styles: { font: 'helvetica', fontSize: 5.8, cellPadding: 1.15, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1, textColor: [51, 65, 85] },
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 0: { cellWidth: 16 }, 1: { cellWidth: 30 }, 2: { cellWidth: 14 }, 3: { cellWidth: 28 }, 4: { cellWidth: 30 }, 5: { cellWidth: 20, halign: 'right' }, 6: { cellWidth: 18, halign: 'right' }, 7: { cellWidth: 18, halign: 'center' } },
-    })
-
-    const pages = pdf.internal.getNumberOfPages()
-    for (let page = 1; page <= pages; page += 1) {
-      pdf.setPage(page)
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(6.5)
-      pdf.setTextColor(148, 163, 184)
-      pdf.text(`${organisationName} | Ledger`, margin, pageHeight - 4)
-      pdf.text(`Page ${page} of ${pages}`, pageWidth - margin, pageHeight - 4, { align: 'right' })
-    }
-    pdf.save(`Ledger_${new Date().toISOString().slice(0, 10)}.pdf`)
-  }
 
   const exportPDF = async () => {
     try {
@@ -3310,8 +3105,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         .no-arrow::-webkit-calendar-picker-indicator { display: none !important; }
       `}</style>
       
-      <datalist id="categories-list">
-        {categories.map(c => <option key={c} value={c} />)}
+      <datalist id="edit-categories-list">
+        {(getAccountingEntryType(editForm) === 'Advance' ? advanceCategoriesOnly : expenseCategoriesOnly).map(c => <option key={c} value={c} />)}
       </datalist>
 
       {/* Transferred To Micro-Modal */}
@@ -3463,8 +3258,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-bold text-gray-700">Category</label>
-                <input list="categories-list" value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                <label className="mb-1 block text-[11px] font-bold text-gray-700">Category ({getAccountingEntryType(editForm) === 'Advance' ? 'Advance' : 'Expense'})</label>
+                <input list="edit-categories-list" value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900" />
               </div>
               <div>
                 <label className="mb-1 block text-[11px] font-bold text-gray-700">Amount</label>
@@ -3634,7 +3429,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 if (mod === 'Add Advance') return 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/25'
                 if (mod === 'Add Expense') return 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/25'
                 if (mod === 'Cash Summary' || mod === 'Summary') return 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/25'
-                if (mod === 'Ledger') return 'bg-cyan-500 text-white border-cyan-500 shadow-lg shadow-cyan-500/25'
                 return 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/25'
               }
 
@@ -3642,7 +3436,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 if (mod === 'Add Advance') return 'Adv'
                 if (mod === 'Add Expense') return 'Exp'
                 if (mod === 'Cash Summary' || mod === 'Summary') return 'Cash Sum'
-                if (mod === 'Ledger') return 'Ledger'
                 return 'Rep'
               }
 
@@ -3688,28 +3481,50 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           return { initial, name: isCurrentUser ? `${name} (You)` : name }
         }
 
+        const modeSubTabs = [
+          { id: 'self', label: `Self ${entryLabel}`, icon: <User size={15} /> },
+          { id: 'employee', label: `Employee ${entryLabel}`, icon: <Users size={15} /> }
+        ]
+
+        const handleModeTabChange = (tab) => {
+          if (tab.id === 'self') {
+            if (handleSelfExpense()) setExpenseMode('self')
+          } else {
+            setExpenseMode('employee')
+          }
+        }
+
         return (
           <div className="space-y-3">
-            {/* 1. Integrated Header, Compact Mode Selector & Main Actions */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200/90 shadow-sm">
-              <div className="flex flex-col gap-2 w-full">
-                {!portalMode && <div role="tablist" aria-label={`${entryLabel} entry type`} className="flex w-fit items-end border-b border-slate-200 text-xs">
-                  <button type="button" role="tab" aria-selected={expenseMode === 'self'} onClick={() => { if (handleSelfExpense()) setExpenseMode('self') }} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'self' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><User size={14} />Self {entryLabel}</button>
-                  <button type="button" role="tab" aria-selected={expenseMode === 'employee'} onClick={() => setExpenseMode('employee')} className={`inline-flex h-9 items-center gap-2 border-b-2 px-4 font-semibold transition-colors ${expenseMode === 'employee' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Users size={14} />Employee {entryLabel}</button>
-                </div>}
+            {/* 1. Nested Subtabs Navigation: Self vs Employee mode (inspired by Settings subtabs) */}
+            {!portalMode && (
+              <div className="rounded-xl border border-slate-200/90 bg-[#F4FAFD] shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between px-3 sm:px-4 border-b border-[#E0E0E0] pt-1.5">
+                  <FleetSecondaryTabs
+                    tabs={modeSubTabs}
+                    activeTabId={expenseMode}
+                    onTabChange={handleModeTabChange}
+                    ariaLabel={`${entryLabel} entry mode`}
+                    className="border-b-0 bg-transparent p-0 min-h-[44px]"
+                  />
+                  <div className="hidden sm:flex items-center gap-2 pb-2 text-xs font-medium text-slate-500">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 border border-slate-200/80 shadow-xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+                      {expenseMode === 'self' ? `Personal ${entryLabel}` : `Staff & Team ${entryLabel}`}
+                    </span>
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* Action Buttons */}
-              <div className="hidden items-center gap-2 w-full lg:w-auto justify-end">
-                <input
-                  type="file"
-                  ref={csvFileInputRef}
-                  accept=".csv"
-                  onChange={handleCSVImport}
-                  className="hidden"
-                />
-              </div>
-            </div>
+            {/* Hidden CSV Import Input */}
+            <input
+              type="file"
+              ref={csvFileInputRef}
+              accept=".csv"
+              onChange={handleCSVImport}
+              className="hidden"
+            />
             {/* Split Layout: Main Workspace (72%) + Right Side Panel (28%) */}
             <div className="flex flex-col lg:flex-row items-start gap-4">
               {/* Left Column: Ribbon Controls + Spreadsheet Table Grid (~72%) */}
@@ -3754,10 +3569,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                         onChange={(e) => setSessionAccount(e.target.value)}
                         className="bg-transparent text-xs font-normal text-slate-900 outline-none cursor-pointer h-full"
                       >
-                        <option value="Petty Cash - HO">Petty Cash - HO</option>
-                        <option value="Main Bank Account">Main Bank Account</option>
-                        <option value="Cash in Hand">Cash in Hand</option>
-                        <option value="Director Account">Director Account</option>
+                        {(companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS).map(acc => (
+                          <option key={acc} value={acc}>{acc}</option>
+                        ))}
                       </select>
                     </div>
                     <div className="order-4 md:hidden flex w-full min-w-0 items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm h-10">
@@ -3765,7 +3579,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       <Dropdown
                         value={sessionAccount}
                         onChange={setSessionAccount}
-                        options={['Petty Cash - HO', 'Main Bank Account', 'Cash in Hand', 'Director Account']}
+                        options={companyAccountsList && companyAccountsList.length > 0 ? companyAccountsList : DEFAULT_COMPANY_ACCOUNTS}
                         size="sm"
                         className="min-w-0 flex-1"
                         panelWidth="w-[min(20rem,calc(100vw-2rem))]"
@@ -4016,8 +3830,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   value={row.category === 'custom' ? '' : row.category}
                                   onChange={(val, e) => {
                                     handleRowChange(row.id, 'category', val);
-                                    const lower = (val || '').toLowerCase();
-                                    if (lower.includes('given to others') || lower.includes('salary to others')) {
+                                    if (isCategoryPayableToOthers(val)) {
                                       openPaidToPopover(row.id, e?.target);
                                     }
                                     if (enableSiteRemarks && isPetrolCategory(val)) {
@@ -4027,7 +3840,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                       openSitePopover(row.id, e?.target);
                                     }
                                   }}
-                                  options={categories}
+                                  options={getRowCategoryOptions(row.category)}
                                   placeholder="Select Category..."
                                   size="xs"
                                   searchable
@@ -4202,7 +4015,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                 )}
 
                                 {/* Sub-badge: [1st Column Employee] → [Chosen Recipient] with -2px spacing */}
-                                {(row.category?.toLowerCase().includes('given to others') || row.category?.toLowerCase().includes('salary to others')) && (
+                                {isCategoryPayableToOthers(row.category) && (
                                   <div
                                     onClick={(e) => openPaidToPopover(activePaidToRowId === row.id ? null : row.id, e.currentTarget)}
                                     className="mt-[-2px] flex items-center justify-between gap-1.5 text-[10px] font-bold text-blue-900 bg-blue-50/90 hover:bg-blue-100/90 px-2 py-0.5 rounded-md border border-blue-200/80 shadow-2xs cursor-pointer transition-all group/badge"
@@ -4247,7 +4060,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                                   >
                                     <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
                                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                        Select Recipient Employee
+                                        Select Recipient / Payee
                                       </span>
                                       <button
                                         type="button"
@@ -4444,7 +4257,8 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       idx={idx}
                       activeModule={activeModule}
                       sortedEmployees={sortedEmployees}
-                      categories={categories}
+                      categories={activeCategories}
+                      isCategoryPayableToOthers={isCategoryPayableToOthers}
                       canSelectAll={canSelectAll}
                       canChooseEntryEmployee={canChooseEntryEmployee}
                       showAdvanceFields={showAdvanceFields}
@@ -4459,6 +4273,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                       availableSiteNames={availableSiteNames}
                       saveNewCategory={saveNewCategory}
                       showSessionPayout={showSessionPayout}
+                      getRowCategoryOptions={getRowCategoryOptions}
                     />
                   ))}
                 </div>
@@ -4737,7 +4552,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Date<input type="date" value={portalEditForm.date} onChange={(event) => setPortalEditForm((current) => ({ ...current, date: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Amount<input type="number" min="0" step="0.01" value={portalEditForm.amount} onChange={(event) => setPortalEditForm((current) => ({ ...current, amount: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
-              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Category<input list="portal-expense-categories" value={portalEditForm.category} onChange={(event) => setPortalEditForm((current) => ({ ...current, category: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /><datalist id="portal-expense-categories">{categories.map((category) => <option key={category} value={category} />)}</datalist></label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Category<input list="portal-expense-categories" value={portalEditForm.category} onChange={(event) => setPortalEditForm((current) => ({ ...current, category: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /><datalist id="portal-expense-categories">{expenseCategoriesOnly.map((category) => <option key={category} value={category} />)}</datalist></label>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Reason<input type="text" value={portalEditForm.reason} onChange={(event) => setPortalEditForm((current) => ({ ...current, reason: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Remarks<div className="mt-1"><Dropdown value={portalEditForm.remarks} onChange={(remarks) => setPortalEditForm((current) => ({ ...current, remarks }))} options={orgSettings.remarksOptions || []} placeholder="Select remarks" size="sm" panelWidth="w-[min(20rem,calc(100vw-2rem))]" mobileMenu autoFocusSearch={false} /></div></label>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">Project <span className="font-normal normal-case text-slate-400">optional</span><input type="text" value={portalEditForm.project} onChange={(event) => setPortalEditForm((current) => ({ ...current, project: event.target.value }))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-500" /></label>
@@ -5008,22 +4823,63 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                 </button>
                 
                 {categoryDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
                     <button 
                       onClick={() => { setReportFilterCategory(''); closeAllDropdowns(); }}
                       className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${!reportFilterCategory ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
                     >
                       All Categories
                     </button>
-                    {categories.map(cat => (
-                      <button 
-                        key={cat}
-                        onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
+                    {reportFilterType === 'Advance' && (
+                      advanceCategoriesOnly.map(cat => (
+                        <button 
+                          key={cat}
+                          onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                        >
+                          {cat}
+                        </button>
+                      ))
+                    )}
+                    {reportFilterType === 'Expense' && (
+                      expenseCategoriesOnly.map(cat => (
+                        <button 
+                          key={cat}
+                          onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                        >
+                          {cat}
+                        </button>
+                      ))
+                    )}
+                    {reportFilterType === 'All' && (
+                      <>
+                        <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border-y border-slate-100">
+                          Advance Categories
+                        </div>
+                        {advanceCategoriesOnly.map(cat => (
+                          <button 
+                            key={`adv-${cat}`}
+                            onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
+                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                        <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border-y border-slate-100">
+                          Expense Categories
+                        </div>
+                        {expenseCategoriesOnly.map(cat => (
+                          <button 
+                            key={`exp-${cat}`}
+                            onClick={() => { setReportFilterCategory(cat); closeAllDropdowns(); }}
+                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${reportFilterCategory === cat ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700'}`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -5714,66 +5570,6 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
                   </table>
                 </div>
               </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Ledger Module */}
-      {activeModule === 'Ledger' && (
-        <div className="space-y-6">
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <Spinner />
-            </div>
-          ) : (
-            <>
-              <div className="rounded-[12px] border border-gray-100 bg-white px-4 pt-3 shadow-sm">
-                <SubTabsNav
-                  activeTabId={ledgerView}
-                  onTabChange={(tab) => setLedgerView(tab.id)}
-                  tabs={[{ id: 'employee', label: 'Employee wise' }, { id: 'all', label: 'All' }]}
-                />
-              </div>
-
-              {ledgerView === 'employee' && (
-                <>
-                  <div className="rounded-[12px] border border-cyan-100 bg-cyan-50/60 p-5 shadow-sm">
-                    <div className="mb-3 flex items-center gap-2 text-cyan-700"><Banknote size={20} /><span className="text-sm font-semibold">Total Outstanding Advances</span></div>
-                    <p className="text-3xl font-black text-cyan-900">{formatINR(ledgerData.totalOutstanding)}</p>
-                    <p className="mt-1 text-xs font-medium text-cyan-600">{ledgerData.employees.length} employee{ledgerData.employees.length !== 1 ? 's' : ''} with active advances</p>
-                  </div>
-                  {ledgerData.employees.length === 0 ? (
-                    <div className="rounded-[12px] border border-gray-100 bg-white p-12 text-center shadow-sm"><Banknote size={40} className="mx-auto mb-3 text-zinc-300" /><p className="text-sm font-bold uppercase tracking-widest text-zinc-400">No outstanding advances</p></div>
-                  ) : (
-                    <div className="space-y-4">{ledgerData.employees.map((emp) => <EmployeeLedgerCard key={emp.id} emp={emp} formatINR={formatINR} />)}</div>
-                  )}
-                </>
-              )}
-
-              {ledgerView === 'all' && (
-                <>
-                  <div className="rounded-[12px] border border-gray-100 bg-white p-4 shadow-sm">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Advance filters</p>
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee<div className="mt-1"><Dropdown value={ledgerEmployeeId} onChange={setLedgerEmployeeId} options={sortedEmployees.map((employee) => ({ value: employee.id, label: employee.name || employee.empCode || 'Employee' }))} placeholder="All employees" size="sm" searchable panelWidth="w-64" autoFocusSearch={false} /></div></label>
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">From date<input type="date" value={ledgerFromDate} onChange={(event) => setLedgerFromDate(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500" /></label>
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">To date<input type="date" value={ledgerToDate} onChange={(event) => setLedgerToDate(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500" /></label>
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Category<div className="mt-1"><Dropdown value={ledgerCategory} onChange={setLedgerCategory} options={ledgerCategories} placeholder="All categories" size="sm" searchable panelWidth="w-64" autoFocusSearch={false} /></div></label>
-                    </div>
-                    <button type="button" onClick={() => { setLedgerEmployeeId(''); setLedgerFromDate(''); setLedgerToDate(''); setLedgerCategory(''); setLedgerPage(1); setLedgerShowAll(false) }} className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-800">Clear filters</button>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="rounded-[12px] border border-emerald-100 bg-emerald-50/70 p-4"><p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Advance total</p><p className="mt-1 text-xl font-black tabular-nums text-emerald-900">{formatINR(ledgerTotals.advanceTotal)}</p></div>
-                    <div className="rounded-[12px] border border-rose-100 bg-rose-50/70 p-4"><p className="text-[10px] font-bold uppercase tracking-widest text-rose-700">Expense total</p><p className="mt-1 text-xl font-black tabular-nums text-rose-900">{formatINR(ledgerTotals.expenseTotal)}</p></div>
-                    <div className="rounded-[12px] border border-indigo-100 bg-indigo-50/70 p-4"><p className="text-[10px] font-bold uppercase tracking-widest text-indigo-700">Final balance</p><p className="mt-1 text-xl font-black tabular-nums text-indigo-900">{formatINR(ledgerTotals.finalBalance)}</p></div>
-                  </div>
-                  <div className="rounded-[12px] border border-gray-100 bg-white shadow-sm">
-                    <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">All advances and expenses</p><p className="mt-0.5 text-sm font-semibold text-slate-900">{allLedgerEntries.length} record{allLedgerEntries.length !== 1 ? 's' : ''} · {ledgerShowAll ? 'Showing all filtered rows' : `Page ${ledgerPage} of ${ledgerPageCount}`}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={exportLedgerPDF} disabled={!allLedgerEntries.length} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white hover:bg-slate-900 disabled:opacity-50"><FileDown size={14} /> Export PDF</button><button type="button" onClick={() => { setLedgerShowAll((value) => !value); setLedgerPage(1) }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">{ledgerShowAll ? 'Use pages' : 'Show all'}</button></div></div>
-                    {allLedgerEntries.length === 0 ? <p className="px-4 py-12 text-center text-sm text-slate-400">No advance or expense entries match these filters.</p> : <><div className="overflow-x-auto"><div className="min-w-[1024px]"><div className="grid border-b border-gray-100 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400" style={{ gridTemplateColumns: '124px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 100px' }}><div className="px-3 py-3 whitespace-nowrap">Date</div><div className="px-4 py-3">Employee</div><div className="px-4 py-3">Type</div><div className="px-4 py-3">Category</div><div className="px-4 py-3">Transaction</div><div className="px-4 py-3 text-right">Amount</div><div className="px-4 py-3 text-right">Paid</div><div className="px-4 py-3">Status</div></div><div ref={ledgerTableRef} className="max-h-[560px] overflow-y-auto"><div style={{ height: `${ledgerVirtualizer.getTotalSize()}px`, position: 'relative' }}>{ledgerVirtualizer.getVirtualItems().map((virtualRow) => { const entry = ledgerVisibleEntries[virtualRow.index]; return <div key={entry.id} className="grid items-center border-b border-gray-100 text-sm text-slate-700 hover:bg-slate-50" style={{ gridTemplateColumns: '124px minmax(150px,1.5fr) 100px minmax(150px,1.2fr) 140px 110px 100px 100px', position: 'absolute', transform: `translateY(${virtualRow.start}px)`, height: `${virtualRow.size}px`, width: '100%' }}><div className="whitespace-nowrap px-3 py-2">{formatLedgerDate(entry.date)}</div><div className="truncate px-4 py-2 font-medium text-slate-900" title={entry.employeeName}>{entry.employeeName}</div><div className="px-4 py-2"><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${entry.type === 'Expense' ? 'bg-violet-50 text-violet-700' : 'bg-cyan-50 text-cyan-700'}`}>{entry.type}</span></div><div className="truncate px-4 py-2" title={entry.category || '—'}>{entry.category || '—'}</div><div className="truncate px-4 py-2 font-mono text-xs" title={entry.transactionNo || '—'}>{entry.transactionNo || '—'}</div><div className="px-4 py-2 text-right font-medium">{formatINR(entry.amount)}</div><div className={`px-4 py-2 text-right font-semibold ${entry.type === 'Advance' ? 'text-emerald-700' : 'text-rose-600'}`}>{formatINR(entry.paidAmount)}</div><div className="px-4 py-2"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">{entry.status || 'Pending'}</span></div></div> })}</div></div></div></div>{!ledgerShowAll && <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3"><p className="text-xs text-slate-500">Showing {ledgerVisibleEntries.length ? (ledgerPage - 1) * ledgerPageSize + 1 : 0}–{Math.min(ledgerPage * ledgerPageSize, allLedgerEntries.length)} of {allLedgerEntries.length}</p><div className="flex gap-2"><button type="button" onClick={() => setLedgerPage((page) => Math.max(1, page - 1))} disabled={ledgerPage === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Previous</button><button type="button" onClick={() => setLedgerPage((page) => Math.min(ledgerPageCount, page + 1))} disabled={ledgerPage === ledgerPageCount} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40">Next</button></div></div>}</>}
-                  </div>
-                </>
-              )}
             </>
           )}
         </div>

@@ -7,7 +7,7 @@ import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTime
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { z } from 'zod'
-import { Wallet, Calendar, Plus, Trash2, Edit, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2 } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Edit2, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2, Users } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -50,8 +50,8 @@ import { FleetSecondaryTabs } from '../ui/FleetSecondaryTabs'
 import { PORTAL_APPROVAL_MODULES, PORTAL_APPROVAL_ROLES, createPortalApprovalDraft, normalizePortalApprovalSetting } from '../../lib/portalApprovalWorkflow'
 
 import { formatDateDDMMYYYY } from '../../lib/utils';
-import { compressImageToBase64 } from '../../lib/imageUtils';
 import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy } from '../../lib/attendancePolicy'
+import { normalizeExpenseCategory, DEFAULT_ADVANCE_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_COMPANY_ACCOUNTS } from '../../lib/advanceExpenseCategories'
 
 /*
  * Mobile Settings visual direction: a calm grouped-list surface based on the supplied
@@ -561,7 +561,9 @@ export default function SettingsTab({ initialSubTab }) {
   })
   const [orgSettings, setOrgSettings] = useState({
     name: '', email: '', address: '', gstin: '', hierarchy: '', branches: '', bankAccounts: [], code: '', shiftStrategy: 'Day', logoURL: '',
-    advanceCategories: ['Salary Advance', 'Travel', 'Medical'],
+    advanceCategories: DEFAULT_ADVANCE_CATEGORIES,
+    expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
+    companyAccounts: DEFAULT_COMPANY_ACCOUNTS,
     enableSiteRemarksInExpenseAdvance: true,
     holidays: [],
     saturdayType: 'working', // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
@@ -595,6 +597,15 @@ export default function SettingsTab({ initialSubTab }) {
   const [siteSearchLoading, setSiteSearchLoading] = useState(false)
   const [siteGeoLocating, setSiteGeoLocating] = useState(false)
   const [newAdvanceCategory, setNewAdvanceCategory] = useState('')
+  const [newExpenseCategory, setNewExpenseCategory] = useState('')
+  const [newExpensePayableToOthers, setNewExpensePayableToOthers] = useState(false)
+  const [newCompanyAccount, setNewCompanyAccount] = useState('')
+  const [editingAdvanceIndex, setEditingAdvanceIndex] = useState(null)
+  const [editingAdvanceValue, setEditingAdvanceValue] = useState('')
+  const [editingExpenseIndex, setEditingExpenseIndex] = useState(null)
+  const [editingExpenseValue, setEditingExpenseValue] = useState('')
+  const [editingAccountIndex, setEditingAccountIndex] = useState(null)
+  const [editingAccountValue, setEditingAccountValue] = useState('')
   const [newHoliday, setNewHoliday] = useState({ name: '', date: '' })
   const [editingHolidayIndex, setEditingHolidayIndex] = useState(null)
   const [holidayError, setHolidayError] = useState('')
@@ -1176,11 +1187,15 @@ export default function SettingsTab({ initialSubTab }) {
             ...data,
             name: data.name || user?.orgName || prev.name || '',
             code: data.code || orgSnap.id,
-            advanceCategories: data.advanceCategories || prev.advanceCategories,
+            advanceCategories: Array.isArray(data.advanceCategories) && data.advanceCategories.length > 0 ? data.advanceCategories : prev.advanceCategories,
+            expenseCategories: Array.isArray(data.expenseCategories) && data.expenseCategories.length > 0
+              ? data.expenseCategories.map(normalizeExpenseCategory)
+              : prev.expenseCategories,
+            companyAccounts: Array.isArray(data.companyAccounts) && data.companyAccounts.length > 0 ? data.companyAccounts : prev.companyAccounts,
             enableSiteRemarksInExpenseAdvance: data.enableSiteRemarksInExpenseAdvance !== false,
             holidays: data.holidays || prev.holidays,
-            bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : []
-            ,attendancePolicy: normalizeAttendancePolicy(data.attendancePolicy)
+            bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : [],
+            attendancePolicy: normalizeAttendancePolicy(data.attendancePolicy)
           }))
         } else {
           // If no org doc exists, use user.orgName as fallback
@@ -3311,12 +3326,138 @@ export default function SettingsTab({ initialSubTab }) {
   const handleAddAdvanceCategory = () => {
     const trimmed = newAdvanceCategory.trim()
     if (!trimmed) return
-    if (orgSettings.advanceCategories.some(cat => cat.toLowerCase() === trimmed.toLowerCase())) {
-      alert('This category already exists.')
+    const current = Array.isArray(orgSettings.advanceCategories) ? orgSettings.advanceCategories : []
+    if (current.some(cat => cat.toLowerCase() === trimmed.toLowerCase())) {
+      alert('This advance category already exists.')
       return
     }
-    setOrgSettings(s => ({ ...s, advanceCategories: [...s.advanceCategories, trimmed] }))
+    setOrgSettings(s => ({ ...s, advanceCategories: [...current, trimmed] }))
     setNewAdvanceCategory('')
+  }
+
+  const handleDeleteAdvanceCategory = (index) => {
+    setOrgSettings(s => ({
+      ...s,
+      advanceCategories: (s.advanceCategories || []).filter((_, idx) => idx !== index)
+    }))
+  }
+
+  const handleAddExpenseCategory = () => {
+    const trimmed = newExpenseCategory.trim()
+    if (!trimmed) return
+    const current = (orgSettings.expenseCategories || []).map(normalizeExpenseCategory)
+    if (current.some(cat => cat.name.toLowerCase() === trimmed.toLowerCase())) {
+      alert('This expense category already exists.')
+      return
+    }
+    const newCatItem = { name: trimmed, payableToOthers: !!newExpensePayableToOthers }
+    setOrgSettings(s => ({ ...s, expenseCategories: [...current, newCatItem] }))
+    setNewExpenseCategory('')
+    setNewExpensePayableToOthers(false)
+  }
+
+  const handleDeleteExpenseCategory = (index) => {
+    setOrgSettings(s => ({
+      ...s,
+      expenseCategories: (s.expenseCategories || []).filter((_, idx) => idx !== index)
+    }))
+  }
+
+  const handleToggleExpensePayableToOthers = (index) => {
+    setOrgSettings(s => ({
+      ...s,
+      expenseCategories: (s.expenseCategories || []).map((cat, idx) => {
+        if (idx !== index) return cat
+        const normalized = normalizeExpenseCategory(cat)
+        return { ...normalized, payableToOthers: !normalized.payableToOthers }
+      })
+    }))
+  }
+
+  const handleAddCompanyAccount = () => {
+    const trimmed = newCompanyAccount.trim()
+    if (!trimmed) return
+    const current = Array.isArray(orgSettings.companyAccounts) ? orgSettings.companyAccounts : []
+    if (current.some(acc => acc.toLowerCase() === trimmed.toLowerCase())) {
+      alert('This company account already exists.')
+      return
+    }
+    setOrgSettings(s => ({ ...s, companyAccounts: [...current, trimmed] }))
+    setNewCompanyAccount('')
+  }
+
+  const handleDeleteCompanyAccount = (index) => {
+    setOrgSettings(s => ({
+      ...s,
+      companyAccounts: (s.companyAccounts || []).filter((_, idx) => idx !== index)
+    }))
+  }
+
+  const handleStartEditAdvance = (index, value) => {
+    setEditingAdvanceIndex(index)
+    setEditingAdvanceValue(value)
+  }
+
+  const handleSaveEditAdvance = (index) => {
+    const trimmed = editingAdvanceValue.trim()
+    if (!trimmed) return
+    setOrgSettings(s => ({
+      ...s,
+      advanceCategories: (s.advanceCategories || []).map((cat, idx) => idx === index ? trimmed : cat)
+    }))
+    setEditingAdvanceIndex(null)
+    setEditingAdvanceValue('')
+  }
+
+  const handleCancelEditAdvance = () => {
+    setEditingAdvanceIndex(null)
+    setEditingAdvanceValue('')
+  }
+
+  const handleStartEditExpense = (index, value) => {
+    setEditingExpenseIndex(index)
+    setEditingExpenseValue(value)
+  }
+
+  const handleSaveEditExpense = (index) => {
+    const trimmed = editingExpenseValue.trim()
+    if (!trimmed) return
+    setOrgSettings(s => ({
+      ...s,
+      expenseCategories: (s.expenseCategories || []).map((cat, idx) => {
+        if (idx !== index) return cat
+        const normalized = normalizeExpenseCategory(cat)
+        return { ...normalized, name: trimmed }
+      })
+    }))
+    setEditingExpenseIndex(null)
+    setEditingExpenseValue('')
+  }
+
+  const handleCancelEditExpense = () => {
+    setEditingExpenseIndex(null)
+    setEditingExpenseValue('')
+  }
+
+  const handleStartEditAccount = (index, value) => {
+    setEditingAccountIndex(index)
+    setEditingAccountValue(value)
+  }
+
+  const handleSaveEditAccount = (index) => {
+    const trimmed = editingAccountValue.trim()
+    if (!trimmed) return
+    setOrgSettings(s => ({
+      ...s,
+      companyAccounts: (s.companyAccounts || []).map((acc, idx) => idx === index ? trimmed : acc)
+    }))
+    setEditingAccountIndex(null)
+    setEditingAccountValue('')
+  }
+
+  const handleCancelEditAccount = () => {
+    setEditingAccountIndex(null)
+    setEditingAccountValue('')
   }
 
   const handleAddHoliday = () => {
@@ -4045,133 +4186,423 @@ export default function SettingsTab({ initialSubTab }) {
         )}
 
         {activeSubTab === 'advance_cat' && (
-          <div className="grid max-w-5xl grid-cols-1 gap-5 xl:grid-cols-[0.85fr_1.15fr] no-print">
-            <div className={`${settingsPanelClassName} p-6 md:p-7`}>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] leading-tight text-indigo-600">Create category</p>
-              <h3 className="mt-2 text-[22px] font-normal tracking-[-0.03em] text-slate-950">Categories</h3>
-              <p className="mt-2 text-[13px] leading-6 text-slate-500">
-                Add request types inline so the finance setup stays quick and predictable for the whole team.
-              </p>
-
-              <div className={`${settingsInsetPanelClassName} mt-6 space-y-4 p-5`}>
+          <div className="max-w-7xl space-y-6 no-print">
+            {/* Header with Save All Changes Action */}
+            <div className={`${settingsPanelClassName} p-5 md:p-6`}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <label className={settingsSectionLabelClassName}>Category Name</label>
-                  <input
-                    type="text"
-                    value={newAdvanceCategory}
-                    onChange={e => setNewAdvanceCategory(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddAdvanceCategory() }}
-                    className={settingsInputClassName}
-                    placeholder="e.g. Laptop Purchase"
-                  />
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-600" />
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 font-heading">Finance Configuration</p>
+                  </div>
+                  <h3 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 font-heading">Advance, Expense & Account Settings</h3>
+                  <p className="mt-1 text-xs text-slate-500 font-body">
+                    Organize request categories into Advance and Expense categories, designate third-party payee requirements, and configure company payment accounts.
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAddAdvanceCategory}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[12px] font-normal uppercase tracking-[0.16em] text-white transition-all hover:bg-slate-800"
-                >
-                  <Plus size={14} />
-                  Add Category
-                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveOrg('Categories and company accounts saved successfully!')}
+                    disabled={saving}
+                    className="inline-flex h-9 items-center gap-2 rounded-md bg-blue-600 hover:bg-blue-700 px-5 text-xs font-bold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 font-heading"
+                  >
+                    <Check size={14} />
+                    {saving ? 'Saving...' : 'Save All Changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 3-Column Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Column 1: Advance Categories */}
+              <div className={`${settingsPanelClassName} flex flex-col overflow-hidden`}>
+                <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    <h4 className="text-sm font-bold text-slate-900 font-heading">Advance Categories</h4>
+                  </div>
+                  <span className="text-[11px] font-bold bg-white text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs font-mono">
+                    {(orgSettings.advanceCategories || []).length}
+                  </span>
+                </div>
+
+                {/* Add Advance Category Form */}
+                <div className="p-4 bg-white border-b border-slate-100">
+                  <label className="block text-xs font-medium text-slate-800 mb-1.5 font-body">New Advance Category</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newAdvanceCategory}
+                      onChange={e => setNewAdvanceCategory(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddAdvanceCategory() }}
+                      placeholder="e.g. Salary Advance, Travel"
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800 placeholder:text-slate-400 font-body"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddAdvanceCategory}
+                      className="shrink-0 h-9 px-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-xs font-bold font-heading inline-flex items-center gap-1.5 transition-all active:scale-[0.98]"
+                    >
+                      <Plus size={14} /> Add
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-400 font-body">Available when submitting salary or cash advances.</p>
+                </div>
+
+                {/* Advance Categories List */}
+                <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[380px] custom-scrollbar p-1">
+                  {(orgSettings.advanceCategories || []).length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400 font-body">No advance categories added yet.</div>
+                  ) : (
+                    (orgSettings.advanceCategories || []).map((cat, i) => (
+                      <div key={cat + i} className="flex items-center justify-between p-2.5 hover:bg-slate-50/80 rounded-lg group transition-colors">
+                        {editingAdvanceIndex === i ? (
+                          <div className="flex items-center gap-1.5 flex-1 pr-2">
+                            <input
+                              type="text"
+                              value={editingAdvanceValue}
+                              onChange={e => setEditingAdvanceValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveEditAdvance(i)
+                                if (e.key === 'Escape') handleCancelEditAdvance()
+                              }}
+                              className="h-8 w-full rounded-md border border-blue-400 bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-blue-500 font-body"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditAdvance(i)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                              title="Save name"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelEditAdvance}
+                              className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-md transition-colors"
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-xs font-semibold text-slate-800 truncate font-body">{cat}</span>
+                            <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditAdvance(i, cat)}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="Rename advance category"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAdvanceCategory(i)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                title="Delete advance category"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
-              <div className={`${settingsInsetPanelClassName} mt-4 space-y-4 p-5`}>
-                <div>
-                  <label className={settingsSectionLabelClassName}>Maximum Advance Amount (₹)</label>
-                  <p className="mt-1 text-[11px] text-slate-500">Set a cap per advance request. Leave empty for no limit.</p>
+              {/* Column 2: Expense Categories (with Payable to others toggle) */}
+              <div className={`${settingsPanelClassName} flex flex-col overflow-hidden`}>
+                <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-600" />
+                    <h4 className="text-sm font-bold text-slate-900 font-heading">Expense Categories</h4>
+                  </div>
+                  <span className="text-[11px] font-bold bg-white text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs font-mono">
+                    {(orgSettings.expenseCategories || []).length}
+                  </span>
+                </div>
+
+                {/* Add Expense Category Form */}
+                <div className="p-4 bg-white border-b border-slate-100 space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-800 mb-1.5 font-body">New Expense Category</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newExpenseCategory}
+                        onChange={e => setNewExpenseCategory(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAddExpenseCategory() }}
+                        placeholder="e.g. Subcontractor, Petrol, Tea"
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800 placeholder:text-slate-400 font-body"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddExpenseCategory}
+                        className="shrink-0 h-9 px-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-xs font-bold font-heading inline-flex items-center gap-1.5 transition-all active:scale-[0.98]"
+                      >
+                        <Plus size={14} /> Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Payable to Others Checkbox */}
+                  <div className="rounded-lg bg-indigo-50/60 p-2.5 border border-indigo-100/80">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newExpensePayableToOthers}
+                        onChange={e => setNewExpensePayableToOthers(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <div className="text-[11px] leading-tight font-body">
+                        <span className="font-bold text-slate-800 block">Is this payable to another?</span>
+                        <span className="text-slate-500 mt-0.5 block leading-normal">
+                          Triggers payee selection pop-up in expense forms (e.g. Subcontractor, EB Person, Commission, Given to Others).
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Expense Categories List */}
+                <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[380px] custom-scrollbar p-1">
+                  {(orgSettings.expenseCategories || []).length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400 font-body">No expense categories added yet.</div>
+                  ) : (
+                    (orgSettings.expenseCategories || []).map((rawCat, i) => {
+                      const cat = normalizeExpenseCategory(rawCat)
+                      return (
+                        <div key={cat.name + i} className="flex items-center justify-between p-2.5 hover:bg-slate-50/80 rounded-lg group transition-colors">
+                          {editingExpenseIndex === i ? (
+                            <div className="flex items-center gap-1.5 flex-1 pr-2">
+                              <input
+                                type="text"
+                                value={editingExpenseValue}
+                                onChange={e => setEditingExpenseValue(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleSaveEditExpense(i)
+                                  if (e.key === 'Escape') handleCancelEditExpense()
+                                }}
+                                className="h-8 w-full rounded-md border border-blue-400 bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-blue-500 font-body"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditExpense(i)}
+                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                                title="Save name"
+                              >
+                                <Check size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleCancelEditExpense}
+                                className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-md transition-colors"
+                                title="Cancel"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="min-w-0 pr-2">
+                                <span className="text-xs font-semibold text-slate-800 block truncate font-body">{cat.name}</span>
+                                {cat.payableToOthers && (
+                                  <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/70 font-mono">
+                                    <Users size={10} /> Requires Payee
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleExpensePayableToOthers(i)}
+                                  className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${
+                                    cat.payableToOthers
+                                      ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                                      : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                  title={cat.payableToOthers ? 'Click to disable payee trigger' : 'Click to enable payee trigger'}
+                                >
+                                  {cat.payableToOthers ? 'Payee ✓' : '+ Payee'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditExpense(i, cat.name)}
+                                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                  title="Rename expense category"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteExpenseCategory(i)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                  title="Delete expense category"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Column 3: Company Accounts */}
+              <div className={`${settingsPanelClassName} flex flex-col overflow-hidden`}>
+                <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                    <h4 className="text-sm font-bold text-slate-900 font-heading">Company Accounts</h4>
+                  </div>
+                  <span className="text-[11px] font-bold bg-white text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs font-mono">
+                    {(orgSettings.companyAccounts || []).length}
+                  </span>
+                </div>
+
+                {/* Add Account Form */}
+                <div className="p-4 bg-white border-b border-slate-100">
+                  <label className="block text-xs font-medium text-slate-800 mb-1.5 font-body">New Company Account</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCompanyAccount}
+                      onChange={e => setNewCompanyAccount(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddCompanyAccount() }}
+                      placeholder="e.g. HDFC Bank, Factory Petty Cash"
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800 placeholder:text-slate-400 font-body"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCompanyAccount}
+                      className="shrink-0 h-9 px-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-xs font-bold font-heading inline-flex items-center gap-1.5 transition-all active:scale-[0.98]"
+                    >
+                      <Plus size={14} /> Add
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-400 font-body">Appears in Account dropdown during Advance & Expense sessions.</p>
+                </div>
+
+                {/* Company Accounts List */}
+                <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[380px] custom-scrollbar p-1">
+                  {(orgSettings.companyAccounts || []).length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400 font-body">No company accounts added yet.</div>
+                  ) : (
+                    (orgSettings.companyAccounts || []).map((acc, i) => (
+                      <div key={acc + i} className="flex items-center justify-between p-2.5 hover:bg-slate-50/80 rounded-lg group transition-colors">
+                        {editingAccountIndex === i ? (
+                          <div className="flex items-center gap-1.5 flex-1 pr-2">
+                            <input
+                              type="text"
+                              value={editingAccountValue}
+                              onChange={e => setEditingAccountValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveEditAccount(i)
+                                if (e.key === 'Escape') handleCancelEditAccount()
+                              }}
+                              className="h-8 w-full rounded-md border border-blue-400 bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-blue-500 font-body"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditAccount(i)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                              title="Save name"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelEditAccount}
+                              className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-md transition-colors"
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Building2 size={14} className="text-slate-400 shrink-0" />
+                              <span className="text-xs font-semibold text-slate-800 truncate font-body">{acc}</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditAccount(i, acc)}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="Rename account"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCompanyAccount(i)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                title="Delete account"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Settings: Limits & Physical Site Remarks */}
+            <div className={`${settingsPanelClassName} p-5 md:p-6 space-y-5`}>
+              <div>
+                <h4 className="text-base font-bold text-slate-900 font-heading">Advance & Expense Limits & Site Rules</h4>
+                <p className="text-xs text-slate-500 font-body mt-0.5">Optional policies to cap disbursement amounts and enable physical site selection in remarks.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className={`${settingsInsetPanelClassName} p-4 space-y-2`}>
+                  <label className="block text-xs font-medium text-slate-800 font-body">Maximum Advance Amount (₹)</label>
+                  <p className="text-[11px] text-slate-500 font-body">Cap per individual advance request. Leave empty for no limit.</p>
                   <input
                     type="number"
                     min="0"
                     value={orgSettings.maxAdvanceAmount}
                     onChange={e => setOrgSettings(s => ({ ...s, maxAdvanceAmount: e.target.value }))}
-                    className={`${settingsInputClassName} mt-2`}
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-xs focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800 font-body"
                     placeholder="e.g. 50000"
                   />
                 </div>
-              </div>
 
-              <div className={`${settingsInsetPanelClassName} mt-4 space-y-4 p-5`}>
-                <div>
-                  <label className={settingsSectionLabelClassName}>Expense Category Limits (₹)</label>
-                  <p className="mt-1 text-[11px] text-slate-500">Set maximum amount per expense category. Leave empty for no limit.</p>
-                  <div className="mt-3 space-y-2">
-                    {orgSettings.advanceCategories.map(cat => (
-                      <div key={cat} className="flex items-center gap-2">
-                        <span className="text-[11px] text-slate-700 w-32 truncate">{cat}</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={orgSettings.expenseCategoryLimits?.[cat] || ''}
-                          onChange={e => setOrgSettings(s => ({
-                            ...s,
-                            expenseCategoryLimits: { ...s.expenseCategoryLimits, [cat]: e.target.value }
-                          }))}
-                          className="flex-1 h-9 border border-slate-200 rounded-lg px-3 text-[12px] font-normal outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                          placeholder="No limit"
-                        />
-                      </div>
-                    ))}
-                  </div>
+                <div className={`${settingsInsetPanelClassName} p-4 flex items-center`}>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={orgSettings.enableSiteRemarksInExpenseAdvance !== false}
+                      onChange={e => setOrgSettings(s => ({ ...s, enableSiteRemarksInExpenseAdvance: e.target.checked }))}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      <strong className="block text-xs font-bold text-slate-900 font-body">
+                        Enable Site Name Selection in Remarks
+                      </strong>
+                      <small className="mt-1 block text-[11px] leading-relaxed text-slate-500 font-body">
+                        When active, selecting Petrol/Fuel categories lets users pick from configured company sites in remarks.
+                      </small>
+                    </span>
+                  </label>
                 </div>
-              </div>
-
-              <div className={`${settingsInsetPanelClassName} mt-4 p-5`}>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={orgSettings.enableSiteRemarksInExpenseAdvance !== false}
-                    onChange={e => setOrgSettings(s => ({ ...s, enableSiteRemarksInExpenseAdvance: e.target.checked }))}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span>
-                    <strong className="block text-[13px] font-semibold text-slate-900">
-                      Enable Site Name Selection in Remarks
-                    </strong>
-                    <small className="mt-1 block text-[11px] leading-relaxed text-slate-500">
-                      Default enabled. When active, selecting "Petrol" or "Sitepetrol" categories during Expense & Advance lets users select from configured organisation sites in the remarks/description field. Uncheck this if your organisation does not operate physical sites.
-                    </small>
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div className={`${settingsPanelClassName} overflow-hidden`}>
-              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-                <div>
-                  <p className="text-[10px] font-normal uppercase tracking-[0.18em] text-slate-400">Current list</p>
-                  <h4 className="mt-2 text-[18px] font-normal tracking-[-0.03em] text-slate-950">{orgSettings.advanceCategories.length} Categories</h4>
-                </div>
-                <div className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-normal uppercase tracking-[0.18em] text-indigo-600">
-                  Inline editable
-                </div>
-              </div>
-
-              <div className="divide-y divide-slate-200">
-                {orgSettings.advanceCategories.length === 0 ? (
-                  <div className="px-6 py-12 text-center text-[13px] font-medium text-slate-400">
-                    No categories added yet.
-                  </div>
-                ) : orgSettings.advanceCategories.map((cat, i) => (
-                  <div key={cat} className={`flex items-center justify-between gap-4 px-6 py-4 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}`}>
-                    <div>
-                      <p className="text-[13px] font-normal text-slate-900">{cat}</p>
-                      <p className="mt-1 text-[11px] text-slate-500">Used in advance and expense request forms.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setOrgSettings(s => ({ ...s, advanceCategories: s.advanceCategories.filter((_, idx) => idx !== i) }))}
-                      className="rounded-2xl p-2 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-slate-200 px-6 py-5">
-                <button onClick={() => handleSaveOrg('Advance categories updated successfully!')} className="w-full rounded-[20px] bg-indigo-600 py-3 text-[12px] font-normal uppercase tracking-[0.18em] text-white transition-all hover:bg-indigo-700">
-                  Save Categories
-                </button>
               </div>
             </div>
           </div>
