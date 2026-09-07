@@ -5,6 +5,7 @@ import {
   isExpenseCategory,
   isGivenToOthersCategory,
   getAccountingEntryType,
+  resolveReportEntryDetails,
   DEFAULT_ADVANCE_CATEGORIES,
   DEFAULT_EXPENSE_CATEGORIES
 } from '../src/lib/advanceExpenseCategories.js'
@@ -42,6 +43,11 @@ test('isExpenseCategory accurately identifies expense categories and excludes ad
   assert.equal(isExpenseCategory('Site Advance'), false)
   assert.equal(isExpenseCategory('Medical Advance'), false)
   assert.equal(isExpenseCategory('Festival Advance'), false)
+  assert.equal(isExpenseCategory('Fuel Advance'), false)
+  assert.equal(isExpenseCategory('Food Advance'), false)
+  assert.equal(isExpenseCategory('Hotel Advance'), false)
+  assert.equal(isExpenseCategory('Petrol Advance'), false)
+  assert.equal(isExpenseCategory('Hardware Advance'), false)
 })
 
 test('isGivenToOthersCategory recognizes base category and bracketed recipient names', () => {
@@ -51,31 +57,146 @@ test('isGivenToOthersCategory recognizes base category and bracketed recipient n
   assert.equal(isGivenToOthersCategory('Salary Advance'), false)
 })
 
-test('getAccountingEntryType accurately classifies older/historical records', () => {
-  // 1. Older record with category 'Petrol' saved erroneously with type 'Advance'
-  const legacyPetrolEntry = { id: 'legacy-1', category: 'Petrol', type: 'Advance', amount: 500 }
-  assert.equal(getAccountingEntryType(legacyPetrolEntry), 'Expense')
+test('getAccountingEntryType preserves stored entry.type and correctly classifies legacy records', () => {
+  // 1. Entry created on Expense tab with type 'Expense' stays Expense even if category exists in advance (e.g. Petrol)
+  const expensePetrol = { id: 'exp-1', category: 'Petrol', type: 'Expense', amount: 500 }
+  assert.equal(getAccountingEntryType(expensePetrol), 'Expense')
 
-  // 2. Older record with category 'Food & Refreshment' saved with type 'Advance'
-  const legacyFoodEntry = { id: 'legacy-2', category: 'Food & Refreshment', type: 'Advance', amount: 350 }
-  assert.equal(getAccountingEntryType(legacyFoodEntry), 'Expense')
+  // 2. Entry created with explicit advance category (e.g. Salary Advance) strictly resolves to Advance
+  const expenseSalaryAdv = { id: 'exp-2', category: 'Salary Advance', type: 'Expense', amount: 5000 }
+  assert.equal(getAccountingEntryType(expenseSalaryAdv), 'Advance')
 
-  // 3. Older record with category 'Given to Others' saved with type 'Advance'
+  // 3. Entry created on Advance tab with type 'Advance' stays Advance even if category exists in expenses (e.g. Petrol)
+  const advancePetrol = { id: 'adv-1', category: 'Petrol', type: 'Advance', amount: 1000 }
+  assert.equal(getAccountingEntryType(advancePetrol), 'Advance')
+
+  // 4. Entry created on Advance tab with type 'Advance' stays Advance
+  const advanceSalary = { id: 'adv-2', category: 'Salary Advance', type: 'Advance', amount: 8000 }
+  assert.equal(getAccountingEntryType(advanceSalary), 'Advance')
+
+  // 5. Older record with category 'Given to Others' saved with type 'Advance' is classified as Expense (legacy giver bug)
   const legacyGivenToOthersEntry = { id: 'legacy-3', category: 'Given to Others [Contractor]', type: 'Advance', amount: 2000 }
   assert.equal(getAccountingEntryType(legacyGivenToOthersEntry), 'Expense')
 
-  // 4. Older record with category 'Salary Advance' saved erroneously with type 'Expense'
-  const legacySalaryAdvEntry = { id: 'legacy-4', category: 'Salary Advance', type: 'Expense', amount: 5000 }
-  assert.equal(getAccountingEntryType(legacySalaryAdvEntry), 'Advance')
+  // 6. Legacy unclassified records (without type) infer type by category
+  assert.equal(getAccountingEntryType({ id: 'leg-1', category: 'Petrol', amount: 400 }), 'Expense')
+  assert.equal(getAccountingEntryType({ id: 'leg-2', category: 'Food & Refreshment', amount: 200 }), 'Expense')
+  assert.equal(getAccountingEntryType({ id: 'leg-3', category: 'Salary Advance', amount: 3000 }), 'Advance')
+  assert.equal(getAccountingEntryType({ id: 'leg-4', category: 'Travel Advance', amount: 1500 }), 'Advance')
 
-  // 5. Older record with category 'Site Advance' saved with type 'Expense'
-  const legacySiteAdvEntry = { id: 'legacy-5', category: 'Site Advance', type: 'Expense', amount: 8000 }
-  assert.equal(getAccountingEntryType(legacySiteAdvEntry), 'Advance')
-
-  // 6. Record with unknown custom category falls back to stored type
+  // 7. Custom categories fall back to stored type
   const customAdvEntry = { id: 'custom-1', category: 'Tooling Advance', type: 'Advance', amount: 1200 }
   assert.equal(getAccountingEntryType(customAdvEntry), 'Advance')
 
   const customExpEntry = { id: 'custom-2', category: 'Courier Charges', type: 'Expense', amount: 150 }
   assert.equal(getAccountingEntryType(customExpEntry), 'Expense')
 })
+
+test('resolveReportEntryDetails attributes transferred advance to recipient employee instead of giver', () => {
+  const employees = [
+    { id: 'emp-1', name: 'Employee A' },
+    { id: 'emp-2', name: 'Employee B' }
+  ]
+
+  // 1. Advance recorded as Others [Employee B] by Employee A (the giver)
+  const advanceTransfer = {
+    id: 'tx-1',
+    employeeId: 'emp-1',
+    employeeName: 'Employee A',
+    category: 'Others [Employee B]',
+    type: 'Advance',
+    amount: 3000
+  }
+  const details = resolveReportEntryDetails(advanceTransfer, employees)
+  assert.equal(details.isTransferAdvance, true)
+  assert.equal(details.displayEmployeeName, 'Employee B')
+  assert.equal(details.displayGivenBy, 'Employee A')
+  assert.equal(details.effectiveEmployeeId, 'emp-2')
+  assert.equal(details.displayCategory, 'Others')
+
+  // 2. Normal advance for Employee A (not transferred)
+  const normalAdvance = {
+    id: 'tx-2',
+    employeeId: 'emp-1',
+    employeeName: 'Employee A',
+    category: 'Salary Advance',
+    type: 'Advance',
+    amount: 5000
+  }
+  const normalDetails = resolveReportEntryDetails(normalAdvance, employees)
+  assert.equal(normalDetails.isTransferAdvance, false)
+  assert.equal(normalDetails.displayEmployeeName, 'Employee A')
+  assert.equal(normalDetails.displayGivenBy, null)
+  assert.equal(normalDetails.effectiveEmployeeId, 'emp-1')
+
+  // 3. Explicit advance with givenByEmployeeName
+  const explicitAdvance = {
+    id: 'tx-3',
+    employeeId: 'emp-2',
+    employeeName: 'Employee B',
+    category: 'Cash Advance (Paid)',
+    type: 'Advance',
+    givenByEmployeeName: 'Employee A',
+    amount: 2000
+  }
+  const explicitDetails = resolveReportEntryDetails(explicitAdvance, employees)
+  assert.equal(explicitDetails.displayEmployeeName, 'Employee B')
+  assert.equal(explicitDetails.displayGivenBy, 'Employee A')
+  assert.equal(explicitDetails.effectiveEmployeeId, 'emp-2')
+
+  // 4. Linked advance without givenByEmployeeName, resolved via allEntries
+  const linkedExpense = {
+    id: 'exp-100',
+    employeeId: 'emp-1',
+    employeeName: 'Employee A',
+    category: 'Given to Others',
+    type: 'Expense',
+    paidTo: 'emp-2',
+    paidToName: 'Employee B',
+    amount: 1000,
+    date: '2026-09-01'
+  }
+  const linkedAdvance = {
+    id: 'adv-100',
+    employeeId: 'emp-2',
+    employeeName: 'Employee B',
+    category: 'Cash Advance (Paid)',
+    type: 'Advance',
+    amount: 1000,
+    date: '2026-09-01',
+    linkedExpenseId: 'exp-100'
+  }
+  const linkedDetails = resolveReportEntryDetails(linkedAdvance, employees, [linkedExpense, linkedAdvance])
+  assert.equal(linkedDetails.displayEmployeeName, 'Employee B')
+  assert.equal(linkedDetails.displayGivenBy, 'Employee A')
+  assert.equal(linkedDetails.effectiveEmployeeId, 'emp-2')
+
+  // 5. Linked advance with outdated Cash paid from [Admin], resolved via allEntries
+  const mismatchAdvance = {
+    id: 'adv-102',
+    employeeId: 'emp-2',
+    employeeName: 'Keerthivaran',
+    category: 'Cash Advance (Paid)',
+    type: 'Advance',
+    amount: 1000,
+    date: '2026-09-01',
+    reason: 'Cash paid from Keerthivaran - Given to Others',
+    linkedExpenseId: 'exp-200'
+  }
+  const karthikExpense = {
+    id: 'exp-200',
+    employeeId: 'emp-karthik',
+    employeeName: 'Karthik',
+    category: 'Given to Others',
+    type: 'Expense',
+    paidTo: 'emp-2',
+    paidToName: 'Keerthivaran',
+    amount: 1000,
+    date: '2026-09-01'
+  }
+  const mismatchDetails = resolveReportEntryDetails(mismatchAdvance, [{ id: 'emp-2', name: 'Keerthivaran' }, { id: 'emp-karthik', name: 'Karthik' }], [karthikExpense, mismatchAdvance])
+  assert.equal(mismatchDetails.displayEmployeeName, 'Keerthivaran')
+  assert.equal(mismatchDetails.displayGivenBy, 'Karthik')
+  assert.equal(mismatchDetails.displayRemarks, 'Cash paid from Karthik - Given to Others')
+})
+

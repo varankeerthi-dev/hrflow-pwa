@@ -1,7 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { X, Check } from 'lucide-react'
 
-export default function RemarksDropdown({ value, onChange, onAddOption, options = [], disabled, className }) {
+function formatTimeDisplay(time24) {
+  if (!time24) return ''
+  const [h, m] = time24.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return time24
+  const p = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${h12}:${String(m).padStart(2, '0')} ${p}`
+}
+
+export default function RemarksDropdown({
+  value,
+  onChange,
+  onAddOption,
+  options = [],
+  rareOptions: propRareOptions,
+  disabled,
+  className,
+  placeholder = "Select or type...",
+  siteVisits = [],
+  onSiteClick
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const containerRef = useRef(null)
@@ -25,14 +45,45 @@ export default function RemarksDropdown({ value, onChange, onAddOption, options 
     }
   }, [disabled])
 
+  // Support both object { regular: [], rare: [] } and flat array with optional rareOptions
+  const { regularList, rareList } = useMemo(() => {
+    if (options && typeof options === 'object' && !Array.isArray(options)) {
+      return {
+        regularList: Array.isArray(options.regular) ? options.regular : [],
+        rareList: Array.isArray(options.rare) ? options.rare : []
+      }
+    }
+    const reg = Array.isArray(options) ? options : []
+    const rare = Array.isArray(propRareOptions) ? propRareOptions : []
+    return { regularList: reg, rareList: rare }
+  }, [options, propRareOptions])
+
   // Parse comma-separated value into array
   const selectedValues = value ? value.split(',').map(v => v.trim()).filter(Boolean) : []
 
-  const filteredOptions = options.filter(opt =>
-    opt.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // When no search term: only regular sites are shown.
+  // When search term has length >= 1: search across BOTH regular and rare sites.
+  const displayOptions = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    if (!query) {
+      return regularList.map(opt => ({ name: opt, isRare: false }))
+    }
+    const regMatches = regularList.filter(opt => opt.toLowerCase().includes(query))
+    const regSet = new Set(regMatches.map(s => s.toLowerCase()))
+    const rareMatches = rareList.filter(opt =>
+      opt.toLowerCase().includes(query) && !regSet.has(opt.toLowerCase())
+    )
+    return [
+      ...regMatches.map(opt => ({ name: opt, isRare: false })),
+      ...rareMatches.map(opt => ({ name: opt, isRare: true }))
+    ]
+  }, [regularList, rareList, searchTerm])
 
-  const exactMatch = options.some(opt => opt.toLowerCase() === searchTerm.toLowerCase())
+  const allKnownNames = useMemo(() => {
+    return [...regularList, ...rareList]
+  }, [regularList, rareList])
+
+  const exactMatch = allKnownNames.some(opt => opt.toLowerCase() === searchTerm.trim().toLowerCase())
   const showAddNew = searchTerm.trim() !== '' && !exactMatch && !disabled
 
   const handleSelect = (val) => {
@@ -87,19 +138,62 @@ export default function RemarksDropdown({ value, onChange, onAddOption, options 
           setTimeout(() => inputRef.current?.focus(), 10)
         }}
       >
-        {selectedValues.map((val, i) => (
-          <span key={i} className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded ${disabled ? 'bg-zinc-200 text-zinc-500' : 'bg-indigo-100 text-indigo-800'}`}>
-            {val}
-            {!disabled && (
-              <button
-                onClick={(e) => handleRemove(e, val)}
-                className="hover:bg-indigo-200 rounded-full p-0.5"
-              >
-                <X size={10} />
-              </button>
-            )}
-          </span>
-        ))}
+        {selectedValues.map((val, i) => {
+          const visit = (siteVisits || []).find(v => v.siteName?.trim().toLowerCase() === val.trim().toLowerCase())
+          const inStr = visit?.inTime ? formatTimeDisplay(visit.inTime) : ''
+          const outStr = visit?.outTime ? formatTimeDisplay(visit.outTime) : ''
+          const hasTiming = inStr && outStr
+          const isOvernight = visit?.isOvernight
+          const timingText = hasTiming
+            ? `${inStr} → ${outStr}${isOvernight ? ' (+1d)' : ''}`
+            : inStr
+              ? `From ${inStr}`
+              : outStr
+                ? `Until ${outStr}`
+                : ''
+
+          return (
+            <span
+              key={i}
+              className={`inline-flex flex-col rounded px-2 py-0.5 text-[11px] font-medium transition-all select-none ${
+                disabled
+                  ? 'bg-zinc-200 text-zinc-500'
+                  : onSiteClick
+                    ? 'bg-indigo-50 hover:bg-indigo-100/90 text-indigo-950 border border-indigo-200/80 cursor-pointer shadow-2xs'
+                    : 'bg-indigo-100 text-indigo-800'
+              }`}
+              onClick={(e) => {
+                if (disabled || !onSiteClick) return
+                e.stopPropagation()
+                onSiteClick(val)
+              }}
+              title={onSiteClick ? `Click to edit timing for ${val}` : undefined}
+            >
+              <div className="flex items-center justify-between gap-1.5 min-w-0">
+                <span className="font-semibold truncate">{val}</span>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemove(e, val)}
+                    className="hover:bg-indigo-200 text-indigo-400 hover:text-indigo-800 rounded p-0.5 shrink-0 transition-colors"
+                    title={`Remove ${val}`}
+                  >
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
+              {timingText ? (
+                <span className="text-[9px] font-mono text-indigo-600 font-semibold leading-tight whitespace-nowrap">
+                  {timingText}
+                </span>
+              ) : selectedValues.length >= 2 ? (
+                <span className="text-[9px] text-amber-600 italic font-normal leading-tight whitespace-nowrap">
+                  Set timing…
+                </span>
+              ) : null}
+            </span>
+          )
+        })}
         <input
           ref={inputRef}
           type="text"
@@ -111,33 +205,53 @@ export default function RemarksDropdown({ value, onChange, onAddOption, options 
           }}
           onFocus={() => !disabled && setIsOpen(true)}
           disabled={disabled}
-          placeholder={selectedValues.length === 0 ? "Select or type..." : ""}
-          className="border-none bg-transparent p-0 text-xs focus:ring-0 text-zinc-700 outline-none flex-1 min-w-[60px] disabled:cursor-not-allowed"
+          placeholder={selectedValues.length === 0 ? placeholder : ""}
+          className={`border-none bg-transparent p-0 text-xs focus:ring-0 text-zinc-700 outline-none ${
+            selectedValues.length > 0
+              ? searchTerm ? 'flex-1 min-w-[50px]' : 'w-2 min-w-0'
+              : 'flex-1 min-w-[60px]'
+          } disabled:cursor-not-allowed`}
         />
       </div>
 
       {isOpen && !disabled && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-md shadow-xl z-[50] max-h-56 overflow-auto">
-          {filteredOptions.length > 0 ? (
-            filteredOptions.map((opt, idx) => {
-              const isSelected = selectedValues.includes(opt)
+          {displayOptions.length > 0 ? (
+            displayOptions.map((item, idx) => {
+              const isSelected = selectedValues.includes(item.name)
               return (
                 <div
                   key={idx}
                   className={`px-3 py-2 text-xs text-zinc-700 hover:bg-indigo-50 cursor-pointer flex items-center justify-between gap-2 ${isSelected ? 'bg-indigo-50/50' : ''}`}
-                  onClick={() => handleSelect(opt)}
+                  onClick={() => handleSelect(item.name)}
                 >
-                  <span className="truncate">{opt}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="truncate">{item.name}</span>
+                    {item.isRare && (
+                      <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200/70 shrink-0">
+                        Completed
+                      </span>
+                    )}
+                  </div>
                   {isSelected && <Check size={12} className="text-indigo-600 shrink-0" />}
                 </div>
               )
             })
-          ) : options.length === 0 ? (
+          ) : allKnownNames.length === 0 ? (
             <div className="px-3 py-3 text-xs text-zinc-400 italic text-center">
-              No options saved yet.<br />
-              <span className="text-[10px]">Type to add a new remark</span>
+              No sites saved yet.<br />
+              <span className="text-[10px]">Type to add a new site</span>
             </div>
-          ) : null}
+          ) : !searchTerm.trim() ? (
+            <div className="px-3 py-3 text-xs text-zinc-400 italic text-center">
+              No regular sites.<br />
+              <span className="text-[10px]">Type to search completed sites</span>
+            </div>
+          ) : (
+            <div className="px-3 py-3 text-xs text-zinc-400 italic text-center">
+              No matching sites found.
+            </div>
+          )}
 
           {showAddNew && (
             <div
@@ -145,7 +259,7 @@ export default function RemarksDropdown({ value, onChange, onAddOption, options 
               onClick={() => handleAddNew(searchTerm)}
             >
               <span className="font-bold">+</span>
-              <span>Use "<span className="font-semibold">{searchTerm.trim()}</span>" as custom remark</span>
+              <span>Use "<span className="font-semibold">{searchTerm.trim()}</span>" as new site</span>
             </div>
           )}
         </div>

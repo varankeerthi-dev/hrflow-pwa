@@ -344,6 +344,18 @@ export default function Dashboard() {
       const ok = window.confirm('You have unsaved Advance / Expense entries. Leaving now will keep the saved draft, but it has not been submitted. Continue?')
       if (!ok) return false
     }
+    if (tabId === 'expense') {
+      setActiveTab('advance')
+      setAdvanceSubTab('Add Expense')
+      setTabSearchParams({ tab: 'advance', sub: 'Add Expense' })
+      return true
+    }
+    if (tabId === 'advance') {
+      setActiveTab('advance')
+      setAdvanceSubTab('Add Advance')
+      setTabSearchParams({ tab: 'advance', sub: 'Add Advance' })
+      return true
+    }
     if (tabId !== activeTab) {
       setActiveTab(tabId)
       setTabSearchParams({ tab: tabId })
@@ -353,7 +365,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     const tabParam = tabSearchParams.get('tab')
-    if (tabParam && visibleTabs.find(t => t.id === tabParam)) {
+    const subParam = tabSearchParams.get('sub')
+    if (tabParam === 'expense') {
+      setActiveTab('advance')
+      setAdvanceSubTab('Add Expense')
+    } else if (tabParam === 'advance') {
+      setActiveTab('advance')
+      if (subParam && ['Add Advance', 'Add Expense', 'Cash Summary', 'Reports'].includes(subParam)) {
+        setAdvanceSubTab(subParam)
+      }
+    } else if (tabParam && visibleTabs.find(t => t.id === tabParam)) {
       setActiveTab(tabParam)
     } else if (tabParam && !visibleTabs.find(t => t.id === tabParam)) {
       // User tried to access a tab they don't have permission for
@@ -623,11 +644,12 @@ export default function Dashboard() {
             const isAdmin = user?.role?.toLowerCase() === 'admin'
             const quickActions = [
               { label: 'Add Attendance', tab: 'attendance-list', tooltip: 'New entry?', icon: <Calendar size={14} />, module: 'Attendance', right: 'create' },
-              { label: 'Expense', tab: 'advance', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
+              { label: 'Expense', tab: 'expense', tooltip: 'New request?', icon: <Wallet size={14} />, module: 'AdvanceExpense', right: 'create' },
               { label: 'Full Summary', tab: 'attendance-list', attendanceSubTab: 'grid', tooltip: 'View monthly breakdown?', icon: <BarChart3 size={14} />, module: 'Attendance', right: 'view' },
               { label: 'Daily Checklist', tab: 'tasks', tasksSubTab: 'checklist', tooltip: 'Track daily checklist?', icon: <CheckCircle2 size={14} />, module: 'Tasks', right: 'view' },
             ].filter(action => {
               if (isAdmin) return true
+              if (action.tab === 'expense' && visibleTabIds.includes('advance')) return true
               if (visibleTabIds.includes(action.tab)) return true
               if (action.module === 'Employees') return userPerms['Employees']?.create === true || userPerms['Settings']?.create === true
               const modulePerms = userPerms[action.module] || {}
@@ -637,7 +659,9 @@ export default function Dashboard() {
             return (
               <div className="hidden lg:flex items-center gap-2.5 ml-8 pl-8 border-l border-gray-200/80">
                 {quickActions.map(item => {
-                  const isActive = activeTab === item.tab &&
+                  const isActive = (item.tab === 'expense'
+                    ? (activeTab === 'advance' && advanceSubTab === 'Add Expense')
+                    : activeTab === item.tab) &&
                     (item.tab !== 'attendance-list' || !item.attendanceSubTab || attendanceSubTab === item.attendanceSubTab) &&
                     (item.tab !== 'salary-slip' || !item.salaryActiveTab || salaryActiveTab === item.salaryActiveTab) &&
                     (item.tab !== 'tasks' || !item.tasksSubTab || tasksSubTab === item.tasksSubTab)

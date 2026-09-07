@@ -19,6 +19,8 @@ export default function Dropdown({
   mobileMenu = false,
   autoFocusSearch = true,
   onKeyDown,
+  zIndex = 99999,
+  columns = 1,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -45,7 +47,16 @@ export default function Dropdown({
       return
     }
     setTriggerVisible(true)
-    setPosition({ top: rect.bottom + 4, left: rect.left })
+    const popupWidth = panelWidth.includes('w-80') ? 320 : panelWidth.includes('w-96') ? 384 : (columns === 2 ? 320 : 288)
+    let leftPos = rect.left
+    if (leftPos + popupWidth > window.innerWidth - 10) {
+      leftPos = Math.max(10, window.innerWidth - popupWidth - 10)
+    }
+    let topPos = rect.bottom + 4
+    if (topPos + 260 > window.innerHeight - 10 && rect.top > 260) {
+      topPos = Math.max(10, rect.top - 264)
+    }
+    setPosition({ top: topPos, left: leftPos })
     setSearchTerm('')
     setIsOpen(true)
   }
@@ -136,10 +147,10 @@ export default function Dropdown({
 
       {isOpen && triggerVisible && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={handleClose} />
+          <div className="fixed inset-0" style={{ zIndex: zIndex - 1 }} onClick={handleClose} />
           <div
-            className={`fixed z-50 bg-white rounded-xl border border-zinc-200 shadow-2xl ${panelWidth} ${mobileMenu ? 'animate-in fade-in zoom-in-95 duration-100' : ''}`}
-            style={{ top: position.top, left: position.left }}
+            className={`fixed bg-white rounded-xl border border-zinc-200 shadow-2xl ${panelWidth} ${mobileMenu ? 'animate-in fade-in zoom-in-95 duration-100' : ''}`}
+            style={{ top: position.top, left: position.left, zIndex }}
           >
             {searchable && (
               <div className="p-2 border-b border-zinc-100">
@@ -158,12 +169,12 @@ export default function Dropdown({
               </div>
             )}
 
-            <div className="max-h-60 overflow-y-auto py-1 slim-scrollbar">
+            <div className={`max-h-64 overflow-y-auto py-1 slim-scrollbar ${columns === 2 ? 'grid grid-cols-2 gap-1 p-1.5' : ''}`}>
               {allowCustom && (
                 <button
                   type="button"
                   onClick={handleAddOther}
-                  className="w-full px-2 py-1.5 text-left text-xs font-medium text-zinc-600 hover:bg-zinc-100 flex items-center gap-1.5 border-b border-zinc-100"
+                  className={`px-2 py-1.5 text-left text-xs font-medium text-indigo-600 hover:bg-indigo-50/70 flex items-center gap-1.5 border-b border-zinc-100 ${columns === 2 ? 'col-span-2 w-full mb-1 rounded-lg' : 'w-full'}`}
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add Other...
@@ -171,7 +182,7 @@ export default function Dropdown({
               )}
 
               {filtered.length === 0 ? (
-                <div className="px-3 py-3 text-xs text-zinc-400 text-center">
+                <div className={`px-3 py-3 text-xs text-zinc-400 text-center ${columns === 2 ? 'col-span-2' : ''}`}>
                   {emptyText}
                 </div>
               ) : (
@@ -182,12 +193,14 @@ export default function Dropdown({
                       key={o.value}
                       type="button"
                       onClick={() => handleSelect(o.value)}
-                      className={`w-full px-2 py-1.5 text-left text-xs hover:bg-zinc-100 flex items-center justify-between ${
-                        selected ? 'bg-zinc-100 text-zinc-800' : 'text-zinc-700'
+                      className={`w-full px-2 py-1.5 text-left text-xs hover:bg-zinc-100 flex items-center justify-between transition-colors ${
+                        columns === 2 ? 'rounded-lg border border-slate-100' : ''
+                      } ${
+                        selected ? 'bg-emerald-50 text-emerald-800 font-semibold border-emerald-200' : 'text-zinc-700'
                       }`}
                     >
                       <span className="font-medium truncate">{o.label}</span>
-                      {selected && <Check className="w-3.5 h-3.5 text-zinc-600 shrink-0" />}
+                      {selected && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
                     </button>
                   )
                 })

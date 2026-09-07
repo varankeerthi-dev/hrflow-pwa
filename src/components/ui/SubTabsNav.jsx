@@ -61,6 +61,13 @@ export const SubTabsNav = ({
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
         }}
+        onWheel={(e) => {
+          if (e.currentTarget.scrollWidth > e.currentTarget.clientWidth) {
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+              e.currentTarget.scrollLeft += e.deltaY * 0.8;
+            }
+          }
+        }}
       >
         {tabs.map((tab) => {
           const isActive = currentTabId === tab.id;
@@ -96,7 +103,7 @@ export const SubTabsNav = ({
             >
               {tab.icon && (
                 <span style={{ 
-                  color: isActive ? '#16A34A' : '#0A0A0A99',
+                  color: isActive ? '#2563eb' : '#0A0A0A99',
                   display: 'flex',
                   alignItems: 'center',
                   transition: 'color 0.15s ease'
@@ -107,7 +114,7 @@ export const SubTabsNav = ({
               <div
                 style={{
                   boxSizing: 'border-box',
-                  color: isActive ? '#16A34A' : '#0A0A0A99',
+                  color: isActive ? '#2563eb' : '#0A0A0A99',
                   display: 'flex',
                   flexShrink: '0',
                   fontFamily: '"Inter", system-ui, sans-serif',
@@ -124,7 +131,7 @@ export const SubTabsNav = ({
               {isActive && (
                 <div
                   style={{
-                    backgroundColor: '#16A34A',
+                    backgroundColor: '#2563eb',
                     bottom: '-5px',
                     boxSizing: 'border-box',
                     height: '2px',

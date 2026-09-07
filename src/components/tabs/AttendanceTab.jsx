@@ -17,10 +17,12 @@ import { useAllowanceCategories, useAllowanceClaims, fetchAllowanceApprovalMode 
 import SummaryTab from './SummaryTab'
 import SalarySlipTab from './SalarySlipTab'
 import { SubTabsNav } from '../ui/SubTabsNav'
-import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, CalendarX, LayoutGrid, List } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Copy, X, Plus, ArrowRight, RefreshCw, Trash2, Calendar, FileText, Search, Download, AlertCircle, AlertTriangle, CalendarX, LayoutGrid, List, MapPin, Clock } from 'lucide-react'
 import { logActivity } from '../../hooks/useActivityLog'
 import { leaveCoverageCol } from '../../lib/firestore'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 // PDF Styles
 const pdfStyles = StyleSheet.create({
@@ -548,7 +550,7 @@ const TimeEditableCell = ({ value, onChange, onShowPicker, disabled, backgroundC
   );
 };
 
-function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect, handleClearRow, updateRow, showInTimePicker, setShowInTimePicker, showOutTimePicker, setShowOutTimePicker, validationErrors, allowanceCategories, allowanceSelections, toggleAllowance, remarksOptions, handleAddRemarkOption, handleStatusChange, isSunday, isConfiguredHoliday }) {
+function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect, handleClearRow, updateRow, showInTimePicker, setShowInTimePicker, showOutTimePicker, setShowOutTimePicker, validationErrors, allowanceCategories, allowanceSelections, toggleAllowance, remarksOptions, siteConfig, onOpenSiteTimings, handleAddRemarkOption, handleStatusChange, isSunday, isConfiguredHoliday }) {
   const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
   const selectedAllowances = allowanceSelections[row.employeeId] || []
   const statusOptions = [{ id: 'Present', label: 'Present' }, { id: 'Absent', label: 'Absent' }, ...(isSunday ? [{ id: 'SunWorked', label: 'Worked' }, { id: 'SunHoliday', label: 'Holiday' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked' }, { id: 'Holiday', label: 'Holiday' }] : [])]
@@ -559,7 +561,7 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
       <div className="flex items-center gap-2 px-1 py-2">
         <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-9 min-w-0 flex-1 rounded-md bg-gray-50 px-2 text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="">Select employee…</option>
-          {employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+          {employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
         <button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-8 w-8 shrink-0 text-gray-400 disabled:opacity-30" aria-label="Clear attendance row"><X size={15} /></button>
       </div>
@@ -579,7 +581,18 @@ function CompactAttendanceRow({ row, idx, employees, rows, handleEmployeeSelect,
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.45fr)] items-start gap-1.5 pt-1.5">
         <div className="relative min-w-0"><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={disabled} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="compact-mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div>
         <div className="relative min-w-0"><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={disabled} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="compact-mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div>
-        <RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={remarksOptions} disabled={row.isAbsent} className="w-full" />
+        <div className="min-w-0">
+          <RemarksDropdown
+            value={row.remarks || ''}
+            onChange={val => updateRow(row.employeeId, 'remarks', val)}
+            onAddOption={handleAddRemarkOption}
+            options={siteConfig || remarksOptions}
+            disabled={row.isAbsent}
+            siteVisits={row.siteVisits || []}
+            onSiteClick={(siteName) => onOpenSiteTimings?.(row, siteName)}
+            className="w-full"
+          />
+        </div>
       </div>
       {eligible.length > 0 && <div className="flex items-center gap-1.5 overflow-x-auto pt-1.5 pb-0.5">{eligible.map(cat => <label key={cat.id} className="inline-flex min-h-6 shrink-0 items-center gap-1 bg-emerald-50 px-1.5 text-[10px] text-emerald-800"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-3 w-3 rounded border-gray-300 text-indigo-600" /><span>{cat.name}</span><span className="font-semibold">₹{getAllowanceAmount(cat)}</span></label>)}</div>}
     </div>
@@ -648,6 +661,139 @@ function CopyToDropdown({ activeEmployees, copyConfig, setCopyConfig, selectedEm
   );
 }
 
+export const calcVisitDurationHours = (inTime, outTime, isOvernight = false) => {
+  if (!inTime || !outTime) return 0
+  const [inH, inM] = inTime.split(':').map(Number)
+  const [outH, outM] = outTime.split(':').map(Number)
+  if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return 0
+  let inMin = inH * 60 + inM
+  let outMin = outH * 60 + outM
+  if (isOvernight || outMin < inMin) {
+    outMin += 24 * 60
+  }
+  const diffMin = outMin - inMin
+  return parseFloat((diffMin / 60).toFixed(2))
+}
+
+function ModalTimeInput({ value, onChange, placeholder = "09:00 AM", backgroundColor = "#ffffff", field = "inTime" }) {
+  const [showPicker, setShowPicker] = useState(false)
+  const [tempValue, setTempValue] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+
+  useEffect(() => {
+    if (!isEditing) {
+      setTempValue(value ? formatTimeDisplay(value) : '')
+    }
+  }, [value, isEditing])
+
+  const handleKeyDown = (e) => {
+    const key = e.key.toLowerCase()
+    if (key === 'a' || key === 'p') {
+      e.preventDefault()
+      const period = key === 'a' ? 'AM' : 'PM'
+      const time24 = convertShorthand(tempValue, period)
+      if (time24) {
+        onChange(time24)
+        setIsEditing(false)
+      }
+    } else if (key === 'enter') {
+      e.preventDefault()
+      commitInput()
+    }
+  }
+
+  const handleChange = (e) => {
+    const raw = e.target.value
+    setTempValue(raw)
+    setIsEditing(true)
+    const lower = raw.trim().toLowerCase()
+    if (lower.endsWith('a') || lower.endsWith('p')) {
+      const period = lower.endsWith('a') ? 'AM' : 'PM'
+      const digitsOnly = lower.replace(/[^\d]/g, '')
+      if (digitsOnly) {
+        const time24 = convertShorthand(digitsOnly, period)
+        if (time24) {
+          onChange(time24)
+          setIsEditing(false)
+        }
+      }
+    }
+  }
+
+  const commitInput = () => {
+    setIsEditing(false)
+    if (!tempValue.trim()) {
+      onChange('')
+      return
+    }
+    const clean = tempValue.trim().toLowerCase()
+    const period = clean.includes('p') ? 'PM' : 'AM'
+    const digitsOnly = clean.replace(/[^\d]/g, '')
+    if (digitsOnly) {
+      const time24 = convertShorthand(digitsOnly, period)
+      if (time24) {
+        onChange(time24)
+        return
+      }
+    }
+    setTempValue(value ? formatTimeDisplay(value) : '')
+  }
+
+  return (
+    <div className="relative flex flex-col w-full">
+      <div
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="relative flex items-center rounded-md border border-gray-200 min-h-[34px] transition-all"
+        style={{
+          backgroundColor: isHovered && !isEditing ? '#f3f4f6' : backgroundColor
+        }}
+      >
+        <div className="flex-1 flex items-center justify-center min-w-0 py-0.5 cursor-text">
+          <input
+            type="text"
+            value={tempValue}
+            onChange={handleChange}
+            onFocus={(e) => {
+              setIsEditing(true)
+              e.target.select()
+            }}
+            onBlur={() => setTimeout(commitInput, 150)}
+            onKeyDown={handleKeyDown}
+            className="w-full bg-transparent border-none outline-none px-2 text-[13px] font-medium text-center font-['Roboto',sans-serif] text-gray-800 placeholder-gray-400/40 h-7 cursor-text"
+            placeholder={placeholder}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowPicker(!showPicker)
+          }}
+          className="pr-2 text-gray-400 hover:text-indigo-600 cursor-pointer text-xs shrink-0"
+          title="Open attendance time picker"
+        >
+          🕐
+        </button>
+      </div>
+
+      {showPicker && (
+        <div className="relative z-[1100]">
+          <TimePicker
+            variant="attendance"
+            value={value || (field === 'inTime' ? '09:00' : '18:00')}
+            onChange={(time) => {
+              onChange(time)
+            }}
+            onClose={() => setShowPicker(false)}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigAllowance, onDirtyChange }) {
   const { user } = useAuth()
   const { employees, loading: empLoading } = useEmployees(user?.orgId, false)
@@ -670,23 +816,107 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
   const [compactMode, setCompactMode] = useState(false)
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()))
   const [remarksOptions, setRemarksOptions] = useState([])
+  const [siteConfig, setSiteConfig] = useState({ regular: [], rare: [] })
+  const [enableSiteVisits, setEnableSiteVisits] = useState(true)
+  const [remarksLabel, setRemarksLabel] = useState('Site / Remarks')
+  const [siteTimingsModalRow, setSiteTimingsModalRow] = useState(null)
+  const [siteVisitsDraft, setSiteVisitsDraft] = useState([])
+  const [activeModalSite, setActiveModalSite] = useState(null)
+  const [siteReportSearch, setSiteReportSearch] = useState('')
+  const [selectedSiteReportSite, setSelectedSiteReportSite] = useState(null)
+
+  const handleOpenSiteTimings = (row, initialSite = null) => {
+    const sites = (row.remarks || '').split(',').map(s => s.trim()).filter(Boolean)
+    const existingVisits = Array.isArray(row.siteVisits) ? row.siteVisits : []
+    const draft = sites.map((siteName, i) => {
+      const existing = existingVisits.find(v => v.siteName?.trim().toLowerCase() === siteName.trim().toLowerCase())
+      if (existing) {
+        return {
+          ...existing,
+          siteName,
+          isOvernight: !!existing.isOvernight,
+          hours: existing.hours || calcVisitDurationHours(existing.inTime, existing.outTime, existing.isOvernight)
+        }
+      }
+      return {
+        siteName,
+        inTime: i === 0 ? (row.inTime || '09:00') : '',
+        outTime: i === sites.length - 1 ? (row.outTime || '18:00') : '',
+        isOvernight: false,
+        hours: 0
+      }
+    })
+    setSiteTimingsModalRow(row)
+    setSiteVisitsDraft(draft)
+    setActiveModalSite(initialSite || sites[0] || null)
+  }
+
+  const handleDraftTimeChange = (index, field, value) => {
+    setSiteVisitsDraft(prev => prev.map((item, i) => {
+      if (i !== index) return item
+      const updated = { ...item, [field]: value }
+      let isOvernight = updated.isOvernight
+      if (updated.inTime && updated.outTime) {
+        const [inH, inM] = updated.inTime.split(':').map(Number)
+        const [outH, outM] = updated.outTime.split(':').map(Number)
+        if (!isNaN(inH) && !isNaN(inM) && !isNaN(outH) && !isNaN(outM)) {
+          const inMin = inH * 60 + inM
+          const outMin = outH * 60 + outM
+          if (outMin < inMin) {
+            isOvernight = true
+          }
+        }
+      }
+      updated.isOvernight = isOvernight
+      updated.hours = calcVisitDurationHours(updated.inTime, updated.outTime, isOvernight)
+      return updated
+    }))
+  }
+
+  const handleToggleOvernight = (index, isOvernight) => {
+    setSiteVisitsDraft(prev => prev.map((item, i) => {
+      if (i !== index) return item
+      const updated = { ...item, isOvernight }
+      updated.hours = calcVisitDurationHours(updated.inTime, updated.outTime, isOvernight)
+      return updated
+    }))
+  }
+
+  const handleSaveSiteTimings = () => {
+    if (!siteTimingsModalRow) return
+    const finalVisits = siteVisitsDraft.map(v => ({
+      ...v,
+      isOvernight: !!v.isOvernight,
+      hours: calcVisitDurationHours(v.inTime, v.outTime, v.isOvernight)
+    }))
+    updateRow(siteTimingsModalRow.employeeId, 'siteVisits', finalVisits)
+    setSiteTimingsModalRow(null)
+  }
 
   const handleAddRemarkOption = async (newOption) => {
     if (!user?.orgId) return
     const trimmed = newOption.trim()
-    if (!trimmed || remarksOptions.includes(trimmed)) return
+    if (!trimmed) return
+    if ((siteConfig.regular || []).includes(trimmed) || (siteConfig.rare || []).includes(trimmed)) return
     
+    const updatedRegular = [...(siteConfig.regular || []), trimmed]
+    const updatedSiteConfig = { regular: updatedRegular, rare: siteConfig.rare || [] }
+    const updatedRemarks = [...new Set([...updatedRegular, ...(siteConfig.rare || [])])]
+
     // Optimistic update
-    setRemarksOptions(prev => [...prev, trimmed])
+    setRemarksOptions(updatedRemarks)
+    setSiteConfig(updatedSiteConfig)
     
     try {
       await updateDoc(doc(db, 'organisations', user.orgId), {
-        remarksOptions: arrayUnion(trimmed)
+        remarksOptions: arrayUnion(trimmed),
+        siteConfig: updatedSiteConfig
       })
     } catch (err) {
       console.error('Error adding remark option:', err)
       // Rollback optimistic update
       setRemarksOptions(prev => prev.filter(o => o !== trimmed))
+      setSiteConfig(prev => ({ ...prev, regular: prev.regular.filter(o => o !== trimmed) }))
     }
   }
 
@@ -695,7 +925,21 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
       if (!user?.orgId) return
       const snap = await getDoc(doc(db, 'organisations', user.orgId))
       if (snap.exists()) {
-        setRemarksOptions(snap.data().remarksOptions || [])
+        const data = snap.data()
+        const rawRemarks = Array.isArray(data.remarksOptions) ? data.remarksOptions.filter(Boolean) : []
+        const rawSiteConfig = data.siteConfig || {}
+        const regular = Array.isArray(rawSiteConfig.regular) ? rawSiteConfig.regular.filter(Boolean) : []
+        const rare = Array.isArray(rawSiteConfig.rare) ? rawSiteConfig.rare.filter(Boolean) : []
+
+        // Fallback: if siteConfig has no regular or rare, hydrate regular from remarksOptions
+        const finalRegular = regular.length > 0 || rare.length > 0 ? regular : rawRemarks
+        const finalRare = rare
+        const finalRemarks = [...new Set([...finalRegular, ...finalRare])]
+
+        setRemarksOptions(finalRemarks)
+        setSiteConfig({ regular: finalRegular, rare: finalRare })
+        setEnableSiteVisits(data.enableSiteVisits !== false)
+        setRemarksLabel(data.remarksLabel || 'Site / Remarks')
       }
     }
     fetchOrgSettings()
@@ -800,6 +1044,191 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     })
   }, [reportData])
 
+  const siteReportData = useMemo(() => {
+    if (!reportData || reportData.length === 0) {
+      return { sites: [], detailedLogs: [], totals: { totalSites: 0, totalVisits: 0, totalHours: 0, topSite: '—' } }
+    }
+
+    const siteMap = new Map()
+    const detailedLogs = []
+
+    reportData.forEach(row => {
+      if (row.isAbsent) return
+
+      const remarksSites = (row.remarks || '').split(',').map(s => s.trim()).filter(Boolean)
+      const explicitVisits = Array.isArray(row.siteVisits) ? row.siteVisits.filter(v => v.siteName) : []
+
+      if (explicitVisits.length > 0) {
+        explicitVisits.forEach(visit => {
+          const siteName = visit.siteName.trim()
+          if (!siteName) return
+          const hours = typeof visit.hours === 'number' && visit.hours > 0
+            ? visit.hours
+            : calcVisitDurationHours(visit.inTime, visit.outTime, visit.isOvernight)
+
+          detailedLogs.push({
+            id: `${row.id || row.date}_${row.employeeId}_${siteName}`,
+            date: row.date || row.inDate,
+            employeeId: row.employeeId,
+            employeeName: row.name || 'Unknown',
+            siteName,
+            inTime: visit.inTime || '',
+            outTime: visit.outTime || '',
+            hours,
+            status: row.status || 'Present'
+          })
+
+          if (!siteMap.has(siteName)) {
+            siteMap.set(siteName, {
+              siteName,
+              totalVisits: 0,
+              totalHours: 0,
+              employees: new Set(),
+              lastVisited: row.date || row.inDate
+            })
+          }
+          const entry = siteMap.get(siteName)
+          entry.totalVisits += 1
+          entry.totalHours += hours
+          if (row.employeeId) entry.employees.add(row.employeeId)
+          if ((row.date || row.inDate) > entry.lastVisited) {
+            entry.lastVisited = row.date || row.inDate
+          }
+        })
+      } else if (remarksSites.length > 0) {
+        // Fallback for older records or single-site rows with no explicit siteVisits
+        const rowTotalHours = calcVisitDurationHours(row.inTime, row.outTime)
+        const hoursPerSite = remarksSites.length > 0 ? parseFloat((rowTotalHours / remarksSites.length).toFixed(2)) : 0
+
+        remarksSites.forEach(siteName => {
+          detailedLogs.push({
+            id: `${row.id || row.date}_${row.employeeId}_${siteName}`,
+            date: row.date || row.inDate,
+            employeeId: row.employeeId,
+            employeeName: row.name || 'Unknown',
+            siteName,
+            inTime: row.inTime || '',
+            outTime: row.outTime || '',
+            hours: hoursPerSite,
+            status: row.status || 'Present'
+          })
+
+          if (!siteMap.has(siteName)) {
+            siteMap.set(siteName, {
+              siteName,
+              totalVisits: 0,
+              totalHours: 0,
+              employees: new Set(),
+              lastVisited: row.date || row.inDate
+            })
+          }
+          const entry = siteMap.get(siteName)
+          entry.totalVisits += 1
+          entry.totalHours += hoursPerSite
+          if (row.employeeId) entry.employees.add(row.employeeId)
+          if ((row.date || row.inDate) > entry.lastVisited) {
+            entry.lastVisited = row.date || row.inDate
+          }
+        })
+      }
+    })
+
+    const sites = Array.from(siteMap.values()).map(s => ({
+      ...s,
+      uniqueEmployeesCount: s.employees.size,
+      avgHours: s.totalVisits > 0 ? parseFloat((s.totalHours / s.totalVisits).toFixed(2)) : 0,
+      isRare: (siteConfig?.rare || []).includes(s.siteName)
+    })).sort((a, b) => b.totalVisits - a.totalVisits)
+
+    const totalSites = sites.length
+    const totalVisits = sites.reduce((sum, s) => sum + s.totalVisits, 0)
+    const totalHours = sites.reduce((sum, s) => sum + s.totalHours, 0)
+    const topSite = sites[0]?.siteName || '—'
+
+    detailedLogs.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
+    return {
+      sites,
+      detailedLogs,
+      totals: {
+        totalSites,
+        totalVisits,
+        totalHours: parseFloat(totalHours.toFixed(1)),
+        topSite
+      }
+    }
+  }, [reportData, siteConfig])
+
+  const handleExportSitePDF = () => {
+    try {
+      const doc = new jsPDF()
+      doc.setFontSize(16)
+      doc.text(user?.orgName || 'Organization', 14, 15)
+      doc.setFontSize(12)
+      doc.text(`${remarksLabel || 'Site & Field Visit'} Report`, 14, 23)
+      doc.setFontSize(9)
+      doc.setTextColor(100)
+      doc.text(`Period: ${filterStartDate} to ${filterEndDate} | Generated: ${new Date().toLocaleDateString()}`, 14, 29)
+
+      const summaryTableRows = siteReportData.sites.map(s => [
+        s.siteName,
+        s.isRare ? 'Completed / Rare' : 'Regular',
+        String(s.totalVisits),
+        String(s.uniqueEmployeesCount),
+        `${s.totalHours.toFixed(1)} hrs`,
+        `${s.avgHours.toFixed(1)} hrs`
+      ])
+
+      autoTable(doc, {
+        startY: 34,
+        head: [['Site Name', 'Status', 'Visits', 'Employees', 'Total Hours', 'Avg Hours/Visit']],
+        body: summaryTableRows,
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229] },
+        styles: { fontSize: 8 }
+      })
+
+      const filteredLogs = selectedSiteReportSite
+        ? siteReportData.detailedLogs.filter(l => l.siteName === selectedSiteReportSite)
+        : siteReportData.detailedLogs
+
+      const logsRows = filteredLogs.slice(0, 150).map(l => [
+        l.date,
+        l.employeeName,
+        l.siteName,
+        l.inTime || '—',
+        l.outTime || '—',
+        `${l.hours.toFixed(1)} hrs`
+      ])
+
+      if (logsRows.length > 0) {
+        const nextY = (doc.lastAutoTable?.finalY || 34) + 10
+        doc.setFontSize(11)
+        doc.setTextColor(30)
+        doc.text(selectedSiteReportSite ? `Logs for: ${selectedSiteReportSite}` : 'Detailed Visit Logs', 14, nextY)
+        autoTable(doc, {
+          startY: nextY + 4,
+          head: [['Date', 'Employee', 'Site', 'In Time', 'Out Time', 'Hours']],
+          body: logsRows,
+          theme: 'striped',
+          headStyles: { fillColor: [55, 65, 81] },
+          styles: { fontSize: 7 }
+        })
+      }
+
+      doc.save(`Site_Visit_Report_${filterStartDate}_to_${filterEndDate}.pdf`)
+    } catch (err) {
+      console.error('Error exporting site PDF:', err)
+      alert('Failed to generate PDF: ' + err.message)
+    }
+  }
+
+  useEffect(() => {
+    if (activeSubTab === 'reports' && reportData.length === 0 && !reportLoading) {
+      handleFilterSubmit()
+    }
+  }, [activeSubTab])
+
   const [rows, setRows] = useState([])
   const [hasGenerated, setHasGenerated] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -882,7 +1311,6 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
     if (removalTimerRef.current) clearTimeout(removalTimerRef.current)
   }, [])
   const [rowOrder, setRowOrder] = useState([])
-  const [remarksLabel, setRemarksLabel] = useState('Remarks')
 
   const [copyConfig, setCopyConfig] = useState({ inTime: false, outTime: true })
   const [selectedEmps, setSelectedEmps] = useState([])
@@ -1446,6 +1874,38 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
         }
       }
 
+      if (field === 'remarks') {
+        const sites = (value || '').split(',').map(s => s.trim()).filter(Boolean)
+        const prevVisits = Array.isArray(r.siteVisits) ? r.siteVisits : []
+        if (sites.length >= 2) {
+          const newVisits = sites.map((siteName, i) => {
+            const existing = prevVisits.find(v => v.siteName === siteName)
+            if (existing) return existing
+            return {
+              siteName,
+              inTime: i === 0 ? (r.inTime || '09:00') : '',
+              outTime: i === sites.length - 1 ? (r.outTime || '18:00') : '',
+              hours: 0
+            }
+          })
+          updated.siteVisits = newVisits
+          const prevSites = (r.remarks || '').split(',').map(s => s.trim()).filter(Boolean)
+          if (prevSites.length < 2 && sites.length >= 2) {
+            setSiteTimingsModalRow({ ...updated, employeeId: empId })
+            setSiteVisitsDraft(newVisits)
+          }
+        } else if (sites.length === 1) {
+          updated.siteVisits = [{
+            siteName: sites[0],
+            inTime: r.inTime || '',
+            outTime: r.outTime || '',
+            hours: 0
+          }]
+        } else {
+          updated.siteVisits = []
+        }
+      }
+
       if (['inTime', 'outTime', 'inDate', 'outDate'].includes(field)) {
         updated.otHours = calcOT(updated.inTime, updated.outTime, updated.inDate, updated.outDate, r.minDailyHours || 8)
         if (field === 'outTime' && value) {
@@ -1730,9 +2190,9 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white rounded-xl border border-gray-100 p-4">
           <SummaryTab defaultSubTab="monthlyView" hideMainTabs={true} />
         </div>
-      ) : (
+      ) : activeSubTab === 'attendance' ? (
         <>
-          {activeSubTab !== 'reports' && <div className="md:hidden flex flex-col gap-3">
+          <div className="md:hidden flex flex-col gap-3">
             <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
               <div className="flex items-center gap-2">
                 <button onClick={() => setSelectedDate(d => { const nd = new Date(d); nd.setDate(nd.getDate() - 1); return formatDateForInput(nd); })} className="h-11 w-11 shrink-0 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 flex items-center justify-center" aria-label="Previous day"><ChevronLeft size={18} /></button>
@@ -1746,18 +2206,18 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
             <div className="grid grid-cols-3 gap-2"><div className="rounded-lg bg-green-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-green-700">Present</div><div className="text-lg font-bold text-green-800">{rows.filter(r => !r.isAbsent && !r.sundayHoliday && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-red-50 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-red-700">Absent</div><div className="text-lg font-bold text-red-800">{rows.filter(r => r.isAbsent && !r.isPlaceholder).length}</div></div><div className="rounded-lg bg-gray-100 px-2 py-2 text-center"><div className="text-[10px] uppercase tracking-wide text-gray-600">Total</div><div className="text-lg font-bold text-gray-800">{rows.filter(r => !r.isPlaceholder).length}</div></div></div>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-gray-100/80 p-1"><span className="pl-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Roster view</span><div className="flex items-center gap-1"><button type="button" onClick={() => setCompactMode(false)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${!compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={!compactMode}><LayoutGrid size={13} /> Cards</button><button type="button" onClick={() => setCompactMode(true)} className={`flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[10px] font-semibold ${compactMode ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500'}`} aria-pressed={compactMode}><List size={13} /> Compact</button></div></div>
             <div className={compactMode ? 'divide-y divide-gray-100' : 'flex flex-col gap-3'}>{empLoading ? <div className="bg-white rounded-xl border border-gray-200 py-16 flex justify-center"><Spinner /></div> : rows.length === 0 ? <div className="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-gray-400">Generate active employees to begin.</div> : rows.map((row, idx) => {
-              if (compactMode) return <CompactAttendanceRow key={row.id || row.employeeId || `compact-mobile-${idx}`} row={row} idx={idx} employees={employees} rows={rows} handleEmployeeSelect={handleEmployeeSelect} handleClearRow={handleClearRow} updateRow={updateRow} showInTimePicker={showInTimePicker} setShowInTimePicker={setShowInTimePicker} showOutTimePicker={showOutTimePicker} setShowOutTimePicker={setShowOutTimePicker} validationErrors={validationErrors} allowanceCategories={allowanceCategories} allowanceSelections={allowanceSelections} toggleAllowance={toggleAllowance} remarksOptions={remarksOptions} handleAddRemarkOption={handleAddRemarkOption} handleStatusChange={handleStatusChange} isSunday={isSunday} isConfiguredHoliday={isConfiguredHoliday} />
+              if (compactMode) return <CompactAttendanceRow key={row.id || row.employeeId || `compact-mobile-${idx}`} row={row} idx={idx} employees={employees} rows={rows} handleEmployeeSelect={handleEmployeeSelect} handleClearRow={handleClearRow} updateRow={updateRow} showInTimePicker={showInTimePicker} setShowInTimePicker={setShowInTimePicker} showOutTimePicker={showOutTimePicker} setShowOutTimePicker={setShowOutTimePicker} validationErrors={validationErrors} allowanceCategories={allowanceCategories} allowanceSelections={allowanceSelections} toggleAllowance={toggleAllowance} remarksOptions={remarksOptions} siteConfig={siteConfig} onOpenSiteTimings={handleOpenSiteTimings} handleAddRemarkOption={handleAddRemarkOption} handleStatusChange={handleStatusChange} isSunday={isSunday} isConfiguredHoliday={isConfiguredHoliday} />
               const mobileStatusOptions = [{ id: 'Present', label: 'Present', color: 'green' }, { id: 'Absent', label: 'Absent', color: 'red' }, ...(isSunday ? [{ id: 'SunWorked', label: 'Worked', color: 'amber' }, { id: 'SunHoliday', label: 'Holiday', color: 'indigo' }] : []), ...(isConfiguredHoliday ? [{ id: 'Worked', label: 'Worked', color: 'amber' }, { id: 'Holiday', label: 'Holiday', color: 'indigo' }] : [])]
               const eligible = row.employeeId && !row.isAbsent ? getEligibleAllowanceCategories(allowanceCategories, { employeeId: row.employeeId, outTime: row.outTime }) : []
               const selectedAllowances = allowanceSelections[row.employeeId] || []
               return <div key={row.id || row.employeeId || `mobile-${idx}`} className={`bg-white rounded-xl border border-gray-200 p-3 shadow-sm ${row.isAbsent ? 'border-red-200 bg-red-50/30' : ''}`}>
-                <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div></div><ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday'} employeeName={row.name} /></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div>
-                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Remarks</div><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={remarksOptions} disabled={!row.employeeId || row.isAbsent} className="w-full" /></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
+                <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 items-center gap-2">{row.employeeId ? <><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-gray-900">{row.name}</div></div><ShiftToggle value={row.shiftType} onChange={(shiftType) => updateRow(row.employeeId, 'shiftType', shiftType)} disabled={row.isAbsent || row.status === 'SunHoliday'} employeeName={row.name} /></> : <select value="" onChange={(e) => handleEmployeeSelect(idx, e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"><option value="">Select employee…</option>{employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select>}</div><button onClick={() => handleClearRow(row.employeeId)} disabled={!row.employeeId} className="h-10 w-10 shrink-0 rounded-lg text-gray-400 flex items-center justify-center active:bg-red-50 active:text-red-500 disabled:opacity-30" aria-label="Clear attendance row"><X size={16} /></button></div>
+                {row.employeeId && <><div className="grid grid-cols-2 gap-2 pt-3"><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">In time</div><TimeEditableCell value={row.inTime} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onShowPicker={() => setShowInTimePicker(showInTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#e8f4f8" rowIdx={idx} field="inTime" scope="mobile" error={validationErrors[row.employeeId]} />{showInTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.inTime || '09:00'} onChange={(time) => updateRow(row.employeeId, 'inTime', time)} onClose={() => setShowInTimePicker(null)} />}</div><div><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Out time</div><TimeEditableCell value={row.outTime} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onShowPicker={() => setShowOutTimePicker(showOutTimePicker === row.employeeId ? null : row.employeeId)} disabled={row.isAbsent || row.status === 'SunHoliday'} backgroundColor="#fff4e8" rowIdx={idx} field="outTime" scope="mobile" placeholder="09:00 PM" error={validationErrors[row.employeeId]} />{showOutTimePicker === row.employeeId && <TimePicker variant="attendance" value={row.outTime || '21:00'} onChange={(time) => updateRow(row.employeeId, 'outTime', time)} onClose={() => setShowOutTimePicker(null)} />}</div></div><div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">{remarksLabel || 'Remarks'}</div><RemarksDropdown value={row.remarks || ''} onChange={val => updateRow(row.employeeId, 'remarks', val)} onAddOption={handleAddRemarkOption} options={siteConfig || remarksOptions} disabled={!row.employeeId || row.isAbsent} siteVisits={row.siteVisits || []} onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)} className="w-full" /></div>{eligible.length > 0 && <div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Allowances</div><div className="grid grid-cols-1 gap-1.5">{eligible.map(cat => <label key={cat.id} className="min-h-10 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs text-gray-700"><input type="checkbox" checked={selectedAllowances.includes(cat.id)} onChange={() => toggleAllowance(row.employeeId, cat.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600" /><span className="min-w-0 flex-1 truncate">{cat.name}</span><span className="font-semibold text-emerald-700">₹{getAllowanceAmount(cat)}</span></label>)}</div></div>}<div className="pt-3"><div className="pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Attendance status</div><div className="flex flex-wrap gap-2">{mobileStatusOptions.map(st => <button key={st.id} onClick={() => handleStatusChange(row.employeeId, st.id)} className={`min-h-10 rounded-lg px-3 text-xs font-semibold border ${row.status === st.id ? st.color === 'green' ? 'bg-green-100 text-green-700 border-green-200' : st.color === 'red' ? 'bg-red-100 text-red-700 border-red-200' : st.color === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{row.status === st.id ? '✓ ' : ''}{st.label}</button>)}</div></div></>}
               </div>
             })}</div>
             {pendingRemoval && <div className="fixed inset-x-3 bottom-[78px] z-[90] flex items-center justify-between gap-3 rounded-lg bg-gray-900 px-3 py-2.5 text-white shadow-xl md:hidden" role="status" aria-live="polite"><span className="min-w-0 truncate text-xs">Removed {pendingRemoval.row.name || 'attendance row'}</span><button type="button" onClick={handleUndoClearRow} className="shrink-0 rounded-md bg-white/15 px-3 py-1.5 text-xs font-semibold text-white active:bg-white/25">Undo</button></div>}
             <div className="sticky bottom-2 z-30 rounded-xl border border-gray-200 bg-white/95 backdrop-blur-sm p-3 shadow-lg"><div className="flex items-center justify-between gap-3"><div className="min-w-0 text-[11px] text-gray-500 truncate">{hasGenerated ? 'Records ready to submit' : 'Generate active employees first'}</div>{rows.length > 0 && <button onClick={handleSubmit} disabled={saving || rows.length === 0} className="min-h-11 shrink-0 rounded-lg bg-emerald-600 px-4 text-xs font-semibold text-white disabled:opacity-50">{saving ? 'Processing…' : 'Submit records'}</button>}</div>{saved && <div className="flex items-center gap-1.5 pt-2 text-xs font-medium text-green-600"><Check size={14} /> Successfully submitted</div>}</div>
-          </div>}
+          </div>
           <div className="hidden md:flex flex-1 min-h-0 flex-col gap-3">
           {/* Date & Action Bar */}
           <div className="sticky top-0 z-50 flex items-center gap-4 bg-white/95 backdrop-blur-sm">
@@ -1849,7 +2309,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                     <th className="w-[95px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>In Time</th>
                     <th className="w-[95px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>Out Time</th>
                     <th className="w-[50px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>OT</th>
-                    <th className="w-[120px] border-b border-gray-200 bg-orange-50 px-0 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>{remarksLabel}</th>
+                    <th className="w-[180px] min-w-[160px] border-b border-gray-200 bg-orange-50 px-2 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>{remarksLabel}</th>
                     <th className="w-[110px] border-b border-gray-200 bg-orange-50 px-1 text-center text-xs font-semibold uppercase tracking-wider shadow-[0_2px_0_rgba(229,231,235,1)]" style={{ color: '#da7025' }}>
                       <button
                         type="button"
@@ -1874,7 +2334,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                   ) : (
                     rows.map((row, idx) => (
                       <tr key={row.id || row.employeeId || `new-${idx}`} className={`transition-colors hover:bg-gray-50 ${row.isAbsent ? 'bg-red-50/30' : ''} ${isLeaveProtected(row) ? 'bg-indigo-50/40' : ''} ${(row.shiftType === 'Night' || row.shiftType === 'DN') && row.outTime ? 'h-[56px]' : 'h-[40px]'}`}>
-                        <td className="px-4 min-w-[220px]">
+                        <td className="px-4 min-w-[220px] align-middle">
                           {row.employeeId ? (
                             <div className="flex items-center gap-2">
                               <span className="min-w-0 flex-1 truncate font-medium text-gray-800 text-sm" style={{ fontFamily: "'Inter', sans-serif" }}>{row.name}</span>
@@ -1890,13 +2350,13 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                               style={{ fontFamily: "'Inter', sans-serif" }}
                             >
                               <option value="">Select Employee...</option>
-                              {employees.filter(e => !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).map(e => (
+                              {employees.filter(e => isEmployeeActiveStatus(e.status) && !e.hideInAttendance && !rows.some(r => r.employeeId === e.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(e => (
                                 <option key={e.id} value={e.id}>{e.name}</option>
                               ))}
                             </select>
                           )}
                         </td>
-                        <td className="px-3 text-center">
+                        <td className="px-3 text-center align-middle">
                           <div className="flex items-center justify-center relative">
                             <TimeEditableCell
                               value={row.inTime}
@@ -1918,7 +2378,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             )}
                           </div>
                         </td>
-                        <td className="px-3 text-center align-top">
+                        <td className="px-3 text-center align-middle">
                           <div className="flex items-center justify-center relative flex-col">
                             <TimeEditableCell
                               value={row.outTime}
@@ -1958,7 +2418,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             )}
                           </div>
                         </td>
-                        <td className="px-3 text-center font-medium text-gray-900 text-sm" style={{ fontFamily: "'Roboto', sans-serif" }}>
+                        <td className="px-3 text-center align-middle font-medium text-gray-900 text-sm" style={{ fontFamily: "'Roboto', sans-serif" }}>
                           {(() => {
                             if (!row.otHours || row.otHours === '00:00') return ''
                             const [h, m] = row.otHours.split(':').map(Number)
@@ -1966,16 +2426,20 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             return totalMins >= 30 ? row.otHours : ''
                           })()}
                         </td>
-                        <td className="px-3">
-                          <RemarksDropdown
-                            value={row.remarks || ''}
-                            onChange={val => updateRow(row.employeeId, 'remarks', val)}
-                            onAddOption={handleAddRemarkOption}
-                            options={remarksOptions}
-                            disabled={!row.employeeId || row.isAbsent || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
-                          />
+                        <td className="px-3 align-middle">
+                          <div className="min-w-0">
+                            <RemarksDropdown
+                              value={row.remarks || ''}
+                              onChange={val => updateRow(row.employeeId, 'remarks', val)}
+                              onAddOption={handleAddRemarkOption}
+                              options={siteConfig || remarksOptions}
+                              disabled={!row.employeeId || row.isAbsent || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)}
+                              siteVisits={row.siteVisits || []}
+                              onSiteClick={(siteName) => handleOpenSiteTimings(row, siteName)}
+                            />
+                          </div>
                         </td>
-                        <td className="px-2 align-top">
+                        <td className="px-2 align-middle">
                           {(() => {
                             if (!row.employeeId || row.isAbsent || (isLeaveProtected(row) && !row.leaveOverride?.confirmed)) return null
                             const eligible = getEligibleAllowanceCategories(allowanceCategories, {
@@ -2012,7 +2476,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             )
                           })()}
                         </td>
-                        <td className="px-4">
+                        <td className="px-4 align-middle">
                           <div className="flex items-center gap-2 justify-end">
                             {!row.isPlaceholder && [
                               { id: 'Present', label: 'Present', color: 'green' },
@@ -2049,7 +2513,7 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                             )}
                           </div>
                         </td>
-                        <td className="px-2 text-center">
+                        <td className="px-2 text-center align-middle">
                           <button
                             onClick={() => handleClearRow(row.employeeId)}
                             disabled={!row.employeeId}
@@ -2108,11 +2572,11 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
           </div>
           </div>
         </>
-      )}
+      ) : null}
 
       {activeSubTab === 'reports' && (
-        <div className="flex flex-1 gap-4 overflow-hidden">
-          <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+        <div className="flex flex-1 gap-4 min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1">
             {/* Header */}
             <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -2514,6 +2978,203 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
                 </table>
               </div>
             </div>
+
+            {/* Site & Field Visit Report */}
+            {enableSiteVisits && (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <MapPin size={18} className="text-indigo-600" />
+                      <h3 className="text-sm font-semibold text-gray-900 font-heading">
+                        {remarksLabel || 'Site & Field Visit'} Report
+                      </h3>
+                    </div>
+                    <p className="text-xs text-gray-500 font-body">
+                      Site-level hours distribution, multi-site employee logs, and visit frequencies
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedSiteReportSite && (
+                      <button
+                        onClick={() => setSelectedSiteReportSite(null)}
+                        className="h-8 px-3 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-medium hover:bg-indigo-100 flex items-center gap-1.5"
+                      >
+                        <span>Filtering: <strong>{selectedSiteReportSite}</strong></span>
+                        <X size={13} />
+                      </button>
+                    )}
+                    <button
+                      onClick={handleExportSitePDF}
+                      disabled={!siteReportData.sites.length}
+                      className="h-8 px-3 bg-indigo-600 text-white rounded-lg text-xs font-semibold shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                    >
+                      <Download size={13} />
+                      <span>Export Site PDF</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Site KPI Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50/50 border-b border-gray-100">
+                  <div className="bg-white rounded-lg p-3 border border-slate-200/80 shadow-xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Sites</p>
+                    <p className="text-xl font-bold text-slate-800 font-heading mt-1">{siteReportData.totals.totalSites}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Visited in period</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-slate-200/80 shadow-xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Visits</p>
+                    <p className="text-xl font-bold text-indigo-600 font-heading mt-1">{siteReportData.totals.totalVisits}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Total site turnouts</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-slate-200/80 shadow-xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hours at Sites</p>
+                    <p className="text-xl font-bold text-emerald-600 font-heading mt-1">{siteReportData.totals.totalHours}h</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Logged work time</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-slate-200/80 shadow-xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Top Visited Site</p>
+                    <p className="text-sm font-bold text-slate-800 truncate font-heading mt-1" title={siteReportData.totals.topSite}>{siteReportData.totals.topSite}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Most active project</p>
+                  </div>
+                </div>
+
+                {/* Site Summary Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr className="h-9">
+                        <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Site Name</th>
+                        <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Visits Count</th>
+                        <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Employees</th>
+                        <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Total Hours</th>
+                        <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Avg Hours / Visit</th>
+                        <th className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-xs">
+                      {siteReportData.sites.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center py-8 text-gray-400 font-medium">
+                            No site visits recorded in this date range.
+                          </td>
+                        </tr>
+                      ) : (
+                        siteReportData.sites.map(site => {
+                          const isSelected = selectedSiteReportSite === site.siteName
+                          return (
+                            <tr
+                              key={site.siteName}
+                              className={`hover:bg-slate-50 transition-colors cursor-pointer ${isSelected ? 'bg-indigo-50/50' : ''}`}
+                              onClick={() => setSelectedSiteReportSite(isSelected ? null : site.siteName)}
+                            >
+                              <td className="px-4 py-3 font-semibold text-slate-800">
+                                <div className="flex items-center gap-2">
+                                  <MapPin size={13} className="text-slate-400 shrink-0" />
+                                  <span>{site.siteName}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {site.isRare ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                    Rare / Completed
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Regular
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center font-bold text-indigo-600">{site.totalVisits}</td>
+                              <td className="px-4 py-3 text-center text-slate-700">{site.uniqueEmployeesCount}</td>
+                              <td className="px-4 py-3 text-center font-bold text-emerald-700">{site.totalHours.toFixed(1)} hrs</td>
+                              <td className="px-4 py-3 text-center text-slate-600">{site.avgHours.toFixed(1)} hrs</td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedSiteReportSite(isSelected ? null : site.siteName)
+                                  }}
+                                  className="px-2 py-1 rounded text-[11px] font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                >
+                                  {isSelected ? 'Show All' : 'Filter Logs →'}
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Filtered Detailed Logs Table */}
+                {siteReportData.detailedLogs.length > 0 && (
+                  <div className="border-t border-gray-100">
+                    <div className="px-5 py-3 bg-slate-50 flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        {selectedSiteReportSite ? `Detailed Visit Logs: ${selectedSiteReportSite}` : 'All Site Visit Logs'}
+                        <span className="ml-2 font-normal text-slate-500">
+                          ({selectedSiteReportSite
+                            ? siteReportData.detailedLogs.filter(l => l.siteName === selectedSiteReportSite).length
+                            : siteReportData.detailedLogs.length} records)
+                        </span>
+                      </h4>
+                      <div className="w-56">
+                        <input
+                          type="text"
+                          placeholder="Search site or employee..."
+                          value={siteReportSearch}
+                          onChange={(e) => setSiteReportSearch(e.target.value)}
+                          className="h-7 w-full rounded border border-slate-200 bg-white px-2 text-[11px] outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-100/70 border-b border-gray-200 sticky top-0">
+                          <tr className="h-8 text-[11px]">
+                            <th className="px-4 font-semibold text-gray-600">Date</th>
+                            <th className="px-4 font-semibold text-gray-600">Employee</th>
+                            <th className="px-4 font-semibold text-gray-600">Site</th>
+                            <th className="px-4 font-semibold text-gray-600 text-center">In Time</th>
+                            <th className="px-4 font-semibold text-gray-600 text-center">Out Time</th>
+                            <th className="px-4 font-semibold text-gray-600 text-center">Hours</th>
+                            <th className="px-4 font-semibold text-gray-600 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-xs">
+                          {siteReportData.detailedLogs
+                            .filter(l => !selectedSiteReportSite || l.siteName === selectedSiteReportSite)
+                            .filter(l => {
+                              if (!siteReportSearch.trim()) return true
+                              const q = siteReportSearch.toLowerCase()
+                              return l.siteName.toLowerCase().includes(q) || l.employeeName.toLowerCase().includes(q)
+                            })
+                            .map((log, lIdx) => (
+                              <tr key={log.id || `log-${lIdx}`} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-2 font-mono text-[11px] text-slate-700">{displayShortDate(log.date)}</td>
+                                <td className="px-4 py-2 font-medium text-slate-900">{log.employeeName}</td>
+                                <td className="px-4 py-2 font-semibold text-indigo-700">{log.siteName}</td>
+                                <td className="px-4 py-2 text-center font-mono text-[11px] text-slate-600">{log.inTime || '—'}</td>
+                                <td className="px-4 py-2 text-center font-mono text-[11px] text-slate-600">{log.outTime || '—'}</td>
+                                <td className="px-4 py-2 text-center font-bold text-emerald-700">{log.hours ? `${log.hours.toFixed(1)}h` : '—'}</td>
+                                <td className="px-4 py-2 text-center">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">
+                                    {log.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -2632,6 +3293,187 @@ export default function AttendanceTab({ defaultSubTab, onSubTabChange, onConfigA
           </>}
         </div>
       </Modal>
+
+      {/* Multi-Site Timings Modal */}
+      {siteTimingsModalRow && (
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6" onClick={() => setSiteTimingsModalRow(null)}>
+          <div
+            className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <MapPin size={18} />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base text-slate-900">
+                    {remarksLabel || 'Site'} Visit Timings
+                  </h3>
+                  <p className="font-body text-xs text-slate-500">
+                    {siteTimingsModalRow.name} · {formatDate(selectedDate)} (Shift: {formatTimeDisplay(siteTimingsModalRow.inTime) || '—'} to {formatTimeDisplay(siteTimingsModalRow.outTime) || '—'})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSiteTimingsModalRow(null)}
+                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            {(() => {
+              const shiftHours = calcVisitDurationHours(siteTimingsModalRow.inTime, siteTimingsModalRow.outTime, false)
+              const totalSiteHours = siteVisitsDraft.reduce((acc, v) => acc + calcVisitDurationHours(v.inTime, v.outTime, v.isOvernight), 0)
+              const isExceeding = shiftHours > 0 && totalSiteHours > shiftHours
+              const diffHours = (totalSiteHours - shiftHours).toFixed(2)
+              const diffMinutes = Math.round((totalSiteHours - shiftHours) * 60)
+
+              return (
+                <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto pb-56">
+                  <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-800 font-body">
+                    Enter In-Time and Out-Time for each visited site. You can type shortcuts like <span className="font-semibold font-mono">900a</span>, <span className="font-semibold font-mono">9a</span>, <span className="font-semibold font-mono">1130p</span>, or toggle <span className="font-semibold font-mono">AM / PM</span>.
+                  </div>
+
+                  {isExceeding && (
+                    <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-xl text-xs text-amber-800 font-body flex items-start gap-2.5">
+                      <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold font-heading text-amber-900">
+                          Total site hours ({totalSiteHours.toFixed(2)}h) exceed shift duration ({shiftHours.toFixed(2)}h) by {diffMinutes >= 60 ? `${diffHours} hrs` : `${diffMinutes} mins`}
+                        </div>
+                        <div className="text-[11px] text-amber-700 mt-0.5">
+                          Allowed for travel/overtime; both total attendance and site-specific hours will be preserved in reports.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {siteVisitsDraft.map((visit, vIdx) => {
+                      const duration = calcVisitDurationHours(visit.inTime, visit.outTime, visit.isOvernight)
+                      const isHighlighted = activeModalSite && visit.siteName?.trim().toLowerCase() === activeModalSite.trim().toLowerCase()
+                      const outExceedsShiftEnd = visit.outTime && siteTimingsModalRow.outTime && !visit.isOvernight && visit.outTime > siteTimingsModalRow.outTime
+
+                      return (
+                        <div
+                          key={`${visit.siteName}-${vIdx}`}
+                          className={`p-3.5 bg-slate-50/80 rounded-xl border transition-all space-y-2.5 ${
+                            isHighlighted
+                              ? 'border-blue-300 ring-2 ring-blue-500/20 bg-white'
+                              : 'border-slate-200/80'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 font-heading font-bold text-xs text-slate-800">
+                              <MapPin size={14} className="text-blue-600" />
+                              <span className="truncate">{visit.siteName}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {visit.isOvernight && (
+                                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded font-mono">
+                                  🌙 (+1d)
+                                </span>
+                              )}
+                              <span className="text-[11px] font-semibold font-mono text-blue-700 bg-blue-100/60 px-2 py-0.5 rounded">
+                                {duration > 0 ? `${duration} hrs` : '0 hrs'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 pt-1">
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 mb-1 font-body">
+                                In Time
+                              </label>
+                              <ModalTimeInput
+                                value={visit.inTime || ''}
+                                onChange={(val) => handleDraftTimeChange(vIdx, 'inTime', val)}
+                                placeholder="09:00 AM"
+                                backgroundColor="#e8f4f8"
+                                field="inTime"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 mb-1 font-body">
+                                Out Time
+                              </label>
+                              <ModalTimeInput
+                                value={visit.outTime || ''}
+                                onChange={(val) => handleDraftTimeChange(vIdx, 'outTime', val)}
+                                placeholder="06:00 PM"
+                                backgroundColor="#fff4e8"
+                                field="outTime"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                            <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={!!visit.isOvernight}
+                                onChange={(e) => handleToggleOvernight(vIdx, e.target.checked)}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-[11px] font-medium text-slate-600">
+                                Overnight visit (ends next day)
+                              </span>
+                            </label>
+
+                            {outExceedsShiftEnd && (
+                              <span className="text-[10px] text-amber-700 font-medium bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded">
+                                Exceeds shift out ({formatTimeDisplay(siteTimingsModalRow.outTime)})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Summary Stats */}
+                  <div className="p-3 bg-slate-100 rounded-xl flex items-center justify-between text-xs text-slate-700 font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>Total Site Hours:</span>
+                      <span className="font-bold text-slate-900 font-mono">
+                        {totalSiteHours.toFixed(2)} hrs
+                      </span>
+                    </div>
+                    {shiftHours > 0 && (
+                      <div className="text-[11px] text-slate-500 font-mono">
+                        Shift: {shiftHours.toFixed(2)} hrs
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setSiteTimingsModalRow(null)}
+                className="h-9 px-4 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 text-sm font-medium font-body transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSiteTimings}
+                className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all"
+              >
+                Save Timings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

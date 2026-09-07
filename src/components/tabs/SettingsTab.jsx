@@ -7,7 +7,7 @@ import { collection, getDocs, addDoc, updateDoc, doc, getDoc, setDoc, serverTime
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { z } from 'zod'
-import { Wallet, Calendar, Plus, Trash2, Edit, Edit2, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2, Users } from 'lucide-react'
+import { Wallet, Calendar, Plus, Trash2, Edit, Edit2, Save, X, Paperclip, Eye, FileText, Copy, Share2, Link, GripVertical, Filter, ChevronLeft, ChevronRight, ChevronDown, Check, Search, AtSign, AlertCircle, MapPin, Crosshair, Building2, Users, ArrowRight, ArrowLeft } from 'lucide-react'
 import {
   Avatar as MuiAvatar,
   Box,
@@ -511,6 +511,7 @@ export default function SettingsTab({ initialSubTab }) {
     { id: 'shift', label: 'Shifts', module: 'Shifts' },
     { id: 'salary', label: 'Salary Slab', module: 'SalarySlip' },
     { id: 'advance_cat', label: 'Categories', module: 'AdvanceExpense' },
+    { id: 'site_remarks', label: 'Sites & Remarks', module: 'Settings' },
     { id: 'holidays', label: 'Holidays', module: 'Settings' },
     { id: 'site_geofence', label: 'Site Geofence', module: 'Settings' },
     { id: 'approval_settings', label: 'Approval Settings', module: 'Settings' },
@@ -565,6 +566,9 @@ export default function SettingsTab({ initialSubTab }) {
     expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
     companyAccounts: DEFAULT_COMPANY_ACCOUNTS,
     enableSiteRemarksInExpenseAdvance: true,
+    enableSiteVisits: true,
+    remarksLabel: 'Site',
+    siteConfig: { regular: [], rare: [] },
     holidays: [],
     saturdayType: 'working', // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
     sundayType: 'working', // 'working' | 'holiday1x' | 'holiday2x' | 'alternative'
@@ -575,6 +579,10 @@ export default function SettingsTab({ initialSubTab }) {
     attendancePolicy: normalizeAttendancePolicy(DEFAULT_ATTENDANCE_POLICY),
     leavePolicies: normalizeLeavePolicies()
   })
+  const [newRegularSiteInput, setNewRegularSiteInput] = useState('')
+  const [newRareSiteInput, setNewRareSiteInput] = useState('')
+  const [editingSiteItem, setEditingSiteItem] = useState(null)
+  const [draggedSite, setDraggedSite] = useState(null)
   const [newBankAccount, setNewBankAccount] = useState({
     bankName: '',
     accountNo: '',
@@ -1182,6 +1190,21 @@ export default function SettingsTab({ initialSubTab }) {
         if (orgSnap.exists()) {
           const data = orgSnap.data()
           holidayBaselineRef.current = normalizeHolidayCalendar(data)
+          const rawRemarks = Array.isArray(data.remarksOptions) ? data.remarksOptions.filter(Boolean) : []
+          const regularSites = Array.isArray(data.siteConfig?.regular) ? data.siteConfig.regular.filter(Boolean) : []
+          const rareSites = Array.isArray(data.siteConfig?.rare) ? data.siteConfig.rare.filter(Boolean) : []
+          let finalRegular = regularSites
+          let finalRare = rareSites
+          if (regularSites.length === 0 && rareSites.length === 0 && rawRemarks.length > 0) {
+            finalRegular = [...rawRemarks]
+            finalRare = []
+          } else if (rawRemarks.length > 0) {
+            const known = new Set([...regularSites, ...rareSites].map(s => s.toLowerCase()))
+            const unassigned = rawRemarks.filter(r => !known.has(r.toLowerCase()))
+            if (unassigned.length > 0) {
+              finalRegular = [...finalRegular, ...unassigned]
+            }
+          }
           setOrgSettings(prev => ({
             ...prev,
             ...data,
@@ -1193,6 +1216,10 @@ export default function SettingsTab({ initialSubTab }) {
               : prev.expenseCategories,
             companyAccounts: Array.isArray(data.companyAccounts) && data.companyAccounts.length > 0 ? data.companyAccounts : prev.companyAccounts,
             enableSiteRemarksInExpenseAdvance: data.enableSiteRemarksInExpenseAdvance !== false,
+            enableSiteVisits: data.enableSiteVisits !== false,
+            remarksLabel: data.remarksLabel || 'Site',
+            remarksOptions: [...new Set([...finalRegular, ...finalRare])],
+            siteConfig: { regular: finalRegular, rare: finalRare },
             holidays: data.holidays || prev.holidays,
             bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : [],
             attendancePolicy: normalizeAttendancePolicy(data.attendancePolicy)
@@ -2342,7 +2369,31 @@ export default function SettingsTab({ initialSubTab }) {
     setSaving(true)
     setOrgError('')
     try {
-      await setDoc(doc(db, 'organisations', user.orgId), orgSettings, { merge: true })
+      const allSites = [...new Set([...(orgSettings.siteConfig?.regular || []), ...(orgSettings.siteConfig?.rare || [])])]
+      const payload = {
+        ...orgSettings,
+        remarksOptions: allSites
+      }
+      await setDoc(doc(db, 'organisations', user.orgId), payload, { merge: true })
+
+      try {
+        await addDoc(collection(db, 'organisations', user.orgId, 'audit_logs'), {
+          module: 'Settings',
+          action: 'Update Settings',
+          details: typeof msg === 'string' && msg ? msg : 'Organisation settings saved',
+          userName: user?.name || user?.email || 'Admin',
+          userId: user?.uid || '',
+          timestamp: serverTimestamp()
+        })
+        await logActivity(user.orgId, user, {
+          module: 'Settings',
+          action: 'Update Settings',
+          detail: typeof msg === 'string' && msg ? msg : 'Organisation settings saved'
+        })
+      } catch (logErr) {
+        console.warn('Audit log write failed:', logErr)
+      }
+
       setSaved(true)
       const successMsg = typeof msg === 'string' && msg ? msg : 'Organisation settings saved successfully!'
       alert(successMsg)
@@ -2351,11 +2402,30 @@ export default function SettingsTab({ initialSubTab }) {
       const orgSnap = await getDoc(doc(db, 'organisations', user.orgId))
       if (orgSnap.exists()) {
         const data = orgSnap.data()
+        const rawRemarks = Array.isArray(data.remarksOptions) ? data.remarksOptions.filter(Boolean) : []
+        const regularSites = Array.isArray(data.siteConfig?.regular) ? data.siteConfig.regular.filter(Boolean) : []
+        const rareSites = Array.isArray(data.siteConfig?.rare) ? data.siteConfig.rare.filter(Boolean) : []
+        let finalRegular = regularSites
+        let finalRare = rareSites
+        if (regularSites.length === 0 && rareSites.length === 0 && rawRemarks.length > 0) {
+          finalRegular = [...rawRemarks]
+          finalRare = []
+        } else if (rawRemarks.length > 0) {
+          const known = new Set([...regularSites, ...rareSites].map(s => s.toLowerCase()))
+          const unassigned = rawRemarks.filter(r => !known.has(r.toLowerCase()))
+          if (unassigned.length > 0) {
+            finalRegular = [...finalRegular, ...unassigned]
+          }
+        }
         setOrgSettings(prev => ({
           ...prev,
           ...data,
           name: data.name || prev.name,
           enableSiteRemarksInExpenseAdvance: data.enableSiteRemarksInExpenseAdvance !== false,
+          enableSiteVisits: data.enableSiteVisits !== false,
+          remarksLabel: data.remarksLabel || 'Site',
+          remarksOptions: [...new Set([...finalRegular, ...finalRare])],
+          siteConfig: { regular: finalRegular, rare: finalRare },
           bankAccounts: Array.isArray(data.bankAccounts) ? data.bankAccounts : []
         }))
       }
@@ -2718,6 +2788,492 @@ export default function SettingsTab({ initialSubTab }) {
     } catch (error) {
       alert(`Failed to delete site: ${error.message}`)
     }
+  }
+
+  const handleAddRegularSite = () => {
+    const trimmed = newRegularSiteInput.trim()
+    if (!trimmed) return
+    const regular = orgSettings.siteConfig?.regular || []
+    const rare = orgSettings.siteConfig?.rare || []
+    if (regular.some(s => s.toLowerCase() === trimmed.toLowerCase()) || rare.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      alert(`"${trimmed}" already exists in the sites list.`)
+      return
+    }
+    setOrgSettings(prev => ({
+      ...prev,
+      siteConfig: {
+        regular: [...(prev.siteConfig?.regular || []), trimmed],
+        rare: prev.siteConfig?.rare || []
+      }
+    }))
+    setNewRegularSiteInput('')
+  }
+
+  const handleAddRareSite = () => {
+    const trimmed = newRareSiteInput.trim()
+    if (!trimmed) return
+    const regular = orgSettings.siteConfig?.regular || []
+    const rare = orgSettings.siteConfig?.rare || []
+    if (regular.some(s => s.toLowerCase() === trimmed.toLowerCase()) || rare.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      alert(`"${trimmed}" already exists in the sites list.`)
+      return
+    }
+    setOrgSettings(prev => ({
+      ...prev,
+      siteConfig: {
+        regular: prev.siteConfig?.regular || [],
+        rare: [...(prev.siteConfig?.rare || []), trimmed]
+      }
+    }))
+    setNewRareSiteInput('')
+  }
+
+  const handleMoveToRare = (siteName) => {
+    setOrgSettings(prev => {
+      const regular = (prev.siteConfig?.regular || []).filter(s => s !== siteName)
+      const rare = [...(prev.siteConfig?.rare || []).filter(s => s !== siteName), siteName]
+      return {
+        ...prev,
+        siteConfig: { regular, rare }
+      }
+    })
+  }
+
+  const handleMoveToRegular = (siteName) => {
+    setOrgSettings(prev => {
+      const rare = (prev.siteConfig?.rare || []).filter(s => s !== siteName)
+      const regular = [...(prev.siteConfig?.regular || []).filter(s => s !== siteName), siteName]
+      return {
+        ...prev,
+        siteConfig: { regular, rare }
+      }
+    })
+  }
+
+  const handleRemoveSite = (siteName, fromList) => {
+    if (!window.confirm(`Are you sure you want to remove "${siteName}"? It will no longer appear in active dropdowns.`)) return
+    setOrgSettings(prev => {
+      const regular = fromList === 'regular' ? (prev.siteConfig?.regular || []).filter(s => s !== siteName) : (prev.siteConfig?.regular || [])
+      const rare = fromList === 'rare' ? (prev.siteConfig?.rare || []).filter(s => s !== siteName) : (prev.siteConfig?.rare || [])
+      return {
+        ...prev,
+        siteConfig: { regular, rare }
+      }
+    })
+  }
+
+  const handleSaveEditSite = () => {
+    if (!editingSiteItem) return
+    const trimmed = editingSiteItem.value.trim()
+    if (!trimmed) {
+      setEditingSiteItem(null)
+      return
+    }
+    const { list, index } = editingSiteItem
+    setOrgSettings(prev => {
+      const targetList = [...(prev.siteConfig?.[list] || [])]
+      targetList[index] = trimmed
+      return {
+        ...prev,
+        siteConfig: {
+          ...prev.siteConfig,
+          [list]: targetList
+        }
+      }
+    })
+    setEditingSiteItem(null)
+  }
+
+  const handleDragStart = (e, siteName, sourceList) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ name: siteName, source: sourceList }))
+    setDraggedSite({ name: siteName, source: sourceList })
+  }
+
+  const handleDropOnList = (e, targetList) => {
+    e.preventDefault()
+    let data = draggedSite
+    if (!data) {
+      try {
+        const raw = e.dataTransfer.getData('text/plain')
+        if (raw) data = JSON.parse(raw)
+      } catch (err) { /* ignore */ }
+    }
+    if (!data || !data.name) return
+    if (data.source === targetList) {
+      setDraggedSite(null)
+      return
+    }
+    if (targetList === 'rare') {
+      handleMoveToRare(data.name)
+    } else {
+      handleMoveToRegular(data.name)
+    }
+    setDraggedSite(null)
+  }
+
+  const renderSiteRemarksSettings = () => {
+    const regularSites = orgSettings.siteConfig?.regular || []
+    const rareSites = orgSettings.siteConfig?.rare || []
+    const enableSiteVisits = orgSettings.enableSiteVisits !== false
+    const remarksLabel = orgSettings.remarksLabel || 'Site'
+
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto no-print">
+        {/* Top Header Card */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                <MapPin size={18} />
+              </span>
+              <h2 className="text-xl font-bold text-slate-900 font-heading">Sites & Field Remarks</h2>
+            </div>
+            <p className="text-xs text-slate-500 font-body mt-1">
+              Configure project locations and field sites. Manage active vs. completed sites to keep daily attendance dropdowns fast and clean.
+            </p>
+          </div>
+          <button
+            onClick={() => handleSaveOrg('Sites & Remarks configuration saved successfully!')}
+            disabled={saving}
+            className="h-9 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-bold font-heading shadow-sm active:scale-[0.98] transition-all flex items-center gap-2 self-start md:self-auto shrink-0 disabled:opacity-50"
+          >
+            {saving ? <Spinner size="w-3.5 h-3.5" color="text-white" /> : <Save size={15} />}
+            {saving ? 'Saving...' : 'Save Site Settings'}
+          </button>
+        </div>
+
+        {/* Global Settings & Organization Preference Card */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-bold text-slate-800 font-heading">General Settings</h3>
+            <span className="text-[11px] text-slate-400 font-body">Optional configuration</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            {/* Enable Site Visits Toggle */}
+            <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 bg-slate-50/60 hover:bg-slate-50 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableSiteVisits}
+                onChange={e => setOrgSettings(s => ({ ...s, enableSiteVisits: e.target.checked }))}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="space-y-0.5">
+                <strong className="block text-xs font-bold text-slate-800 font-heading">
+                  Enable Site Visits for Attendance & Reports
+                </strong>
+                <span className="block text-[11px] text-slate-500 leading-normal font-body">
+                  Organizations without field site visits or client visits can turn this off to streamline daily attendance entry.
+                </span>
+              </span>
+            </label>
+
+            {/* Custom Label */}
+            <div className="space-y-1.5 p-3.5 rounded-lg border border-slate-200 bg-slate-50/60">
+              <label className="block text-xs font-bold text-slate-800 font-heading">
+                Custom Dropdown Label
+              </label>
+              <input
+                type="text"
+                value={remarksLabel}
+                onChange={e => setOrgSettings(s => ({ ...s, remarksLabel: e.target.value }))}
+                placeholder="e.g. Site, Client, Project, Remarks"
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800 font-body"
+              />
+              <p className="text-[11px] text-slate-500 font-body">
+                Displayed as the column header and dropdown placeholder in attendance.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Regular vs Rare Drag & Drop Board */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Column 1: Regular Sites */}
+          <div
+            className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4"
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => handleDropOnList(e, 'regular')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                <h3 className="text-sm font-bold text-slate-900 font-heading">
+                  Regular Sites (Active Projects)
+                </h3>
+              </div>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200/60">
+                {regularSites.length} Active
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-body">
+              These sites appear in the attendance dropdown by default for 1-click selection.
+            </p>
+
+            {/* Add to Regular Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newRegularSiteInput}
+                onChange={e => setNewRegularSiteInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddRegularSite()
+                  }
+                }}
+                placeholder="Enter active site name..."
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800 font-body"
+              />
+              <button
+                type="button"
+                onClick={handleAddRegularSite}
+                className="h-9 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-bold font-heading shrink-0 transition-colors flex items-center gap-1"
+              >
+                <Plus size={14} /> Add
+              </button>
+            </div>
+
+            {/* Droppable Container */}
+            <div className="min-h-[260px] max-h-[480px] overflow-y-auto space-y-2 p-2.5 rounded-lg bg-slate-50/80 border border-dashed border-slate-300">
+              {regularSites.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400 font-body">
+                  No regular sites yet.<br />Add a site above or drag completed projects here.
+                </div>
+              ) : (
+                regularSites.map((site, idx) => {
+                  const isEditing = editingSiteItem?.list === 'regular' && editingSiteItem?.index === idx
+                  return (
+                    <div
+                      key={idx}
+                      draggable={!isEditing}
+                      onDragStart={e => handleDragStart(e, site, 'regular')}
+                      className="group bg-white rounded-lg border border-slate-200 p-2.5 shadow-xs hover:shadow-sm transition-all flex items-center justify-between gap-3 cursor-grab active:cursor-grabbing"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <GripVertical size={14} className="text-slate-400 shrink-0 cursor-grab" />
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editingSiteItem.value}
+                            onChange={e => setEditingSiteItem(prev => ({ ...prev, value: e.target.value }))}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveEditSite()
+                              if (e.key === 'Escape') setEditingSiteItem(null)
+                            }}
+                            autoFocus
+                            className="h-7 px-2 text-xs border border-indigo-300 rounded outline-none w-full"
+                          />
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-800 font-body truncate">
+                            {site}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleSaveEditSite}
+                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                              title="Save"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingSiteItem(null)}
+                              className="p-1 text-slate-400 hover:bg-slate-100 rounded"
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveToRare(site)}
+                              className="h-7 px-2 text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded flex items-center gap-1 transition-colors"
+                              title="Move to Rare / Completed (Hide from default dropdown)"
+                            >
+                              <span>Move to Rare</span>
+                              <ArrowRight size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingSiteItem({ list: 'regular', index: idx, value: site })}
+                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                              title="Rename site"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSite(site, 'regular')}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                              title="Delete site"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Column 2: Rare / Completed Projects */}
+          <div
+            className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4"
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => handleDropOnList(e, 'rare')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
+                <h3 className="text-sm font-bold text-slate-900 font-heading">
+                  Rare / Completed Projects
+                </h3>
+              </div>
+              <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200/60">
+                {rareSites.length} Completed
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-body">
+              Hidden from default dropdown to keep it uncluttered. Appears automatically when typing to search.
+            </p>
+
+            {/* Add to Rare Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newRareSiteInput}
+                onChange={e => setNewRareSiteInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddRareSite()
+                  }
+                }}
+                placeholder="Enter completed or rare site..."
+                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus-visible:ring-1 focus-visible:ring-blue-600 outline-none text-slate-800 font-body"
+              />
+              <button
+                type="button"
+                onClick={handleAddRareSite}
+                className="h-9 px-3.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-xs font-bold font-heading shrink-0 transition-colors flex items-center gap-1"
+              >
+                <Plus size={14} /> Add
+              </button>
+            </div>
+
+            {/* Droppable Container */}
+            <div className="min-h-[260px] max-h-[480px] overflow-y-auto space-y-2 p-2.5 rounded-lg bg-slate-50/80 border border-dashed border-slate-300">
+              {rareSites.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400 font-body">
+                  No completed projects in rare list.<br />Drag projects here when completed.
+                </div>
+              ) : (
+                rareSites.map((site, idx) => {
+                  const isEditing = editingSiteItem?.list === 'rare' && editingSiteItem?.index === idx
+                  return (
+                    <div
+                      key={idx}
+                      draggable={!isEditing}
+                      onDragStart={e => handleDragStart(e, site, 'rare')}
+                      className="group bg-white rounded-lg border border-slate-200 p-2.5 shadow-xs hover:shadow-sm transition-all flex items-center justify-between gap-3 cursor-grab active:cursor-grabbing"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <GripVertical size={14} className="text-slate-400 shrink-0 cursor-grab" />
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editingSiteItem.value}
+                            onChange={e => setEditingSiteItem(prev => ({ ...prev, value: e.target.value }))}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveEditSite()
+                              if (e.key === 'Escape') setEditingSiteItem(null)
+                            }}
+                            autoFocus
+                            className="h-7 px-2 text-xs border border-indigo-300 rounded outline-none w-full"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-semibold text-slate-800 font-body truncate">
+                              {site}
+                            </span>
+                            <span className="text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/70 px-1.5 py-0.5 rounded shrink-0">
+                              Completed
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleSaveEditSite}
+                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                              title="Save"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingSiteItem(null)}
+                              className="p-1 text-slate-400 hover:bg-slate-100 rounded"
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveToRegular(site)}
+                              className="h-7 px-2 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded flex items-center gap-1 transition-colors"
+                              title="Move to Regular (Show in default dropdown)"
+                            >
+                              <ArrowLeft size={11} />
+                              <span>Activate</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingSiteItem({ list: 'rare', index: idx, value: site })}
+                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                              title="Rename site"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSite(site, 'rare')}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                              title="Delete site"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const renderSiteGeofenceSettings = () => {
@@ -3654,6 +4210,7 @@ export default function SettingsTab({ initialSubTab }) {
               activeTabId={activeSubTab}
               onTabChange={(tab) => setActiveSubTab(tab.id)}
               ariaLabel="Settings sections"
+              twoRows={true}
             />
           </div>
         </>
@@ -3921,66 +4478,6 @@ export default function SettingsTab({ initialSubTab }) {
                   </div>
                 </div>
 
-                {/* Attendance Remarks Options */}
-                <div className="grid grid-cols-[1.2fr_1.8fr] gap-4 items-start pt-1.5">
-                  <div>
-                    <label className={`${settingsSectionLabelClassName} mb-0`}>Attendance Remarks</label>
-                    <p className="text-[11px] text-slate-500 leading-normal mt-0.5">Add client or site names for the dropdown list.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    {/* Chip List */}
-                    {(orgSettings.remarksOptions || []).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 p-1.5 bg-zinc-50 border border-zinc-200 rounded-lg min-h-[36px] max-h-[70px] overflow-y-auto">
-                        {(orgSettings.remarksOptions || []).map((opt, idx) => (
-                          <span key={idx} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold pl-2 pr-0.5 py-0.5 rounded-md">
-                            {opt}
-                            <button
-                              type="button"
-                              onClick={() => setOrgSettings(s => ({ ...s, remarksOptions: s.remarksOptions.filter((_, i) => i !== idx) }))}
-                              className="hover:bg-indigo-100 rounded p-0.5 text-indigo-500 hover:text-indigo-800 transition-colors"
-                              title={`Remove ${opt}`}
-                            >
-                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add New Input */}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={orgSettings.newRemarkOption || ''}
-                        onChange={e => setOrgSettings(s => ({ ...s, newRemarkOption: e.target.value }))}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            const val = (orgSettings.newRemarkOption || '').trim()
-                            if (val && !(orgSettings.remarksOptions || []).includes(val)) {
-                              setOrgSettings(s => ({ ...s, remarksOptions: [...(s.remarksOptions || []), val], newRemarkOption: '' }))
-                            }
-                          }
-                        }}
-                        className={`${settingsInputClassName} !h-9 !py-1 text-xs`}
-                        placeholder="Type a name and press Enter..."
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const val = (orgSettings.newRemarkOption || '').trim()
-                          if (val && !(orgSettings.remarksOptions || []).includes(val)) {
-                            setOrgSettings(s => ({ ...s, remarksOptions: [...(s.remarksOptions || []), val], newRemarkOption: '' }))
-                          }
-                        }}
-                        className="px-3 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-indigo-700 transition-colors shrink-0"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Expense & Advance Site Remarks Toggle */}
                 <div className="pt-2 border-t border-slate-100">
@@ -4762,6 +5259,8 @@ export default function SettingsTab({ initialSubTab }) {
             </div>
           </div>
         )}
+
+        {activeSubTab === 'site_remarks' && renderSiteRemarksSettings()}
 
         {activeSubTab === 'site_geofence' && renderSiteGeofenceSettings()}
 

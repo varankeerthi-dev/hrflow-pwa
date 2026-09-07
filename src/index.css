@@ -104,8 +104,7 @@ body {
   font-family: 'Work Sans Variable', 'Work Sans', system-ui, sans-serif;
 }
 
-.fleet-vehicle-tabs,
-.fleet-secondary-tabs {
+.fleet-vehicle-tabs {
   --fleet-green: #008744;
   --fleet-surface: #F4FAFD;
   --fleet-container: #FFFFFF;
@@ -121,9 +120,87 @@ body {
   background: var(--fleet-surface);
   scrollbar-width: none;
 }
+.fleet-vehicle-tabs::-webkit-scrollbar { display: none; }
 
-.fleet-vehicle-tabs::-webkit-scrollbar,
-.fleet-secondary-tabs::-webkit-scrollbar { display: none; }
+.fleet-secondary-tabs {
+  --fleet-green: #008744;
+  --fleet-surface: #F4FAFD;
+  --fleet-container: #FFFFFF;
+  --fleet-border: #E0E0E0;
+  --fleet-text: #1A1C1E;
+  --fleet-text-secondary: #44474E;
+  display: flex;
+  gap: 4px;
+  min-height: 46px;
+  padding: 8px 16px 0;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  border-bottom: 1px solid var(--fleet-border);
+  background: var(--fleet-surface);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.fleet-secondary-tabs::-webkit-scrollbar {
+  display: block;
+  height: 4px;
+}
+.fleet-secondary-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fleet-secondary-tabs::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.fleet-secondary-tabs::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.fleet-two-row-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--fleet-text-secondary, #44474E);
+  font-family: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fleet-two-row-pill:hover {
+  color: var(--fleet-text, #1A1C1E);
+  background: rgba(255, 255, 255, 0.75);
+  border-color: #cbd5e1;
+}
+
+.fleet-two-row-pill-active {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  font-weight: 600 !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.fleet-two-row-pill-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  background: var(--fleet-green, #008744);
+  border-radius: 2px;
+}
 
 /* Slim scrollbar for dropdowns, side panels, popovers and modals */
 .slim-scrollbar,
@@ -155,6 +232,27 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Clearly visible, accessible scrollbar for dropdown menus */
+.dropdown-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+.dropdown-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.dropdown-scrollbar::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 9999px;
+}
+.dropdown-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.dropdown-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 
 .fleet-vehicle-tab,
 .fleet-secondary-tab {
