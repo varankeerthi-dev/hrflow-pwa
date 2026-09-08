@@ -30,6 +30,7 @@ import {
   DEFAULT_ADVANCE_CATEGORIES, 
   DEFAULT_EXPENSE_CATEGORIES, 
   DEFAULT_COMPANY_ACCOUNTS,
+  isPetrolCategory,
   isGivenToOthersCategory,
   isAdvanceCategory,
   isExpenseCategory,
@@ -59,11 +60,6 @@ function approvalStatusTextClass(status, lane) {
 
 function getAccountingEntryType(entry) {
   return resolveAccountingEntryType(entry)
-}
-
-function isPetrolCategory(category) {
-  const clean = String(category || '').toLowerCase().replace(/[\s_-]+/g, '')
-  return clean.includes('petrol') || clean.includes('sitepetrol') || clean.includes('fuel') || clean.includes('diesel')
 }
 
 function formatDeletedRecordDate(dateValue) {
@@ -364,14 +360,20 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     const list = advanceCategoriesList && advanceCategoriesList.length > 0
       ? advanceCategoriesList
       : DEFAULT_ADVANCE_CATEGORIES
-    return list.map(c => typeof c === 'string' ? c : c?.name).filter(Boolean)
+    return list
+      .map(c => typeof c === 'string' ? c : c?.name)
+      .filter(Boolean)
+      .filter(c => !isPetrolCategory(c))
   }, [advanceCategoriesList])
 
   const expenseCategoriesOnly = useMemo(() => {
     const list = expenseCategoriesList && expenseCategoriesList.length > 0
       ? expenseCategoriesList
       : DEFAULT_EXPENSE_CATEGORIES
-    return list.map(c => typeof c === 'string' ? c : c?.name).filter(Boolean)
+    const names = list.map(c => typeof c === 'string' ? c : c?.name).filter(Boolean)
+    if (!names.some(c => c.toLowerCase() === 'petrol')) names.unshift('Petrol')
+    if (!names.some(c => c.toLowerCase().replace(/[\s_-]+/g, '') === 'sitepetrol')) names.splice(1, 0, 'Sitepetrol')
+    return names
   }, [expenseCategoriesList])
 
   // Active categories for the current module ('Add Advance' vs 'Add Expense')
@@ -477,6 +479,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     ) {
       if (activeModule === 'Add Advance') {
         setAddRows(prev => prev.map(row => {
+          if (row.category && isPetrolCategory(row.category)) {
+            return { ...row, category: '', customCategory: '' }
+          }
           if (row.category && advanceCategoriesOnly.some(c => c.toLowerCase() === row.category.toLowerCase())) {
             return row
           }
@@ -487,7 +492,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         }))
       } else if (activeModule === 'Add Expense') {
         setAddRows(prev => prev.map(row => {
-          if (row.category && expenseCategoriesOnly.some(c => c.toLowerCase() === row.category.toLowerCase())) {
+          if (row.category && (isPetrolCategory(row.category) || expenseCategoriesOnly.some(c => c.toLowerCase() === row.category.toLowerCase()))) {
             return row
           }
           if (row.category && row.category.toLowerCase() !== 'others' && isAdvanceCategory(row.category, advanceCategoriesList)) {
@@ -806,9 +811,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         // Auto-save custom category to organisation categories if not already present
         if (row.category === 'custom' && row.customCategory?.trim() && user?.orgId) {
           const newCat = row.customCategory.trim()
+          const isPetrol = isPetrolCategory(newCat)
           try {
             const orgRef = doc(db, 'organisations', user.orgId)
-            if (activeModule === 'Add Advance') {
+            if (activeModule === 'Add Advance' && !isPetrol) {
               await setDoc(orgRef, {
                 advanceCategories: arrayUnion(newCat)
               }, { merge: true })
@@ -832,19 +838,18 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         }
 
         const isGivenToOthers = isGivenToOthersCategory(resolvedCategory)
-        const isExplicitAdvance = !isGivenToOthers && (
+        const isPetrol = isPetrolCategory(resolvedCategory)
+        const isExplicitAdvance = !isGivenToOthers && !isPetrol && (
           isAdvanceCategory(resolvedCategory, advanceCategoriesList) ||
           (resolvedCategory.toLowerCase().includes('advance') && !resolvedCategory.toLowerCase().includes('expense'))
         )
         let type = 'Expense'
-        if (isGivenToOthers) {
+        if (isGivenToOthers || isPetrol) {
           type = 'Expense'
-        } else if (isExplicitAdvance) {
-          type = 'Advance'
-        } else if (activeModule === 'Add Advance') {
-          type = 'Advance'
         } else if (activeModule === 'Add Expense') {
           type = 'Expense'
+        } else if (isExplicitAdvance || activeModule === 'Add Advance') {
+          type = 'Advance'
         } else {
           type = resolvedCategory.toLowerCase().includes('advance') ? 'Advance' : 'Expense'
         }
@@ -864,10 +869,10 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
         const paidToName = row.paidToType === 'employee' ? (paidToEmp?.name || null) : (row.paidToCustomName || null)
 
         // Auto-link to employee advance if expense is paid to another employee
-        // ANY expense paid to an employee creates an advance for that receiving employee
+        // ANY expense paid to an employee creates an advance for that receiving employee (petrol/fuel strictly excluded)
         let linkedAdvanceId = null
         const isPaidToEmployee = row.paidToType === 'employee' && row.paidTo
-        if (type === 'Expense' && isPaidToEmployee) {
+        if (type === 'Expense' && isPaidToEmployee && !isPetrol) {
           // Create linked Advance record for the receiving employee
           const advanceTxnNo = `ADV-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
           const advanceDoc = await addDoc(collection(db, 'organisations', user.orgId, 'advances_expenses'), {
@@ -1495,19 +1500,40 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
       if (orgSnap.exists()) {
         const orgData = orgSnap.data()
 
-        // Advance categories
-        if (Array.isArray(orgData.advanceCategories) && orgData.advanceCategories.length > 0) {
-          setAdvanceCategoriesList(orgData.advanceCategories.filter(Boolean))
-        } else {
-          setAdvanceCategoriesList(DEFAULT_ADVANCE_CATEGORIES)
-        }
+        // Advance categories (strictly exclude any petrol/fuel categories)
+        const rawAdvance = Array.isArray(orgData.advanceCategories) && orgData.advanceCategories.length > 0
+          ? orgData.advanceCategories.filter(Boolean)
+          : DEFAULT_ADVANCE_CATEGORIES
+
+        const misplacedInAdvance = rawAdvance.filter(c => isPetrolCategory(c))
+        const cleanedAdvance = rawAdvance.filter(c => !isPetrolCategory(c))
+
+        setAdvanceCategoriesList(cleanedAdvance.length > 0 ? cleanedAdvance : DEFAULT_ADVANCE_CATEGORIES)
 
         // Expense categories
-        if (Array.isArray(orgData.expenseCategories) && orgData.expenseCategories.length > 0) {
-          setExpenseCategoriesList(orgData.expenseCategories.map(normalizeExpenseCategory).filter(c => c.name))
-        } else {
-          setExpenseCategoriesList(DEFAULT_EXPENSE_CATEGORIES)
+        let rawExpense = Array.isArray(orgData.expenseCategories) && orgData.expenseCategories.length > 0
+          ? orgData.expenseCategories.map(normalizeExpenseCategory).filter(c => c.name)
+          : DEFAULT_EXPENSE_CATEGORIES
+
+        // If any petrol/sitepetrol categories were misplaced in advanceCategories, heal and move them to expenseCategories
+        if (misplacedInAdvance.length > 0) {
+          misplacedInAdvance.forEach(pCat => {
+            const pName = typeof pCat === 'string' ? pCat : pCat?.name || ''
+            if (pName && !rawExpense.some(e => e.name.toLowerCase() === pName.toLowerCase())) {
+              rawExpense.push({ name: pName, payableToOthers: false })
+            }
+          })
+          try {
+            await updateDoc(doc(db, 'organisations', user.orgId), {
+              advanceCategories: cleanedAdvance,
+              expenseCategories: rawExpense
+            })
+          } catch (healErr) {
+            console.warn('Auto-healing advanceCategories in Firestore failed:', healErr)
+          }
         }
+
+        setExpenseCategoriesList(rawExpense)
 
         // Company accounts
         if (Array.isArray(orgData.companyAccounts) && orgData.companyAccounts.length > 0) {
@@ -1534,6 +1560,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const saveNewCategory = async (rowId, categoryName) => {
     const trimmed = (categoryName || '').trim()
     if (!trimmed) return
+    const isPetrol = isPetrolCategory(trimmed)
 
     // 1. Immediately and atomically update row to use this new category and clear custom input
     setAddRows(prev => prev.map(row => {
@@ -1542,7 +1569,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
           ...row,
           category: trimmed,
           customCategory: '',
-          ...(enableSiteRemarks && isPetrolCategory(trimmed) && !row.siteName && availableSiteNames.length > 0
+          ...(enableSiteRemarks && isPetrol && !row.siteName && availableSiteNames.length > 0
             ? { siteName: availableSiteNames[0] }
             : {})
         }
@@ -1554,7 +1581,7 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
     if (!user?.orgId) return
     try {
       const orgRef = doc(db, 'organisations', user.orgId)
-      if (activeModule === 'Add Advance') {
+      if (activeModule === 'Add Advance' && !isPetrol) {
         setAdvanceCategoriesList(prev => {
           if (prev.some(c => (typeof c === 'string' ? c : c?.name || '').toLowerCase() === trimmed.toLowerCase())) return prev
           return [...prev, trimmed]
@@ -1939,7 +1966,9 @@ export default function AdvanceExpenseTab({ defaultModule, activeModule: activeM
   const handleUpdate = async () => {
     try {
       const category = editForm.category || ''
-      const type = editForm.type || resolveAccountingEntryType({ ...editForm, category }, advanceCategoriesList, expenseCategoriesList)
+      const type = isPetrolCategory(category)
+        ? 'Expense'
+        : resolveAccountingEntryType({ ...editForm, category }, advanceCategoriesList, expenseCategoriesList)
       
       const emp = employees.find(e => e.id === editForm.employeeId) || {}
       const updatedData = {

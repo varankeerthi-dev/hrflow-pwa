@@ -51,7 +51,7 @@ import { PORTAL_APPROVAL_MODULES, PORTAL_APPROVAL_ROLES, createPortalApprovalDra
 
 import { formatDateDDMMYYYY } from '../../lib/utils';
 import { DEFAULT_ATTENDANCE_POLICY, normalizeAttendancePolicy } from '../../lib/attendancePolicy'
-import { normalizeExpenseCategory, DEFAULT_ADVANCE_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_COMPANY_ACCOUNTS } from '../../lib/advanceExpenseCategories'
+import { normalizeExpenseCategory, isPetrolCategory, DEFAULT_ADVANCE_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_COMPANY_ACCOUNTS } from '../../lib/advanceExpenseCategories'
 
 /*
  * Mobile Settings visual direction: a calm grouped-list surface based on the supplied
@@ -1210,7 +1210,9 @@ export default function SettingsTab({ initialSubTab }) {
             ...data,
             name: data.name || user?.orgName || prev.name || '',
             code: data.code || orgSnap.id,
-            advanceCategories: Array.isArray(data.advanceCategories) && data.advanceCategories.length > 0 ? data.advanceCategories : prev.advanceCategories,
+            advanceCategories: Array.isArray(data.advanceCategories) && data.advanceCategories.length > 0
+              ? data.advanceCategories.filter(c => !isPetrolCategory(c))
+              : prev.advanceCategories,
             expenseCategories: Array.isArray(data.expenseCategories) && data.expenseCategories.length > 0
               ? data.expenseCategories.map(normalizeExpenseCategory)
               : prev.expenseCategories,
@@ -3882,6 +3884,10 @@ export default function SettingsTab({ initialSubTab }) {
   const handleAddAdvanceCategory = () => {
     const trimmed = newAdvanceCategory.trim()
     if (!trimmed) return
+    if (isPetrolCategory(trimmed)) {
+      alert('Petrol and fuel categories belong to Expense Categories, not Advance Categories.')
+      return
+    }
     const current = Array.isArray(orgSettings.advanceCategories) ? orgSettings.advanceCategories : []
     if (current.some(cat => cat.toLowerCase() === trimmed.toLowerCase())) {
       alert('This advance category already exists.')
@@ -3957,6 +3963,10 @@ export default function SettingsTab({ initialSubTab }) {
   const handleSaveEditAdvance = (index) => {
     const trimmed = editingAdvanceValue.trim()
     if (!trimmed) return
+    if (isPetrolCategory(trimmed)) {
+      alert('Petrol and fuel categories belong to Expense Categories, not Advance Categories.')
+      return
+    }
     setOrgSettings(s => ({
       ...s,
       advanceCategories: (s.advanceCategories || []).map((cat, idx) => idx === index ? trimmed : cat)

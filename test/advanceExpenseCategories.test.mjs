@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   isAdvanceCategory,
   isExpenseCategory,
+  isPetrolCategory,
   isGivenToOthersCategory,
   getAccountingEntryType,
   resolveReportEntryDetails,
@@ -20,12 +21,30 @@ test('isAdvanceCategory accurately identifies advance categories and excludes ex
 
   // Should NOT match expense categories
   assert.equal(isAdvanceCategory('Petrol'), false)
+  assert.equal(isAdvanceCategory('Sitepetrol'), false)
+  assert.equal(isAdvanceCategory('Site Petrol'), false)
+  assert.equal(isAdvanceCategory('Fuel'), false)
+  assert.equal(isAdvanceCategory('Diesel'), false)
+  // Even if explicitly passed in advanceCategories array, petrol/sitepetrol must be rejected
+  assert.equal(isAdvanceCategory('Petrol', ['Petrol', 'Salary Advance']), false)
+  assert.equal(isAdvanceCategory('Sitepetrol', ['Sitepetrol', 'Salary Advance']), false)
   assert.equal(isAdvanceCategory('Food & Refreshment'), false)
   assert.equal(isAdvanceCategory('Given to Others'), false)
   assert.equal(isAdvanceCategory('Given to Others [John Doe]'), false)
   assert.equal(isAdvanceCategory('Subcontractor Payment'), false)
   assert.equal(isAdvanceCategory('Commission'), false)
   assert.equal(isAdvanceCategory('Office Supplies'), false)
+})
+
+test('isPetrolCategory detects fuel and petrol categories', () => {
+  assert.equal(isPetrolCategory('Petrol'), true)
+  assert.equal(isPetrolCategory('Sitepetrol'), true)
+  assert.equal(isPetrolCategory('Site Petrol'), true)
+  assert.equal(isPetrolCategory('site_petrol'), true)
+  assert.equal(isPetrolCategory('Fuel'), true)
+  assert.equal(isPetrolCategory('Diesel'), true)
+  assert.equal(isPetrolCategory('Salary Advance'), false)
+  assert.equal(isPetrolCategory('Office Supplies'), false)
 })
 
 test('isExpenseCategory accurately identifies expense categories and excludes advances', () => {
@@ -66,11 +85,13 @@ test('getAccountingEntryType preserves stored entry.type and correctly classifie
   const expenseSalaryAdv = { id: 'exp-2', category: 'Salary Advance', type: 'Expense', amount: 5000 }
   assert.equal(getAccountingEntryType(expenseSalaryAdv), 'Advance')
 
-  // 3. Entry created on Advance tab with type 'Advance' stays Advance even if category exists in expenses (e.g. Petrol)
+  // 3. Petrol and Sitepetrol are strictly Expenses (even if legacy/misclassified documents were stored with type: 'Advance')
   const advancePetrol = { id: 'adv-1', category: 'Petrol', type: 'Advance', amount: 1000 }
-  assert.equal(getAccountingEntryType(advancePetrol), 'Advance')
+  assert.equal(getAccountingEntryType(advancePetrol), 'Expense')
+  const advanceSitepetrol = { id: 'adv-site-1', category: 'Sitepetrol', type: 'Advance', amount: 1200 }
+  assert.equal(getAccountingEntryType(advanceSitepetrol), 'Expense')
 
-  // 4. Entry created on Advance tab with type 'Advance' stays Advance
+  // 4. Entry created on Advance tab with type 'Advance' stays Advance for advance categories
   const advanceSalary = { id: 'adv-2', category: 'Salary Advance', type: 'Advance', amount: 8000 }
   assert.equal(getAccountingEntryType(advanceSalary), 'Advance')
 

@@ -19,6 +19,7 @@ export const DEFAULT_ADVANCE_CATEGORIES = [
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
   { name: 'Petrol', payableToOthers: false },
+  { name: 'Sitepetrol', payableToOthers: false },
   { name: 'Food & Refreshment', payableToOthers: false },
   { name: 'Office Supplies', payableToOthers: false },
   { name: 'Hotel & Lodging', payableToOthers: false },
@@ -35,6 +36,13 @@ export const DEFAULT_COMPANY_ACCOUNTS = [
   'Cash in Hand',
   'Director Account'
 ]
+
+export function isPetrolCategory(category) {
+  if (!category) return false
+  const raw = typeof category === 'string' ? category : category?.name || ''
+  const clean = String(raw).toLowerCase().replace(/[\s_-]+/g, '')
+  return (clean.includes('petrol') || clean.includes('sitepetrol') || clean.includes('fuel') || clean.includes('diesel')) && !clean.includes('advance')
+}
 
 export function isGivenToOthersCategory(category) {
   if (!category) return false
@@ -54,9 +62,13 @@ export function isAdvanceCategory(cat, advanceCategories = []) {
   // "given to others" or "salary to others" is explicitly NOT an advance
   if (clean.includes('given to others') || clean.includes('salary to others')) return false
 
+  // Petrol / Sitepetrol / Fuel / Diesel is strictly an EXPENSE, NEVER an advance (unless explicitly named e.g. "fuel advance")
+  if (isPetrolCategory(clean)) return false
+
   const list = (advanceCategories && advanceCategories.length > 0 ? advanceCategories : DEFAULT_ADVANCE_CATEGORIES)
     .map(c => (typeof c === 'string' ? c : c?.name || '').trim().toLowerCase())
     .filter(Boolean)
+    .filter(c => !isPetrolCategory(c))
   if (list.includes(clean)) return true
 
   // Fallback keyword check: e.g. "Salary Advance", "Travel Advance", "Site Advance", etc.
@@ -78,6 +90,9 @@ export function isExpenseCategory(cat, expenseCategories = []) {
     return false
   }
 
+  // Petrol, Sitepetrol, Fuel, Diesel are ALWAYS Expense categories
+  if (isPetrolCategory(clean)) return true
+
   const list = (expenseCategories && expenseCategories.length > 0 ? expenseCategories : DEFAULT_EXPENSE_CATEGORIES)
     .map(c => (typeof c === 'string' ? c : c?.name || '').trim().toLowerCase())
     .filter(Boolean)
@@ -85,7 +100,6 @@ export function isExpenseCategory(cat, expenseCategories = []) {
 
   // Known expense keywords / patterns
   if (clean.includes('given to others') || clean.includes('salary to others')) return true
-  if (clean.includes('petrol') || clean.includes('fuel') || clean.includes('diesel')) return true
   if (clean.includes('food') || clean.includes('refreshment') || clean.includes('tea') || clean.includes('coffee')) return true
   if (clean.includes('hotel') || clean.includes('lodging') || clean.includes('taxi') || clean.includes('cab')) return true
   if (clean.includes('subcontractor') || clean.includes('commission')) return true
@@ -107,6 +121,12 @@ export function getAccountingEntryType(entry, advanceCats = [], expenseCats = []
     return 'Expense'
   }
 
+  // 1b. Explicit exception: Petrol, Sitepetrol, Fuel, Diesel are ALWAYS Expenses
+  // (even if legacy documents were mistakenly stored with type: 'Advance')
+  if (isPetrolCategory(cleanCategory)) {
+    return 'Expense'
+  }
+
   // 2. Explicit Advance categories (e.g. Salary Advance, Travel Advance, Cash Advance)
   // An entry with an explicit advance category is ALWAYS an Advance, even if created from the Expense module.
   if (lower.includes('advance') && !lower.includes('expense')) {
@@ -115,7 +135,7 @@ export function getAccountingEntryType(entry, advanceCats = [], expenseCats = []
 
   // 3. Respect explicitly stored document type.
   // An entry created in the Expense module with type='Expense' remains an Expense for general
-  // categories (e.g. Petrol, Others), and type='Advance' remains an Advance.
+  // categories (e.g. Others), and type='Advance' remains an Advance.
   if (entry.type === 'Advance') return 'Advance'
   if (entry.type === 'Expense') return 'Expense'
 
